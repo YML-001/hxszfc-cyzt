@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>地图找房与小区找房 · 统一服务门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  /* 地图找房页专属布局：CSS 绘制的柳州行政区划示意图，非按真实比例 */
+  .map-layout { display: grid; grid-template-columns: 1fr 380px; gap: 16px; align-items: start; }
+  .map-box {
+    position: relative; height: 640px; background: linear-gradient(160deg, #eef3fb 0%, #e4ecf8 100%);
+    border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden;
+  }
+  .map-box::after {
+    content: '示意图 · 非按真实比例绘制'; position: absolute; right: 14px; bottom: 12px;
+    font-size: 12px; color: var(--text-3); background: rgba(255, 255, 255, .8); padding: 3px 9px; border-radius: 3px;
+  }
+  .map-zone {
+    position: absolute; border: 1px solid #bccbe8; border-radius: 8px; cursor: pointer;
+    background: rgba(38, 86, 187, .10); transition: .16s; padding: 9px 11px; overflow: hidden;
+  }
+  .map-zone:hover { border-color: var(--primary); background: rgba(38, 86, 187, .2); box-shadow: var(--shadow-sm); }
+  .map-zone.on { border-color: var(--accent); background: rgba(200, 40, 30, .14); box-shadow: 0 0 0 2px rgba(200, 40, 30, .16); }
+  .map-zone .mz-t { font-size: 14px; font-weight: 700; color: var(--text-1); }
+  .map-zone .mz-n { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+  .map-zone .mz-n b { color: var(--accent); font-family: "DIN Alternate", var(--font); font-size: 14px; }
+  .map-dot {
+    position: absolute; width: 13px; height: 13px; border-radius: 50%; background: var(--accent);
+    border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .25); cursor: pointer;
+  }
+  .map-dot:hover { transform: scale(1.35); background: var(--primary); }
+  .map-legend { display: flex; align-items: center; gap: 16px; font-size: 12.5px; color: var(--text-2); flex-wrap: wrap; padding: 10px 2px 0; }
+  .map-legend i.lg { display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 1px solid #bccbe8; vertical-align: -2px; margin-right: 5px; }
+
+  .dot-list { max-height: 512px; overflow: auto; }
+  .dot-i { display: flex; gap: 10px; align-items: center; padding: 10px 4px; border-bottom: 1px dashed var(--row-line); cursor: pointer; }
+  .dot-i:last-child { border-bottom: 0; }
+  .dot-i:hover { background: var(--row-hover); }
+  .dot-i .di-d { width: 11px; height: 11px; border-radius: 50%; background: var(--accent); flex: none; }
+  .dot-i .di-b { flex: 1; min-width: 0; }
+  .dot-i .di-t { font-size: 13.5px; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dot-i .di-m { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+  .dot-i .di-p { font-size: 15px; font-weight: 700; color: var(--accent); font-family: "DIN Alternate", var(--font); flex: none; }
+  .mh-pop { display: flex; gap: 14px; }
+  .mh-pop img { width: 190px; height: 128px; object-fit: cover; border-radius: 4px; flex: none; }
+</style>
+</head>
+<body data-nav="house">
+
+<div class="wrap">
+  <div class="crumb"><a href="home.html">首页</a><i class="fa-solid fa-angle-right"></i><a href="house-market.html">房源超市</a><i class="fa-solid fa-angle-right"></i>地图找房与小区找房</div>
+</div>
+
+<div class="wrap" style="padding-bottom:40px">
+  <div class="tabs" data-tabs data-scope="map-box" id="map-tabs">
+    <a class="on" data-tab="hm-map" data-fp="wsmh-07-02">地图找房</a>
+    <a data-tab="hm-comm" data-fp="wsmh-07-04">小区找房</a>
+  </div>
+
+  <div id="map-box">
+    <!-- 地图找房（wsmh-07-02） -->
+    <div class="tab-pane on" id="hm-map">
+      <div class="alert alert-info">
+        <i class="fa-solid fa-circle-info"></i>
+        <span>点击左侧行政区色块可按区域筛选房源，色块颜色深浅代表该区域在挂核验房源数量；
+          点击区域内的红点或右侧打点列表条目，可查看房源摘要并进入详情。地图为行政区划示意图，位置与面积不代表真实地理比例。</span>
+      </div>
+      <div class="flex items-center gap-12 mb-12 wrapf">
+        <b style="font-size:15px"><i class="fa-solid fa-layer-group text-primary"></i> 房源类型</b>
+        <div class="pill-tabs" id="mp-lx"></div>
+        <span class="text-3 text-xs ml-auto" id="mp-sum"></span>
+      </div>
+      <div class="map-layout">
+        <div>
+          <div class="map-box" id="map"></div>
+          <div class="map-legend" id="map-legend"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3><i class="fa-solid fa-location-crosshairs text-primary"></i> 房源打点列表</h3>
+            <span class="sub" id="dot-sub"></span></div>
+          <div class="card-body" style="padding:6px 14px 12px">
+            <div class="dot-list" id="dot-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 小区找房（wsmh-07-04） -->
+    <div class="tab-pane" id="hm-comm">
+      <div class="alert alert-info">
+        <i class="fa-solid fa-circle-info"></i>
+        <span>小区数据来源于存量房交易网签备案管理系统，挂牌均价按小区当前在挂核验房源加权计算，
+          成交均价按近 12 个月已备案成交计算，仅客观呈现，不发布房价指数、不作涨跌评价。</span>
+      </div>
+      <div class="flex items-center gap-10 mb-12 wrapf">
+        <select class="select" id="c-qx" style="width:auto;min-width:140px"></select>
+        <input class="input" id="c-kw" placeholder="输入小区名称关键字" style="width:auto;min-width:230px">
+        <button class="btn btn-primary" id="c-go" data-fp="wsmh-07-04"><i class="fa-solid fa-magnifying-glass"></i> 查询小区</button>
+        <button class="btn" id="c-reset" data-fp="wsmh-07-04"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        <span class="text-3 text-xs ml-auto" id="c-sum"></span>
+      </div>
+      <div class="table-wrap">
+        <table class="pub-table">
+          <thead><tr>
+            <th>小区名称</th><th>区域 · 商圈</th><th>建成年代</th><th class="num">总套数</th>
+            <th class="num">在售 / 在租</th><th class="num">挂牌均价(元/㎡)</th><th class="num">成交均价(元/㎡)</th>
+            <th class="num">近月成交</th><th>操作</th>
+          </tr></thead>
+          <tbody id="c-body"></tbody>
+        </table>
+        <div class="table-note">挂牌均价为业主或受托机构自主报价的均值，成交均价为已备案合同价均值，两者口径不同，不可直接比较。更新时间 <span id="c-time"></span>。</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="src-note"></div>
+</div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+var M = { lx: '2', qx: '' };
+var CMP_KEY = 'wsmh.compare';
+
+/* 柳州十个县区示意布局：left / top / width / height（百分比） */
+var ZONES = [
+  { n: '三江侗族自治县', x: 5, y: 2, w: 27, h: 14 },
+  { n: '融水苗族自治县', x: 34, y: 2, w: 30, h: 14 },
+  { n: '融安县', x: 66, y: 2, w: 29, h: 14 },
+  { n: '柳城县', x: 5, y: 18, w: 41, h: 14 },
+  { n: '鹿寨县', x: 48, y: 18, w: 47, h: 14 },
+  { n: '柳北区', x: 18, y: 35, w: 36, h: 13 },
+  { n: '城中区', x: 56, y: 35, w: 26, h: 13 },
+  { n: '柳南区', x: 18, y: 50, w: 28, h: 13 },
+  { n: '鱼峰区', x: 48, y: 50, w: 34, h: 13 },
+  { n: '柳江区', x: 28, y: 65, w: 42, h: 13 }
+];
+
+function pageInit() {
+  if (UI.param('tab') === 'hm-comm') switchTab('hm-comm');
+  M.qx = UI.param('qx') || '';
+  renderLxTabs();
+  renderMap();
+  renderComm();
+  bindComm();
+  document.getElementById('src-note').innerHTML = UI.sourceNote();
+}
+
+function switchTab(id) {
+  document.querySelectorAll('#map-tabs a').forEach(function (a) {
+    a.classList.toggle('on', a.getAttribute('data-tab') === id);
+  });
+  document.querySelectorAll('#map-box .tab-pane').forEach(function (p) {
+    p.classList.toggle('on', p.id === id);
+  });
+}
+
+/* ---------------------- 地图找房 ---------------------- */
+function renderLxTabs() {
+  var T = [['2', '二手房'], ['3', '租房']];
+  document.getElementById('mp-lx').innerHTML = T.map(function (t) {
+    return '<a class="' + (t[0] === M.lx ? 'on' : '') + '" data-mlx="' + t[0] + '" data-fp="wsmh-07-02">' + t[1] + '</a>';
+  }).join('');
+  document.getElementById('mp-lx').onclick = function (e) {
+    var a = e.target.closest('[data-mlx]'); if (!a) return;
+    M.lx = a.getAttribute('data-mlx');
+    renderLxTabs(); renderMap();
+  };
+}
+
+function renderMap() {
+  var all = PORTAL.houses({ lx: M.lx });
+  var cnt = {}, max = 1;
+  all.forEach(function (h) { cnt[h.qx] = (cnt[h.qx] || 0) + 1; });
+  ZONES.forEach(function (z) { max = Math.max(max, cnt[z.n] || 0); });
+
+  document.getElementById('map').innerHTML = ZONES.map(function (z) {
+    var n = cnt[z.n] || 0;
+    var alpha = 0.08 + (n / max) * 0.34;
+    /* 打点避开区名与数量文字区域，统一落在色块下半部 */
+    var list = all.filter(function (h) { return h.qx === z.n; }).slice(0, 4);
+    var dots = list.map(function (h, i) {
+      return '<span class="map-dot" data-h="' + h.id + '" title="' + UI.esc(h.bt) + '" style="left:'
+        + (34 + i * 17) + '%;top:' + (54 + (i % 2) * 22) + '%"></span>';
+    }).join('');
+    return '<div class="map-zone' + (M.qx === z.n ? ' on' : '') + '" data-qx="' + z.n + '" data-fp="wsmh-07-02"'
+      + ' style="left:' + z.x + '%;top:' + z.y + '%;width:' + z.w + '%;height:' + z.h + '%;'
+      + (M.qx === z.n ? '' : 'background:rgba(38,86,187,' + alpha.toFixed(2) + ');') + '">'
+      + '<div class="mz-t">' + z.n + '</div>'
+      + '<div class="mz-n">在挂 <b>' + n + '</b> 套</div>' + dots + '</div>';
+  }).join('');
+
+  document.getElementById('map').onclick = function (e) {
+    var d = e.target.closest('[data-h]');
+    if (d) { openHouse(d.getAttribute('data-h')); return; }
+    var z = e.target.closest('[data-qx]'); if (!z) return;
+    var q = z.getAttribute('data-qx');
+    M.qx = (M.qx === q) ? '' : q;
+    renderMap();
+    UI.toast(M.qx ? '已按「' + q + '」筛选房源，右侧列表同步更新' : '已取消区域筛选，展示全市房源', 'info');
+  };
+
+  document.getElementById('map-legend').innerHTML =
+    '<span><i class="lg" style="background:rgba(38,86,187,.10)"></i>房源较少</span>'
+    + '<span><i class="lg" style="background:rgba(38,86,187,.26)"></i>房源中等</span>'
+    + '<span><i class="lg" style="background:rgba(38,86,187,.42)"></i>房源较多</span>'
+    + '<span><i class="lg" style="background:rgba(200,40,30,.14);border-color:var(--accent)"></i>已选中区域</span>'
+    + '<span><span class="map-dot" style="position:static;display:inline-block;vertical-align:-2px"></span> 房源打点，点击查看摘要</span>'
+    + (M.qx ? '<a class="ml-auto" href="javascript:;" id="clr-qx" data-fp="wsmh-07-02">取消「' + M.qx + '」筛选</a>' : '');
+  var clr = document.getElementById('clr-qx');
+  if (clr) clr.onclick = function () { M.qx = ''; renderMap(); UI.toast('已取消区域筛选', 'success'); };
+
+  var arr = M.qx ? all.filter(function (h) { return h.qx === M.qx; }) : all;
+  document.getElementById('mp-sum').textContent = '当前展示 ' + arr.length + ' 套核验房源'
+    + (M.qx ? '（已限定 ' + M.qx + '）' : '（全市）') + '，更新时间 ' + UI.today() + ' 06:00';
+  document.getElementById('dot-sub').textContent = M.qx ? M.qx : '全市';
+
+  var rent = M.lx === '3';
+  document.getElementById('dot-list').innerHTML = arr.length ? arr.map(function (h) {
+    return '<div class="dot-i" data-h="' + h.id + '" data-fp="wsmh-07-02">'
+      + '<span class="di-d"></span>'
+      + '<span class="di-b"><span class="di-t" style="display:block">' + h.bt + '</span>'
+      + '<span class="di-m" style="display:block">' + h.qx + ' · ' + h.xqmc + ' · ' + h.mj + '㎡ · ' + h.hx + '</span></span>'
+      + '<span class="di-p">' + (rent ? UI.money(h.zj, 0) + '<em style="font-style:normal;font-size:12px"> 元/月</em>'
+        : h.zj + '<em style="font-style:normal;font-size:12px"> 万</em>') + '</span></div>';
+  }).join('') : UI.empty('该区域暂无在挂核验房源', '可点击其他区域色块查看',
+    '<button class="btn btn-sm btn-primary" id="dot-all" data-fp="wsmh-07-02">查看全市房源</button>');
+
+  document.getElementById('dot-list').onclick = function (e) {
+    if (e.target.closest('#dot-all')) { M.qx = ''; renderMap(); return; }
+    var i = e.target.closest('[data-h]'); if (!i) return;
+    openHouse(i.getAttribute('data-h'));
+  };
+}
+
+function openHouse(id) {
+  var h = PORTAL.house(id); if (!h) { UI.toast('未找到该房源', 'error'); return; }
+  var rent = h.lx === '3';
+  var href = (rent ? 'rent-house.html?id=' : 'second-house-detail.html?id=') + h.id;
+  UI.modal('<i class="fa-solid fa-house text-primary"></i> 房源摘要',
+    '<div class="mh-pop"><img src="' + h.img + '" alt="' + UI.esc(h.bt) + '">'
+    + '<div class="flex-1">'
+    + '<div style="font-size:16px;font-weight:700">' + h.bt + '</div>'
+    + '<div class="text-xs text-3 mt-8"><i class="fa-solid fa-location-dot"></i> ' + h.qx + ' · ' + h.sq + ' · ' + h.xqmc + ' ' + h.fhMask + '</div>'
+    + '<div class="hr-tags mt-12" style="display:flex;gap:6px;flex-wrap:wrap">'
+    + PORTAL.houseBadge(h) + '<span class="tag-q g">核验码 ' + h.hym + '</span><span class="tag-q">' + h.lymc + '</span></div>'
+    + '<div style="font-size:22px;font-weight:700;color:var(--accent);margin-top:12px" class="num">'
+    + (rent ? UI.money(h.zj, 0) + ' <span style="font-size:13px;font-weight:400">元/月</span>'
+      : h.zj + ' <span style="font-size:13px;font-weight:400">万元（' + UI.money(h.dj, 0) + ' 元/㎡）</span>') + '</div>'
+    + '</div></div>'
+    + '<div class="desc-list mt-16"><dl>'
+    + dd('建筑面积', h.mj + ' ㎡') + dd('户型朝向', h.hx + ' · ' + h.cx)
+    + dd('楼层', h.lc + ' 层') + dd('装修', h.zx)
+    + dd('建成年代', (h.jcnd || '—') + ' 年') + dd('核验有效期', h.hyyxq)
+    + dd('房源来源', h.lymc + (h.wtjg ? '（' + h.wtjg + '）' : ''))
+    + dd('数据来源', h.sjly + '，更新 ' + h.gxsj)
+    + '</dl></div>'
+    + '<div class="alert alert-warning mt-16" style="margin-bottom:0"><i class="fa-solid fa-triangle-exclamation"></i>'
+    + '<span>本站不展示权利人姓名、身份证号与联系方式，房号按规定截断展示。'
+    + '价格为业主或受托机构自主报价，实际成交以网签备案合同为准。</span></div>',
+    '<button class="btn" data-act="close-modal">关闭</button>'
+    + '<button class="btn" id="mp-cmp" data-fp="wsmh-07-05"><i class="fa-solid fa-scale-balanced"></i> 加入对比</button>'
+    + '<a class="btn btn-primary" href="' + href + '" data-fp="wsmh-07-06">查看房源详情 <i class="fa-solid fa-angle-right"></i></a>', 1);
+
+  document.getElementById('mp-cmp').onclick = function () {
+    var a = [];
+    try { a = JSON.parse(sessionStorage.getItem(CMP_KEY) || '[]'); } catch (err) { a = []; }
+    if (a.indexOf(id) >= 0) { UI.toast('该房源已在对比栏中', 'warning'); return; }
+    if (a.length >= 4) { UI.toast('最多同时对比 4 套，请先在对比页移除', 'warning'); return; }
+    a.push(id);
+    try { sessionStorage.setItem(CMP_KEY, JSON.stringify(a)); } catch (err) { }
+    UI.closeModal();
+    if (a.length >= 2) {
+      UI.confirm('已加入对比', '对比栏当前有 <b>' + a.length + '</b> 个条目，是否立即查看逐指标对比结果？',
+        function () { UI.go('web/house-compare.html', { ids: a.join(',') }); }, '开始对比');
+    } else {
+      UI.toast('已加入对比栏，再选 1 套即可开始对比', 'success');
+    }
+  };
+}
+
+function dd(k, v) { return '<dt>' + k + '</dt><dd>' + v + '</dd>'; }
+
+/* ---------------------- 小区找房 ---------------------- */
+function bindComm() {
+  document.getElementById('c-qx').innerHTML = '<option value="">全部区域</option>'
+    + PDATA.QX.map(function (q) { return '<option value="' + q + '">' + q + '</option>'; }).join('');
+  document.getElementById('c-go').onclick = function () {
+    renderComm();
+    UI.toast('已按条件查询小区', 'info');
+  };
+  document.getElementById('c-reset').onclick = function () {
+    document.getElementById('c-qx').value = ''; document.getElementById('c-kw').value = '';
+    renderComm(); UI.toast('已重置查询条件', 'success');
+  };
+  document.getElementById('c-kw').onkeydown = function (e) {
+    if (e.key === 'Enter') document.getElementById('c-go').click();
+  };
+  document.getElementById('c-body').onclick = function (e) {
+    var g = e.target.closest('[data-loc]'); if (!g) return;
+    M.qx = g.getAttribute('data-loc');
+    switchTab('hm-map'); renderMap();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    UI.toast('已在地图上定位到「' + M.qx + '」并筛选该区域房源', 'success');
+  };
+}
+
+function renderComm() {
+  var qx = document.getElementById('c-qx').value;
+  var kw = document.getElementById('c-kw').value.trim();
+  var arr = PORTAL.communities({ qx: qx, kw: kw });
+  document.getElementById('c-sum').textContent = '共 ' + arr.length + ' 个小区';
+  document.getElementById('c-time').textContent = UI.today() + ' 06:00';
+
+  document.getElementById('c-body').innerHTML = arr.length ? arr.map(function (c) {
+    var zs = PORTAL.houses({ lx: '2', xq: c.mc }).length;
+    var zz = PORTAL.houses({ lx: '3', xq: c.mc }).length;
+    return '<tr><td class="strong">' + c.mc + '</td>'
+      + '<td>' + c.qx + ' · ' + c.sq + '</td>'
+      + '<td>' + c.jcnd + ' 年</td>'
+      + '<td class="num">' + c.zts + '</td>'
+      + '<td class="num">' + zs + ' / ' + zz + '</td>'
+      + '<td class="num">' + UI.money(c.gpj, 0) + '</td>'
+      + '<td class="num">' + UI.money(c.cjj, 0) + '</td>'
+      + '<td class="num">' + c.yjcj + ' 套</td>'
+      + '<td class="acts">'
+      + '<a href="house-search.html?xq=' + encodeURIComponent(c.mc) + '" data-fp="wsmh-07-04">查看房源</a>'
+      + '<a href="javascript:;" data-loc="' + c.qx + '" data-fp="wsmh-07-02">地图定位</a>'
+      + '</td></tr>';
+  }).join('') : '<tr><td colspan="9">' + UI.empty('没有符合条件的小区', '可清空关键字或换一个区域查询') + '</td></tr>';
+}
+</script>
+</body>
+</html>

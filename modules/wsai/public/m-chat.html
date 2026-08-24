@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>移动端智能问答 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/mobile.css">
+</head>
+<body>
+
+<div class="m-stage">
+
+  <div class="phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="ms-r"><i class="fa-solid fa-signal"></i><i class="fa-solid fa-wifi"></i><i class="fa-solid fa-battery-full"></i></span>
+    </div>
+
+    <div class="m-nav">
+      <a class="mn-back" href="m-assistant.html"><i class="fa-solid fa-angle-left"></i></a>
+      <span class="mn-t">智能问答</span>
+      <a href="m-assistant.html" style="font-size:13px"><i class="fa-solid fa-headset"></i> 人工</a>
+    </div>
+
+    <div class="m-body no-tab" style="padding-bottom:70px">
+      <div class="m-chat" id="chat"></div>
+    </div>
+
+    <div class="m-quick" id="quick" style="position:absolute;bottom:60px;left:0;right:0;background:var(--m-bg);
+         padding:8px 14px;z-index:4"></div>
+
+    <div class="m-chatbar">
+      <input type="text" id="q" placeholder="请输入您的问题"
+             onkeydown="if(event.key==='Enter')send()">
+      <button class="mc-mic" id="mic" onclick="toggleMic()"><i class="fa-solid fa-microphone"></i></button>
+    </div>
+  </div>
+
+  <div class="m-note">
+    <h3>移动端智能问答 · 功能点 19</h3>
+    <p style="color:var(--m-text2)">与 PC 端 <code>chat.html</code> 调用<b>同一个动作</b> <code>AI.act.ask()</code>，
+      只是渠道标记为「移动端 H5」。因此四条硬约束在移动端同样生效。</p>
+
+    <h4>同一条链路</h4>
+    <ul>
+      <li>输入先过<b>合规过滤</b>：证件号与手机号自动脱敏，违规表述直接拦截</li>
+      <li>只检索<b>已生效</b>的知识库文档</li>
+      <li>答复带<b>模型、版本、置信度</b>与引用条款</li>
+      <li>置信度不足或无有效依据 → <b>拦截并转人工</b></li>
+      <li>输出同样进 AI 输出留痕，等待人工确认</li>
+    </ul>
+
+    <h4>可以这样试</h4>
+    <ul>
+      <li>点「二手房网签备案需要哪些材料」看正常答复与引用</li>
+      <li>点带红框的问题看脱敏与拦截效果</li>
+      <li>点「这个项目会升值吗」看幻觉防控转人工</li>
+    </ul>
+
+    <a class="m-back" href="../common/ai-audit-log.html?role=pt">
+      <i class="fa-solid fa-list-check"></i> 去看输出留痕台账
+    </a>
+  </div>
+
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var turns = [];
+  var QUICK = [
+    '二手房网签备案需要哪些材料',
+    '商品房网签备案要多久',
+    '租赁备案怎么办',
+    '我的身份证是 450202199001011234',
+    '这个项目会升值吗'
+  ];
+
+  function paintQuick() {
+    document.getElementById('quick').innerHTML = QUICK.map(function (q) {
+      var risky = /身份证|升值/.test(q);
+      return '<span onclick="ask(this.getAttribute(\'data-q\'))" data-q="' + AI.esc(q) + '"' +
+        (risky ? ' style="border-color:#f3b5b5;color:#e5484d"' : '') + '>' +
+        AI.esc(q.length > 12 ? q.slice(0, 12) + '…' : q) + '</span>';
+    }).join('');
+  }
+
+  function paint() {
+    var box = document.getElementById('chat');
+    box.innerHTML = turns.length ? turns.map(function (t) {
+      if (t.me) {
+        return '<div class="m-turn me"><span class="mt-av"><i class="fa-solid fa-user"></i></span>' +
+          '<div class="mt-b">' + AI.esc(t.text) + '</div></div>';
+      }
+      if (t.typing) {
+        return '<div class="m-turn"><span class="mt-av"><i class="fa-solid fa-robot"></i></span>' +
+          '<div class="mt-b"><span class="m-wave"><i></i><i></i><i></i><i></i><i></i></span></div></div>';
+      }
+      var o = t.outId ? AI.byId('outputs', t.outId) : null;
+      var cites = o ? (o.cites || []) : [];
+      return '<div class="m-turn"><span class="mt-av"><i class="fa-solid fa-robot"></i></span>' +
+        '<div class="mt-b">' + AI.esc(t.text) +
+          cites.map(function (id) {
+            var d = AI.byId('kbDocs', id);
+            return d ? '<div class="mt-cite"><b>' + AI.esc(d.title) + '</b><br>' + AI.esc(d.clause) + '</div>' : '';
+          }).join('') +
+          (o ? '<div class="mt-src"><i class="fa-solid fa-microchip"></i> ' + AI.esc(o.mxmc) + ' ' + AI.esc(o.ver) +
+                ' · 置信度 ' + o.conf + '% · ' +
+                (o.qrzt === '0' ? '<span style="color:#e8850c">需人工确认</span>' : AI.dict('qrzt', o.qrzt)) +
+                '</div>' : '') +
+          (t.blocked
+            ? '<div style="margin-top:8px"><button class="m-btn sm ghost" onclick="human()">' +
+              '<i class="fa-solid fa-headset"></i> 转人工</button></div>'
+            : (o && o.qrzt !== '0'
+                ? '<div style="margin-top:8px;display:flex;gap:8px">' +
+                  '<button class="m-btn sm ghost" onclick="rate(1)"><i class="fa-solid fa-thumbs-up"></i> 有帮助</button>' +
+                  '<button class="m-btn sm ghost" onclick="rate(0)"><i class="fa-solid fa-thumbs-down"></i> 没帮助</button></div>'
+                : '')) +
+        '</div></div>';
+    }).join('')
+      : '<div style="text-align:center;padding:40px 20px;color:var(--m-text3)">' +
+        '<i class="fa-regular fa-comments" style="font-size:34px;opacity:.5"></i>' +
+        '<div style="margin-top:10px;font-size:13px">您好，我是柳州房产智能助手<br>可以问我政策与办事流程</div></div>';
+    box.parentElement.scrollTop = box.parentElement.scrollHeight;
+  }
+
+  window.ask = function (t) {
+    document.getElementById('q').value = t;
+    send();
+  };
+
+  window.send = function () {
+    var el = document.getElementById('q');
+    var v = (el.value || '').trim();
+    if (!v) return;
+    turns.push({ me: 1, text: v });
+    turns.push({ typing: 1 });
+    paint();
+    el.value = '';
+    setTimeout(function () {
+      turns.pop();
+      var o = AI.act.ask(v, '2');   /* 渠道 2 = 移动端 H5 */
+      if (!o) turns.push({ text: '您的问题涉及个人敏感信息或不当表述，已按规则处置，请调整后重试。', blocked: 1 });
+      else turns.push({ text: o.text, outId: o.id, blocked: o.blocked });
+      paint();
+    }, 550);
+  };
+
+  window.human = function () {
+    var c = AI.get('chats')[0];
+    if (c) AI.act.toHuman(c.id);
+  };
+  window.rate = function (ok) {
+    var c = AI.get('chats')[0];
+    if (c) AI.act.rateChat(c.id, ok);
+  };
+  window.toggleMic = function () {
+    var b = document.getElementById('mic');
+    b.classList.toggle('on');
+    if (b.classList.contains('on')) {
+      AI.toast('正在收音，请说话', 'success');
+      setTimeout(function () {
+        b.classList.remove('on');
+        document.getElementById('q').value = '二手房网签备案需要哪些材料';
+        send();
+      }, 1200);
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    paintQuick();
+    AI.on(function () { paint(); });
+    /* 从首页带问题过来直接问 */
+    var pre = AI.param('q');
+    if (pre) ask(pre);
+  });
+})();
+</script>
+</body>
+</html>

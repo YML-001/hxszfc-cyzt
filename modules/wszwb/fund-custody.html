@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>租金托管监管 · 房屋租赁网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：四条规则卡、收支概览条、长收短付穿透双时间轴 */
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+
+  .rule-card {
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px;
+    background: #fff; transition: .18s;
+  }
+  .rule-card:hover { border-color: var(--primary-soft); box-shadow: 0 4px 12px rgba(38, 86, 187, .1); }
+  .rule-card .rc-top { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; }
+  .rule-card .rc-hit { margin-left: auto; }
+  .rule-card .rc-num { font-size: 24px; font-weight: 700; color: var(--danger); margin-top: 8px; font-variant-numeric: tabular-nums; }
+  .rule-card .rc-num .rc-unit { font-size: 12px; color: var(--text-3); font-weight: 400; margin-left: 4px; }
+  .rule-card .rc-th { font-size: 12.5px; color: var(--text-3); margin-top: 8px; line-height: 1.6; }
+
+  .flow-sum {
+    display: flex; align-items: center; gap: 0; border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden; background: #fff; margin-bottom: 10px;
+  }
+  .flow-sum .fs-cell { flex: 1; padding: 12px 16px; border-right: 1px solid var(--border); }
+  .flow-sum .fs-cell:last-child { border-right: none; }
+  .flow-sum .fs-l { font-size: 12.5px; color: var(--text-3); }
+  .flow-sum .fs-v { font-size: 19px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+
+  /* 长收短付穿透双时间轴 */
+  .pen-view { border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; background: #fff; }
+  .pen-axis { position: relative; margin: 14px 0 6px; }
+  .pen-axis .pa-label { font-size: 12.5px; color: var(--text-2); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+  .pen-bar { display: flex; height: 38px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
+  .pen-bar .pb-seg {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; color: #fff;
+  }
+  .pen-bar .pb-seg.in { background: var(--primary); }
+  .pen-bar .pb-seg.out { background: var(--success); }
+  .pen-bar .pb-seg.gap {
+    background: repeating-linear-gradient(45deg, #fde2e2, #fde2e2 8px, #fbd0d0 8px, #fbd0d0 16px);
+    color: var(--danger);
+  }
+  .pen-months { display: flex; margin-top: 4px; }
+  .pen-months span { flex: 1; text-align: center; font-size: 11px; color: var(--text-3); }
+  .pen-total {
+    border: 1px solid #f5c2c2; background: #fff6f6; border-radius: var(--radius);
+    padding: 14px 16px; height: 100%;
+  }
+  .pen-total .pt-l { font-size: 12.5px; color: var(--text-3); }
+  .pen-total .pt-v { font-size: 22px; font-weight: 700; color: var(--danger); margin-top: 4px; }
+
+  .data-table tbody tr.is-warn > td { background: #fff8ed; }
+  .data-table tbody tr.is-warn:hover > td { background: #fdf0d9; }
+  .badge.blink { animation: blinkBd 1.4s ease-in-out infinite; }
+  @keyframes blinkBd {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(214, 69, 69, .55); }
+    50% { box-shadow: 0 0 0 4px rgba(214, 69, 69, 0); }
+  }
+</style>
+</head>
+<body data-role="reviewer" data-active="wszwb-06">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋租赁网签备案管理系统
+        <span class="sep">/</span> 租金监测统计
+        <span class="sep">/</span> <span class="cur">租金托管监管</span>
+      </div>
+      <div class="page-title">租金托管监管</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" data-open-drawer="drAcct"><i class="fa-solid fa-plus"></i> 新增账户备案</button>
+      <button type="button" class="btn" onclick="PMS.toast('已向 6 家合作银行发起直连取数，余额更新至 2026-08-01 06:00','success')"><i class="fa-solid fa-building-columns"></i> 银行取数</button>
+      <button type="button" class="btn" onclick="PMS.confirm({title:'手动跑批',message:'立即执行高风险经营识别跑批？',detail:'将对 68 家企业最近 12 个月的租金收支进行四条规则评估，预计耗时 3 分钟。',type:'info',okText:'开始跑批',onOk:function(){PMS.toast('跑批任务已提交，任务号 PC20260801006','success');}})"><i class="fa-solid fa-play"></i> 手动跑批</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《租金监管资金台账》Excel','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-vault"></i></div>
+      <div><div class="s-label">监管账户</div><div class="s-value">76</div><div class="s-trend text-3">户</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-building"></i></div>
+      <div><div class="s-label">覆盖企业</div><div class="s-value">68</div><div class="s-trend text-success">开立率 100%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-sack-dollar"></i></div>
+      <div><div class="s-label">监管资金余额</div><div class="s-value">2.83 亿</div><div class="s-trend text-3">元</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-shield-halved"></i></div>
+      <div><div class="s-label">留存达标</div><div class="s-value">64</div><div class="s-trend text-danger">4 家不达标</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><div class="s-label">高风险预警</div><div class="s-value">4</div><div class="s-trend text-danger">长收短付 3 · 高进低出 2</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      监管账户余额低于最低留存金额时自动预警并冻结该企业新增房源上架。长收短付以「收取租金期限 − 支付业主期限」的期限差衡量，
+      高进低出以「收房价 − 出租价」的价差幅度衡量，阈值按一城一策参数配置。
+    </div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="acct">监管账户</div>
+      <div class="tab" data-tab="flow">资金流水</div>
+      <div class="tab" data-tab="risk">高风险经营监测 <span class="badge red">4</span></div>
+    </div>
+
+    <!-- Tab 1 监管账户 -->
+    <div class="tab-panel active" data-panel="acct">
+      <div class="filter-bar">
+        <div class="filter-item">
+          <label>企业名称</label>
+          <input type="text" placeholder="企业名称 / 统一社会信用代码">
+        </div>
+        <div class="filter-item">
+          <label>开户银行</label>
+          <select>
+            <option value="">全部</option>
+            <option>中国工商银行柳州分行</option><option>中国建设银行柳州分行</option>
+            <option>中国农业银行柳州分行</option><option>柳州银行</option><option>桂林银行柳州分行</option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <label>账户类型</label>
+          <select><option value="">全部</option><option>租金监管专户</option><option>押金监管专户</option><option>风险保证金账户</option></select>
+        </div>
+        <div class="filter-item">
+          <label>是否符合留存</label>
+          <select><option value="">全部</option><option>符合</option><option>不符合</option></select>
+        </div>
+        <div class="filter-item">
+          <label>账户状态</label>
+          <select><option value="">全部</option><option>正常</option><option>已冻结</option><option>已销户</option></select>
+        </div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 76 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table" id="tblAcct" data-static>
+          <thead>
+            <tr>
+              <th>账户编号</th>
+              <th>企业名称</th>
+              <th>账户名称</th>
+              <th>账号</th>
+              <th>开户银行与网点</th>
+              <th>账户类型</th>
+              <th>开户日期</th>
+              <th>监管协议编号</th>
+              <th>协议期限止</th>
+              <th class="num">账户余额(元)</th>
+              <th class="num">累计收入(元)</th>
+              <th class="num">累计支出(元)</th>
+              <th class="num">留存标准</th>
+              <th class="num">最低留存金额(元)</th>
+              <th>是否符合留存</th>
+              <th>余额取数时间</th>
+              <th>账户状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="nowrap fw-600">JGZH450200000126</td>
+              <td class="cell-lg">柳州安寓住房租赁有限公司</td>
+              <td class="nowrap">安寓租金监管专户</td>
+              <td class="nowrap">6212 **** **** 7314</td>
+              <td class="nowrap">中国工商银行柳州分行营业部</td>
+              <td class="nowrap">租金监管专户</td>
+              <td class="nowrap">2022-03-18</td>
+              <td class="nowrap">JGXY450200202200126</td>
+              <td class="nowrap">2027-03-17</td>
+              <td class="num">18,642,800.00</td>
+              <td class="num">86,428,600.00</td>
+              <td class="num">67,785,800.00</td>
+              <td class="num">30%</td>
+              <td class="num">14,286,400.00</td>
+              <td class="nowrap"><span class="badge green">符合</span></td>
+              <td class="nowrap">2026-08-01 06:00</td>
+              <td class="nowrap"><span class="badge green">正常</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="gotoFlow('柳州安寓住房租赁有限公司')">查看流水</span>
+                <span class="link" onclick="PMS.toast('已取数，余额更新至 2026-08-01 06:00','success')">银行取数</span>
+                <span class="link" onclick="PMS.toast('已打开监管协议 PDF')">协议</span>
+              </td>
+            </tr>
+            <tr class="is-warn">
+              <td class="nowrap fw-600">JGZH450200000238</td>
+              <td class="cell-lg">柳州寓家公寓管理有限公司</td>
+              <td class="nowrap">寓家租金监管专户</td>
+              <td class="nowrap">6212 **** **** 4826</td>
+              <td class="nowrap">中国工商银行柳州分行营业部</td>
+              <td class="nowrap">租金监管专户</td>
+              <td class="nowrap">2021-11-06</td>
+              <td class="nowrap">JGXY450200202100238</td>
+              <td class="nowrap">2026-11-05</td>
+              <td class="num">4,862,000.00</td>
+              <td class="num">68,425,300.00</td>
+              <td class="num">63,563,300.00</td>
+              <td class="num">30%</td>
+              <td class="num">6,428,000.00</td>
+              <td class="nowrap"><span class="badge red">留存不足</span><br><span class="text-danger text-sm">缺口 156.6 万元</span></td>
+              <td class="nowrap">2026-08-01 06:00</td>
+              <td class="nowrap"><span class="badge orange">已冻结新增上架</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="gotoFlow('柳州寓家公寓管理有限公司')">查看流水</span>
+                <span class="link" onclick="showPenetrate()">风险穿透</span>
+                <span class="link danger" onclick="PMS.confirm({title:'冻结新增房源上架',message:'冻结「柳州寓家公寓管理有限公司」新增房源上架？',detail:'冻结期间该企业不得新增发布房源，已发布房源不受影响，解冻需补足留存金额后申请。',type:'warning',okText:'冻结',onOk:function(){PMS.toast('已冻结新增房源上架并推送企业','success');}})">冻结上架</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">JGZH450200000239</td>
+              <td class="cell-lg">柳州寓家公寓管理有限公司</td>
+              <td class="nowrap">寓家押金监管专户</td>
+              <td class="nowrap">6217 **** **** 1938</td>
+              <td class="nowrap">中国建设银行柳州分行城中支行</td>
+              <td class="nowrap">押金监管专户</td>
+              <td class="nowrap">2021-11-06</td>
+              <td class="nowrap">JGXY450200202100239</td>
+              <td class="nowrap">2026-11-05</td>
+              <td class="num">3,126,000.00</td>
+              <td class="num">9,842,000.00</td>
+              <td class="num">6,716,000.00</td>
+              <td class="num">100%</td>
+              <td class="num">3,082,000.00</td>
+              <td class="nowrap"><span class="badge green">符合</span></td>
+              <td class="nowrap">2026-08-01 06:00</td>
+              <td class="nowrap"><span class="badge green">正常</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="gotoFlow('柳州寓家公寓管理有限公司')">查看流水</span>
+                <span class="link" onclick="PMS.toast('已取数，余额更新至 2026-08-01 06:00','success')">银行取数</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">JGZH450200000071</td>
+              <td class="cell-lg">XXXX市住房租赁发展集团有限公司</td>
+              <td class="nowrap">住房租赁集团租金监管专户</td>
+              <td class="nowrap">6228 **** **** 5502</td>
+              <td class="nowrap">中国农业银行柳州分行营业部</td>
+              <td class="nowrap">租金监管专户</td>
+              <td class="nowrap">2020-06-12</td>
+              <td class="nowrap">JGXY450200202000071</td>
+              <td class="nowrap">2028-06-11</td>
+              <td class="num">42,860,000.00</td>
+              <td class="num">126,482,000.00</td>
+              <td class="num">83,622,000.00</td>
+              <td class="num">30%</td>
+              <td class="num">21,486,000.00</td>
+              <td class="nowrap"><span class="badge green">符合</span></td>
+              <td class="nowrap">2026-08-01 06:00</td>
+              <td class="nowrap"><span class="badge green">正常</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="gotoFlow('XXXX市住房租赁发展集团有限公司')">查看流水</span>
+                <span class="link" onclick="PMS.toast('已打开监管协议 PDF')">协议</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">JGZH450200000184</td>
+              <td class="cell-lg">XXXX市和居住房租赁服务有限公司</td>
+              <td class="nowrap">和居租金监管专户</td>
+              <td class="nowrap">6214 **** **** 2680</td>
+              <td class="nowrap">柳州银行城中支行</td>
+              <td class="nowrap">租金监管专户</td>
+              <td class="nowrap">2023-05-22</td>
+              <td class="nowrap">JGXY450200202300184</td>
+              <td class="nowrap">2028-05-21</td>
+              <td class="num">6,284,000.00</td>
+              <td class="num">24,862,000.00</td>
+              <td class="num">18,578,000.00</td>
+              <td class="num">30%</td>
+              <td class="num">5,142,000.00</td>
+              <td class="nowrap"><span class="badge green">符合</span></td>
+              <td class="nowrap">2026-08-01 06:00</td>
+              <td class="nowrap"><span class="badge green">正常</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="gotoFlow('XXXX市和居住房租赁服务有限公司')">查看流水</span>
+                <span class="link" onclick="PMS.toast('已取数，余额更新至 2026-08-01 06:00','success')">银行取数</span>
+              </td>
+            </tr>
+            <tr class="is-warn">
+              <td class="nowrap fw-600">JGZH450200000312</td>
+              <td class="cell-lg">XXXX市万家优租资产管理有限公司</td>
+              <td class="nowrap">万家优租租金监管专户</td>
+              <td class="nowrap">6222 **** **** 9174</td>
+              <td class="nowrap">桂林银行柳州分行</td>
+              <td class="nowrap">租金监管专户</td>
+              <td class="nowrap">2024-02-28</td>
+              <td class="nowrap">JGXY450200202400312</td>
+              <td class="nowrap">2027-02-27</td>
+              <td class="num">386,200.00</td>
+              <td class="num">12,468,000.00</td>
+              <td class="num">12,081,800.00</td>
+              <td class="num">30%</td>
+              <td class="num">1,842,000.00</td>
+              <td class="nowrap"><span class="badge red">留存不足</span><br><span class="text-danger text-sm">缺口 145.6 万元</span></td>
+              <td class="nowrap">2026-08-01 06:00</td>
+              <td class="nowrap"><span class="badge red">已冻结</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="gotoFlow('XXXX市万家优租资产管理有限公司')">查看流水</span>
+                <a class="link" href="violation-ledger.html">违规台账</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">JGZH450200000205</td>
+              <td class="cell-lg">柳州龙城人才公寓运营管理有限公司</td>
+              <td class="nowrap">龙城人才公寓租金监管专户</td>
+              <td class="nowrap">6217 **** **** 7728</td>
+              <td class="nowrap">中国建设银行柳州分行高新支行</td>
+              <td class="nowrap">租金监管专户</td>
+              <td class="nowrap">2023-09-14</td>
+              <td class="nowrap">JGXY450200202300205</td>
+              <td class="nowrap">2028-09-13</td>
+              <td class="num">8,426,000.00</td>
+              <td class="num">18,624,000.00</td>
+              <td class="num">10,198,000.00</td>
+              <td class="num">30%</td>
+              <td class="num">3,286,000.00</td>
+              <td class="nowrap"><span class="badge green">符合</span></td>
+              <td class="nowrap">2026-08-01 06:00</td>
+              <td class="nowrap"><span class="badge green">正常</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="gotoFlow('柳州龙城人才公寓运营管理有限公司')">查看流水</span>
+                <span class="link" onclick="PMS.toast('已打开监管协议 PDF')">协议</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">JGZH450200000287</td>
+              <td class="cell-lg">XXXX市宜居公寓管理有限公司</td>
+              <td class="nowrap">宜居风险保证金账户</td>
+              <td class="nowrap">6212 **** **** 3355</td>
+              <td class="nowrap">中国工商银行柳州分行河东支行</td>
+              <td class="nowrap">风险保证金账户</td>
+              <td class="nowrap">2024-07-08</td>
+              <td class="nowrap">JGXY450200202400287</td>
+              <td class="nowrap">2027-07-07</td>
+              <td class="num">1,200,000.00</td>
+              <td class="num">1,200,000.00</td>
+              <td class="num">0.00</td>
+              <td class="num">—</td>
+              <td class="num">1,000,000.00</td>
+              <td class="nowrap"><span class="badge green">符合</span></td>
+              <td class="nowrap">2026-08-01 06:00</td>
+              <td class="nowrap"><span class="badge green">正常</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="gotoFlow('XXXX市宜居公寓管理有限公司')">查看流水</span>
+                <span class="link" onclick="PMS.toast('已打开监管协议 PDF')">协议</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab 2 资金流水 -->
+    <div class="tab-panel" data-panel="flow">
+      <div class="filter-bar">
+        <div class="filter-item">
+          <label>企业名称</label>
+          <input type="text" id="flowEnt" placeholder="企业名称">
+        </div>
+        <div class="filter-item">
+          <label>账号</label>
+          <input type="text" placeholder="监管账号后四位">
+        </div>
+        <div class="filter-item">
+          <label>合同编号</label>
+          <input type="text" placeholder="ZLHT…">
+        </div>
+        <div class="filter-item">
+          <label>交易类型</label>
+          <select>
+            <option value="">全部</option>
+            <option>租金收入</option><option>押金收入</option><option>租金划付业主</option>
+            <option>押金退还</option><option>服务费划转</option><option>租金贷放款</option><option>其他</option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <label>交易方向</label>
+          <select><option value="">全部</option><option>收入</option><option>支出</option></select>
+        </div>
+        <div class="filter-item">
+          <label>对账状态</label>
+          <select><option value="">全部</option><option>已对平</option><option>对账不平</option><option>未对账</option></select>
+        </div>
+        <div class="filter-item">
+          <label>是否异常流水</label>
+          <select><option value="">全部</option><option>是</option><option>否</option></select>
+        </div>
+        <div class="filter-item">
+          <label>交易时间起</label>
+          <input type="date" value="2026-07-01">
+        </div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 12,846 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="flow-sum">
+          <div class="fs-cell"><div class="fs-l">本月收入</div><div class="fs-v text-success">4,286.5 万元</div></div>
+          <div class="fs-cell"><div class="fs-l">本月支出</div><div class="fs-v">3,914.2 万元</div></div>
+          <div class="fs-cell"><div class="fs-l">净流入</div><div class="fs-v text-primary">372.3 万元</div></div>
+          <div class="fs-cell"><div class="fs-l">对账不平</div><div class="fs-v text-danger">6 笔</div></div>
+        </div>
+
+        <table class="data-table" id="tblFlow" data-static data-fill="0">
+          <thead>
+            <tr>
+              <th>流水号</th>
+              <th>账号</th>
+              <th>企业名称</th>
+              <th>合同编号</th>
+              <th>交易类型</th>
+              <th>方向</th>
+              <th class="num">交易金额(元)</th>
+              <th class="num">交易后余额(元)</th>
+              <th>交易时间</th>
+              <th>对方户名</th>
+              <th>对方银行</th>
+              <th>银行流水号</th>
+              <th>摘要</th>
+              <th>划付方式</th>
+              <th>审批人</th>
+              <th>对账状态</th>
+              <th>是否异常</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="nowrap fw-600">LS20260801000186</td>
+              <td class="nowrap">6212 **** **** 4826</td>
+              <td class="cell-lg">柳州寓家公寓管理有限公司</td>
+              <td class="nowrap">ZLHT450200202600473</td>
+              <td class="nowrap">租金收入</td>
+              <td class="nowrap"><span class="badge green">收入</span></td>
+              <td class="num">26,160.00</td>
+              <td class="num">4,862,000.00</td>
+              <td class="nowrap">2026-08-01 09:12</td>
+              <td class="nowrap">秦某某</td>
+              <td class="nowrap">中国工商银行</td>
+              <td class="nowrap">ICBC20260801X8842</td>
+              <td class="cell-lg">华润幸福里 3-2-1701 年付租金</td>
+              <td class="nowrap">线上支付</td>
+              <td class="nowrap">系统自动</td>
+              <td class="nowrap"><span class="badge green">已对平</span></td>
+              <td class="nowrap"><span class="badge gray">否</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已打开流水凭证影像')">凭证</span></td>
+            </tr>
+            <tr class="is-warn">
+              <td class="nowrap fw-600">LS20260801000174</td>
+              <td class="nowrap">6212 **** **** 4826</td>
+              <td class="cell-lg">柳州寓家公寓管理有限公司</td>
+              <td class="nowrap">ZLHT450200202600497</td>
+              <td class="nowrap">租金收入</td>
+              <td class="nowrap"><span class="badge green">收入</span></td>
+              <td class="num">14,160.00</td>
+              <td class="num">4,835,840.00</td>
+              <td class="nowrap">2026-08-01 08:46</td>
+              <td class="nowrap">吴某某</td>
+              <td class="nowrap">中国建设银行</td>
+              <td class="nowrap">CCB20260801Y2214</td>
+              <td class="cell-lg">桂中华府 6-2-1104 分间 A 一次性收取 12 个月租金</td>
+              <td class="nowrap">线上支付</td>
+              <td class="nowrap">系统自动</td>
+              <td class="nowrap"><span class="badge green">已对平</span></td>
+              <td class="nowrap"><span class="badge orange" title="单笔收取租金期限 12 个月，超过 3 个月阈值">异常</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="showPenetrate()">风险穿透</span>
+                <span class="link" onclick="PMS.toast('已打开流水凭证影像')">凭证</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">LS20260801000162</td>
+              <td class="nowrap">6212 **** **** 4826</td>
+              <td class="cell-lg">柳州寓家公寓管理有限公司</td>
+              <td class="nowrap">ZLHT450200202600497</td>
+              <td class="nowrap">租金划付业主</td>
+              <td class="nowrap"><span class="badge orange">支出</span></td>
+              <td class="num">2,850.00</td>
+              <td class="num">4,821,680.00</td>
+              <td class="nowrap">2026-08-01 08:52</td>
+              <td class="nowrap">龚某某</td>
+              <td class="nowrap">中国农业银行</td>
+              <td class="nowrap">ABC20260801Z0917</td>
+              <td class="cell-lg">桂中华府 6-2-1104 业主 8 月租金（月付）</td>
+              <td class="nowrap">批量代付</td>
+              <td class="nowrap">龙某某</td>
+              <td class="nowrap"><span class="badge green">已对平</span></td>
+              <td class="nowrap"><span class="badge orange" title="向业主按月支付，与向承租人一次性收取 12 个月形成期限错配">异常</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="showPenetrate()">风险穿透</span>
+                <span class="link" onclick="PMS.toast('已打开流水凭证影像')">凭证</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">LS20260731000842</td>
+              <td class="nowrap">6212 **** **** 7314</td>
+              <td class="cell-lg">柳州安寓住房租赁有限公司</td>
+              <td class="nowrap">ZLHT450200202600508</td>
+              <td class="nowrap">押金收入</td>
+              <td class="nowrap"><span class="badge green">收入</span></td>
+              <td class="num">3,200.00</td>
+              <td class="num">18,642,800.00</td>
+              <td class="nowrap">2026-07-31 17:26</td>
+              <td class="nowrap">黄某某</td>
+              <td class="nowrap">中国工商银行</td>
+              <td class="nowrap">ICBC20260731X6628</td>
+              <td class="cell-lg">万科城 7-1-902 押金</td>
+              <td class="nowrap">线上支付</td>
+              <td class="nowrap">系统自动</td>
+              <td class="nowrap"><span class="badge green">已对平</span></td>
+              <td class="nowrap"><span class="badge gray">否</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已打开流水凭证影像')">凭证</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">LS20260731000796</td>
+              <td class="nowrap">6222 **** **** 9174</td>
+              <td class="cell-lg">XXXX市万家优租资产管理有限公司</td>
+              <td class="nowrap">ZLHT450200202600362</td>
+              <td class="nowrap">租金贷放款</td>
+              <td class="nowrap"><span class="badge green">收入</span></td>
+              <td class="num">21,600.00</td>
+              <td class="num">386,200.00</td>
+              <td class="nowrap">2026-07-31 15:08</td>
+              <td class="nowrap">某消费金融有限公司</td>
+              <td class="nowrap">某消费金融</td>
+              <td class="nowrap">XF20260731A1186</td>
+              <td class="cell-lg">承租人租金贷一次性放款 12 期</td>
+              <td class="nowrap">机构划转</td>
+              <td class="nowrap">谭某某</td>
+              <td class="nowrap"><span class="badge red">对账不平</span><br><span class="text-danger text-sm">差额 1,800 元</span></td>
+              <td class="nowrap"><span class="badge orange" title="租金贷金额占该企业当年租金收入 34.6%，超过 30% 阈值">异常</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="PMS.toast('已转人工核查，核查单号 HC20260800042','success')">转人工核查</span>
+                <span class="link" onclick="PMS.toast('已打开流水凭证影像')">凭证</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">LS20260731000684</td>
+              <td class="nowrap">6228 **** **** 5502</td>
+              <td class="cell-lg">XXXX市住房租赁发展集团有限公司</td>
+              <td class="nowrap">ZLHT450200202600214</td>
+              <td class="nowrap">租金收入</td>
+              <td class="nowrap"><span class="badge green">收入</span></td>
+              <td class="num">1,120.00</td>
+              <td class="num">42,860,000.00</td>
+              <td class="nowrap">2026-07-31 10:32</td>
+              <td class="nowrap">刘某某</td>
+              <td class="nowrap">中国农业银行</td>
+              <td class="nowrap">ABC20260731Z4408</td>
+              <td class="cell-lg">天湖国际 2-1-1508 保租房 8 月租金</td>
+              <td class="nowrap">线上支付</td>
+              <td class="nowrap">系统自动</td>
+              <td class="nowrap"><span class="badge green">已对平</span></td>
+              <td class="nowrap"><span class="badge gray">否</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已打开流水凭证影像')">凭证</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">LS20260730000521</td>
+              <td class="nowrap">6217 **** **** 1938</td>
+              <td class="cell-lg">柳州寓家公寓管理有限公司</td>
+              <td class="nowrap">ZLHT450200202500268</td>
+              <td class="nowrap">押金退还</td>
+              <td class="nowrap"><span class="badge orange">支出</span></td>
+              <td class="num">1,380.00</td>
+              <td class="num">3,126,000.00</td>
+              <td class="nowrap">2026-07-30 16:14</td>
+              <td class="nowrap">莫某某</td>
+              <td class="nowrap">柳州银行</td>
+              <td class="nowrap">LZB20260730B3372</td>
+              <td class="cell-lg">退租押金退还（扣除损坏赔偿 200 元）</td>
+              <td class="nowrap">线上支付</td>
+              <td class="nowrap">龙某某</td>
+              <td class="nowrap"><span class="badge green">已对平</span></td>
+              <td class="nowrap"><span class="badge gray">否</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已打开流水凭证影像')">凭证</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">LS20260730000418</td>
+              <td class="nowrap">6214 **** **** 2680</td>
+              <td class="cell-lg">XXXX市和居住房租赁服务有限公司</td>
+              <td class="nowrap">ZLHT450200202600486</td>
+              <td class="nowrap">服务费划转</td>
+              <td class="nowrap"><span class="badge orange">支出</span></td>
+              <td class="num">2,650.00</td>
+              <td class="num">6,284,000.00</td>
+              <td class="nowrap">2026-07-30 11:47</td>
+              <td class="nowrap">XXXX市和居住房租赁服务有限公司</td>
+              <td class="nowrap">柳州银行</td>
+              <td class="nowrap">LZB20260730B2914</td>
+              <td class="cell-lg">受托房源首月服务费划转至企业基本户</td>
+              <td class="nowrap">机构划转</td>
+              <td class="nowrap">石某某</td>
+              <td class="nowrap"><span class="badge orange">未对账</span></td>
+              <td class="nowrap"><span class="badge gray">否</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已打开流水凭证影像')">凭证</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab 3 高风险经营监测 -->
+    <div class="tab-panel" data-panel="risk">
+      <div class="table-wrap">
+        <div class="section-title">四条高风险规则 T+1 自动跑批（取数时间 2026-08-01 06:00），阈值按一城一策配置</div>
+        <div class="grid-4">
+          <div class="rule-card">
+            <div class="rc-top">
+              <i class="fa-solid fa-hourglass-half" style="color:var(--danger)"></i> 长收短付
+              <span class="badge red rc-hit">命中 3</span>
+            </div>
+            <div class="rc-num">3<span class="rc-unit">家企业 / 486 份合同</span></div>
+            <div class="rc-th">阈值：向承租人收取租金期限 − 向业主支付期限 &gt; 3 个月，且涉及合同数 ≥ 20 份</div>
+          </div>
+          <div class="rule-card">
+            <div class="rc-top">
+              <i class="fa-solid fa-arrow-trend-down" style="color:var(--danger)"></i> 高进低出
+              <span class="badge red rc-hit">命中 2</span>
+            </div>
+            <div class="rc-num">2<span class="rc-unit">家企业 / 214 份合同</span></div>
+            <div class="rc-th">阈值：收房价高于出租价，价差幅度 &gt; 10%，且持续 3 个月以上</div>
+          </div>
+          <div class="rule-card">
+            <div class="rc-top">
+              <i class="fa-solid fa-money-bill-trend-up" style="color:var(--danger)"></i> 监管账户余额不足
+              <span class="badge red rc-hit">命中 4</span>
+            </div>
+            <div class="rc-num">4<span class="rc-unit">户账户</span></div>
+            <div class="rc-th">阈值：账户余额 &lt; 在管合同月租金总额 × 留存标准（默认 30%）</div>
+          </div>
+          <div class="rule-card">
+            <div class="rc-top">
+              <i class="fa-solid fa-credit-card" style="color:var(--danger)"></i> 租金贷占比超限
+              <span class="badge red rc-hit">命中 1</span>
+            </div>
+            <div class="rc-num">1<span class="rc-unit">家企业</span></div>
+            <div class="rc-th">阈值：租金贷金额占企业当年租金收入 &gt; 30%</div>
+          </div>
+        </div>
+
+        <div class="section-title mt-16">命中明细</div>
+        <table class="data-table" id="tblRisk" data-static data-fill="0">
+          <thead>
+            <tr>
+              <th>监测编号</th>
+              <th>企业名称</th>
+              <th>监测日期</th>
+              <th>监测周期</th>
+              <th>风险类型</th>
+              <th class="num">涉及合同数</th>
+              <th class="num">收取租金期限(月)</th>
+              <th class="num">支付业主期限(月)</th>
+              <th class="num">期限差(月)</th>
+              <th class="num">收取租金金额(元)</th>
+              <th class="num">支付业主金额(元)</th>
+              <th class="num">金额差(元)</th>
+              <th class="num">价差幅度</th>
+              <th>风险等级</th>
+              <th class="num">风险分值</th>
+              <th>是否生成预警</th>
+              <th>处置状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="is-warn">
+              <td class="nowrap fw-600">FXJC20260801026</td>
+              <td class="cell-lg">柳州寓家公寓管理有限公司</td>
+              <td class="nowrap">2026-08-01</td>
+              <td class="nowrap">2025-08 至 2026-07</td>
+              <td class="nowrap">长收短付</td>
+              <td class="num">486</td>
+              <td class="num">12</td>
+              <td class="num">1</td>
+              <td class="num text-danger fw-600">11</td>
+              <td class="num">13,414,560</td>
+              <td class="num">1,385,100</td>
+              <td class="num">12,029,460</td>
+              <td class="num">—</td>
+              <td class="nowrap"><span class="badge red blink">极高</span></td>
+              <td class="num">92</td>
+              <td class="nowrap"><span class="badge green">已生成</span></td>
+              <td class="nowrap"><span class="badge orange">已约谈</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="showPenetrate()">穿透视图</span>
+                <span class="link" onclick="PMS.toast('已打开处置记录')">处置</span>
+              </td>
+            </tr>
+            <tr class="is-warn">
+              <td class="nowrap fw-600">FXJC20260801031</td>
+              <td class="cell-lg">XXXX市万家优租资产管理有限公司</td>
+              <td class="nowrap">2026-08-01</td>
+              <td class="nowrap">2025-08 至 2026-07</td>
+              <td class="nowrap">高进低出</td>
+              <td class="num">214</td>
+              <td class="num">6</td>
+              <td class="num">3</td>
+              <td class="num">3</td>
+              <td class="num">4,286,400</td>
+              <td class="num">4,842,600</td>
+              <td class="num text-danger">−556,200</td>
+              <td class="num text-danger fw-600">−13.0%</td>
+              <td class="nowrap"><span class="badge red">高</span></td>
+              <td class="num">86</td>
+              <td class="nowrap"><span class="badge green">已生成</span></td>
+              <td class="nowrap"><span class="badge red">未处置</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="PMS.toast('已推送至预警督办中心，工单号 YJ20260800126','success')">推送督办</span>
+                <span class="link" onclick="PMS.toast('已打开处置记录')">处置</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">FXJC20260801038</td>
+              <td class="cell-lg">XXXX市宜居公寓管理有限公司</td>
+              <td class="nowrap">2026-08-01</td>
+              <td class="nowrap">2025-08 至 2026-07</td>
+              <td class="nowrap">长收短付</td>
+              <td class="num">86</td>
+              <td class="num">6</td>
+              <td class="num">1</td>
+              <td class="num">5</td>
+              <td class="num">1,286,400</td>
+              <td class="num">214,400</td>
+              <td class="num">1,072,000</td>
+              <td class="num">—</td>
+              <td class="nowrap"><span class="badge orange">中</span></td>
+              <td class="num">64</td>
+              <td class="nowrap"><span class="badge green">已生成</span></td>
+              <td class="nowrap"><span class="badge cyan">已核实</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="showPenetrate()">穿透视图</span>
+                <span class="link" onclick="PMS.toast('已打开处置记录')">处置</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">FXJC20260801042</td>
+              <td class="cell-lg">XXXX市万家优租资产管理有限公司</td>
+              <td class="nowrap">2026-08-01</td>
+              <td class="nowrap">2026-01 至 2026-07</td>
+              <td class="nowrap">租金贷占比超限</td>
+              <td class="num">128</td>
+              <td class="num">12</td>
+              <td class="num">1</td>
+              <td class="num">11</td>
+              <td class="num">4,312,800</td>
+              <td class="num">—</td>
+              <td class="num">—</td>
+              <td class="num text-danger">占比 34.6%</td>
+              <td class="nowrap"><span class="badge red">高</span></td>
+              <td class="num">88</td>
+              <td class="nowrap"><span class="badge green">已生成</span></td>
+              <td class="nowrap"><span class="badge orange">已约谈</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="PMS.toast('已打开处置记录')">处置</span>
+                <a class="link" href="violation-ledger.html">违规台账</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">FXJC20260801047</td>
+              <td class="cell-lg">XXXX市桂中优寓资产运营有限公司</td>
+              <td class="nowrap">2026-08-01</td>
+              <td class="nowrap">2025-08 至 2026-07</td>
+              <td class="nowrap">监管账户余额不足</td>
+              <td class="num">62</td>
+              <td class="num">3</td>
+              <td class="num">1</td>
+              <td class="num">2</td>
+              <td class="num">862,400</td>
+              <td class="num">786,200</td>
+              <td class="num">76,200</td>
+              <td class="num">—</td>
+              <td class="nowrap"><span class="badge gray">低</span></td>
+              <td class="num">42</td>
+              <td class="nowrap"><span class="badge gray">未生成</span></td>
+              <td class="nowrap"><span class="badge green">误报</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已打开处置记录')">处置</span></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- 长收短付穿透视图 -->
+        <div class="section-title mt-16" id="penTitle">
+          长收短付穿透视图 · FXJC20260801026 · 柳州寓家公寓管理有限公司
+          <span class="text-3 text-sm">（以桂中华府 6-2-1104 分间 A 单套合同为例，全企业 486 份合同同口径汇总）</span>
+        </div>
+        <div class="pen-view" id="penView">
+          <div class="grid-2">
+            <div>
+              <div class="pen-axis">
+                <div class="pa-label">
+                  <i class="fa-solid fa-arrow-down" style="color:var(--primary)"></i>
+                  向承租人收取：一次性收取 12 个月租金 27,600 元（2026-08 至 2027-07）
+                </div>
+                <div class="pen-bar">
+                  <div class="pb-seg in" style="width:100%">收取 12 个月 · 27,600 元</div>
+                </div>
+              </div>
+
+              <div class="pen-axis">
+                <div class="pa-label">
+                  <i class="fa-solid fa-arrow-up" style="color:var(--success)"></i>
+                  向业主支付：按月支付 2,850 元 / 月，剩余 11 个月资金沉淀在企业
+                </div>
+                <div class="pen-bar">
+                  <div class="pb-seg out" style="width:8.33%">1 月</div>
+                  <div class="pb-seg gap" style="width:91.67%">资金沉淀区间 11 个月 · 31,350 元未支付</div>
+                </div>
+                <div class="pen-months">
+                  <span>08</span><span>09</span><span>10</span><span>11</span><span>12</span><span>01</span>
+                  <span>02</span><span>03</span><span>04</span><span>05</span><span>06</span><span>07</span>
+                </div>
+              </div>
+
+              <div class="alert alert-danger mt-16">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <div>
+                  期限差 <b>11 个月</b>，超过阈值 3 个月。该企业以此模式经营 486 份合同，
+                  形成资金池 <b>1,202.9 万元</b>，一旦资金链断裂将同时波及 486 户承租人与业主。
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div class="pen-total">
+                <div class="pt-l">全企业沉淀资金规模</div>
+                <div class="pt-v">1,202.9 万元</div>
+                <dl class="desc-list mt-16">
+                  <div class="desc-item"><dt>涉及合同</dt><dd>486 份</dd></div>
+                  <div class="desc-item"><dt>涉及承租人</dt><dd>486 户</dd></div>
+                  <div class="desc-item"><dt>涉及业主</dt><dd>412 户</dd></div>
+                  <div class="desc-item"><dt>平均期限差</dt><dd>11 个月</dd></div>
+                  <div class="desc-item"><dt>监管账户余额</dt><dd class="text-danger">486.2 万元</dd></div>
+                  <div class="desc-item"><dt>最低留存要求</dt><dd>642.8 万元</dd></div>
+                  <div class="desc-item"><dt>风险分值</dt><dd class="text-danger fw-600">92 / 100</dd></div>
+                  <div class="desc-item"><dt>风险等级</dt><dd><span class="badge red blink">极高</span></dd></div>
+                </dl>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-title mt-16">处置</div>
+          <div class="form-grid form-align">
+            <div class="form-item">
+              <label>处置状态</label>
+              <select><option>未处置</option><option>已核实</option><option selected>已约谈</option><option>已处罚</option><option>误报</option></select>
+            </div>
+            <div class="form-item">
+              <label>处置时间</label>
+              <input type="datetime-local" value="2026-08-01T09:30">
+            </div>
+            <div class="form-item">
+              <label>处置人</label>
+              <input type="text" value="韦国强">
+            </div>
+            <div class="form-item col-full">
+              <label>处置结果</label>
+              <textarea rows="3">2026-08-01 对企业法定代表人进行约谈，要求 15 日内补足监管账户留存资金 156.6 万元，并停止一次性收取超过 3 个月租金的经营模式；逾期未整改的，暂停其网签备案权限并列入黑名单。</textarea>
+            </div>
+          </div>
+          <div class="flex items-center gap-8 mt-16">
+            <button type="button" class="btn btn-primary" onclick="PMS.toast('已推送至预警督办中心，工单号 YJ20260800126','success')"><i class="fa-solid fa-bullhorn"></i> 生成预警并推送督办</button>
+            <button type="button" class="btn" onclick="PMS.toast('已登记约谈记录，约谈时间 2026-08-01 09:30','success')"><i class="fa-solid fa-comments"></i> 登记约谈记录</button>
+            <button type="button" class="btn" onclick="PMS.confirm({title:'标记误报',message:'将本条高风险记录标记为误报？',detail:'标记后不再生成预警，误报样本将回流用于规则阈值调优。',type:'warning',okText:'标记误报',onOk:function(){PMS.toast('已标记为误报','success');}})"><i class="fa-solid fa-ban"></i> 标记误报</button>
+            <a class="btn" href="violation-ledger.html"><i class="fa-solid fa-list-check"></i> 登记违规台账</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 新增账户备案 -->
+  <div class="drawer-mask" data-close-drawer></div>
+  <div class="drawer" id="drAcct">
+    <div class="drawer-head">
+      <span>新增监管账户备案</span>
+      <i class="fa-solid fa-xmark" data-close-drawer></i>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-info">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>住房租赁企业开展经营前应在本市合作银行开立租金监管专户与押金监管专户，并与银行、主管部门签订三方监管协议。</div>
+      </div>
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>企业名称</label>
+          <input type="text" placeholder="选择已备案的住房租赁企业">
+        </div>
+        <div class="form-item">
+          <label>账户类型</label>
+          <select><option>租金监管专户</option><option>押金监管专户</option><option>风险保证金账户</option></select>
+        </div>
+        <div class="form-item">
+          <label>账户名称</label>
+          <input type="text" placeholder="与银行开户名称一致">
+        </div>
+        <div class="form-item">
+          <label>账号</label>
+          <input type="text" placeholder="19 位银行账号">
+        </div>
+        <div class="form-item">
+          <label>开户银行</label>
+          <select>
+            <option>中国工商银行柳州分行</option><option>中国建设银行柳州分行</option>
+            <option>中国农业银行柳州分行</option><option>柳州银行</option><option>桂林银行柳州分行</option>
+          </select>
+        </div>
+        <div class="form-item">
+          <label>开户网点</label>
+          <input type="text" placeholder="如 营业部 / 城中支行">
+        </div>
+        <div class="form-item">
+          <label>开户日期</label>
+          <input type="date" value="2026-08-01">
+        </div>
+        <div class="form-item">
+          <label>监管协议编号</label>
+          <input type="text" placeholder="JGXY…">
+        </div>
+        <div class="form-item">
+          <label>协议期限止</label>
+          <input type="date" value="2031-07-31">
+        </div>
+        <div class="form-item">
+          <label>留存标准(%)</label>
+          <input type="number" value="30" min="0" max="100">
+        </div>
+        <div class="form-item col-full">
+          <label>三方监管协议附件</label>
+          <input type="file">
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('监管账户备案成功，账户编号 JGZH450200000341','success')">提交备案</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function switchTab(name) {
+  document.querySelectorAll('[data-tabs-scope] .tabs .tab').forEach(function (t) {
+    t.classList.toggle('active', t.getAttribute('data-tab') === name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(function (p) {
+    p.classList.toggle('active', p.getAttribute('data-panel') === name);
+  });
+}
+function gotoFlow(ent) {
+  switchTab('flow');
+  document.getElementById('flowEnt').value = ent;
+  PMS.toast('已按「' + ent + '」筛选资金流水');
+}
+function showPenetrate() {
+  switchTab('risk');
+  document.getElementById('penView').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+(function () {
+  PMS.renderPager(document.getElementById('tblAcct'), {
+    pageNum: 1, pageSize: 20, total: 76,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+</script>
+</body>
+</html>

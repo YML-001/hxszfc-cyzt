@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>借阅申请与审批 · 房屋交易档案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  .no-code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; }
+  /* 本页特有：卡片式单选 */
+  .pick-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+  .pick {
+    border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; cursor: pointer;
+    display: flex; align-items: center; gap: 9px; font-size: 13px; background: #fff; transition: .15s;
+  }
+  .pick:hover { border-color: var(--primary); }
+  .pick.on { border-color: var(--primary); background: var(--primary-bg); color: var(--primary); font-weight: 600; }
+  .pick i { font-size: 15px; }
+  .pick small { display: block; font-weight: 400; color: var(--text-3); font-size: 11.5px; margin-top: 1px; }
+  .pick.on small { color: var(--primary); opacity: .85; }
+  /* 本页特有：资格核验面板 */
+  .vf-panel { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .vf-h {
+    display: flex; align-items: center; gap: 8px; padding: 9px 14px; font-size: 13.5px; font-weight: 600;
+    background: var(--bg-soft);
+  }
+  .vf-h .rs { margin-left: auto; font-weight: 400; }
+  .vf-b { padding: 12px 14px; }
+  .vf-item {
+    display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; border-bottom: 1px dashed var(--border); font-size: 13px;
+  }
+  .vf-item:last-child { border-bottom: none; }
+  .vf-item .ic { width: 20px; flex-shrink: 0; text-align: center; font-size: 14px; margin-top: 1px; }
+  .vf-item .nm { width: 130px; flex-shrink: 0; color: var(--text-2); }
+  .vf-item .vl { flex: 1; }
+  .vf-item.ok .ic { color: var(--success); }
+  .vf-item.warn .ic { color: var(--warning); }
+  .vf-item.bad .ic { color: var(--danger); }
+  .vf-item.bad .vl { color: var(--danger); }
+  .vf-panel.blocked { border-color: #f6c9c9; }
+  .vf-panel.blocked .vf-h { background: #fdecec; color: var(--danger); }
+  /* 本页特有：借阅清单 */
+  .data-table tbody tr.dis-row { background: #f8fafc; color: var(--text-3); }
+  .data-table tbody tr.dis-row td { color: var(--text-3); }
+  .ml-b { display: inline-block; padding: 0 6px; border-radius: 4px; font-size: 11.5px; line-height: 18px; }
+  .ml-0 { background: #e8f7ee; color: #17803d; }
+  .ml-1 { background: #e7f0fd; color: #1d4ed8; }
+  .ml-2 { background: #fff2e2; color: #b45309; }
+  .ml-3 { background: #fdecec; color: #b91c1c; }
+  .cr { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; }
+  .cr.e { color: #0e7490; } .cr.p { color: #92400e; } .cr.d { color: #4338ca; }
+  /* 本页特有：只读汇总 */
+  .sum-card { border: 1px solid var(--border); border-radius: 10px; padding: 14px; background: var(--bg-soft); }
+  .sum-card .kv { display: flex; gap: 8px; font-size: 13px; padding: 4px 0; }
+  .sum-card .kv .k { width: 92px; flex-shrink: 0; color: var(--text-3); }
+  .step-panel { display: none; }
+  .step-panel.active { display: block; }
+  .form-static { display: flex; align-items: center; gap: 8px; min-height: 34px; font-size: 13.5px; }
+  .form-static input[type="checkbox"] { width: auto; height: auto; }
+  .form-foot { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+  .foot-tip { margin-right: auto; font-size: 12.5px; color: var(--text-3); }
+  .mt-12 { margin-top: 12px; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdagl-15">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> <a class="link" href="index.html">房屋交易档案管理系统</a>
+        <span class="sep">/</span> 档案保管利用
+        <span class="sep">/</span> <a class="link" href="borrow-list.html">借阅申请台账</a>
+        <span class="sep">/</span> <span class="cur">借阅申请与审批</span>
+      </div>
+      <div class="page-title">
+        借阅申请与审批
+        <span class="badge blue no-code" id="tagNo">JY20260801016</span>
+        <span class="badge orange">待审批</span>
+      </div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="PMS.toast('草稿已保存','success')"><i class="fa-regular fa-floppy-disk"></i> 存草稿</button>
+      <a class="btn" href="borrow-list.html"><i class="fa-solid fa-arrow-left"></i> 返回台账</a>
+    </div>
+  </div>
+
+  <div class="wizard" id="wz">
+    <div class="w-step active" data-step="1" onclick="goStep(1)"><span class="w-num">1</span><span class="w-label">借阅人与资格核验</span></div>
+    <div class="w-line"></div>
+    <div class="w-step" data-step="2" onclick="goStep(2)"><span class="w-num">2</span><span class="w-label">借阅档案与方式</span></div>
+    <div class="w-line"></div>
+    <div class="w-step" data-step="3" onclick="goStep(3)"><span class="w-num">3</span><span class="w-label">审批</span></div>
+  </div>
+
+  <form onsubmit="return false">
+
+    <div class="step-panel active" data-panel="1">
+      <div class="card mb-16">
+        <div class="card-head"><h3><i class="fa-solid fa-user-tag"></i> 借阅人类型</h3></div>
+        <div class="card-body">
+          <div class="pick-row">
+            <div class="pick" onclick="pickType(this,'nb')"><i class="fa-solid fa-id-badge"></i><span>本单位人员<small>工号自动带出</small></span></div>
+            <div class="pick" onclick="pickType(this,'qlr')"><i class="fa-solid fa-user-check"></i><span>权利人本人<small>实名认证核验</small></span></div>
+            <div class="pick" onclick="pickType(this,'wt')"><i class="fa-solid fa-file-signature"></i><span>委托代理人<small>委托书核验</small></span></div>
+            <div class="pick on" onclick="pickType(this,'ls')"><i class="fa-solid fa-scale-balanced"></i><span>律师<small>执业证 + 公函</small></span></div>
+            <div class="pick" onclick="pickType(this,'gjf')"><i class="fa-solid fa-shield-halved"></i><span>公检法<small>办案函核验</small></span></div>
+            <div class="pick" onclick="pickType(this,'qt')"><i class="fa-solid fa-building-columns"></i><span>其他部门<small>单位公函</small></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-16">
+        <div class="card-head"><h3><i class="fa-solid fa-user"></i> 借阅人信息</h3></div>
+        <div class="card-body">
+          <div class="form-grid form-align">
+            <div class="form-item">
+              <label>借阅申请编号</label>
+              <input type="text" class="no-code" value="JY20260801016" readonly>
+            </div>
+            <div class="form-item">
+              <label>借阅人姓名<span class="req">*</span></label>
+              <input type="text" value="韦**">
+            </div>
+            <div class="form-item">
+              <label>证件号码<span class="req">*</span></label>
+              <input type="text" class="no-code" value="450***********0028">
+            </div>
+            <div class="form-item">
+              <label>联系电话<span class="req">*</span></label>
+              <input type="text" value="138****6286">
+            </div>
+            <div class="form-item col-2">
+              <label>所在单位<span class="req">*</span></label>
+              <input type="text" value="广西同望律师事务所">
+            </div>
+            <div class="form-item">
+              <label>借阅类型<span class="req">*</span></label>
+              <select><option>调卷办案</option><option>内部借阅</option><option>外部查阅</option><option>复制出证</option><option>线上调阅</option></select>
+            </div>
+            <div class="form-item">
+              <label>申请渠道</label>
+              <select><option>窗口</option><option>内部系统</option><option>门户</option><option>小程序</option></select>
+            </div>
+            <div class="form-item">
+              <label>申请时间</label>
+              <input type="text" value="2026-08-01 09:26" readonly>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-16">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-clipboard-check"></i> 资格核验</h3>
+          <span class="text-3 text-sm">核验项随借阅人类型自动切换</span>
+        </div>
+        <div class="card-body">
+
+          <div class="vf-panel vf" id="vf-nb" style="display:none">
+            <div class="vf-h"><i class="fa-solid fa-circle-check text-success"></i> 本单位人员核验<span class="rs badge green">核验通过</span></div>
+            <div class="vf-b">
+              <div class="vf-item ok"><span class="ic"><i class="fa-solid fa-check"></i></span><span class="nm">工号与部门</span><span class="vl">GX2018026 · XXXX市房产交易所 综合业务岗（自动带出）</span></div>
+              <div class="vf-item ok"><span class="ic"><i class="fa-solid fa-check"></i></span><span class="nm">额外材料</span><span class="vl">本单位人员内部借阅无需额外提交材料</span></div>
+            </div>
+          </div>
+
+          <div class="vf-panel vf" id="vf-qlr" style="display:none">
+            <div class="vf-h"><i class="fa-solid fa-circle-check text-success"></i> 权利人本人核验<span class="rs badge green">核验通过</span></div>
+            <div class="vf-b">
+              <div class="vf-item ok"><span class="ic"><i class="fa-solid fa-check"></i></span><span class="nm">实名认证</span><span class="vl">人脸核身通过　2026-08-01 09:24　相似度 98.6%</span></div>
+              <div class="vf-item ok"><span class="ic"><i class="fa-solid fa-check"></i></span><span class="nm">姓名证件比对</span><span class="vl">与档案权利人「周**　450***********0017」一致</span></div>
+              <div class="vf-item ok"><span class="ic"><i class="fa-solid fa-check"></i></span><span class="nm">可查阅范围</span><span class="vl">本人名下房屋档案，共 1 套房 9 卷</span></div>
+            </div>
+          </div>
+
+          <div class="vf-panel blocked vf" id="vf-wt" style="display:none">
+            <div class="vf-h"><i class="fa-solid fa-circle-xmark"></i> 委托代理人核验<span class="rs badge red">核验不通过</span></div>
+            <div class="vf-b">
+              <div class="vf-item ok"><span class="ic"><i class="fa-solid fa-check"></i></span><span class="nm">委托书</span><span class="vl">已上传　委托书_周**_蒙**.pdf</span></div>
+              <div class="vf-item ok"><span class="ic"><i class="fa-solid fa-check"></i></span><span class="nm">双方身份核验</span><span class="vl">委托人 周**、受托人 蒙** 身份核验通过</span></div>
+              <div class="vf-item ok"><span class="ic"><i class="fa-solid fa-check"></i></span><span class="nm">委托事项</span><span class="vl">查阅并复制房屋交易档案</span></div>
+              <div class="vf-item bad"><span class="ic"><i class="fa-solid fa-xmark"></i></span><span class="nm">委托期限</span><span class="vl">2026-01-15 至 2026-07-15，<b>已于 17 天前过期</b>，须重新出具委托书后方可受理</span></div>
+            </div>
+          </div>
+
+          <div class="vf-panel vf" id="vf-ls">
+            <div class="vf-h"><i class="fa-solid fa-circle-check text-success"></i> 律师资格核验<span class="rs badge green">核验通过</span></div>
+            <div class="vf-b">
+              <div class="vf-item ok"><span class="ic"><i class="fa-solid fa-check"></i></span><span class="nm">执业证</span><span class="vl">已上传　执业证号 14502*********026　有效期至 2028-12-31</span></div>
+              <div class="vf-item ok"><span class="ic"><i class="fa-solid fa-check"></i></span><span class="nm">律所公函</span><span class="vl">已上传　广西同望律师事务所〔2026〕调字第 086 号</span></div>
+              <div class="vf-item ok"><span class="ic"><i class="fa-solid fa-check"></i></span><span class="nm">案件编号</span><span class="vl">（2026）桂 0202 民初 1286 号　XXXX市城中区人民法院</span></div>
+              <div class="vf-item warn"><span class="ic"><i class="fa-solid fa-triangle-exclamation"></i></span><span class="nm">借阅历史</span><span class="vl">该借阅人存在 1 条逾期未还记录（JY20260708018，逾期 7 天），按规定<b>逾期未还的不得再次借阅</b>，本次为现场查阅不涉及借出，可继续受理</span></div>
+            </div>
+          </div>
+
+          <div class="vf-panel vf" id="vf-gjf" style="display:none">
+            <div class="vf-h"><i class="fa-solid fa-circle-check text-success"></i> 公检法核验<span class="rs badge green">核验通过</span></div>
+            <div class="vf-b">
+              <div class="vf-item ok"><span class="ic"><i class="fa-solid fa-check"></i></span><span class="nm">办案函</span><span class="vl">已上传　协助调查通知书　柳中法调〔2026〕第 218 号</span></div>
+              <div class="vf-item ok"><span class="ic"><i class="fa-solid fa-check"></i></span><span class="nm">办案人员证件</span><span class="vl">莫**（警号 026418）、黄**（警号 026522），二人同行</span></div>
+              <div class="vf-item ok"><span class="ic"><i class="fa-solid fa-check"></i></span><span class="nm">案件编号</span><span class="vl">（2026）桂 02 刑初 086 号</span></div>
+            </div>
+          </div>
+
+          <div class="vf-panel vf" id="vf-qt" style="display:none">
+            <div class="vf-h"><i class="fa-solid fa-circle-check text-success"></i> 其他部门核验<span class="rs badge green">核验通过</span></div>
+            <div class="vf-b">
+              <div class="vf-item ok"><span class="ic"><i class="fa-solid fa-check"></i></span><span class="nm">单位公函</span><span class="vl">已上传　XXXX市不动产登记中心〔2026〕调档第 042 号</span></div>
+              <div class="vf-item ok"><span class="ic"><i class="fa-solid fa-check"></i></span><span class="nm">经办人证件</span><span class="vl">李**　450***********0086　核验通过</span></div>
+            </div>
+          </div>
+
+          <div class="form-item col-full mt-16">
+            <label>资格材料</label>
+            <div class="file-up">
+              <input type="hidden" class="file-up-val" value="律师执业证.pdf,律所公函.pdf,立案受理通知书.pdf">
+              <div class="file-up-grid">
+                <div class="file-up-tile file-up-add" title="添加文件（可多选）">
+                  <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png">
+                  <i class="fa-solid fa-plus"></i><span>上传</span>
+                </div>
+              </div>
+            </div>
+            <span class="hint">材料存入 wssvc 文件服务，本页仅登记文件主键</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-panel" data-panel="2">
+      <div class="card mb-16">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-magnifying-glass"></i> 档案检索</h3>
+          <a class="link" href="house-archive.html">从一房一档全景批量勾选 <i class="fa-solid fa-angle-right"></i></a>
+        </div>
+        <div class="card-body">
+          <div class="filter-bar" style="border-radius:8px;border:1px solid var(--border)">
+            <div class="filter-item"><label>档案号</label><input type="text" placeholder="如 DA450204202600862"></div>
+            <div class="filter-item"><label>房屋坐落</label><input type="text" value="彰泰滨江学府 12 栋 2 单元 1802"></div>
+            <div class="filter-item"><label>权利人</label><input type="text" placeholder="姓名"></div>
+            <div class="filter-item"><label>年度</label><select><option value="">全部</option><option>2026</option><option>2024</option><option>2023</option><option>2021</option></select></div>
+            <div class="filter-actions">
+              <button type="button" class="btn btn-primary" onclick="PMS.toast('检索到该房屋 9 卷案卷，已加入可选清单')"><i class="fa-solid fa-magnifying-glass"></i> 检索</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-16">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-layer-group"></i> 借阅清单</h3>
+          <span class="text-3 text-sm">已选 <b id="selCnt">2</b> 卷</span>
+        </div>
+        <div class="card-body">
+          <div class="table-wrap">
+            <table class="data-table" data-static>
+              <thead>
+                <tr>
+                  <th style="width:38px"><input type="checkbox" id="ckAll"></th>
+                  <th>档案号</th>
+                  <th>档案名称</th>
+                  <th>年度</th>
+                  <th>密级</th>
+                  <th>开放级别</th>
+                  <th>载体</th>
+                  <th>当前状态</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><input type="checkbox" class="ck" checked onchange="recount()"></td>
+                  <td class="nowrap no-code">DA450202202100862</td>
+                  <td class="cell-lg">彰泰滨江学府12栋2单元1802商品房买卖合同网签备案</td>
+                  <td class="nowrap">2021</td>
+                  <td class="nowrap"><span class="ml-b ml-2">秘密</span></td>
+                  <td class="nowrap">受控开放</td>
+                  <td class="nowrap"><span class="cr d"><i class="fa-solid fa-layer-group"></i> 双套</span></td>
+                  <td class="nowrap"><span class="badge green">已归档在库</span></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" class="ck" checked onchange="recount()"></td>
+                  <td class="nowrap no-code">DA450204202600862</td>
+                  <td class="cell-lg">彰泰滨江学府12栋2单元1802存量房买卖合同网签备案</td>
+                  <td class="nowrap">2026</td>
+                  <td class="nowrap"><span class="ml-b ml-1">内部</span></td>
+                  <td class="nowrap">受控开放</td>
+                  <td class="nowrap"><span class="cr d"><i class="fa-solid fa-layer-group"></i> 双套</span></td>
+                  <td class="nowrap"><span class="badge green">已归档在库</span></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" class="ck" onchange="recount()"></td>
+                  <td class="nowrap no-code">DA450202202300186</td>
+                  <td class="cell-lg">彰泰滨江学府12栋2单元1802不动产转移登记归档</td>
+                  <td class="nowrap">2023</td>
+                  <td class="nowrap"><span class="ml-b ml-1">内部</span></td>
+                  <td class="nowrap">受控开放</td>
+                  <td class="nowrap"><span class="cr d"><i class="fa-solid fa-layer-group"></i> 双套</span></td>
+                  <td class="nowrap"><span class="badge green">已归档在库</span></td>
+                </tr>
+                <tr class="ele-row">
+                  <td><input type="checkbox" class="ck" onchange="recount()"></td>
+                  <td class="nowrap no-code">DA450202202400628</td>
+                  <td class="cell-lg">彰泰滨江学府12栋2单元1802房屋租赁合同备案</td>
+                  <td class="nowrap">2024</td>
+                  <td class="nowrap"><span class="ml-b ml-0">公开</span></td>
+                  <td class="nowrap">完全开放</td>
+                  <td class="nowrap"><span class="cr e"><i class="fa-solid fa-cloud"></i> 纯电子</span></td>
+                  <td class="nowrap"><span class="badge green">已归档在库</span></td>
+                </tr>
+                <tr class="dis-row">
+                  <td><input type="checkbox" class="ck" disabled></td>
+                  <td class="nowrap no-code">DA450202202101024</td>
+                  <td class="cell-lg">彰泰滨江学府12栋2单元1802预购商品房抵押预告登记</td>
+                  <td class="nowrap">2021</td>
+                  <td class="nowrap"><span class="ml-b ml-1">内部</span></td>
+                  <td class="nowrap">受控开放</td>
+                  <td class="nowrap"><span class="cr d"><i class="fa-solid fa-layer-group"></i> 双套</span></td>
+                  <td class="nowrap">
+                    <span class="badge orange">已借出</span>
+                    <div class="text-3 text-sm">该卷已被借出，预计 2026-08-06 归还</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="alert alert-warning mt-12" id="mlAlert">
+            <i class="fa-solid fa-lock"></i>
+            <div>
+              本次借阅清单中包含 <b>1 卷秘密级档案（DA450202202100862）</b>，需提交专项审批，审批时限 3 个工作日。
+              密级为秘密及以上的档案开放级别强制为受控开放，查阅须全程留痕并禁止自行拍照。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-16">
+        <div class="card-head"><h3><i class="fa-solid fa-hand-holding-hand"></i> 借阅方式与期限</h3></div>
+        <div class="card-body">
+          <div class="form-grid form-align">
+            <div class="form-item col-full">
+              <label>借阅方式<span class="req">*</span></label>
+              <div class="pick-row">
+                <div class="pick on" onclick="pickWay(this,'xc')"><i class="fa-solid fa-building-user"></i><span>现场查阅<small>库房阅览室</small></span></div>
+                <div class="pick" onclick="pickWay(this,'jc')"><i class="fa-solid fa-box-open"></i><span>借出<small>实体带离</small></span></div>
+                <div class="pick" onclick="pickWay(this,'dz')"><i class="fa-solid fa-display"></i><span>电子调阅<small>在线阅览影像</small></span></div>
+                <div class="pick" onclick="pickWay(this,'fz')"><i class="fa-solid fa-copy"></i><span>复制件<small>转复制出证</small></span></div>
+              </div>
+              <div class="alert alert-info mt-12" id="wayTip" style="display:none">
+                <i class="fa-solid fa-circle-info"></i>
+                <div id="wayTipTxt"></div>
+              </div>
+            </div>
+            <div class="form-item">
+              <label>申请借阅期限起<span class="req">*</span></label>
+              <input type="date" id="dt1" value="2026-08-05">
+            </div>
+            <div class="form-item">
+              <label>申请借阅期限止<span class="req">*</span></label>
+              <input type="date" id="dt2" value="2026-08-05">
+            </div>
+            <div class="form-item">
+              <label>借阅期限</label>
+              <div class="form-static" id="dayTip">当日查阅当日归还，不涉及借出期限</div>
+            </div>
+            <div class="form-item">
+              <label>借阅用途<span class="req">*</span></label>
+              <select><option>诉讼举证</option><option>业务办理</option><option>公证</option><option>继承</option><option>历史查询</option><option>研究</option></select>
+            </div>
+            <div class="form-item col-2">
+              <label>用途说明<span class="req">*</span></label>
+              <textarea rows="3">受委托代理（2026）桂 0202 民初 1286 号房屋买卖合同纠纷一案，需调取该房屋 2021 年与 2026 年两次买卖合同原始档案，用于核对当事人签字与成交价格，作为诉讼举证材料。</textarea>
+              <span class="hint">不少于 20 字，当前 98 字</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-panel" data-panel="3">
+      <div class="card mb-16">
+        <div class="card-head"><h3><i class="fa-solid fa-file-lines"></i> 申请信息汇总</h3><span class="badge orange">需专项审批</span></div>
+        <div class="card-body">
+          <div class="grid-2">
+            <div class="sum-card">
+              <div class="section-title" style="margin-top:0">借阅人</div>
+              <div class="kv"><span class="k">申请编号</span><span class="no-code">JY20260801016</span></div>
+              <div class="kv"><span class="k">借阅人</span><span>韦**　138****6286</span></div>
+              <div class="kv"><span class="k">借阅人类型</span><span><span class="badge purple">律师</span>　广西同望律师事务所</span></div>
+              <div class="kv"><span class="k">资格核验</span><span class="text-success">执业证、律所公函、案件编号均已核验通过</span></div>
+              <div class="kv"><span class="k">借阅历史</span><span class="text-warning">存在 1 条逾期未还记录（JY20260708018）</span></div>
+            </div>
+            <div class="sum-card">
+              <div class="section-title" style="margin-top:0">借阅事项</div>
+              <div class="kv"><span class="k">借阅类型</span><span>调卷办案　用途：诉讼举证</span></div>
+              <div class="kv"><span class="k">借阅方式</span><span>现场查阅</span></div>
+              <div class="kv"><span class="k">申请期限</span><span>2026-08-05 至 2026-08-05</span></div>
+              <div class="kv"><span class="k">借阅卷数</span><span>2 卷（含秘密级 1 卷）</span></div>
+              <div class="kv"><span class="k">申请渠道</span><span>窗口　2026-08-01 09:26</span></div>
+            </div>
+          </div>
+
+          <div class="section-title mt-16">申请借阅档案</div>
+          <div class="table-wrap">
+            <table class="data-table compact" data-static>
+              <thead>
+                <tr><th>档案号</th><th>档案名称</th><th>年度</th><th>密级</th><th>载体</th><th>当前状态</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="nowrap no-code">DA450202202100862</td>
+                  <td class="cell-lg">彰泰滨江学府12栋2单元1802商品房买卖合同网签备案</td>
+                  <td class="nowrap">2021</td>
+                  <td class="nowrap"><span class="ml-b ml-2">秘密</span></td>
+                  <td class="nowrap"><span class="cr d"><i class="fa-solid fa-layer-group"></i> 双套</span></td>
+                  <td class="nowrap"><span class="badge green">已归档在库</span></td>
+                </tr>
+                <tr>
+                  <td class="nowrap no-code">DA450204202600862</td>
+                  <td class="cell-lg">彰泰滨江学府12栋2单元1802存量房买卖合同网签备案</td>
+                  <td class="nowrap">2026</td>
+                  <td class="nowrap"><span class="ml-b ml-1">内部</span></td>
+                  <td class="nowrap"><span class="cr d"><i class="fa-solid fa-layer-group"></i> 双套</span></td>
+                  <td class="nowrap"><span class="badge green">已归档在库</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-16">
+        <div class="card-head"><h3><i class="fa-solid fa-gavel"></i> 审批</h3></div>
+        <div class="card-body">
+          <div class="form-grid form-align">
+            <div class="form-item col-full">
+              <label>审批结果<span class="req">*</span></label>
+              <div class="pick-row" style="max-width:520px">
+                <div class="pick" onclick="pickSp(this,'y')"><i class="fa-solid fa-circle-check"></i><span>同意</span></div>
+                <div class="pick on" onclick="pickSp(this,'p')"><i class="fa-solid fa-circle-half-stroke"></i><span>部分同意</span></div>
+                <div class="pick" onclick="pickSp(this,'n')"><i class="fa-solid fa-circle-xmark"></i><span>不同意</span></div>
+              </div>
+            </div>
+
+            <div class="form-item col-full" id="spScope">
+              <label>批准借阅范围<span class="req">*</span></label>
+              <div class="table-wrap">
+                <table class="data-table compact" data-static>
+                  <thead>
+                    <tr><th style="width:38px">批准</th><th>档案号</th><th>密级</th><th>不批准理由（未勾选时必填）</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><input type="checkbox"></td>
+                      <td class="nowrap no-code">DA450202202100862</td>
+                      <td class="nowrap"><span class="ml-b ml-2">秘密</span></td>
+                      <td><input type="text" value="该卷为秘密级，涉及第三方当事人敏感信息，本次不予批准；如确需查阅请另行提交专项审批并附法院调查令"></td>
+                    </tr>
+                    <tr>
+                      <td><input type="checkbox" checked></td>
+                      <td class="nowrap no-code">DA450204202600862</td>
+                      <td class="nowrap"><span class="ml-b ml-1">内部</span></td>
+                      <td class="text-3">—</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="form-item">
+              <label>审批人</label>
+              <input type="text" value="韦国强" readonly>
+            </div>
+            <div class="form-item">
+              <label>审批时间</label>
+              <input type="text" value="2026-08-01 19:16" readonly>
+            </div>
+            <div class="form-item">
+              <label>专项审批</label>
+              <div class="form-static"><span class="badge orange">秘密级档案专项审批</span> <span class="text-3">审批时限 3 个工作日</span></div>
+            </div>
+            <div class="form-item col-full">
+              <label>审批意见<span class="req">*</span></label>
+              <textarea rows="3">经核验借阅人律师执业证、律所公函与案件编号均真实有效，同意其现场查阅 2026 年存量房买卖合同案卷；2021 年商品房买卖合同案卷为秘密级，暂不予批准。查阅须在阅览室内进行，全程留痕，不得拍照复制。</textarea>
+            </div>
+          </div>
+
+          <div class="alert alert-info mt-12">
+            <i class="fa-solid fa-circle-info"></i>
+            <div>审批通过后，借阅人可于 <b>2026-08-05</b> 到档案室阅览室办理现场查阅；每一次查阅都会写入档案利用记录，可在<a class="link" href="access-audit.html">档案利用留痕审计</a>中追溯。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="navCard">
+      <div class="form-foot">
+        <span class="foot-tip">带 <span class="text-danger">*</span> 为必填项；分步表单可点击步骤条回退，不可跳步前进</span>
+        <button type="button" class="btn" id="btnPrev" onclick="goStep(cur - 1)" disabled><i class="fa-solid fa-angle-left"></i> 上一步</button>
+        <button type="button" class="btn btn-primary" id="btnNext" onclick="next()">下一步 <i class="fa-solid fa-angle-right"></i></button>
+        <button type="button" class="btn btn-primary" id="btnSubmit" style="display:none" onclick="submitSp()"><i class="fa-solid fa-paper-plane"></i> 提交审批结果</button>
+      </div>
+    </div>
+
+  </form>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+var cur = 1, maxStep = 1, curType = 'ls';
+
+function goStep(n) {
+  if (n < 1 || n > 3) return;
+  if (n > maxStep) return;
+  cur = n;
+  document.querySelectorAll('#wz .w-step').forEach(function (s) {
+    var i = parseInt(s.getAttribute('data-step'), 10);
+    s.classList.toggle('active', i === n);
+    s.classList.toggle('done', i < n);
+  });
+  document.querySelectorAll('.step-panel').forEach(function (p) {
+    p.classList.toggle('active', p.getAttribute('data-panel') === String(n));
+  });
+  document.getElementById('btnPrev').disabled = n === 1;
+  document.getElementById('btnNext').style.display = n === 3 ? 'none' : '';
+  document.getElementById('btnSubmit').style.display = n === 3 ? '' : 'none';
+  window.scrollTo(0, 0);
+}
+
+function next() {
+  if (cur === 1 && curType === 'wt') {
+    PMS.toast('委托期限已过期，资格核验不通过，无法进入下一步', 'error');
+    return;
+  }
+  maxStep = Math.max(maxStep, cur + 1);
+  goStep(cur + 1);
+}
+
+function pickType(el, k) {
+  el.parentNode.querySelectorAll('.pick').forEach(function (p) { p.classList.remove('on'); });
+  el.classList.add('on');
+  curType = k;
+  document.querySelectorAll('.vf').forEach(function (v) { v.style.display = 'none'; });
+  document.getElementById('vf-' + k).style.display = '';
+  document.getElementById('btnNext').disabled = (k === 'wt');
+  if (k === 'wt') PMS.toast('委托书委托期限已于 2026-07-15 过期，核验不通过', 'error');
+}
+
+function pickWay(el, k) {
+  el.parentNode.querySelectorAll('.pick').forEach(function (p) { p.classList.remove('on'); });
+  el.classList.add('on');
+  var box = document.getElementById('wayTip'), txt = document.getElementById('wayTipTxt');
+  var day = document.getElementById('dayTip');
+  box.style.display = '';
+  box.className = 'alert alert-info mt-12';
+  if (k === 'xc') {
+    box.style.display = 'none';
+    day.textContent = '当日查阅当日归还，不涉及借出期限';
+  } else if (k === 'jc') {
+    box.className = 'alert alert-warning mt-12';
+    txt.innerHTML = '仅纸质或双套档案可借出，纯电子档案请选择电子调阅。已自动过滤清单中的纯电子档案 <b>1 卷（DA450202202400628）</b>。借出期限默认 15 天，超过 30 天须说明理由。';
+    document.getElementById('dt2').value = '2026-08-20';
+    day.textContent = '15 天（默认借出期限）';
+    document.querySelectorAll('.ele-row .ck').forEach(function (c) { c.checked = false; c.disabled = true; });
+    recount();
+  } else if (k === 'dz') {
+    txt.innerHTML = '电子调阅在<a class="link" href="archive-viewer.html">图文一体化查看</a>中在线阅览影像，影像加水印标注查看人与时间，下载与打印须单独授权。';
+    day.textContent = '按批准期限内不限次在线阅览';
+  } else {
+    box.className = 'alert alert-warning mt-12';
+    txt.innerHTML = '选择复制件将转入<a class="link" href="copy-cert.html">档案复制出证</a>流程，出具加盖档案证明章的复制件。';
+    day.textContent = '不涉及借出期限';
+  }
+}
+
+function pickSp(el, k) {
+  el.parentNode.querySelectorAll('.pick').forEach(function (p) { p.classList.remove('on'); });
+  el.classList.add('on');
+  document.getElementById('spScope').style.display = (k === 'p') ? '' : 'none';
+}
+
+function submitSp() {
+  PMS.confirm({
+    title: '提交审批结果',
+    type: 'info',
+    message: '审批结果为「部分同意」，批准借阅 1 卷、不予批准 1 卷。确认提交？',
+    detail: 'JY20260801016 · 韦** · 广西同望律师事务所 · 现场查阅',
+    okText: '确认提交',
+    onOk: function () {
+      PMS.toast('审批已提交：借阅人可于 2026-08-05 到档案室办理现场查阅 1 卷', 'success');
+      setTimeout(function () { location.href = 'borrow-list.html'; }, 1200);
+    }
+  });
+}
+
+function recount() {
+  var n = document.querySelectorAll('.ck:checked').length;
+  document.getElementById('selCnt').textContent = n;
+  var ml = document.querySelectorAll('#mlAlert');
+  var hasSecret = document.querySelectorAll('tbody tr').length &&
+    Array.prototype.some.call(document.querySelectorAll('.ck:checked'), function (c) {
+      return c.closest('tr').querySelector('.ml-2, .ml-3');
+    });
+  ml.forEach(function (a) { a.style.display = hasSecret ? '' : 'none'; });
+}
+
+(function () {
+  var all = document.getElementById('ckAll');
+  if (all) all.addEventListener('change', function () {
+    var on = this.checked;
+    document.querySelectorAll('.ck').forEach(function (c) { if (!c.disabled) c.checked = on; });
+    recount();
+  });
+  var q = new URLSearchParams(location.search);
+  var no = q.get('no');
+  if (no) document.getElementById('tagNo').textContent = no;
+  var st = parseInt(q.get('step'), 10);
+  if (st >= 1 && st <= 3) { maxStep = 3; goStep(st); }
+})();
+</script>
+</body>
+</html>

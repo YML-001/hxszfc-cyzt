@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>资金节点监控 · 存量房交易资金监管系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../../assets/css/app.css">
+<style>
+  .tbl-static { overflow: auto; }
+  /* 联动闸口：过户与解付两个方向各一张卡 */
+  .gate { display: grid; grid-template-columns: 1fr 64px 1fr; align-items: center; gap: 0; }
+  @media (max-width: 1000px) { .gate { grid-template-columns: 1fr; } }
+  .gate-box { border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; background: #fff; }
+  .gate-box.ok { border-color: #cfe9bd; background: var(--success-light); }
+  .gate-box.bad { border-color: #f7c6c6; background: var(--danger-light); }
+  .gate-box .gb-h { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--text-1); }
+  .gate-box.ok .gb-h i { color: var(--success); }
+  .gate-box.bad .gb-h i { color: var(--danger); }
+  .gate-box .gb-v { font-size: 26px; font-weight: 700; margin: 8px 0 2px; font-variant-numeric: tabular-nums; }
+  .gate-box .gb-d { font-size: 12.5px; color: var(--text-2); line-height: 1.7; }
+  .gate-mid { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--primary); font-size: 18px; }
+  .gate-mid span { font-size: 11.5px; color: var(--text-3); }
+  /* 时序轴：过户与解付的先后关系 */
+  .seq { position: relative; height: 46px; border-radius: 4px; background: var(--bg-soft); overflow: hidden; }
+  .seq .sq { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #fff; font-weight: 600; }
+  .seq .sq.hold { background: var(--primary); }
+  .seq .sq.gap { background: var(--warning); }
+  .seq .sq.over { background: var(--danger); }
+  .seq-tick { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-3); margin-top: 6px; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wszjjg-04">
+<main class="app-main" data-flow>
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 存量房交易资金监管系统
+        <span class="sep">/</span> <span class="cur">资金节点监控</span>
+      </div>
+      <div class="page-title">资金节点监控</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="escrow.html"><i class="fa-solid fa-file-signature"></i> 协议台账</a>
+      <button class="btn" onclick="PMS.toast('监控台账已导出','success')"><i class="fa-solid fa-download"></i> 导出</button>
+      <button class="btn btn-danger" onclick="PMS.confirm({title:'批量催办',message:'确认对 3 笔已过户超期未解付的交易发起催办？',detail:'同时通知监管银行、经纪机构与买卖双方，并生成督办件。',type:'warning',okText:'催办',onOk:function(){PMS.toast('已发起 3 笔催办并生成督办件','success')}})"><i class="fa-solid fa-bell"></i> 催办超期解付 3</button>
+    </div>
+  </div>
+
+  <div class="alert alert-danger">
+    <i class="fa-solid fa-arrows-left-right"></i>
+    <div><b>过户与解付的先后关系，是存量房资金安全的全部要害</b>。
+      顺序错了，两头都可能出事——<b>先解付后过户</b>，卖方拿了钱不配合过户，买方钱房两空；
+      <b>过户后长期不解付</b>，房子已经是买方的了，卖方却拿不到钱。
+      所以平台同时盯两个方向：<b>未过户一律不放行</b>（硬拦截），<b>已过户超 3 个工作日未解付自动升级预警</b>（催办督办）。</div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3><i class="fa-solid fa-shield-halved"></i> 双向闸口实时状态</h3><span class="sub">486 笔在托交易的联动校验结果</span></div>
+    <div class="card-body">
+      <div class="gate">
+        <div class="gate-box ok">
+          <div class="gb-h"><i class="fa-solid fa-lock"></i> 方向一 · 未过户不得解付</div>
+          <div class="gb-v text-success">0 笔</div>
+          <div class="gb-d">本年<b>零突破</b>。平台对未收到不动产登记过户完成回传的交易，
+            硬性拦截一切划付指令，人工也无法绕过。本月共拦截提前解付请求 <b>12 次</b>，
+            其中 8 次是经纪机构误操作，4 次是卖方主动要求提前放款。</div>
+        </div>
+        <div class="gate-mid">
+          <i class="fa-solid fa-house-circle-check"></i>
+          <span>过户完成</span>
+          <i class="fa-solid fa-arrow-right"></i>
+          <span>触发划付</span>
+        </div>
+        <div class="gate-box bad">
+          <div class="gb-h"><i class="fa-solid fa-clock"></i> 方向二 · 已过户须限期解付</div>
+          <div class="gb-v text-danger">3 笔</div>
+          <div class="gb-d">超出 3 个工作日时限，涉及托管资金 <b>310.00 万元</b>，最长已超期 <b>6 天</b>。
+            主因是银行回执缺失与带押过户代偿路径未确认。<b>已自动升级为红色预警并生成督办件</b>，
+            每 2 小时向责任银行发送催办。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-house-circle-check"></i></div>
+      <div><div class="s-label">已过户待解付</div><div class="s-value">31</div><div class="s-trend">正常 28 · 超期 3</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><div class="s-label">超期未解付</div><div class="s-value">3</div><div class="s-trend text-danger">310.00 万元</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-end"></i></div>
+      <div><div class="s-label">首付到账异常</div><div class="s-value">5</div><div class="s-trend text-danger">超约定日未入账</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-building-columns"></i></div>
+      <div><div class="s-label">贷款放款异常</div><div class="s-value">2</div><div class="s-trend text-danger">放款未进监管账户</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-stopwatch"></i></div>
+      <div><div class="s-label">平均解付耗时</div><div class="s-value" style="font-size:16px">1.4 天</div><div class="s-trend text-success">时限 3 个工作日</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-timeline"></i> 典型超期案例 · 城中区 荣和公园里 3栋1单元 502</h3>
+      <span class="badge red">已过户 6 天未解付</span>
+    </div>
+    <div class="card-body">
+      <div class="seq">
+        <div class="sq hold" style="left:0;width:52%">资金托管中 18 天</div>
+        <div class="sq gap" style="left:52%;width:14%">过户办理 5 天</div>
+        <div class="sq over" style="left:66%;width:34%">已过户未解付 6 天（超期 3 天）</div>
+      </div>
+      <div class="seq-tick">
+        <span>07-08 资金入账</span>
+        <span>07-26 提交过户</span>
+        <span>07-31 过户完成</span>
+        <span>08-01 今日</span>
+      </div>
+      <dl class="desc-list mt-16">
+        <div class="desc-item"><dt>协议编号</dt><dd><a class="link" href="escrow-detail.html">CWXY-2026-0862</a></dd></div>
+        <div class="desc-item"><dt>网签合同</dt><dd>CH2026070312</dd></div>
+        <div class="desc-item"><dt>买方 / 卖方</dt><dd>吴明 / 罗建华</dd></div>
+        <div class="desc-item"><dt>托管金额</dt><dd class="fw-600">1,280,000.00 元</dd></div>
+        <div class="desc-item"><dt>交易子账号</dt><dd>6216 **** **** 8862</dd></div>
+        <div class="desc-item"><dt>监管银行</dt><dd>柳州银行营业部</dd></div>
+        <div class="desc-item"><dt>过户完成时间</dt><dd>2026-07-31 10:24（不动产登记回传）</dd></div>
+        <div class="desc-item"><dt>划付指令下发</dt><dd>2026-07-31 10:26</dd></div>
+        <div class="desc-item"><dt>银行回执</dt><dd><span class="badge red">未收到，已等 29 小时</span></dd></div>
+        <div class="desc-item full"><dt>超期原因分析</dt><dd>划付指令已于过户回传后 2 分钟自动下发至柳州银行营业部，但银行侧未在约定的 30 分钟内回传执行回执。经电话核实，该行核心系统 7 月 31 日晚间批处理异常导致指令积压。已要求该行立即人工处理并书面说明情况。</dd></div>
+      </dl>
+      <div class="btn-row mt-16">
+        <button class="btn btn-danger" onclick="PMS.confirm({title:'催办确认',message:'确认向柳州银行营业部发起紧急催办？',detail:'同时抄送市住建局房产科与该行分管行长。',type:'danger',okText:'催办',onOk:function(){PMS.toast('紧急催办已发出','success')}})"><i class="fa-solid fa-bell"></i> 紧急催办银行</button>
+        <button class="btn" onclick="PMS.toast('已重新下发划付指令')"><i class="fa-solid fa-rotate"></i> 重发划付指令</button>
+        <button class="btn" onclick="PMS.toast('已通知买卖双方当前处置进展','success')"><i class="fa-solid fa-comment-dots"></i> 告知当事人</button>
+        <button class="btn" onclick="PMS.toast('已生成督办件推送预警督办中心','success')"><i class="fa-solid fa-flag"></i> 转督办</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="jf">解付过户联动监控</div>
+      <div class="tab" data-tab="dz">首付贷款到账监控</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="jf">
+      <div class="card-body">
+        <p class="hint mb-16"><i class="fa-solid fa-circle-info"></i>
+          监控过户完成与资金解付的先后关系。已过户超 3 个工作日未解付的标红升级，未过户而收到解付请求的一律拦截并留痕。</p>
+        <div class="tbl-static">
+          <table class="data-table" data-static>
+            <thead>
+              <tr><th>协议编号</th><th>房屋坐落</th><th>买方</th><th>卖方</th><th class="num">托管金额(万元)</th><th>过户完成</th><th>解付状态</th><th>已耗时</th><th>结论</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="nowrap">CWXY-2026-0862</td><td class="cell-lg">城中区 荣和公园里 3-1-502</td><td class="nowrap">吴明</td><td class="nowrap">罗建华</td>
+                <td class="num">128.00</td><td class="nowrap">2026-07-31</td><td><span class="badge red">指令未回执</span></td>
+                <td class="nowrap text-danger">6 天</td><td><span class="lv red">红色 · 超期</span></td>
+                <td><span class="link danger" onclick="PMS.toast('紧急催办已发出','success')">催办</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">CWXY-2026-0858</td><td class="cell-lg">鱼峰区 桂中海讯小区 5-1201</td><td class="nowrap">黄雅</td><td class="nowrap">覃海燕</td>
+                <td class="num">96.00</td><td class="nowrap">2026-07-28</td><td><span class="badge red">指令未回执</span></td>
+                <td class="nowrap text-danger">4 天</td><td><span class="lv red">红色 · 超期</span></td>
+                <td><span class="link danger" onclick="PMS.toast('紧急催办已发出','success')">催办</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">CWXY-2026-0854</td><td class="cell-lg">柳南区 五一佳园 2-803</td><td class="nowrap">陆文彬</td><td class="nowrap">周建国</td>
+                <td class="num">86.00</td><td class="nowrap">2026-07-29</td><td><span class="badge orange">待人工划付</span></td>
+                <td class="nowrap text-danger">3 天</td><td><span class="lv orange">橙色 · 带押过户</span></td>
+                <td><a class="link" href="transfer.html">去办理</a></td>
+              </tr>
+              <tr>
+                <td class="nowrap">CWXY-2026-0866</td><td class="cell-lg">鱼峰区 天源国际社区 12-706</td><td class="nowrap">韦国强</td><td class="nowrap">陈家豪</td>
+                <td class="num">142.00</td><td class="nowrap">2026-08-01</td><td><span class="badge green">已解付</span></td>
+                <td class="nowrap text-success">2 小时</td><td><span class="lv blue">蓝色 · 正常</span></td>
+                <td><a class="link" href="escrow-detail.html">查看</a></td>
+              </tr>
+              <tr>
+                <td class="nowrap">CWXY-2026-0864</td><td class="cell-lg">柳北区 胜利小区 4-402</td><td class="nowrap">李慧</td><td class="nowrap">覃永明</td>
+                <td class="num">68.00</td><td class="nowrap">2026-07-31</td><td><span class="badge green">已解付</span></td>
+                <td class="nowrap text-success">1 小时</td><td><span class="lv blue">蓝色 · 正常</span></td>
+                <td><a class="link" href="escrow-detail.html">查看</a></td>
+              </tr>
+              <tr>
+                <td class="nowrap">CWXY-2026-0812</td><td class="cell-lg">柳南区 银泰城 A-1802</td><td class="nowrap">陆文彬</td><td class="nowrap">罗建华</td>
+                <td class="num">218.00</td><td class="nowrap text-3">—</td><td><span class="badge red">司法冻结</span></td>
+                <td class="nowrap">—</td><td><span class="lv red">红色 · 挂起</span></td>
+                <td><a class="link danger" href="escrow-detail.html">查看</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="alert alert-warning mt-16">
+          <i class="fa-solid fa-ban"></i>
+          <div><b>本月拦截的 12 次提前解付请求</b>已全部留痕，其中 4 次为卖方以「急需用钱」「买方已同意」为由主动要求提前放款。
+            这类请求即使买卖双方书面同意平台也不予放行——<b>监管的意义正在于不因当事人一时合意而放弃制度保护</b>。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="dz">
+      <div class="card-body">
+        <p class="hint mb-16"><i class="fa-solid fa-circle-info"></i>
+          监控首付款存入、按揭与公积金贷款放款到账节点。未按合同约定节点到账的生成异常提示，并通知经纪机构与当事人。</p>
+        <div class="tbl-static">
+          <table class="data-table" data-static>
+            <thead>
+              <tr><th>协议编号</th><th>房屋坐落</th><th>款项类型</th><th class="num">应到金额(万元)</th><th class="num">实到金额(万元)</th><th>约定到账日</th><th>实际到账</th><th>逾期</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="nowrap">CWXY-2026-0846</td><td class="cell-lg">柳江区 龙城之星 6-903</td><td><span class="badge blue">首付款</span></td>
+                <td class="num">34.00</td><td class="num text-danger">0.00</td><td class="nowrap">2026-07-30</td><td class="nowrap text-3">未到账</td>
+                <td class="nowrap text-danger">2 天</td>
+                <td><span class="link danger" onclick="PMS.toast('已通知买方与经纪机构','error')">提醒</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">CWXY-2026-0838</td><td class="cell-lg">城中区 帝景传说 8-1602</td><td><span class="badge cyan">按揭贷款</span></td>
+                <td class="num">126.00</td><td class="num text-danger">0.00</td><td class="nowrap">2026-07-28</td><td class="nowrap text-3">未到账</td>
+                <td class="nowrap text-danger">4 天</td>
+                <td><span class="link danger" onclick="PMS.toast('已向建设银行核实放款进度','error')">核实</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">CWXY-2026-0832</td><td class="cell-lg">柳北区 雅儒新苑 3-806</td><td><span class="badge purple">公积金贷款</span></td>
+                <td class="num">62.00</td><td class="num">62.00</td><td class="nowrap">2026-07-29</td><td class="nowrap">2026-07-31</td>
+                <td class="nowrap text-warning">2 天</td>
+                <td><span class="link" onclick="PMS.toast('已登记延迟原因：公积金中心批次放款')">已处理</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">CWXY-2026-0826</td><td class="cell-lg">鱼峰区 桂中海讯小区 8-503</td><td><span class="badge cyan">按揭贷款</span></td>
+                <td class="num">98.00</td><td class="num text-danger">98.00</td><td class="nowrap">2026-07-27</td><td class="nowrap">2026-07-27</td>
+                <td class="nowrap text-danger">放错账户</td>
+                <td><span class="link danger" onclick="PMS.toast('已要求按揭银行原路退回并重新放款至监管子账号','error')">处置</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">CWXY-2026-0836</td><td class="cell-lg">鱼峰区 天源国际社区 12-706</td><td><span class="badge blue">首付款</span></td>
+                <td class="num">42.00</td><td class="num">42.00</td><td class="nowrap">2026-07-20</td><td class="nowrap">2026-07-20</td>
+                <td class="nowrap text-success">按时</td>
+                <td><a class="link" href="escrow-detail.html">查看</a></td>
+              </tr>
+              <tr>
+                <td class="nowrap">CWXY-2026-0828</td><td class="cell-lg">柳北区 胜利小区 4-402</td><td><span class="badge blue">全款</span></td>
+                <td class="num">68.00</td><td class="num">68.00</td><td class="nowrap">2026-07-18</td><td class="nowrap">2026-07-18</td>
+                <td class="nowrap text-success">按时</td>
+                <td><a class="link" href="escrow-detail.html">查看</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="alert alert-danger mt-16">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div><b>CWXY-2026-0826 按揭放款未进监管子账号</b>，98.00 万元被直接放至卖方个人账户，
+            属按揭银行放款路径配置错误。这笔钱脱离了托管保护，一旦过户环节出问题买方将无救济手段。
+            已要求按揭银行<b>原路退回并重新放款至监管子账号</b>，同时排查该行同类放款。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../../assets/js/app.js"></script>
+</body>
+</html>

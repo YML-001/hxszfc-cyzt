@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>办件详情 · 统一工作门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="biz" data-active="case-ledger">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 综合查询
+        <span class="sep">/</span> <a class="link" href="case-ledger.html?role=biz">办件台账</a>
+        <span class="sep">/</span> <span class="cur">办件详情与全过程追溯</span>
+      </div>
+      <div class="page-title">办件详情</div>
+    </div>
+    <div class="page-actions" id="pageOps"></div>
+  </div>
+
+  <div id="root"></div>
+</main>
+
+<!-- 出件办结 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="issueDrawer">
+  <div class="drawer-head"><h3>出件办结</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-info"><i class="fa-solid fa-circle-info"></i><span>出件后办件转为已办结，出具备案证明并触发材料随办随归；一件事子件在主件未办结前不能单独办结。</span></div>
+    <div class="form-grid">
+      <div class="form-item"><label>出件类型<span class="req">*</span></label><select id="isCjlx" data-dict="cjlx" data-selected="0"></select></div>
+      <div class="form-item col-full"><label>审理意见<span class="req">*</span></label>
+        <textarea id="isYj" rows="4">经审核，申请材料齐全、符合法定形式，予以备案。</textarea></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-success" onclick="doIssue()"><i class="fa-solid fa-check"></i> 确认出件办结</button>
+  </div>
+</div>
+
+<!-- 中止 / 恢复 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="suspendDrawer">
+  <div class="drawer-head"><h3>中止办理</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-warning"><i class="fa-solid fa-clock"></i><span>中止办理期间<b>不计入办理时限</b>，累计到中止时长；恢复办理时承诺完成时间按中止时长顺延。</span></div>
+    <div class="form-grid">
+      <div class="form-item col-full"><label>中止事由<span class="req">*</span></label>
+        <textarea id="spReason" rows="4" placeholder="如：房屋存在司法查封，等待法院解除证明"></textarea></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="doSuspend()"><i class="fa-solid fa-pause"></i> 确认中止</button>
+  </div>
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/flow-data.js"></script>
+<script src="../assets/js/flow.js"></script>
+<script>
+(function () {
+  var cid = null;
+
+  function cur() { return FLOW.byId('cases', cid); }
+
+  function render() {
+    var c = cur();
+    var root = document.getElementById('root');
+    if (!c) {
+      root.innerHTML = '<div class="card"><div class="card-body">' +
+        '<div class="empty"><i class="fa-regular fa-folder-open"></i>' +
+        '<div>未指定办件，或该办件不存在</div>' +
+        '<div class="mt-16"><a class="btn btn-primary" href="case-ledger.html?role=biz">去办件台账选择</a></div></div>' +
+        '</div></div>';
+      document.getElementById('pageOps').innerHTML = '';
+      return;
+    }
+    var r = FLOW.remain(c);
+    var it = FLOW.itemOf(c) || {};
+    var mats = FLOW.where('materials', function (m) { return m.bjzj === c.id; });
+    var logs = FLOW.act.trace(c.id);
+    var docs = FLOW.where('docs', function (d) { return d.bjzj === c.id; });
+    var arch = FLOW.where('archives', function (a) { return a.bjzj === c.id; });
+    var rels = FLOW.where('cases', function (x) {
+      return x.id !== c.id && (x.glbjzj === c.id || (c.glbjzj && x.id === c.glbjzj) || (c.glbjzj && x.glbjzj === c.glbjzj));
+    });
+    var task = null;
+    FLOW.get('tasks').some(function (t) { if (t.bjzj === c.id && t.rwzt !== '3') { task = t; return true; } return false; });
+
+    /* 页头操作 */
+    var ops = [];
+    if (task) ops.push('<a class="btn" href="approval-handle.html?role=biz&id=' + task.id + '"><i class="fa-solid fa-pen-to-square"></i> 去办理</a>');
+    if (c.blzt === '1') {
+      ops.push('<button class="btn" onclick="PMS.openDrawer(\'suspendDrawer\')"><i class="fa-solid fa-pause"></i> 中止办理</button>');
+      ops.push('<button class="btn btn-success" onclick="PMS.openDrawer(\'issueDrawer\')"><i class="fa-solid fa-check"></i> 出件办结</button>');
+    }
+    if (c.blzt === '6') ops.push('<button class="btn btn-primary" onclick="doResume()"><i class="fa-solid fa-play"></i> 恢复办理</button>');
+    if (c.blzt === '2') ops.push('<a class="btn btn-primary" href="correction-apply.html?role=biz&id=' + c.id + '"><i class="fa-solid fa-rotate-left"></i> 申请更正或撤销</a>');
+    ops.push('<a class="btn" href="case-ledger.html?role=biz"><i class="fa-solid fa-list"></i> 返回台账</a>');
+    document.getElementById('pageOps').innerHTML = ops.join('');
+
+    var html = '';
+
+    /* KPI 概览 */
+    html += '<div class="stat-grid">' +
+      '<div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-hashtag"></i></div><div>' +
+        '<div class="s-label">收件编号</div><div class="s-value" style="font-size:15px">' + FLOW.esc(c.sjbh) + '</div></div></div>' +
+      '<div class="stat-card"><div class="s-icon ' + (c.blzt === '2' ? 'green' : (c.blzt === '4' ? 'red' : 'orange')) + '"><i class="fa-solid fa-circle-info"></i></div><div>' +
+        '<div class="s-label">办理状态</div><div class="s-value" style="font-size:16px">' + FLOW.dict('blzt', c.blzt) + '</div></div></div>' +
+      '<div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-hourglass-half"></i></div><div>' +
+        '<div class="s-label">已用时长</div><div class="s-value" style="font-size:16px">' + FLOW.fmt.span(FLOW.used(c)) + '</div>' +
+        (c.ztsc ? '<div class="s-trend text-3">含中止 ' + FLOW.fmt.span(c.ztsc) + ' 不计时</div>' : '') + '</div></div>' +
+      '<div class="stat-card"><div class="s-icon ' + (r.over ? 'red' : 'blue') + '"><i class="fa-solid fa-clock"></i></div><div>' +
+        '<div class="s-label">剩余时限</div><div class="s-value" style="font-size:16px">' + r.text + '</div>' +
+        '<div class="s-trend">' + FLOW.lv(r.level) + '</div></div></div>' +
+    '</div>';
+
+    /* 一件事主子件提示 */
+    if (c.gllx === '1') {
+      html += '<div class="alert alert-info"><i class="fa-solid fa-sitemap"></i><span>本件是<b>一件事主件</b>，共关联 ' + rels.length + ' 个子件；主件办结前子件不能单独办结。</span></div>';
+    } else if (c.gllx === '2') {
+      var main = FLOW.byId('cases', c.glbjzj);
+      html += '<div class="alert alert-warning"><i class="fa-solid fa-sitemap"></i><span>本件是<b>一件事子件</b>，主件为 ' +
+        (main ? FLOW.esc(main.sjbh) + '（' + FLOW.dict('blzt', main.blzt) + '）' : '—') +
+        '；主件办结后本件方可办结。</span></div>';
+    } else if (c.gzbs === '1' || c.gzbs === '2') {
+      html += '<div class="alert alert-warning"><i class="fa-solid fa-rotate-left"></i><span>本件是<b>' +
+        (c.gzbs === '1' ? '更正件' : '撤销件') + '</b>，原办件收件编号 ' + FLOW.esc(c.ygzsjbh) +
+        '，按原业务审批链复核，办结后需同步业务库、档案与上级报送三处。</span></div>';
+    }
+
+    /* 基本信息 */
+    html += '<div class="card"><div class="card-head"><h3>办件基本信息</h3>' +
+      '<span class="sub">对应 BUSI_YWBJJBXX 业务办件基本信息表</span></div><div class="card-body">' +
+      '<dl class="desc-list">' +
+        item('事项名称', c.sxmc) + item('事项代码', c.sxdm) +
+        item('业务大类', FLOW.dict('ywdlm', c.ywdlm)) + item('承办科室', c.dept) +
+        item('办理层级', FLOW.dict('bllj', it.bllj)) + item('属地', FLOW.dict('said', c.said)) +
+        item('收件方式', FLOW.dict('sjfs', c.sjfs)) + item('来源渠道', FLOW.dict('sjly', c.sjly)) +
+        item('关联类型', FLOW.dict('gllx', c.gllx)) + item('当前环节', c.jd) +
+        item('经办人', c.jbrmc || '待领办') + item('查询码', c.cxm) +
+        item('收件时间', FLOW.fmt.time(c.sjsj)) + item('受理签收时间', FLOW.fmt.time(c.slsj)) +
+        item('承诺完成时间', FLOW.fmt.time(c.cnwcsj)) + item('办结时间', FLOW.fmt.time(c.bjsj)) +
+        item('补正次数', c.bzcs + ' 次') + item('退件次数', c.thcs + ' 次') +
+      '</dl></div></div>';
+
+    /* 申请人与房屋 */
+    html += '<div class="grid-2"><div class="card"><div class="card-head"><h3>申请人信息</h3></div><div class="card-body">' +
+      '<dl class="desc-list" style="grid-template-columns:1fr">' +
+        item('申请人', c.sqr) + item('主体类型', FLOW.dict('ztlx', c.sqrlx)) +
+        item('证件号', c.sqrzjh) + item('联系电话', c.sqrdh) +
+      '</dl></div></div>' +
+      '<div class="card"><div class="card-head"><h3>房屋与合同</h3></div><div class="card-body">' +
+      '<dl class="desc-list" style="grid-template-columns:1fr">' +
+        item('房屋坐落', c.fw) + item('房屋编码', c.fwbm) +
+        item('所属项目', c.xmmc) + item('合同编号', c.htbh) +
+      '</dl></div></div></div>';
+
+    /* 页签：材料 / 收费 / 关联件 / 审理意见 / 全过程追溯 */
+    html += '<div class="card mt-16" data-tabs-scope><div class="tabs">' +
+      '<div class="tab active" data-tab="mat">收件材料(' + mats.length + ')</div>' +
+      '<div class="tab" data-tab="fee">业务收费</div>' +
+      '<div class="tab" data-tab="rel">关联办件(' + rels.length + ')</div>' +
+      '<div class="tab" data-tab="doc">出件文书(' + docs.length + ')</div>' +
+      '<div class="tab" data-tab="trace">全过程追溯(' + logs.length + ')</div>' +
+      '</div><div class="card-body">';
+
+    /* 材料 */
+    html += '<div class="tab-panel active" data-panel="mat">' + (mats.length
+      ? '<div class="table-wrap"><table class="data-table" data-static><thead><tr>' +
+        '<th>材料名称</th><th>是否必要</th><th>提交方式</th><th>是否收取</th><th>形式要件</th><th>页数</th></tr></thead><tbody>' +
+        mats.map(function (m) {
+          return '<tr><td>' + FLOW.esc(m.clmc) + '</td>' +
+            '<td>' + (m.must ? FLOW.badge('必要', 'red') : FLOW.badge('可选', 'gray')) + '</td>' +
+            '<td>' + FLOW.esc(FLOW.dict('tjfs', m.tjfs)) + '</td>' +
+            '<td>' + (m.got ? FLOW.badge('已收取', 'green') : FLOW.badge('未收取', 'orange')) + '</td>' +
+            '<td>' + (m.ok ? '<span class="text-success">合格</span>' : '<span class="miss">' + FLOW.esc(m.bad) + '</span>') + '</td>' +
+            '<td>' + m.pages + ' 页</td></tr>';
+        }).join('') + '</tbody></table></div>'
+      : '<div class="empty"><i class="fa-regular fa-folder-open"></i><div>暂无收件材料</div></div>') +
+      (arch.length ? '<div class="alert alert-success mt-16"><i class="fa-solid fa-box-archive"></i><span>材料已随办随归推送房产档案：档案编号 ' +
+        FLOW.esc(arch[0].dabh) + '，共 ' + arch[0].count + ' 份影像，归档时间 ' + FLOW.fmt.time(arch[0].czsj) + '</span></div>' : '') +
+      '</div>';
+
+    /* 收费 */
+    html += '<div class="tab-panel" data-panel="fee">' +
+      '<dl class="desc-list">' +
+        item('收费类型', FLOW.dict('sflx', it.sflx)) +
+        item('应收金额', c.sfje ? (FLOW.fmt.money(c.sfje) + ' 元') : '免收') +
+        item('缴费状态', c.sfzt) +
+        item('计费依据', it.sflx === '4' ? '按现行规定免收' : '按省级房产交易收费标准执行') +
+      '</dl>' +
+      '<div class="alert alert-info mt-16"><i class="fa-solid fa-circle-info"></i><span>收费明细与代征税费对应 BC_YWSFJBXX 与 BC_YWSFXXDZSFXX；本原型只演示收费口径，不做实际缴款。</span></div></div>';
+
+    /* 关联件 */
+    html += '<div class="tab-panel" data-panel="rel">' + (rels.length
+      ? '<div class="table-wrap"><table class="data-table" data-static><thead><tr>' +
+        '<th>收件编号</th><th>事项名称</th><th>关联类型</th><th>办理状态</th><th>操作</th></tr></thead><tbody>' +
+        rels.map(function (x) {
+          return '<tr><td>' + FLOW.esc(x.sjbh) + '</td><td>' + FLOW.esc(x.sxmc) + '</td>' +
+            '<td>' + FLOW.badge(FLOW.dict('gllx', x.gllx), 'purple') + '</td>' +
+            '<td>' + FLOW.ztBadge(x.blzt) + '</td>' +
+            '<td><span class="link" onclick="go(\'' + x.id + '\')">查看</span></td></tr>';
+        }).join('') + '</tbody></table></div>'
+      : '<div class="empty"><i class="fa-regular fa-object-group"></i><div>本件为独立件，没有关联办件</div></div>') + '</div>';
+
+    /* 出件文书 */
+    html += '<div class="tab-panel" data-panel="doc">' + (docs.length
+      ? '<div class="table-wrap"><table class="data-table" data-static><thead><tr>' +
+        '<th>文书名称</th><th>出件类型</th><th>出件人</th><th>出件时间</th><th>打印状态</th><th>操作</th></tr></thead><tbody>' +
+        docs.map(function (d) {
+          return '<tr><td>' + FLOW.esc(d.cjmc) + '</td><td>' + FLOW.esc(FLOW.dict('cjlx', d.cjlx)) + '</td>' +
+            '<td>' + FLOW.esc(d.czr) + '</td><td>' + FLOW.fmt.time(d.czsj) + '</td>' +
+            '<td>' + (d.printed ? FLOW.badge('已打印', 'green') : FLOW.badge('待打印', 'orange')) + '</td>' +
+            '<td><a class="link" href="intake-receipt.html?role=biz&id=' + c.id + '&doc=' + d.id + '">预览打印</a></td></tr>';
+        }).join('') + '</tbody></table></div>'
+      : '<div class="empty"><i class="fa-regular fa-file-lines"></i><div>暂无出件文书</div></div>') + '</div>';
+
+    /* 全过程追溯 */
+    html += '<div class="tab-panel" data-panel="trace">' +
+      '<div class="alert alert-info"><i class="fa-solid fa-route"></i><span>按办件编号回溯各环节经办人、操作时间、审理意见与材料变更痕迹（对应 BUSI_YWBLRZXX 与 MS_BJZSXX）。</span></div>' +
+      '<div class="timeline mt-16">' + logs.map(function (l, i) {
+        return '<div class="tl-item ' + (i === logs.length - 1 ? '' : 'done') + '">' +
+          '<div class="tl-dot"></div>' +
+          '<div class="tl-title">' + FLOW.esc(l.jd) + '　' + FLOW.badge(czName(l.czlx), 'blue') + '</div>' +
+          '<div class="tl-meta">' + FLOW.esc(l.czr) + ' · ' + FLOW.fmt.time(l.czsj) + '</div>' +
+          '<div class="tl-desc">' + FLOW.esc(l.yj) + '</div></div>';
+      }).join('') + '</div></div>';
+
+    html += '</div></div>';
+    root.innerHTML = html;
+  }
+
+  function czName(code) {
+    return { '1': '受理', '2': '审核', '3': '退回补正', '4': '退件', '5': '出件办结',
+             '6': '中止恢复', '7': '回退', '8': '同步' }[String(code)] || '操作';
+  }
+  function item(label, value) {
+    return '<div class="desc-item"><dt>' + label + '</dt><dd>' + FLOW.esc(value == null || value === '' ? '—' : value) + '</dd></div>';
+  }
+
+  window.go = function (id) { FLOW.goto('case-detail.html', { id: id }); };
+  window.doIssue = function () {
+    var c = cur();
+    var yj = document.getElementById('isYj').value.trim();
+    if (!yj) { PMS.toast('请填写审理意见', 'error'); return; }
+    var task = null;
+    FLOW.get('tasks').some(function (t) { if (t.bjzj === c.id && t.rwzt !== '3') { task = t; return true; } return false; });
+    if (!task) { PMS.toast('该办件没有在办任务，无法出件', 'error'); return; }
+    if (FLOW.act.approve(task.id, yj)) PMS.closeDrawer('issueDrawer');
+  };
+  window.doSuspend = function () {
+    var reason = document.getElementById('spReason').value.trim();
+    if (FLOW.act.suspend(cid, reason)) PMS.closeDrawer('suspendDrawer');
+  };
+  window.doResume = function () {
+    PMS.confirm({
+      title: '恢复办理', type: 'info', okText: '恢复',
+      message: '确认恢复办理该办件？',
+      detail: '承诺完成时间将按已中止时长顺延。',
+      onOk: function () { FLOW.act.resume(cid); }
+    });
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    cid = FLOW.param('id');
+    /* 未带参数时默认展示一件在办件，避免空白页 */
+    if (!cid) {
+      var d = FLOW.where('cases', function (c) { return c.blzt === '1'; })[0];
+      if (d) cid = d.id;
+    }
+    FLOW.on(render);
+    /* 页签由 app.js 的 initTabs 绑定，动态渲染后需要重新绑定 */
+    document.getElementById('root').addEventListener('click', function (e) {
+      var tab = e.target.closest('.tabs .tab');
+      if (!tab) return;
+      var name = tab.getAttribute('data-tab');
+      var scope = tab.closest('[data-tabs-scope]');
+      scope.querySelectorAll('.tabs .tab').forEach(function (t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+      scope.querySelectorAll('.tab-panel').forEach(function (p) {
+        p.classList.toggle('active', p.getAttribute('data-panel') === name);
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

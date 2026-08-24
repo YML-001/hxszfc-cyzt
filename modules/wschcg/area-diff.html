@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>面积差异处理与找补 · 房屋交易面积信息管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：差异信息卡、处理方式单选卡、找补计算单、双方确认卡、退房提示面板 */
+  .amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .dc { display: grid; grid-template-columns: 1fr 300px; }
+  .dc > div { padding: 14px 16px; }
+  .dc .r { border-left: 1px solid var(--border); background: #fff7f7; text-align: center; }
+  .dc .r .lb { font-size: 12px; color: var(--text-3); }
+  .dc .r .big { font-size: 32px; font-weight: 800; color: var(--danger); font-variant-numeric: tabular-nums; line-height: 1.15; margin-top: 2px; }
+  .dc .r .sm { font-size: 12.5px; color: var(--text-2); margin-top: 4px; }
+  .ar3 { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 8px; }
+  .ar3 .n { font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .ar3 .n small { display: block; font-size: 11px; font-weight: 500; color: var(--text-3); }
+
+  .ways { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }
+  .ways label {
+    border: 1.5px solid var(--border); border-radius: var(--radius); padding: 10px 13px; cursor: pointer;
+    display: flex; gap: 9px; align-items: flex-start; transition: all .15s; background: #fff;
+  }
+  .ways label:hover { border-color: var(--primary); background: var(--primary-light); }
+  .ways label input { margin-top: 3px; flex-shrink: 0; }
+  .ways label .wt { display: block; font-size: 13.5px; font-weight: 700; color: var(--text-1); }
+  .ways label .wd { display: block; font-size: 12px; color: var(--text-3); margin-top: 2px; line-height: 1.5; }
+  .ways label.on { border-color: var(--primary); background: var(--primary-light); box-shadow: 0 0 0 2px rgba(37, 99, 235, .08); }
+  .ways label.rec .wt::after {
+    content: "推荐"; margin-left: 6px; font-size: 11px; font-weight: 600; color: #fff;
+    background: var(--warning); padding: 1px 6px; border-radius: 9px; vertical-align: 1px;
+  }
+
+  .calc {
+    background: #fbfcfe; border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px;
+    font-variant-numeric: tabular-nums;
+  }
+  .calc .cl { display: flex; align-items: baseline; gap: 10px; padding: 5px 0; font-size: 13.5px; }
+  .calc .cl .k { width: 176px; color: var(--text-2); flex-shrink: 0; }
+  .calc .cl .v { width: 132px; text-align: right; font-weight: 700; color: var(--text-1); }
+  .calc .cl .f { font-size: 12px; color: var(--text-3); }
+  .calc .cl.hr { border-top: 1px dashed var(--border-strong); margin-top: 6px; padding-top: 10px; }
+  .calc .cl.warn .v { color: var(--danger); }
+  .calc .cl.zero .v { color: var(--text-3); }
+  .calc .cl.total { margin-top: 6px; padding-top: 10px; border-top: 2px solid var(--primary); }
+  .calc .cl.total .k { font-weight: 700; color: var(--text-1); }
+  .calc .cl.total .v { font-size: 21px; color: var(--primary); }
+  .calc .cl.dir .v { color: var(--warning); font-size: 15px; }
+
+  .cf2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .cf { border: 1px solid var(--border); border-radius: var(--radius); background: #fff; overflow: hidden; }
+  .cf .ch { padding: 9px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; background: var(--bg-soft); font-size: 13.5px; font-weight: 700; }
+  .cf .ch .ci { width: 22px; height: 22px; border-radius: 6px; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 11.5px; }
+  .cf .ch .st { margin-left: auto; }
+  .cf .cb { padding: 12px 14px; }
+  .cf .cb .row { display: flex; gap: 10px; font-size: 13px; padding: 3px 0; }
+  .cf .cb .row .k { width: 84px; color: var(--text-3); flex-shrink: 0; }
+  .cf .cf-foot { padding: 10px 14px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+
+  .sign-box {
+    border: 1px dashed var(--success); background: #f0fdf4; border-radius: var(--radius);
+    padding: 13px 16px; display: flex; align-items: center; gap: 12px;
+  }
+  .sign-box .si { width: 36px; height: 36px; border-radius: 50%; background: #dcfce7; color: var(--success); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .sign-box .sc { flex: 1; min-width: 0; font-size: 13px; }
+  .sign-box .sc b { font-size: 13.5px; }
+  .sign-box .sc div { color: var(--text-2); margin-top: 2px; }
+
+  .tf {
+    border: 1.5px solid var(--danger); background: #fef2f2; border-radius: var(--radius); padding: 16px 18px;
+  }
+  .tf .tt { font-size: 15px; font-weight: 800; color: var(--danger); display: flex; align-items: center; gap: 8px; }
+  .tf .tb { font-size: 13.5px; color: var(--text-2); margin-top: 8px; line-height: 1.75; }
+  .tf .tb b { color: var(--danger); }
+
+  .a4 { background: #fff; padding: 24px 30px; border: 1px solid var(--border); max-width: 800px; margin: 0 auto; }
+  .a4 h2 { text-align: center; font-size: 19px; font-weight: 800; letter-spacing: 1px; }
+  .a4 .sub2 { text-align: center; font-size: 12.5px; color: var(--text-3); margin: 5px 0 14px; }
+  .a4 .sign2 { display: flex; justify-content: space-between; margin-top: 30px; font-size: 13px; color: var(--text-2); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wschcg-18">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易面积信息管理系统
+        <span class="sep">/</span> 面积核验管理
+        <span class="sep">/</span> <span class="cur">面积差异处理与找补</span>
+      </div>
+      <div class="page-title">面积差异处理与找补</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="switchRoom()"><i class="fa-solid fa-repeat"></i> 切换示例房源</button>
+      <button type="button" class="btn" onclick="location.href='area-compare.html'"><i class="fa-solid fa-table-list"></i> 返回比对表</button>
+      <button type="button" class="btn" onclick="PMS.openDrawer('drPrint')"><i class="fa-solid fa-print"></i> 打印找补测算单</button>
+    </div>
+  </div>
+
+  <!-- 第一段：差异信息卡 -->
+  <div class="card">
+    <div class="dc">
+      <div class="l">
+        <dl class="desc-list">
+          <div class="desc-item"><dt>处理编号</dt><dd class="fw-700" id="dNo">CL450200202600186-018</dd></div>
+          <div class="desc-item"><dt>房源</dt><dd class="fw-700" id="dRoom">荣和公园大道二期 8 栋 2 单元 1806</dd></div>
+          <div class="desc-item"><dt>不动产单元号</dt><dd id="dUnit">450202001005GB00186F00021806</dd></div>
+          <div class="desc-item"><dt>户型 / 用途</dt><dd id="dHx">两室两厅 · 成套住宅</dd></div>
+          <div class="desc-item"><dt>购房人</dt><dd id="dBuyer">李**（450***********0208）</dd></div>
+          <div class="desc-item"><dt>开发企业</dt><dd>柳州荣和房地产开发有限公司</dd></div>
+          <div class="desc-item"><dt>合同编号</dt><dd><span class="link" id="dCt" onclick="PMS.toast('合同 SPF450200202601302 · 2024-06-18 备案 · 网签系统 wsswb')">SPF450200202601302</span></dd></div>
+          <div class="desc-item"><dt>合同约定单价</dt><dd id="dPrice">11,268.19 元/㎡</dd></div>
+          <div class="desc-item"><dt>约定误差幅度</dt><dd>3%</dd></div>
+          <div class="desc-item"><dt>政策版本号</dt><dd>V2026.03（只读）</dd></div>
+        </dl>
+      </div>
+      <div class="r">
+        <div class="lb">建筑面积差比例</div>
+        <div class="big" id="dRatio">+4.11%</div>
+        <div class="sm"><span class="badge red" id="dOver"><i class="fa-solid fa-triangle-exclamation"></i> 超 3% 约定幅度</span></div>
+        <div class="ar3">
+          <div class="n" id="dPre">96.20<small>合同约定 ㎡</small></div>
+          <div class="text-3"><i class="fa-solid fa-arrow-right"></i></div>
+          <div class="n" id="dAct">100.15<small>实测建面 ㎡</small></div>
+        </div>
+        <div class="sm">面积差 <b class="text-danger" id="dDiff">+3.95</b> ㎡</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning" id="topAlert">
+    <i class="fa-solid fa-scale-balanced"></i>
+    <div>本户差异比例 <b>+4.11%</b> 超出合同约定 3% 误差幅度，<b>不得直接据实结算</b>，须选择处理方式并完成双方确认后方可结算；结算结果回写商品房买卖合同（wsswb 结算环节）。</div>
+  </div>
+
+  <!-- 第二段：处理方式选择 -->
+  <div class="card">
+    <div class="card-head">
+      <h3>一、处理方式选择</h3>
+      <span class="sub">SUV_MJCYCLXX.clfs · 7 种处理方式，选中后自动测算找补金额</span>
+    </div>
+    <div class="card-body">
+      <div class="ways" id="ways">
+        <label data-w="0"><input type="radio" name="w" value="0" onchange="onWay(this)"><span><span class="wt">0 据实结算（多退少补）</span><span class="wd">差异在约定幅度内，按实际面积差与合同单价结算</span></span></label>
+        <label data-w="1"><input type="radio" name="w" value="1" onchange="onWay(this)"><span><span class="wt">1 误差内不结算</span><span class="wd">合同约定误差内不作结算，双方互不找补</span></span></label>
+        <label data-w="2" class="rec on"><input type="radio" name="w" value="2" checked onchange="onWay(this)"><span><span class="wt">2 3% 以内据实、3% 以外由企业承担</span><span class="wd">超幅度的通行处理方式，3% 以外部分购房人不补</span></span></label>
+        <label data-w="3"><input type="radio" name="w" value="3" onchange="onWay(this)"><span><span class="wt">3 购房人要求退房</span><span class="wd">差异超幅度且购房人不接受，转退房流程不作找补</span></span></label>
+        <label data-w="4"><input type="radio" name="w" value="4" onchange="onWay(this)"><span><span class="wt">4 协商一致不结算</span><span class="wd">双方书面协商一致，不作结算，须上传协商文件</span></span></label>
+        <label data-w="5"><input type="radio" name="w" value="5" onchange="onWay(this)"><span><span class="wt">5 转司法处理</span><span class="wd">双方无法达成一致，转诉讼或仲裁，暂停结算</span></span></label>
+        <label data-w="9"><input type="radio" name="w" value="9" onchange="onWay(this)"><span><span class="wt">9 其他约定处理</span><span class="wd">按合同特别约定处理，须填写处理说明</span></span></label>
+      </div>
+    </div>
+  </div>
+
+  <!-- 第三段：找补测算 -->
+  <div class="card" id="calcCard">
+    <div class="card-head">
+      <h3>二、找补测算</h3>
+      <span class="sub">按选定处理方式逐步计算，计算过程与规则依据全程留痕</span>
+      <div class="head-actions">
+        <button type="button" class="btn btn-sm" onclick="reCalc()"><i class="fa-solid fa-rotate"></i> 重新测算</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="calc" id="calcBox">
+        <div class="cl"><span class="k">合同约定面积</span><span class="v">96.20 ㎡</span></div>
+        <div class="cl"><span class="k">实测建筑面积</span><span class="v">100.15 ㎡</span></div>
+        <div class="cl"><span class="k">面积差</span><span class="v">+3.95 ㎡</span><span class="f">实测 − 约定</span></div>
+        <div class="cl warn"><span class="k">面积差比例</span><span class="v">+4.11%</span><span class="f">面积差 ÷ 约定面积</span></div>
+        <div class="cl"><span class="k">合同约定误差幅度</span><span class="v">3%</span></div>
+        <div class="cl hr"><span class="k">3% 以内部分</span><span class="v">+2.886 ㎡</span><span class="f">96.20 × 3%</span></div>
+        <div class="cl"><span class="k">3% 以外部分</span><span class="v">+1.064 ㎡</span><span class="f">3.95 − 2.886</span></div>
+        <div class="cl"><span class="k">合同约定单价</span><span class="v">11,268.19 元/㎡</span></div>
+        <div class="cl hr"><span class="k">3% 以内找补金额</span><span class="v">32,519.99 元</span><span class="f">2.886 × 11,268.19，购房人补款</span></div>
+        <div class="cl zero"><span class="k">3% 以外找补金额</span><span class="v">0.00 元</span><span class="f">由开发企业承担，购房人不补</span></div>
+        <div class="cl total"><span class="k">合计找补金额</span><span class="v">32,519.99 元</span></div>
+        <div class="cl dir"><span class="k">结算方向</span><span class="v">购房人补款</span></div>
+      </div>
+
+      <div class="form-grid form-align mt-16">
+        <div class="form-item col-full">
+          <label>找补计算规则说明</label>
+          <textarea rows="3" id="ruleTxt">依据《商品房买卖合同》第五条面积差异处理约定及本市面积找补政策（政策版本 V2026.03）：实测建筑面积与合同约定面积差异比例超出 3% 时，3% 以内部分按合同约定单价据实结算由购房人补款；超出 3% 的部分由开发企业承担，购房人不予补款。本户面积差 +3.95 ㎡（+4.11%），3% 以内部分 2.886 ㎡ 应补款 32,519.99 元，3% 以外部分 1.064 ㎡ 由开发企业承担。</textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 退房提示面板（处理方式 3 时展示） -->
+  <div class="card" id="tfCard" style="display:none">
+    <div class="card-head"><h3>二、退房处理提示</h3><span class="sub">选择退房不作找补结算，转退房流程</span></div>
+    <div class="card-body">
+      <div class="tf">
+        <div class="tt"><i class="fa-solid fa-house-circle-exclamation"></i> 购房人要求退房</div>
+        <div class="tb" id="tfTxt">
+          面积差 <b>−6.62 ㎡（−4.65%）</b>，超出合同约定误差幅度 3%，<b>购房人有权要求退房</b>。<br>
+          选择退房后<b>不作找补结算</b>，将转入退房流程并同步<b>注销网签备案</b>（wsswb）、解除资金监管、释放楼盘表房源状态；已办理抵押的须先办理抵押注销（wsdwb）。<br>
+          退房须取得购房人书面申请与开发企业确认，退款金额与时间以退房协议约定为准。
+        </div>
+      </div>
+      <div class="form-grid form-align mt-16">
+        <div class="form-item"><label>是否退房<span class="req">*</span></label><select><option>是</option><option>否</option></select></div>
+        <div class="form-item"><label>退房时间</label><input type="date" value="2026-08-08"></div>
+        <div class="form-item"><label>退房申请文件</label><input type="text" value="购房人退房申请书.pdf" readonly></div>
+        <div class="form-item col-full"><label>退房说明<span class="req">*</span></label><textarea rows="2">购房人周**因实测建筑面积较合同约定面积减少 6.62 ㎡（−4.65%），超出约定误差幅度 3%，书面要求退房。经开发企业确认同意退房，双方另行签署退房协议，不作面积找补结算。</textarea></div>
+      </div>
+      <button type="button" class="btn btn-danger mt-16" onclick="doRefund()"><i class="fa-solid fa-triangle-exclamation"></i> 确认转退房流程</button>
+    </div>
+  </div>
+
+  <!-- 第四段：双方确认 -->
+  <div class="card">
+    <div class="card-head">
+      <h3>三、双方确认</h3>
+      <span class="sub">找补须购房人与开发企业双方确认，任一方有异议转协商或司法处理</span>
+    </div>
+    <div class="card-body">
+      <div class="cf2">
+        <div class="cf">
+          <div class="ch">
+            <span class="ci"><i class="fa-solid fa-user"></i></span> 购房人确认
+            <span class="st" id="bSt"><span class="badge orange">待确认</span></span>
+          </div>
+          <div class="cb">
+            <div class="row"><span class="k">姓名</span><span>李**</span></div>
+            <div class="row"><span class="k">证件号</span><span>450***********0208</span></div>
+            <div class="row"><span class="k">联系电话</span><span>138****2086</span></div>
+            <div class="row"><span class="k">确认时间</span><span id="bTime" class="text-3">—</span></div>
+            <div class="row"><span class="k">购房人意见</span><span id="bOpin" class="text-3">—</span></div>
+          </div>
+          <div class="cf-foot">
+            <button type="button" class="btn btn-sm" onclick="notify('buyer')"><i class="fa-solid fa-paper-plane"></i> 发送确认通知</button>
+            <button type="button" class="btn btn-sm" onclick="offline('buyer')"><i class="fa-solid fa-pen-to-square"></i> 录入线下确认</button>
+          </div>
+        </div>
+        <div class="cf">
+          <div class="ch">
+            <span class="ci"><i class="fa-solid fa-building"></i></span> 开发企业确认
+            <span class="st" id="eSt"><span class="badge green">已确认</span></span>
+          </div>
+          <div class="cb">
+            <div class="row"><span class="k">企业名称</span><span>柳州荣和房地产开发有限公司</span></div>
+            <div class="row"><span class="k">统一社会信用代码</span><span>91450200MA5K***62X</span></div>
+            <div class="row"><span class="k">经办人</span><span>梁**（138****6402）</span></div>
+            <div class="row"><span class="k">确认时间</span><span id="eTime">2026-08-01 16:28</span></div>
+            <div class="row"><span class="k">企业意见</span><span id="eOpin">同意按 3% 以内据实、3% 以外由企业承担方式处理</span></div>
+          </div>
+          <div class="cf-foot">
+            <button type="button" class="btn btn-sm" onclick="notify('ent')"><i class="fa-solid fa-paper-plane"></i> 发送确认通知</button>
+            <button type="button" class="btn btn-sm" onclick="offline('ent')"><i class="fa-solid fa-pen-to-square"></i> 录入线下确认</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert alert-info mt-16" id="waitBox">
+        <i class="fa-solid fa-hourglass-half"></i>
+        <div>等待<b>购房人确认</b>。双方均确认后方可发起补充协议签署；购房人提出异议的转协商处理，协商不成可转司法处理。</div>
+      </div>
+
+      <div class="sign-box mt-16" id="signBox" style="display:none">
+        <div class="si"><i class="fa-solid fa-file-signature"></i></div>
+        <div class="sc">
+          <b>双方已确认，可发起补充协议签署（wsqy）</b>
+          <div id="signTxt">补充协议将载明实测面积、面积差、找补金额与结算方式，签署完成后回写商品房买卖合同并进入结算环节。</div>
+        </div>
+        <button type="button" class="btn btn-primary" id="btnSign" onclick="doSign()"><i class="fa-solid fa-signature"></i> 发起签署</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 第五段：结算落地 -->
+  <div class="card">
+    <div class="card-head">
+      <h3>四、结算落地</h3>
+      <span class="sub">结算完成后回写商品房买卖合同（wsswb 结算环节）</span>
+    </div>
+    <div class="card-body">
+      <div class="form-grid form-align">
+        <div class="form-item"><label>实际结算金额（元）</label><input type="text" value="32,519.99"></div>
+        <div class="form-item"><label>结算时间</label><input type="date" value="2026-08-06"></div>
+        <div class="form-item"><label>结算凭证编号</label><input type="text" value="JS450200202600186018"></div>
+        <div class="form-item"><label>结算凭证</label><input type="text" value="购房人补款银行进账单.pdf" readonly></div>
+        <div class="form-item"><label>是否退房</label><select><option>否</option><option>是</option></select></div>
+        <div class="form-item"><label>退房时间</label><input type="date" disabled></div>
+        <div class="form-item">
+          <label>处理状态</label>
+          <select id="clzt"><option value="0">0 待处理</option><option value="1" selected>1 处理中</option><option value="2">2 已处理</option><option value="3">3 有争议</option><option value="4">4 已终止</option></select>
+        </div>
+        <div class="form-item"><label>处理人 / 处理时间</label><input type="text" value="韦国强 · 2026-08-01 18:46" readonly></div>
+        <div class="form-item"><label>政策版本号</label><input type="text" value="V2026.03" readonly></div>
+        <div class="form-item col-full"><label>争议说明</label><textarea rows="2" placeholder="处理状态为「有争议」时必填，写明争议焦点、双方主张与后续处理路径"></textarea></div>
+      </div>
+      <div class="flex gap-8 mt-16">
+        <button type="button" class="btn" onclick="PMS.toast('差异处理草稿已保存','success')"><i class="fa-solid fa-floppy-disk"></i> 保存草稿</button>
+        <button type="button" class="btn" onclick="toDispute()"><i class="fa-solid fa-gavel"></i> 标记有争议</button>
+        <button type="button" class="btn btn-primary" onclick="doSettle()"><i class="fa-solid fa-circle-check"></i> 确认结算完成</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- 打印预览抽屉 -->
+<div class="drawer-mask"></div>
+<div class="drawer drawer-xl" id="drPrint">
+  <div class="drawer-head">
+    <h3 style="margin:0;font-size:16px">面积找补测算单 · 打印预览</h3>
+    <span class="badge">A4 纵向</span>
+    <button type="button" class="btn btn-ghost" style="margin-left:auto" data-close-drawer><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="drawer-body" style="background:#eef1f6">
+    <div class="a4">
+      <h2>房屋面积差异找补测算单</h2>
+      <div class="sub2">XXXX市房产交易所 · 处理编号 CL450200202600186-018 · 政策版本 V2026.03</div>
+      <dl class="desc-list">
+        <div class="desc-item span-2"><dt>房源坐落</dt><dd>柳州市城中区文昌路 26 号荣和公园大道二期 8 栋 2 单元 1806</dd></div>
+        <div class="desc-item"><dt>购房人</dt><dd>李**</dd></div>
+        <div class="desc-item"><dt>开发企业</dt><dd>柳州荣和房地产开发有限公司</dd></div>
+        <div class="desc-item"><dt>合同编号</dt><dd>SPF450200202601302</dd></div>
+        <div class="desc-item"><dt>合同约定单价</dt><dd>11,268.19 元/㎡</dd></div>
+      </dl>
+      <div class="section-title mt-16" style="margin-top:16px">面积对照</div>
+      <table class="data-table compact" data-static>
+        <thead><tr><th>面积项</th><th class="text-right">合同约定 / 预测</th><th class="text-right">实测</th><th class="text-right">差值</th><th class="text-right">差异比例</th></tr></thead>
+        <tbody>
+          <tr><td>建筑面积（㎡）</td><td class="text-right amt">96.20</td><td class="text-right amt">100.15</td><td class="text-right amt text-warning">+3.95</td><td class="text-right amt text-danger fw-700">+4.11%</td></tr>
+          <tr><td>套内建筑面积（㎡）</td><td class="text-right amt">74.86</td><td class="text-right amt">77.92</td><td class="text-right amt text-warning">+3.06</td><td class="text-right amt">+4.09%</td></tr>
+          <tr><td>分摊面积（㎡）</td><td class="text-right amt">21.34</td><td class="text-right amt">22.23</td><td class="text-right amt text-warning">+0.89</td><td class="text-right amt">+4.17%</td></tr>
+        </tbody>
+      </table>
+      <div class="section-title mt-16" style="margin-top:16px">计算过程</div>
+      <table class="data-table compact" data-static>
+        <tbody>
+          <tr><td>处理方式</td><td class="fw-600">2 3% 以内据实、3% 以外由开发企业承担</td></tr>
+          <tr><td>3% 以内部分</td><td>96.20 × 3% = 2.886 ㎡</td></tr>
+          <tr><td>3% 以外部分</td><td>3.95 − 2.886 = 1.064 ㎡</td></tr>
+          <tr><td>3% 以内找补金额</td><td>2.886 × 11,268.19 = <b>32,519.99 元</b>（购房人补款）</td></tr>
+          <tr><td>3% 以外找补金额</td><td>0.00 元（由开发企业承担）</td></tr>
+          <tr><td>合计找补金额</td><td class="fw-700">32,519.99 元 · 结算方向：购房人补款</td></tr>
+        </tbody>
+      </table>
+      <div class="sign2">
+        <span>购房人签字：____________</span>
+        <span>开发企业（章）：____________</span>
+        <span>经办人：韦国强</span>
+      </div>
+      <div class="text-3 text-sm mt-16" style="text-align:right">制表日期：2026 年 08 月 01 日</div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button type="button" class="btn" data-close-drawer>关闭</button>
+    <button type="button" class="btn" onclick="PMS.toast('找补测算单 PDF 已生成，正在下载','success')"><i class="fa-solid fa-file-pdf"></i> 导出 PDF</button>
+    <button type="button" class="btn btn-primary" onclick="window.print()"><i class="fa-solid fa-print"></i> 打印</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+/* 两套演示房源：1806 常规超阈值找补；902 超阈值退房 */
+var ROOMS = {
+  '1806': {
+    no: 'CL450200202600186-018', room: '荣和公园大道二期 8 栋 2 单元 1806',
+    unit: '450202001005GB00186F00021806', hx: '两室两厅 · 成套住宅',
+    buyer: '李**（450***********0208）', ct: 'SPF450200202601302',
+    price: '11,268.19 元/㎡', pre: '96.20', act: '100.15', diff: '+3.95', ratio: '+4.11%', way: '2'
+  },
+  '902': {
+    no: 'CL450200202600186-009', room: '荣和公园大道二期 8 栋 3 单元 902',
+    unit: '450202001005GB00186F00030902', hx: '四室两厅 · 成套住宅',
+    buyer: '周**（450***********0416）', ct: 'SPF450200202601268',
+    price: '10,642.80 元/㎡', pre: '142.30', act: '135.68', diff: '−6.62', ratio: '−4.65%', way: '3'
+  }
+};
+var cur = '1806';
+
+function onWay(el) {
+  document.querySelectorAll('#ways label').forEach(function (l) { l.classList.remove('on'); });
+  el.closest('label').classList.add('on');
+  var w = el.value;
+  var refund = w === '3';
+  document.getElementById('calcCard').style.display = refund ? 'none' : '';
+  document.getElementById('tfCard').style.display = refund ? '' : 'none';
+  if (refund) { PMS.toast('已选择「购房人要求退房」，不作找补结算，转退房流程'); return; }
+  render(w);
+}
+
+function render(w) {
+  var r = ROOMS[cur], box = document.getElementById('calcBox'), html = '';
+  var pre = parseFloat(r.pre), act = parseFloat(r.act), d = act - pre;
+  var price = parseFloat(r.price.replace(/[^\d.]/g, ''));
+  var lim = pre * 0.03, inPart = Math.min(Math.abs(d), lim), outPart = Math.abs(d) - inPart;
+  var sign = d >= 0 ? '+' : '−';
+  var dir = d >= 0 ? '购房人补款' : '开发企业退款';
+  function f(n, dg) { return n.toLocaleString('zh-CN', { minimumFractionDigits: dg || 2, maximumFractionDigits: dg || 2 }); }
+
+  html += line('合同约定面积', f(pre) + ' ㎡');
+  html += line('实测建筑面积', f(act) + ' ㎡');
+  html += line('面积差', sign + f(Math.abs(d)) + ' ㎡', '实测 − 约定');
+  html += line('面积差比例', r.ratio, '面积差 ÷ 约定面积', Math.abs(d / pre) > 0.03 ? 'warn' : '');
+  html += line('合同约定误差幅度', '3%');
+
+  if (w === '1' || w === '4') {
+    var why = w === '1' ? '合同约定误差内不作结算' : '双方书面协商一致，不作结算';
+    html += line('本次结算处理', '不结算', why, 'hr zero');
+    html += line('合计找补金额', '0.00 元', '', 'total');
+    html += line('结算方向', '无需结算', '', 'dir');
+  } else if (w === '5') {
+    html += line('本次结算处理', '暂停结算', '已转司法处理，以生效裁判文书为准', 'hr zero');
+    html += line('合计找补金额', '待裁判确定', '', 'total');
+    html += line('结算方向', '暂不确定', '', 'dir');
+  } else if (w === '2') {
+    html += line('3% 以内部分', sign + f(inPart, 3) + ' ㎡', f(pre) + ' × 3%', 'hr');
+    html += line('3% 以外部分', sign + f(outPart, 3) + ' ㎡', f(Math.abs(d)) + ' − ' + f(inPart, 3));
+    html += line('合同约定单价', f(price) + ' 元/㎡');
+    if (d >= 0) {
+      html += line('3% 以内找补金额', f(inPart * price) + ' 元', f(inPart, 3) + ' × ' + f(price) + '，购房人补款', 'hr');
+      html += line('3% 以外找补金额', '0.00 元', '由开发企业承担，购房人不补', 'zero');
+      html += line('合计找补金额', f(inPart * price) + ' 元', '', 'total');
+    } else {
+      html += line('3% 以内退款金额', f(inPart * price) + ' 元', f(inPart, 3) + ' × ' + f(price) + '，企业退款', 'hr');
+      html += line('3% 以外双倍退款', f(outPart * price * 2) + ' 元', f(outPart, 3) + ' × ' + f(price) + ' × 2，按合同约定双倍退还');
+      html += line('合计找补金额', f(inPart * price + outPart * price * 2) + ' 元', '', 'total');
+    }
+    html += line('结算方向', dir, '', 'dir');
+  } else {
+    html += line('合同约定单价', f(price) + ' 元/㎡', '', 'hr');
+    html += line('据实结算金额', f(Math.abs(d) * price) + ' 元', f(Math.abs(d)) + ' × ' + f(price) + '，多退少补');
+    html += line('合计找补金额', f(Math.abs(d) * price) + ' 元', '', 'total');
+    html += line('结算方向', dir, '', 'dir');
+    if (Math.abs(d / pre) > 0.03) {
+      PMS.toast('注意：本户差异已超 3% 约定幅度，选择据实结算须双方另行书面约定', 'warning');
+    }
+  }
+  box.innerHTML = html;
+}
+
+function line(k, v, f, cls) {
+  return '<div class="cl ' + (cls || '') + '"><span class="k">' + k + '</span><span class="v">' + v + '</span>'
+    + (f ? '<span class="f">' + f + '</span>' : '') + '</div>';
+}
+
+function switchRoom() {
+  cur = cur === '1806' ? '902' : '1806';
+  var r = ROOMS[cur];
+  document.getElementById('dNo').textContent = r.no;
+  document.getElementById('dRoom').textContent = r.room;
+  document.getElementById('dUnit').textContent = r.unit;
+  document.getElementById('dHx').textContent = r.hx;
+  document.getElementById('dBuyer').textContent = r.buyer;
+  document.getElementById('dCt').textContent = r.ct;
+  document.getElementById('dPrice').textContent = r.price;
+  document.getElementById('dPre').innerHTML = r.pre + '<small>合同约定 ㎡</small>';
+  document.getElementById('dAct').innerHTML = r.act + '<small>实测建面 ㎡</small>';
+  document.getElementById('dDiff').textContent = r.diff;
+  document.getElementById('dRatio').textContent = r.ratio;
+  var rd = document.querySelector('input[name=w][value="' + r.way + '"]');
+  rd.checked = true; onWay(rd);
+  PMS.toast('已切换示例房源：' + r.room + '（' + r.ratio + '）');
+}
+
+function reCalc() { render(document.querySelector('input[name=w]:checked').value); PMS.toast('已按当前处理方式重新测算', 'success'); }
+
+function notify(who) {
+  var t = who === 'buyer' ? '购房人 李**（138****2086）' : '开发企业经办人 梁**（138****6402）';
+  PMS.toast('找补确认通知已发送至' + t + '，短信 + 掌上业务同步推送', 'success');
+}
+
+function offline(who) {
+  PMS.confirm({
+    title: '录入线下确认',
+    message: who === 'buyer' ? '录入购房人线下确认？' : '录入开发企业线下确认？',
+    detail: '线下确认须上传签字确认书扫描件，录入后视为该方已确认并留痕（录入人 韦国强）。',
+    type: 'info', okText: '确认录入',
+    onOk: function () {
+      if (who === 'buyer') {
+        document.getElementById('bSt').innerHTML = '<span class="badge green">已确认</span>';
+        document.getElementById('bTime').textContent = '2026-08-01 18:50';
+        document.getElementById('bTime').className = '';
+        document.getElementById('bOpin').textContent = '同意按 3% 以内据实、3% 以外由企业承担方式结算';
+        document.getElementById('bOpin').className = '';
+      } else {
+        document.getElementById('eSt').innerHTML = '<span class="badge green">已确认</span>';
+      }
+      checkBoth();
+      PMS.toast('线下确认已录入并留痕', 'success');
+    }
+  });
+}
+
+function checkBoth() {
+  var b = document.getElementById('bSt').textContent.indexOf('已确认') > -1;
+  var e = document.getElementById('eSt').textContent.indexOf('已确认') > -1;
+  document.getElementById('signBox').style.display = (b && e) ? '' : 'none';
+  document.getElementById('waitBox').style.display = (b && e) ? 'none' : '';
+}
+
+function doSign() {
+  PMS.confirm({
+    title: '发起补充协议签署',
+    message: '向双方发起面积差异补充协议签署？',
+    detail: '协议载明实测面积 100.15 ㎡、面积差 +3.95 ㎡（+4.11%）、找补金额 32,519.99 元、结算方向购房人补款；签署完成后回写商品房买卖合同进入结算环节。',
+    type: 'info', okText: '发起签署',
+    onOk: function () {
+      document.getElementById('signTxt').innerHTML = '签署任务已创建：<b>QY450200202600186018</b> · 签署状态 <span class="badge orange">待双方签署</span> · 有效期 7 日';
+      document.getElementById('btnSign').outerHTML = '<button type="button" class="btn" onclick="PMS.toast(\'签署进度：购房人待签署、开发企业待签署\')"><i class="fa-solid fa-eye"></i> 查看签署进度</button>';
+      PMS.toast('补充协议签署任务已发起（wsqy），签署链接已推送双方', 'success');
+    }
+  });
+}
+
+function doRefund() {
+  PMS.confirm({
+    title: '转退房流程',
+    message: '确认按「购房人要求退房」处理本户面积差异？',
+    detail: '确认后不作找补结算，同步注销网签备案、解除资金监管、释放楼盘表房源状态，并转入退房流程。该操作影响已备案合同，请确保已取得购房人书面申请与企业确认。',
+    type: 'danger', okText: '确认转退房',
+    onOk: function () {
+      PMS.toast('已转退房流程：网签备案注销申请已提交，资金监管解除通知已发送', 'success');
+      document.getElementById('clzt').value = '4';
+    }
+  });
+}
+
+function toDispute() {
+  PMS.confirm({
+    title: '标记有争议',
+    message: '将本户面积差异处理标记为「有争议」？',
+    detail: '标记后暂停结算，进入协商处理；协商不成可转司法处理。须填写争议说明，标记操作留痕。',
+    type: 'warning', okText: '标记有争议',
+    onOk: function () { document.getElementById('clzt').value = '3'; PMS.toast('已标记为有争议，已暂停结算并生成协商处理任务', 'success'); }
+  });
+}
+
+function doSettle() {
+  var b = document.getElementById('bSt').textContent.indexOf('已确认') > -1;
+  if (!b) { PMS.toast('购房人尚未确认，双方确认后方可结算', 'warning'); return; }
+  PMS.confirm({
+    title: '确认结算完成',
+    message: '确认本户面积找补已结算完成？',
+    detail: '结算金额 32,519.99 元（购房人补款），结算凭证 JS450200202600186018。确认后处理状态置为「已处理」，并回写商品房买卖合同结算环节（wsswb）。',
+    type: 'info', okText: '确认结算',
+    onOk: function () {
+      document.getElementById('clzt').value = '2';
+      PMS.toast('结算完成：已回写商品房买卖合同结算环节，处理状态置为「已处理」', 'success');
+    }
+  });
+}
+
+render('2');
+</script>
+</body>
+</html>

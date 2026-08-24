@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>楼盘表勘误审批 · 新建商品房网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：原值/新值左右对照 */
+  .cmp {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  }
+  .cmp .cmp-box {
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; background: #fff;
+  }
+  .cmp .cmp-box.old { border-left: 3px solid var(--text-3); }
+  .cmp .cmp-box.neu { border-left: 3px solid var(--primary); }
+  .cmp .cmp-t { font-size: 12.5px; color: var(--text-3); margin-bottom: 6px; }
+  .cmp .cmp-v { font-size: 16px; font-weight: 700; word-break: break-all; }
+  .cmp .cmp-box.neu .cmp-v { color: var(--primary); }
+  tr.row-signed td:first-child { box-shadow: inset 3px 0 0 var(--warning); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsswb-25">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房网签备案管理系统
+        <span class="sep">/</span> <a class="link" href="develop-filing.html">开发项目备案</a>
+        <span class="sep">/</span> <span class="cur">楼盘表勘误审批</span>
+      </div>
+      <div class="page-title">楼盘表勘误审批</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" data-open-drawer="dwNew"><i class="fa-solid fa-plus"></i> 新增勘误申请</button>
+      <button type="button" class="btn" onclick="PMS.toast('《楼盘表勘误台账》Excel 已生成','success')"><i class="fa-solid fa-download"></i> 导出</button>
+      <button type="button" class="btn" onclick="location.href='building-table.html'"><i class="fa-solid fa-table-cells"></i> 楼盘表</button>
+      <button type="button" class="btn" onclick="location.href='building-import.html'"><i class="fa-solid fa-file-import"></i> 导入核对</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-route"></i></div>
+      <div><div class="s-label">在途勘误</div><div class="s-value">12</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">待审</div><div class="s-value">5</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-file-signature"></i></div>
+      <div><div class="s-label">已签约房屋勘误</div><div class="s-value">3</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">本月办结</div><div class="s-value">18</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>已签约房屋勘误须附合同处理意见（变更协议 / 补充协议 / 解除重签等）；未附意见的申请不予通过。勘误通过后同步回写楼盘表、销控图及关联合同标的信息。</div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>申请号</label>
+        <input type="text" placeholder="如 KW20260731005">
+      </div>
+      <div class="filter-item">
+        <label>项目</label>
+        <input type="text" placeholder="项目名称关键词">
+      </div>
+      <div class="filter-item">
+        <label>房号</label>
+        <input type="text" placeholder="如 11-1-2601">
+      </div>
+      <div class="filter-item">
+        <label>是否已签约</label>
+        <select><option value="">全部</option><option>是</option><option>否</option></select>
+      </div>
+      <div class="filter-item">
+        <label>状态</label>
+        <select>
+          <option value="">全部</option>
+          <option>待审</option>
+          <option>审批中</option>
+          <option>已通过</option>
+          <option>已退回</option>
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 47 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="wait">待审 <span class="badge orange">5</span></div>
+      <div class="tab" data-tab="signed">已签约勘误 <span class="badge red">3</span></div>
+      <div class="tab" data-tab="done">已通过</div>
+      <div class="tab" data-tab="back">已退回</div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblKw" data-static>
+        <thead>
+          <tr>
+            <th>申请号</th>
+            <th>项目</th>
+            <th>房号</th>
+            <th>勘误字段</th>
+            <th>原值</th>
+            <th>新值</th>
+            <th>是否已签约</th>
+            <th>申请人</th>
+            <th>申请日期</th>
+            <th>状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="row-signed" data-st="wait signed">
+            <td class="nowrap fw-600">KW20260731005</td>
+            <td class="nowrap fw-600">彰泰江湾城（三期）</td>
+            <td class="nowrap">11-1-2601</td>
+            <td class="nowrap">建筑面积（㎡）</td>
+            <td class="nowrap">118.20</td>
+            <td class="nowrap text-primary fw-600">118.65</td>
+            <td class="nowrap"><span class="badge red">是</span></td>
+            <td class="nowrap">覃海波</td>
+            <td class="nowrap">2026-07-31</td>
+            <td class="nowrap"><span class="badge orange">待审</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openAudit('KW20260731005','彰泰江湾城（三期）','11-1-2601','建筑面积（㎡）','118.20','118.65',true)">审批</span>
+              <span class="link" onclick="openView('KW20260731005','彰泰江湾城（三期）','11-1-2601')">查看</span>
+            </td>
+          </tr>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">KW20260730012</td>
+            <td class="nowrap fw-600">华润置地柳州万象天地</td>
+            <td class="nowrap">5-2-1802</td>
+            <td class="nowrap">套内面积（㎡）</td>
+            <td class="nowrap">74.86</td>
+            <td class="nowrap text-primary fw-600">75.21</td>
+            <td class="nowrap"><span class="badge gray">否</span></td>
+            <td class="nowrap">石文彬</td>
+            <td class="nowrap">2026-07-30</td>
+            <td class="nowrap"><span class="badge orange">待审</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openAudit('KW20260730012','华润置地柳州万象天地','5-2-1802','套内面积（㎡）','74.86','75.21',false)">审批</span>
+              <span class="link" onclick="openView('KW20260730012','华润置地柳州万象天地','5-2-1802')">查看</span>
+            </td>
+          </tr>
+          <tr class="row-signed" data-st="wait signed">
+            <td class="nowrap fw-600">KW20260729008</td>
+            <td class="nowrap fw-600">保利柳江府（二期）</td>
+            <td class="nowrap">8-1-1201</td>
+            <td class="nowrap">房屋用途</td>
+            <td class="nowrap">商业</td>
+            <td class="nowrap text-primary fw-600">成套住宅</td>
+            <td class="nowrap"><span class="badge red">是</span></td>
+            <td class="nowrap">周雅琴</td>
+            <td class="nowrap">2026-07-29</td>
+            <td class="nowrap"><span class="badge orange">待审</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openAudit('KW20260729008','保利柳江府（二期）','8-1-1201','房屋用途','商业','成套住宅',true)">审批</span>
+              <span class="link" onclick="openView('KW20260729008','保利柳江府（二期）','8-1-1201')">查看</span>
+            </td>
+          </tr>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">KW20260728003</td>
+            <td class="nowrap fw-600">柳州万科城（五期）</td>
+            <td class="nowrap">16-3-2204</td>
+            <td class="nowrap">朝向</td>
+            <td class="nowrap">南</td>
+            <td class="nowrap text-primary fw-600">南北</td>
+            <td class="nowrap"><span class="badge gray">否</span></td>
+            <td class="nowrap">吴俊霖</td>
+            <td class="nowrap">2026-07-28</td>
+            <td class="nowrap"><span class="badge orange">待审</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openAudit('KW20260728003','柳州万科城（五期）','16-3-2204','朝向','南','南北',false)">审批</span>
+              <span class="link" onclick="openView('KW20260728003','柳州万科城（五期）','16-3-2204')">查看</span>
+            </td>
+          </tr>
+          <tr class="row-signed" data-st="wait signed">
+            <td class="nowrap fw-600">KW20260727016</td>
+            <td class="nowrap fw-600">中南春风南岸（二期）</td>
+            <td class="nowrap">3-1-0902</td>
+            <td class="nowrap">分摊面积（㎡）</td>
+            <td class="nowrap">21.40</td>
+            <td class="nowrap text-primary fw-600">21.86</td>
+            <td class="nowrap"><span class="badge red">是</span></td>
+            <td class="nowrap">邓文静</td>
+            <td class="nowrap">2026-07-27</td>
+            <td class="nowrap"><span class="badge orange">待审</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openAudit('KW20260727016','中南春风南岸（二期）','3-1-0902','分摊面积（㎡）','21.40','21.86',true)">审批</span>
+              <span class="link" onclick="openView('KW20260727016','中南春风南岸（二期）','3-1-0902')">查看</span>
+            </td>
+          </tr>
+          <tr data-st="done">
+            <td class="nowrap fw-600">KW20260722004</td>
+            <td class="nowrap fw-600">荣和公园里（一期）</td>
+            <td class="nowrap">2-1-1501</td>
+            <td class="nowrap">建筑面积（㎡）</td>
+            <td class="nowrap">108.60</td>
+            <td class="nowrap">109.12</td>
+            <td class="nowrap"><span class="badge gray">否</span></td>
+            <td class="nowrap">韦丽萍</td>
+            <td class="nowrap">2026-07-22</td>
+            <td class="nowrap"><span class="badge green">已通过</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('KW20260722004','荣和公园里（一期）','2-1-1501')">查看</span>
+              <a class="link" href="building-table.html">楼盘表</a>
+            </td>
+          </tr>
+          <tr data-st="done">
+            <td class="nowrap fw-600">KW20260718009</td>
+            <td class="nowrap fw-600">龙光玖誉城（四期）</td>
+            <td class="nowrap">7-2-0803</td>
+            <td class="nowrap">房屋结构</td>
+            <td class="nowrap">框架</td>
+            <td class="nowrap">剪力墙</td>
+            <td class="nowrap"><span class="badge gray">否</span></td>
+            <td class="nowrap">罗建军</td>
+            <td class="nowrap">2026-07-18</td>
+            <td class="nowrap"><span class="badge green">已通过</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('KW20260718009','龙光玖誉城（四期）','7-2-0803')">查看</span>
+              <a class="link" href="building-table.html">楼盘表</a>
+            </td>
+          </tr>
+          <tr data-st="back">
+            <td class="nowrap fw-600">KW20260715002</td>
+            <td class="nowrap fw-600">阳光城柳州樾府</td>
+            <td class="nowrap">4-1-2001</td>
+            <td class="nowrap">建筑面积（㎡）</td>
+            <td class="nowrap">142.80</td>
+            <td class="nowrap">145.00</td>
+            <td class="nowrap"><span class="badge red">是</span></td>
+            <td class="nowrap">杨明辉</td>
+            <td class="nowrap">2026-07-15</td>
+            <td class="nowrap"><span class="badge gray">已退回</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('KW20260715002','阳光城柳州樾府','4-1-2001')">查看</span>
+              <span class="link" onclick="PMS.toast('退回原因：已签约房屋未附合同处理意见','error')">退回原因</span>
+            </td>
+          </tr>
+          <tr data-st="done">
+            <td class="nowrap fw-600">KW20260710011</td>
+            <td class="nowrap fw-600">融创柳江壹号院</td>
+            <td class="nowrap">1-1-0602</td>
+            <td class="nowrap">装修情况</td>
+            <td class="nowrap">毛坯</td>
+            <td class="nowrap">精装</td>
+            <td class="nowrap"><span class="badge gray">否</span></td>
+            <td class="nowrap">陆志明</td>
+            <td class="nowrap">2026-07-10</td>
+            <td class="nowrap"><span class="badge green">已通过</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('KW20260710011','融创柳江壹号院','1-1-0602')">查看</span>
+              <a class="link" href="develop-filing.html">项目备案</a>
+            </td>
+          </tr>
+          <tr data-st="done">
+            <td class="nowrap fw-600">KW20260706007</td>
+            <td class="nowrap fw-600">彰泰江湾城（三期）</td>
+            <td class="nowrap">10-1-0301</td>
+            <td class="nowrap">分摊面积（㎡）</td>
+            <td class="nowrap">26.10</td>
+            <td class="nowrap">26.42</td>
+            <td class="nowrap"><span class="badge gray">否</span></td>
+            <td class="nowrap">覃海波</td>
+            <td class="nowrap">2026-07-06</td>
+            <td class="nowrap"><span class="badge green">已通过</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('KW20260706007','彰泰江湾城（三期）','10-1-0301')">查看</span>
+              <a class="link" href="building-table.html">楼盘表</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 审批抽屉 -->
+  <div class="drawer-mask"></div>
+  <div class="drawer drawer-lg" id="dwAudit">
+    <div class="drawer-head">
+      <h3>勘误审批 · <span id="adNo">—</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <dl class="desc-list">
+        <div class="desc-item"><dt>申请号</dt><dd id="adNo2">—</dd></div>
+        <div class="desc-item"><dt>项目</dt><dd id="adPj">—</dd></div>
+        <div class="desc-item"><dt>房号</dt><dd id="adRm">—</dd></div>
+        <div class="desc-item"><dt>勘误字段</dt><dd id="adField">—</dd></div>
+        <div class="desc-item"><dt>是否已签约</dt><dd id="adSigned">—</dd></div>
+        <div class="desc-item"><dt>关联合同</dt><dd id="adCt">—</dd></div>
+      </dl>
+
+      <div class="section-title mt-16">原值 / 新值对照</div>
+      <div class="cmp">
+        <div class="cmp-box old">
+          <div class="cmp-t">原值（楼盘表现行）</div>
+          <div class="cmp-v" id="adOld">—</div>
+        </div>
+        <div class="cmp-box neu">
+          <div class="cmp-t">新值（申请勘误）</div>
+          <div class="cmp-v" id="adNew">—</div>
+        </div>
+      </div>
+
+      <div class="alert alert-warning mt-16 hidden" id="adSignedTip">
+        <i class="fa-solid fa-file-signature"></i>
+        <div>本房已签约，审批通过前须填写合同处理意见；意见将同步推送至合同管理模块留痕。</div>
+      </div>
+
+      <div class="section-title mt-16">合同处理意见</div>
+      <div class="form-grid form-align">
+        <div class="form-item col-full" id="adCtBox">
+          <label>合同处理意见<span class="req hidden" id="adCtReq">*</span></label>
+          <textarea id="adCtOpt" placeholder="已签约时必填，如：双方已签订补充协议，按新面积调整价款并备案"></textarea>
+        </div>
+        <div class="form-item col-full">
+          <label>审批结论<span class="req">*</span></label>
+          <div class="radio-line">
+            <label><input type="radio" name="ar" value="pass" checked onchange="toggleBack()"> 通过</label>
+            <label><input type="radio" name="ar" value="back" onchange="toggleBack()"> 退回</label>
+          </div>
+        </div>
+        <div class="form-item col-full hidden" id="adBackBox">
+          <label>退回原因<span class="req">*</span></label>
+          <textarea id="adBack" placeholder="如：已签约房屋未附合同处理意见，请补充后重提"></textarea>
+        </div>
+        <div class="form-item">
+          <label>审批人<span class="req">*</span></label>
+          <input type="text" value="韦国强">
+        </div>
+        <div class="form-item">
+          <label>审批日期<span class="req">*</span></label>
+          <input type="date" value="2026-07-31">
+        </div>
+        <div class="form-item col-full">
+          <label>审批意见</label>
+          <textarea id="adOpt">经核与测绘成果一致，同意按新值勘误并回写楼盘表。</textarea>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="submitAudit()"><i class="fa-solid fa-paper-plane"></i> 提交审批结论</button>
+    </div>
+  </div>
+
+  <!-- 查看抽屉 -->
+  <div class="drawer" id="dwView">
+    <div class="drawer-head">
+      <h3>勘误详情 · <span id="vwNo">—</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <dl class="desc-list">
+        <div class="desc-item"><dt>申请号</dt><dd id="vwNo2">—</dd></div>
+        <div class="desc-item"><dt>项目</dt><dd id="vwPj">—</dd></div>
+        <div class="desc-item"><dt>房号</dt><dd id="vwRm">—</dd></div>
+        <div class="desc-item"><dt>申请人</dt><dd>覃海波 · 柳州彰泰置业有限公司</dd></div>
+        <div class="desc-item"><dt>申请日期</dt><dd>2026-07-31</dd></div>
+        <div class="desc-item"><dt>当前状态</dt><dd><span class="badge orange">待审</span></dd></div>
+      </dl>
+      <div class="section-title mt-16">审批轨迹</div>
+      <div class="timeline">
+        <div class="tl-item"><div class="tl-dot"></div>
+          <div class="tl-title">待市级审批 <span class="badge orange">进行中</span></div>
+          <div class="tl-desc">申请已进入市级审批队列。</div>
+          <div class="tl-meta">2026-07-31 10:18</div>
+        </div>
+        <div class="tl-item done"><div class="tl-dot"></div>
+          <div class="tl-title">企业提交勘误申请 <span class="badge green">已完成</span></div>
+          <div class="tl-desc">申请人提交勘误，附测绘成果更正说明。</div>
+          <div class="tl-meta">覃海波 · 2026-07-31 09:42</div>
+        </div>
+      </div>
+      <div class="btn-row mt-16">
+        <a class="link" href="develop-filing.html">开发项目备案</a>
+        <a class="link" href="building-table.html">楼盘表与销控图</a>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+    </div>
+  </div>
+
+  <!-- 新增勘误申请 -->
+  <div class="drawer" id="dwNew">
+    <div class="drawer-head">
+      <h3>新增勘误申请</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>勘误仅允许修正面积、用途、朝向、结构、装修等属性字段；房号唯一键原则上不可改，确需调整须走导入核对退回重导流程。</div>
+      </div>
+      <div class="form-grid form-align mt-16">
+        <div class="form-item">
+          <label>项目<span class="req">*</span></label>
+          <select>
+            <option>彰泰江湾城（三期）</option>
+            <option>华润置地柳州万象天地</option>
+            <option>保利柳江府（二期）</option>
+            <option>柳州万科城（五期）</option>
+            <option>中南春风南岸（二期）</option>
+            <option>荣和公园里（一期）</option>
+            <option>龙光玖誉城（四期）</option>
+            <option>阳光城柳州樾府</option>
+          </select>
+        </div>
+        <div class="form-item">
+          <label>房号<span class="req">*</span></label>
+          <input type="text" placeholder="如 11-1-2601">
+        </div>
+        <div class="form-item">
+          <label>勘误字段<span class="req">*</span></label>
+          <select>
+            <option>建筑面积（㎡）</option>
+            <option>套内面积（㎡）</option>
+            <option>分摊面积（㎡）</option>
+            <option>房屋用途</option>
+            <option>朝向</option>
+            <option>房屋结构</option>
+            <option>装修情况</option>
+          </select>
+        </div>
+        <div class="form-item">
+          <label>原值</label>
+          <input type="text" value="系统自动带出" readonly>
+        </div>
+        <div class="form-item">
+          <label>新值<span class="req">*</span></label>
+          <input type="text" placeholder="请输入勘误后的值">
+        </div>
+        <div class="form-item col-full">
+          <label>申请理由<span class="req">*</span></label>
+          <textarea placeholder="如：预测绘成果更正，建筑面积由 118.20 调整为 118.65"></textarea>
+        </div>
+        <div class="form-item col-full">
+          <label>合同处理意见（已签约时必填）</label>
+          <textarea placeholder="未签约可留空；已签约须说明变更协议等情况"></textarea>
+        </div>
+        <div class="form-item col-full">
+          <label>佐证材料</label>
+          <div class="file-up">
+            <input type="hidden" class="file-up-val" value="测绘成果更正说明.pdf">
+            <div class="file-up-grid">
+              <div class="file-up-tile file-up-add"><input type="file"><i class="fa-solid fa-plus"></i><span>上传</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer('dwNew');PMS.toast('勘误申请已提交，进入待审队列','success')"><i class="fa-solid fa-paper-plane"></i> 提交申请</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+var _signed = false;
+
+PMS.renderPager(document.getElementById('tblKw'), {
+  pageNum: 1, pageSize: 20, total: 47,
+  onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+});
+
+document.getElementById('stTabs').addEventListener('click', function (e) {
+  var t = e.target.closest('.tab');
+  if (!t) return;
+  this.querySelectorAll('.tab').forEach(function (x) { x.classList.toggle('active', x === t); });
+  var k = t.getAttribute('data-tab');
+  document.querySelectorAll('#tblKw tbody tr').forEach(function (r) {
+    var st = r.getAttribute('data-st') || '';
+    r.style.display = (k === 'all' || st.indexOf(k) >= 0) ? '' : 'none';
+  });
+});
+
+function openAudit(no, pj, rm, field, oldV, newV, signed) {
+  _signed = !!signed;
+  document.getElementById('adNo').textContent = no;
+  document.getElementById('adNo2').textContent = no;
+  document.getElementById('adPj').textContent = pj;
+  document.getElementById('adRm').textContent = rm;
+  document.getElementById('adField').textContent = field;
+  document.getElementById('adOld').textContent = oldV;
+  document.getElementById('adNew').textContent = newV;
+  document.getElementById('adSigned').innerHTML = signed
+    ? '<span class="badge red">是</span>'
+    : '<span class="badge gray">否</span>';
+  document.getElementById('adCt').textContent = signed
+    ? '柳房网签〔2026〕0' + (1200 + Math.floor(Math.random() * 80)) + ' 号'
+    : '—';
+  document.getElementById('adSignedTip').classList.toggle('hidden', !signed);
+  document.getElementById('adCtReq').classList.toggle('hidden', !signed);
+  document.getElementById('adCtOpt').value = signed
+    ? '买卖双方已于 2026-07-28 签订补充协议，按新面积调整合同价款，差额多退少补。'
+    : '';
+  document.querySelector('input[name="ar"][value="pass"]').checked = true;
+  toggleBack();
+  PMS.openDrawer('dwAudit');
+}
+
+function openView(no, pj, rm) {
+  document.getElementById('vwNo').textContent = no;
+  document.getElementById('vwNo2').textContent = no;
+  document.getElementById('vwPj').textContent = pj;
+  document.getElementById('vwRm').textContent = rm;
+  PMS.openDrawer('dwView');
+}
+
+function toggleBack() {
+  var back = document.querySelector('input[name="ar"]:checked').value === 'back';
+  document.getElementById('adBackBox').classList.toggle('hidden', !back);
+  document.getElementById('adOpt').value = back
+    ? '材料不全或不符测绘成果，予以退回。'
+    : '经核与测绘成果一致，同意按新值勘误并回写楼盘表。';
+}
+
+function submitAudit() {
+  var back = document.querySelector('input[name="ar"]:checked').value === 'back';
+  if (!back && _signed && !document.getElementById('adCtOpt').value.trim()) {
+    PMS.toast('已签约房屋勘误须填写合同处理意见', 'error');
+    return;
+  }
+  PMS.closeDrawer('dwAudit');
+  PMS.toast(back ? '已退回企业补正' : '审批通过，已回写楼盘表并同步销控图', back ? 'error' : 'success');
+}
+</script>
+</body>
+</html>

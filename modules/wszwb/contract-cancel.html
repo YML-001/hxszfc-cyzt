@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>退租注销备案 · 房屋租赁网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：四步分段卡、结算汇总、读数对照 */
+  .card.list-card > .tab-panel.active > .card-body { flex: 1 1 auto; min-height: 0; overflow: auto; }
+
+  .seg {
+    border: 1px solid var(--border); border-radius: var(--radius); background: #fff; margin-bottom: 12px;
+  }
+  .seg > .sg-h {
+    display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-bottom: 1px solid var(--border);
+    background: var(--bg-soft); border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .seg > .sg-h .sg-n {
+    width: 24px; height: 24px; border-radius: 50%; background: var(--primary); color: #fff;
+    display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 700; flex-shrink: 0;
+  }
+  .seg > .sg-h .sg-t { font-size: 13.5px; font-weight: 700; color: var(--text-1); }
+  .seg > .sg-h .sg-s { font-size: 12.5px; color: var(--text-3); margin-left: auto; }
+  .seg > .sg-b { padding: 14px; }
+
+  .meter-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .meter-table th, .meter-table td { border: 1px solid var(--border); padding: 8px 11px; text-align: right; }
+  .meter-table th:first-child, .meter-table td:first-child { text-align: left; background: #fbfcfe; color: var(--text-3); }
+  .meter-table thead th { background: var(--bg-soft); color: var(--text-3); font-size: 12.5px; font-weight: 600; text-align: right; }
+
+  .dc2 { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
+  @media (max-width: 1200px) { .dc2 { grid-template-columns: 1fr; } }
+
+  .sum-card {
+    border: 1px solid #bfdbfe; background: #f5f9ff; border-radius: var(--radius); padding: 16px;
+  }
+  .sum-card .sc-r { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-2); padding: 6px 0; }
+  .sum-card .sc-r.minus span:last-child { color: var(--danger); }
+  .sum-card .sc-line { height: 1px; background: #c7dbff; margin: 8px 0; }
+  .sum-card .sc-total { display: flex; justify-content: space-between; align-items: baseline; }
+  .sum-card .sc-total .lb { font-size: 13.5px; font-weight: 700; color: var(--text-1); }
+  .sum-card .sc-total .num { font-size: 27px; font-weight: 700; color: var(--primary); letter-spacing: -1px; }
+
+  .dyn-row { display: grid; grid-template-columns: 1.3fr .9fr 1.8fr 62px; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px dashed var(--row-line); }
+  .dyn-row:last-child { border-bottom: none; }
+  .dyn-row input, .dyn-row select { width: 100%; }
+  .dyn-head { font-size: 12.5px; color: var(--text-3); }
+
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .ph-box { position: relative; aspect-ratio: 4 / 3; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--bg-soft); }
+  .ph-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .ph-box .ph-tag { position: absolute; left: 6px; top: 6px; background: rgba(15,23,42,.62); color: #fff; font-size: 11.5px; border-radius: 4px; padding: 2px 7px; }
+  .ph-box.add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--primary); cursor: pointer; border-style: dashed; border-color: var(--primary-soft); }
+
+  .radio-line { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; min-height: 32px; }
+  .radio-line label { font-size: 14px; color: var(--text-2); font-weight: 400; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+  .data-table tbody tr.is-warn > td { background: #fff8ed; }
+  .data-table tbody tr.is-warn:hover > td { background: #fdf0d9; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wszwb-18">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋租赁网签备案管理系统
+        <span class="sep">/</span> 合同网签备案
+        <span class="sep">/</span> <span class="cur">退租注销备案</span>
+      </div>
+      <div class="page-title">退租注销备案</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn btn-primary" href="contract-list.html"><i class="fa-solid fa-plus"></i> 新增注销申请</a>
+      <button type="button" class="btn" onclick="PMS.toast('已导出《退租注销台账》Excel','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">待办</div><div class="s-value">36</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-circle-xmark"></i></div>
+      <div><div class="s-label">本月注销</div><div class="s-value">486</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-regular fa-calendar-check"></i></div>
+      <div><div class="s-label">其中到期退租</div><div class="s-value">402</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-scale-balanced"></i></div>
+      <div><div class="s-label">押金争议</div><div class="s-value">14</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      提前退租须完成房屋验收与押金结算后方可注销备案。注销完成后房源自动解锁，核验码仍在有效期内的可直接重新发布，已过期的须重新申请核验。押金扣除争议可转租赁纠纷调处。
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="tabs" data-tabs-scope>
+      <div class="tab active" data-tab="list">注销申请台账</div>
+      <div class="tab" data-tab="do">退租办理</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="list">
+      <div class="filter-bar">
+        <div class="filter-item"><label>关键词</label><input type="text" placeholder="注销编号 / 合同编号 / 备案编号 / 坐落"></div>
+        <div class="filter-item">
+          <label>注销类型</label>
+          <select><option value="">全部</option><option>到期退租</option><option>提前退租</option><option>违约解除</option><option>协商解除</option><option>房屋灭失</option></select>
+        </div>
+        <div class="filter-item">
+          <label>申请方类型</label>
+          <select><option value="">全部</option><option>出租人</option><option>承租人</option><option>双方</option></select>
+        </div>
+        <div class="filter-item">
+          <label>审核结果</label>
+          <select><option value="">全部</option><option>待审</option><option>通过</option><option>退回补正</option></select>
+        </div>
+        <div class="filter-item">
+          <label>房源解锁状态</label>
+          <select><option value="">全部</option><option>已解锁</option><option>未解锁</option></select>
+        </div>
+        <div class="filter-item"><label>申请时间起</label><input type="date" value="2026-07-01"></div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 522 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table" id="tblZx" data-static>
+          <thead>
+            <tr>
+              <th>注销编号</th><th>合同编号</th><th>备案编号</th><th>坐落</th><th>注销类型</th>
+              <th>申请方名称</th><th>申请方类型</th><th>申请时间</th><th>实际退租日期</th>
+              <th class="num">押金退还(元)</th><th class="num">押金扣除(元)</th><th>审核结果</th><th>房源解锁</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="is-warn">
+              <td class="nowrap fw-600">ZX2026000486</td>
+              <td class="nowrap">ZLHT450200202500268</td>
+              <td class="nowrap">ZLBA450200202500214</td>
+              <td class="cell-lg">柳北区跃进路 33 号桂中华府 6-2-1104 分间 B</td>
+              <td class="nowrap">提前退租</td>
+              <td class="nowrap">覃某某</td>
+              <td class="nowrap">承租人</td>
+              <td class="nowrap">2026-07-29</td>
+              <td class="nowrap">2026-08-05</td>
+              <td class="num">980.00</td>
+              <td class="num">400.00</td>
+              <td class="nowrap"><span class="badge orange">待审</span></td>
+              <td class="nowrap"><span class="badge gray">未解锁</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openDo('ZX2026000486')">办理</span>
+                <a class="link" href="contract-detail.html">查看合同</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">ZX2026000472</td>
+              <td class="nowrap">ZLHT450200202500186</td>
+              <td class="nowrap">ZLBA450200202500142</td>
+              <td class="cell-lg">城中区解放北路 41 号天湖国际 2-1-1508</td>
+              <td class="nowrap">到期退租</td>
+              <td class="nowrap">陈某某</td>
+              <td class="nowrap">双方</td>
+              <td class="nowrap">2026-07-28</td>
+              <td class="nowrap">2026-08-31</td>
+              <td class="num">2,100.00</td>
+              <td class="num">0.00</td>
+              <td class="nowrap"><span class="badge orange">待审</span></td>
+              <td class="nowrap"><span class="badge gray">未解锁</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openDo('ZX2026000472')">办理</span>
+                <a class="link" href="contract-detail.html">查看合同</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">ZX2026000441</td>
+              <td class="nowrap">ZLHT450200202500097</td>
+              <td class="nowrap">ZLBA450200202500086</td>
+              <td class="cell-lg">鱼峰区屏山大道 118 号万科城 7-1-902</td>
+              <td class="nowrap">到期退租</td>
+              <td class="nowrap">韦某某</td>
+              <td class="nowrap">出租人</td>
+              <td class="nowrap">2026-07-24</td>
+              <td class="nowrap">2026-07-31</td>
+              <td class="num">3,100.00</td>
+              <td class="num">0.00</td>
+              <td class="nowrap"><span class="badge green">通过</span></td>
+              <td class="nowrap"><span class="badge green">已解锁</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openDo('ZX2026000441')">查看</span>
+                <a class="link" href="listing-detail.html">查看房源</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">ZX2026000418</td>
+              <td class="nowrap">ZLHT450200202500342</td>
+              <td class="nowrap">ZLBA450200202500288</td>
+              <td class="cell-lg">柳南区潭中西路 5 号保利大江郡 9-2-1802</td>
+              <td class="nowrap">违约解除</td>
+              <td class="nowrap">陆某某</td>
+              <td class="nowrap">出租人</td>
+              <td class="nowrap">2026-07-20</td>
+              <td class="nowrap">2026-07-26</td>
+              <td class="num">1,650.00</td>
+              <td class="num">1,000.00</td>
+              <td class="nowrap"><span class="badge green">通过</span><br><span class="text-3 text-sm">押金争议已调解</span></td>
+              <td class="nowrap"><span class="badge green">已解锁</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openDo('ZX2026000418')">查看</span>
+                <a class="link" href="behavior-supervise.html">调处记录</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">ZX2026000386</td>
+              <td class="nowrap">ZLHT450200202500154</td>
+              <td class="nowrap">ZLBA450200202500126</td>
+              <td class="cell-lg">柳东新区花岭路 8 号人才驿站 A 座 1206</td>
+              <td class="nowrap">协商解除</td>
+              <td class="nowrap">刘某某</td>
+              <td class="nowrap">双方</td>
+              <td class="nowrap">2026-07-16</td>
+              <td class="nowrap">2026-07-22</td>
+              <td class="num">1,180.00</td>
+              <td class="num">0.00</td>
+              <td class="nowrap"><span class="badge green">通过</span></td>
+              <td class="nowrap"><span class="badge green">已解锁</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openDo('ZX2026000386')">查看</span>
+                <a class="link" href="listing-detail.html">查看房源</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="do">
+      <div class="card-body">
+
+        <div class="seg">
+          <div class="sg-h">
+            <span class="sg-n">1</span><span class="sg-t">退租申请</span>
+            <span class="sg-s">注销编号 <b id="doNo">ZX2026000486</b> · 合同 ZLHT450200202500268</span>
+          </div>
+          <div class="sg-b">
+            <div class="form-grid form-align">
+              <div class="form-item">
+                <label>注销类型<span class="req">*</span></label>
+                <select><option>到期退租</option><option selected>提前退租</option><option>违约解除</option><option>协商解除</option><option>房屋灭失</option></select>
+              </div>
+              <div class="form-item">
+                <label>申请方<span class="req">*</span></label>
+                <select><option>出租人</option><option selected>承租人</option><option>双方</option></select>
+              </div>
+              <div class="form-item"><label>申请方名称</label><input type="text" readonly value="覃某某"></div>
+              <div class="form-item"><label>申请时间</label><input type="text" readonly value="2026-07-29 15:42"></div>
+              <div class="form-item"><label>实际退租日期<span class="req">*</span></label><input type="date" value="2026-08-05"></div>
+              <div class="form-item"><label>合同约定到期日</label><input type="text" readonly value="2026-11-09（提前 96 天）"></div>
+              <div class="form-item col-full">
+                <label>注销原因<span class="req">*</span></label>
+                <textarea rows="2">承租人工作调动至南宁，与出租人协商一致提前退租，按合同约定提前 30 日书面通知并承担一个月租金的违约金。</textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="seg">
+          <div class="sg-h">
+            <span class="sg-n">2</span><span class="sg-t">房屋验收</span>
+            <span class="sg-s">验收日期 2026-08-05 · 验收人 莫小芳</span>
+          </div>
+          <div class="sg-b">
+            <div class="form-grid form-align">
+              <div class="form-item"><label>验收日期<span class="req">*</span></label><input type="date" value="2026-08-05"></div>
+              <div class="form-item"><label>验收人<span class="req">*</span></label><input type="text" value="莫小芳"></div>
+              <div class="form-item col-full">
+                <label>房屋验收状况<span class="req">*</span></label>
+                <textarea rows="3">房屋整体状况良好，墙面无明显破损；卫生间玻璃隔断有一处约 10cm 裂纹，系承租人使用不当造成；室内已清空并完成基础保洁。家电家具经清点，除电热水器加热异常外其余完好。</textarea>
+              </div>
+            </div>
+
+            <div class="section-title mt-16">水电气表读数对照</div>
+            <table class="meter-table">
+              <thead>
+                <tr><th>项目</th><th>交付读数</th><th>退房读数</th><th>用量</th><th>单价</th><th>应缴费用(元)</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>水表(吨)</td><td>128.60</td><td><input type="number" step="0.01" value="164.20" style="width:110px" oninput="calcMeter()"></td><td id="mW">35.60</td><td>2.98</td><td id="mWf">106.09</td></tr>
+                <tr><td>电表(度)</td><td>2,486.40</td><td><input type="number" step="0.01" value="3128.80" style="width:110px" oninput="calcMeter()"></td><td id="mE">642.40</td><td>0.62</td><td id="mEf">398.29</td></tr>
+                <tr><td>燃气表(m³)</td><td>386.20</td><td><input type="number" step="0.01" value="428.60" style="width:110px" oninput="calcMeter()"></td><td id="mG">42.40</td><td>3.05</td><td id="mGf">129.32</td></tr>
+              </tbody>
+            </table>
+
+            <div class="section-title mt-16">家具家电清点</div>
+            <div class="table-wrap">
+              <table class="data-table" data-static>
+                <thead><tr><th>项目</th><th>品牌型号</th><th class="num">交付数量</th><th>交付成新度</th><th>清点结果</th><th>说明</th></tr></thead>
+                <tbody>
+                  <tr><td>单人床（含床垫）</td><td>全友 1.2m</td><td class="num">1</td><td>九成新</td><td><span class="badge green">完好</span></td><td class="text-3">—</td></tr>
+                  <tr><td>衣柜</td><td>定制推拉门</td><td class="num">1</td><td>九成新</td><td><span class="badge green">完好</span></td><td class="text-3">—</td></tr>
+                  <tr><td>空调</td><td>格力 1 匹定频</td><td class="num">1</td><td>八成新</td><td><span class="badge green">完好</span></td><td class="text-3">—</td></tr>
+                  <tr class="is-warn"><td>电热水器</td><td>万和 40L</td><td class="num">1</td><td>八成新</td><td><span class="badge orange">损坏</span></td><td>加热管故障，维修费 260 元</td></tr>
+                  <tr class="is-warn"><td>卫生间玻璃隔断</td><td>钢化玻璃</td><td class="num">1</td><td>九成新</td><td><span class="badge orange">损坏</span></td><td>裂纹一处，更换费 140 元</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="section-title mt-16">验收照片</div>
+            <div class="grid-4">
+              <div class="ph-box"><img src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=360&q=60" alt="房间"><span class="ph-tag">房间整体</span></div>
+              <div class="ph-box"><img src="https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=360&q=60" alt="卫生间"><span class="ph-tag">卫生间隔断</span></div>
+              <div class="ph-box"><img src="https://images.unsplash.com/photo-1585128792020-803d29415281?w=360&q=60" alt="热水器"><span class="ph-tag">电热水器</span></div>
+              <div class="ph-box add" onclick="PMS.toast('已打开本地文件选择器（演示）')"><i class="fa-solid fa-plus"></i><span>上传照片</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="seg">
+          <div class="sg-h">
+            <span class="sg-n">3</span><span class="sg-t">押金与费用结算</span>
+            <span class="sg-s">押金总额 1,380.00 元</span>
+          </div>
+          <div class="sg-b">
+            <div class="dc2">
+              <div>
+                <div class="dyn-head dyn-row"><div>扣除项目</div><div>金额(元)</div><div>说明</div><div>操作</div></div>
+                <div id="dedRows">
+                  <div class="dyn-row">
+                    <input type="text" value="电热水器维修"><input type="number" class="ded" value="260" oninput="calcSum()">
+                    <input type="text" value="加热管故障，非自然损耗">
+                    <button type="button" class="btn btn-sm btn-danger" onclick="delDed(this)">删除</button>
+                  </div>
+                  <div class="dyn-row">
+                    <input type="text" value="卫生间玻璃隔断更换"><input type="number" class="ded" value="140" oninput="calcSum()">
+                    <input type="text" value="裂纹一处，使用不当造成">
+                    <button type="button" class="btn btn-sm btn-danger" onclick="delDed(this)">删除</button>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-sm mt-16" onclick="addDed()"><i class="fa-solid fa-plus"></i> 添加扣除项</button>
+
+                <div class="form-grid form-align mt-16">
+                  <div class="form-item"><label>押金总额(元)</label><input type="number" id="dep" value="1380" oninput="calcSum()"></div>
+                  <div class="form-item"><label>未结租金(元)</label><input type="number" id="unpaid" value="0" oninput="calcSum()"></div>
+                  <div class="form-item"><label>违约金(元)</label><input type="number" id="penalty" value="0" oninput="calcSum()"></div>
+                  <div class="form-item"><label>水电气代缴(元)</label><input type="number" id="util" value="633.70" step="0.01" oninput="calcSum()"></div>
+                  <div class="form-item col-full">
+                    <label>结算情况说明</label>
+                    <textarea rows="2">水电气费用由承租人自行缴清后提供缴费凭证，本次不从押金中代扣；损坏赔偿共 400 元从押金中扣除，双方已确认。</textarea>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div class="sum-card">
+                  <div class="sc-r"><span>押金总额</span><span id="sDep">1,380.00</span></div>
+                  <div class="sc-r minus"><span>损坏扣除</span><span id="sDed">− 400.00</span></div>
+                  <div class="sc-r minus"><span>未结租金</span><span id="sUnpaid">− 0.00</span></div>
+                  <div class="sc-r minus"><span>违约金</span><span id="sPen">− 0.00</span></div>
+                  <div class="sc-line"></div>
+                  <div class="sc-total"><span class="lb">应退押金</span><span class="num" id="sTotal">980.00</span></div>
+                  <div class="text-3 text-sm mt-16" style="line-height:1.7">
+                    应退＝押金总额 − 损坏扣除 − 未结租金 − 违约金。<br>
+                    退还时限：房屋验收及费用结清后 5 个工作日内。
+                  </div>
+                </div>
+                <div class="alert alert-warning mt-16">
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                  <div>押金扣除项双方如有争议，可点击「转纠纷调处」由平台介入调解。<a class="link" href="behavior-supervise.html">转纠纷调处</a></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="seg">
+          <div class="sg-h">
+            <span class="sg-n">4</span><span class="sg-t">注销备案</span>
+            <span class="sg-s">原备案编号 ZLBA450200202500214</span>
+          </div>
+          <div class="sg-b">
+            <div class="form-grid form-align">
+              <div class="form-item"><label>审核人</label><input type="text" readonly value="韦国强"></div>
+              <div class="form-item"><label>审核时间</label><input type="datetime-local" value="2026-08-05T16:30"></div>
+              <div class="form-item">
+                <label>审核结果<span class="req">*</span></label>
+                <select><option selected>通过</option><option>退回补正</option><option>不予注销</option></select>
+              </div>
+              <div class="form-item"><label>注销完成时间</label><input type="datetime-local" value="2026-08-05T16:32"></div>
+              <div class="form-item">
+                <label>房源解锁</label>
+                <div class="radio-line"><label><input type="checkbox" checked> 注销完成后自动解锁房源</label></div>
+              </div>
+              <div class="form-item col-full">
+                <label>审核意见</label>
+                <textarea rows="2">房屋验收完成，押金结算双方确认无异议，材料齐全，同意注销备案并解锁房源。</textarea>
+              </div>
+            </div>
+            <div class="flex gap-8 mt-16">
+              <button type="button" class="btn btn-primary" onclick="doCancel()"><i class="fa-solid fa-check"></i> 审核通过并注销备案</button>
+              <button type="button" class="btn" onclick="PMS.toast('已退回补正并告知申请人','success')"><i class="fa-solid fa-rotate-left"></i> 退回补正</button>
+            </div>
+            <div id="unlockTip" style="display:none">
+              <div class="alert alert-success mt-16">
+                <i class="fa-solid fa-circle-check"></i>
+                <div>房源已解锁，核验码 ZLHY-450200-2026-000358 剩余有效期 68 天，可直接重新发布；如需变更房源要素则须重新申请核验。<a class="link" href="listing-publish.html">前往发布</a></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function openDo(no) {
+  document.getElementById('doNo').textContent = no;
+  document.querySelectorAll('[data-tabs-scope] .tab')[1].click();
+}
+
+function calcMeter() {
+  var rows = [
+    ['mW', 'mWf', 128.60, 2.98],
+    ['mE', 'mEf', 2486.40, 0.62],
+    ['mG', 'mGf', 386.20, 3.05]
+  ];
+  var inputs = document.querySelectorAll('.meter-table tbody input');
+  var total = 0;
+  rows.forEach(function (r, i) {
+    var end = parseFloat(inputs[i].value || '0');
+    var use = end - r[2];
+    var fee = use * r[3];
+    total += fee;
+    document.getElementById(r[0]).textContent = use.toFixed(2);
+    document.getElementById(r[1]).textContent = fee.toFixed(2);
+  });
+  document.getElementById('util').value = total.toFixed(2);
+}
+
+function addDed() {
+  var html = '<div class="dyn-row"><input type="text" placeholder="扣除项目">' +
+    '<input type="number" class="ded" value="0" oninput="calcSum()">' +
+    '<input type="text" placeholder="扣除说明">' +
+    '<button type="button" class="btn btn-sm btn-danger" onclick="delDed(this)">删除</button></div>';
+  document.getElementById('dedRows').insertAdjacentHTML('beforeend', html);
+}
+
+function delDed(btn) {
+  var row = btn.closest('.dyn-row');
+  PMS.delRow(row, '该扣除项');
+  setTimeout(calcSum, 60);
+}
+
+function calcSum() {
+  var ded = 0;
+  document.querySelectorAll('.ded').forEach(function (i) { ded += parseFloat(i.value || '0'); });
+  var dep = parseFloat(document.getElementById('dep').value || '0');
+  var unpaid = parseFloat(document.getElementById('unpaid').value || '0');
+  var pen = parseFloat(document.getElementById('penalty').value || '0');
+  var f = function (n) { return n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+  document.getElementById('sDep').textContent = f(dep);
+  document.getElementById('sDed').textContent = '− ' + f(ded);
+  document.getElementById('sUnpaid').textContent = '− ' + f(unpaid);
+  document.getElementById('sPen').textContent = '− ' + f(pen);
+  document.getElementById('sTotal').textContent = f(Math.max(dep - ded - unpaid - pen, 0));
+}
+
+function doCancel() {
+  PMS.confirm({
+    title: '注销备案',
+    message: '审核通过并注销备案 ZLBA450200202500214？',
+    detail: '注销后合同状态置为「已注销」，房源自动解锁，共享部门同步收到注销通知。',
+    type: 'warning',
+    okText: '通过并注销',
+    onOk: function () {
+      document.getElementById('unlockTip').style.display = '';
+      PMS.toast('注销备案完成，房源已解锁', 'success');
+    }
+  });
+}
+
+(function () {
+  PMS.renderPager(document.getElementById('tblZx'), {
+    pageNum: 1, pageSize: 20, total: 522,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+  calcSum();
+})();
+</script>
+</body>
+</html>

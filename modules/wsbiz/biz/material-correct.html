@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>材料补正 · 统一工作门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="biz" data-active="material-correct">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 材料证照
+        <span class="sep">/</span> <span class="cur">材料补正</span>
+      </div>
+      <div class="page-title">材料补正</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="intake-register.html?role=biz"><i class="fa-solid fa-file-pen"></i> 去出具补正通知</a>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-file-pen"></i></div><div>
+      <div class="s-label">补正任务</div><div class="s-value" id="kAll">—</div></div></div>
+    <div class="stat-card"><div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div><div>
+      <div class="s-label">补正中</div><div class="s-value" id="kDoing">—</div></div></div>
+    <div class="stat-card"><div class="s-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div><div>
+      <div class="s-label">已逾期</div><div class="s-value" id="kOver">—</div><div class="s-trend text-danger">需终止或退件</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-clipboard-check"></i></div><div>
+      <div class="s-label">待复核</div><div class="s-value" id="kReview">—</div><div class="s-trend text-primary">申请人已补交</div></div></div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-clock"></i>
+    <span><b>一次性告知补正制</b>：每件只发一次补正通知。补正期限内补齐并复核通过，办件从「待补正」回到「办理中」，任务重回待办；<b>逾期未补正</b>的按规则选择中止办理或退件，两种处置都会留痕。</span>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="all" onclick="setTab('all')">全部</div>
+      <div class="tab" data-tab="doing" onclick="setTab('doing')">补正中</div>
+      <div class="tab" data-tab="over" onclick="setTab('over')">已逾期</div>
+      <div class="tab" data-tab="review" onclick="setTab('review')">待复核</div>
+      <div class="tab" data-tab="done" onclick="setTab('done')">已办结</div>
+    </div>
+    <div class="filter-bar">
+      <div class="filter-item"><label>收件编号 / 申请人</label><input type="text" id="fKw" placeholder="编号或申请人" oninput="repaint()"></div>
+      <div class="filter-item"><label>补正方式</label>
+        <select id="fWay" onchange="repaint()"><option value="">全部</option><option value="一次性告知">一次性告知</option><option value="线上补正">线上补正</option></select></div>
+      <button class="btn btn-primary" onclick="repaint()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+      <button class="btn" onclick="resetFilter()">重置</button>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tbCorr" data-static>
+        <thead>
+          <tr><th>收件编号</th><th>事项名称</th><th>申请人</th><th>补正内容</th>
+              <th>补正期限</th><th>剩余</th><th>补正次数</th><th>状态</th><th>操作</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid-2 mt-16">
+    <div class="card">
+      <div class="card-head"><h3>高频补正材料 TOP10</h3><span class="sub">用于优化材料清单</span></div>
+      <div class="card-body" id="chTop"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>补正原因分布</h3><span class="sub">按补正内容归集</span></div>
+      <div class="card-body" id="chReason"></div>
+    </div>
+  </div>
+</main>
+
+<!-- 补正详情与复核 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="viewDrawer">
+  <div class="drawer-head"><h3>补正任务详情</h3><span class="badge orange" id="vdNo">—</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body" id="viewBody"></div>
+  <div class="drawer-foot" id="viewFoot"></div>
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/flow-data.js"></script>
+<script src="../assets/js/flow.js"></script>
+<script>
+(function () {
+  var tab = 'all', curId = null;
+  function val(id) { return (document.getElementById(id).value || '').trim(); }
+  window.setTab = function (t) { tab = t; repaint(); };
+  window.resetFilter = function () {
+    ['fKw', 'fWay'].forEach(function (id) { document.getElementById(id).value = ''; });
+    repaint(); PMS.toast('已重置查询条件');
+  };
+
+  function isOver(bz) { return bz.zt === '1' && bz.deadline < Date.now(); }
+
+  function rows() {
+    var kw = val('fKw'), way = val('fWay');
+    return FLOW.get('corrections').slice().sort(function (a, b) {
+      /* 逾期优先，其次按期限升序 */
+      var ao = isOver(a) ? 0 : 1, bo = isOver(b) ? 0 : 1;
+      if (ao !== bo) return ao - bo;
+      return a.deadline - b.deadline;
+    }).filter(function (bz) {
+      if (tab === 'doing' && (bz.zt !== '1' || isOver(bz))) return false;
+      if (tab === 'over' && !isOver(bz)) return false;
+      if (tab === 'review' && bz.zt !== '2') return false;
+      if (tab === 'done' && bz.zt !== '3' && bz.zt !== '4') return false;
+      if (kw && bz.sjbh.indexOf(kw) < 0 && bz.sqr.indexOf(kw) < 0) return false;
+      if (way && bz.way !== way) return false;
+      return true;
+    });
+  }
+
+  window.repaint = function () { FLOW.paint('tbCorr'); render(); };
+
+  function render() {
+    var all = FLOW.get('corrections');
+    document.getElementById('kAll').textContent = all.length;
+    document.getElementById('kDoing').textContent = all.filter(function (b) { return b.zt === '1' && !isOver(b); }).length;
+    document.getElementById('kOver').textContent = all.filter(isOver).length;
+    document.getElementById('kReview').textContent = all.filter(function (b) { return b.zt === '2'; }).length;
+
+    var counts = {
+      all: all.length,
+      doing: all.filter(function (b) { return b.zt === '1' && !isOver(b); }).length,
+      over: all.filter(isOver).length,
+      review: all.filter(function (b) { return b.zt === '2'; }).length,
+      done: all.filter(function (b) { return b.zt === '3' || b.zt === '4'; }).length
+    };
+    document.querySelectorAll('.tabs .tab').forEach(function (el) {
+      var k = el.getAttribute('data-tab');
+      var base = { all: '全部', doing: '补正中', over: '已逾期', review: '待复核', done: '已办结' }[k];
+      el.textContent = base + '(' + counts[k] + ')';
+      el.classList.toggle('active', k === tab);
+    });
+
+    /* 功能点 49 高频补正统计 */
+    var top = FLOW.act.topCorrectItems();
+    document.getElementById('chTop').innerHTML = top.length
+      ? FLOW.barChart(top.slice(0, 8).map(function (x) {
+          return { l: x.l.length > 5 ? x.l.slice(0, 5) : x.l, v: x.v };
+        }))
+      : '<div class="empty"><i class="fa-regular fa-chart-bar"></i><div>暂无补正统计</div></div>';
+
+    var max = 1;
+    top.forEach(function (x) { if (x.v > max) max = x.v; });
+    document.getElementById('chReason').innerHTML = top.length
+      ? top.slice(0, 6).map(function (x) {
+          return '<div class="mb-16"><div class="flex justify-between text-sm mb-8">' +
+            '<span class="text-2">' + FLOW.esc(x.l) + '</span>' +
+            '<span class="fw-600">' + x.v + ' 次 ' +
+              (x.v >= 3 ? '<span class="link" onclick="suggest(\'' + FLOW.esc(x.l) + '\')">优化建议</span>' : '') +
+            '</span></div>' +
+            '<div class="progress orange"><span style="width:' + Math.round(x.v / max * 100) + '%"></span></div></div>';
+        }).join('')
+      : '<div class="empty"><i class="fa-regular fa-thumbs-up"></i><div>暂无补正记录</div></div>';
+  }
+
+  window.suggest = function (name) { FLOW.act.optimizeChecklist(name); };
+
+  /* 详情 + 复核 + 逾期处置 */
+  window.openView = function (id) {
+    curId = id;
+    var bz = FLOW.byId('corrections', id);
+    var c = FLOW.byId('cases', bz.bjzj) || {};
+    var over = isOver(bz);
+    var left = bz.deadline - Date.now();
+    document.getElementById('vdNo').textContent = bz.sjbh;
+    document.getElementById('viewBody').innerHTML =
+      '<div class="alert ' + (over ? 'alert-danger' : (bz.zt === '2' ? 'alert-info' : 'alert-warning')) + '">' +
+        '<i class="fa-solid ' + (over ? 'fa-triangle-exclamation' : 'fa-clock') + '"></i><span>' +
+        (over ? '补正期限已于 ' + FLOW.fmt.date(bz.deadline) + ' 届满，须按规则选择中止办理或退件。'
+              : (bz.zt === '2' ? '申请人已于 ' + FLOW.fmt.time(bz.submitAt) + ' 线上补交材料，等待复核。'
+                               : '补正期限至 ' + FLOW.fmt.date(bz.deadline) + '，剩余 ' + FLOW.fmt.span(left) + '。')) +
+        '</span></div>' +
+      '<dl class="desc-list">' +
+        row('收件编号', bz.sjbh) + row('办理事项', bz.sxmc) +
+        row('申请人', bz.sqr) + row('联系电话', bz.sqrdh) +
+        row('补正方式', bz.way) + row('告知时间', FLOW.fmt.time(bz.createdAt)) +
+        row('告知人', bz.createdBy) + row('补正期限', FLOW.fmt.date(bz.deadline)) +
+        row('办件状态', FLOW.dict('blzt', c.blzt)) + row('累计补正次数', (c.bzcs || 0) + ' 次') +
+        '<div class="desc-item full"><dt>补正内容</dt><dd>' +
+          (bz.items || []).map(function (x) { return '<div>· ' + FLOW.esc(x) + '</div>'; }).join('') + '</dd></div>' +
+      '</dl>' +
+      (bz.reviewAt ? '<div class="alert alert-success mt-16"><i class="fa-solid fa-circle-check"></i>' +
+        '<span>已由 ' + FLOW.esc(bz.reviewBy) + ' 于 ' + FLOW.fmt.time(bz.reviewAt) + ' 完成复核。</span></div>' : '') +
+      (bz.zt === '2' ? '<div class="form-grid mt-16"><div class="form-item col-full">' +
+        '<label>复核意见</label><textarea id="rvOpinion" rows="3" placeholder="复核不通过时必须填写"></textarea>' +
+        '</div></div>' : '');
+
+    var foot = [];
+    foot.push('<button class="btn" data-close-drawer>关闭</button>');
+    foot.push('<a class="btn" href="case-detail.html?role=biz&id=' + bz.bjzj + '">办件详情</a>');
+    if (bz.zt === '1' && !over) {
+      foot.push('<button class="btn" onclick="doSubmit()"><i class="fa-solid fa-upload"></i> 模拟申请人线上补交</button>');
+    }
+    if (bz.zt === '2') {
+      foot.push('<button class="btn btn-danger" onclick="doReview(false)"><i class="fa-solid fa-xmark"></i> 复核不通过</button>');
+      foot.push('<button class="btn btn-primary" onclick="doReview(true)"><i class="fa-solid fa-check"></i> 复核通过</button>');
+    }
+    if (over) {
+      foot.push('<button class="btn" onclick="doOver(\'hold\')"><i class="fa-solid fa-pause"></i> 中止办理</button>');
+      foot.push('<button class="btn btn-danger-solid" onclick="doOver(\'stop\')"><i class="fa-solid fa-ban"></i> 逾期退件</button>');
+    }
+    document.getElementById('viewFoot').innerHTML = foot.join('');
+    PMS.openDrawer('viewDrawer');
+  };
+
+  window.doSubmit = function () {
+    if (FLOW.act.submitOnlineCorrect(curId)) openView(curId);
+  };
+  window.doReview = function (pass) {
+    var op = (document.getElementById('rvOpinion') || {}).value || '';
+    if (FLOW.act.reviewCorrection(curId, pass, op.trim())) {
+      if (pass) PMS.closeDrawer('viewDrawer'); else openView(curId);
+    }
+  };
+  window.doOver = function (mode) {
+    var label = mode === 'stop' ? '逾期退件' : '中止办理';
+    PMS.confirm({
+      title: label, type: mode === 'stop' ? 'danger' : 'warning', okText: label,
+      message: '确认按逾期未补正' + label + '？',
+      detail: mode === 'stop'
+        ? '办件将转为已退件并出具退件通知书，退件次数累加。'
+        : '办件将转为中止办理，中止期间不计入办理时限。',
+      onOk: function () {
+        if (FLOW.act.correctOverdue(curId, mode)) PMS.closeDrawer('viewDrawer');
+      }
+    });
+  };
+  function row(label, value) {
+    return '<div class="desc-item"><dt>' + label + '</dt><dd>' + FLOW.esc(value == null || value === '' ? '—' : value) + '</dd></div>';
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    FLOW.table({
+      id: 'tbCorr', pageSize: 8, empty: '该口径下没有补正任务', icon: 'fa-file-pen',
+      rows: rows,
+      cells: function (bz) {
+        var over = isOver(bz);
+        var c = FLOW.byId('cases', bz.bjzj) || {};
+        var ztMap = { '1': ['补正中', 'orange'], '2': ['待复核', 'cyan'], '3': ['已完成', 'green'], '4': ['已退件', 'red'] };
+        var zt = over && bz.zt === '1' ? ['已逾期', 'red'] : (ztMap[bz.zt] || ['—', 'gray']);
+        var left = bz.deadline - Date.now();
+        return [
+          '<td>' + FLOW.esc(bz.sjbh) + '</td>',
+          '<td class="cell-lg">' + FLOW.esc(bz.sxmc) + '</td>',
+          '<td>' + FLOW.esc(bz.sqr) + '</td>',
+          '<td class="cell-lg">' + FLOW.esc((bz.items || []).join('、')) + '</td>',
+          '<td>' + FLOW.fmt.date(bz.deadline) + '</td>',
+          '<td>' + (bz.zt === '1'
+            ? (over ? FLOW.lv('red', '逾期 ' + FLOW.fmt.span(left))
+                    : FLOW.lv(left < 2 * 86400000 ? 'orange' : 'blue', '剩 ' + FLOW.fmt.span(left)))
+            : '<span class="text-3">—</span>') + '</td>',
+          '<td>' + (c.bzcs || 0) + ' 次</td>',
+          '<td>' + FLOW.badge(zt[0], zt[1]) + '</td>',
+          '<td><span class="link" onclick="event.stopPropagation();openView(\'' + bz.id + '\')">' +
+            (over ? '逾期处置' : (bz.zt === '2' ? '复核' : '详情')) + '</span></td>'
+        ];
+      },
+      attrs: function (bz) { return ' class="clickable" data-focus="' + bz.id + '" onclick="openView(\'' + bz.id + '\')"'; },
+      after: render
+    });
+    FLOW.on(function () { FLOW.paint('tbCorr'); render(); });
+  });
+})();
+</script>
+</body>
+</html>

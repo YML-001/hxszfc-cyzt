@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>异议与限制登记 · 房屋交易备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：限制内容超长截断 + 有效期临期提示 */
+  .ell {
+    display: block; max-width: 240px; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; cursor: help; border-bottom: 1px dashed var(--border-dark);
+  }
+  .vd { white-space: nowrap; }
+  .vd .to { color: var(--text-3); }
+  .vd.near .to { color: #d97706; font-weight: 600; }
+  .vd.over .to { color: var(--text-4); text-decoration: line-through; }
+  .radio-line { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; min-height: 32px; }
+  .radio-line label { font-size: 14px; color: var(--text-2); font-weight: 400; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+  .type-chip { display: inline-flex; align-items: center; gap: 5px; }
+  .type-chip .no { font-family: var(--font-mono, monospace); font-size: 11.5px; color: var(--text-4); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdwb-15">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易备案管理系统
+        <span class="sep">/</span> 交易限制管理
+        <span class="sep">/</span> <span class="cur">异议与限制登记</span>
+      </div>
+      <div class="page-title">异议与限制登记</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="PMS.toast('《异议与限制登记台账》Excel 已生成，正在下载','success')"><i class="fa-solid fa-download"></i> 导出台账</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.openModal('mdNew')"><i class="fa-solid fa-plus"></i> 新增登记</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-file-shield"></i></div>
+      <div><div class="s-label">有效登记</div><div class="s-value">42</div><div class="s-trend text-3">涉及房屋 40 套</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">30 日内到期</div><div class="s-value">5</div><div class="s-trend text-warning">需确认是否延期</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-scale-balanced"></i></div>
+      <div><div class="s-label">异议登记</div><div class="s-value">9</div><div class="s-trend text-3">法定有效期 15 日</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon gray"><i class="fa-solid fa-ban"></i></div>
+      <div><div class="s-label">本月注销 / 失效</div><div class="s-value">11</div><div class="s-trend text-3">注销 7 · 到期失效 4</div></div>
+    </div>
+  </div>
+
+  <div class="card list-card">
+    <div class="filter-bar">
+      <div class="filter-item"><label>登记编号</label><input type="text" placeholder="如 XZ20260712006"></div>
+      <div class="filter-item">
+        <label>登记类型</label>
+        <select id="fType">
+          <option value="">全部</option>
+          <option value="01">01 异议登记</option>
+          <option value="02">02 预告登记（买卖）</option>
+          <option value="03">03 司法限制转让</option>
+          <option value="04">04 行政限制转让</option>
+          <option value="05">05 政府优先购买权登记</option>
+          <option value="06">06 破产受理限制</option>
+          <option value="07">07 遗产未析产限制</option>
+          <option value="99">99 其他</option>
+        </select>
+      </div>
+      <div class="filter-item"><label>房屋坐落</label><input type="text" placeholder="小区 / 房号"></div>
+      <div class="filter-item"><label>申请人</label><input type="text" placeholder="姓名 / 机构名称"></div>
+      <div class="filter-item"><label>被异议人</label><input type="text" placeholder="姓名 / 机构名称"></div>
+      <div class="filter-item"><label>登记机关</label><input type="text" placeholder="如 XXXX市不动产登记中心"></div>
+      <div class="filter-item"><label>有效期起</label><input type="date" value="2026-01-01"></div>
+      <div class="filter-item"><label>有效期止</label><input type="date" value="2026-12-31"></div>
+      <div class="filter-item">
+        <label>登记状态</label>
+        <select id="fSt"><option value="">全部</option><option value="ok">有效</option><option value="cancel">已注销</option><option value="expire">已失效</option></select>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="applyFilter()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn" onclick="resetFilter()"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblDs" data-static>
+        <thead>
+          <tr>
+            <th>登记编号</th><th>登记类型</th><th>房屋坐落</th><th>不动产单元号</th>
+            <th>申请人</th><th>被异议人</th><th>登记机关</th><th>文书编号</th>
+            <th>有效期起止</th><th>限制交易内容说明</th><th>登记状态</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-t="01" data-st="ok">
+            <td class="nowrap fw-600">XZ20260726001</td>
+            <td class="nowrap"><span class="type-chip"><span class="badge purple">异议登记</span><span class="no">01</span></span></td>
+            <td>阳光城 8-1-1902</td>
+            <td class="nowrap">450202001005GB00131F00010012</td>
+            <td class="nowrap">李**</td>
+            <td class="nowrap">吴**</td>
+            <td class="nowrap">XXXX市不动产登记中心</td>
+            <td class="nowrap">柳不动产异字〔2026〕026 号</td>
+            <td class="vd near">2026-07-26 <span class="to">→ 2026-08-10</span></td>
+            <td><span class="ell" title="异议登记期间该房屋不得办理转移登记与抵押登记；申请人应在 15 日内提起诉讼，逾期异议登记自动失效。">异议登记期间不得办理转移与抵押登记，申请人须 15 日内起诉</span></td>
+            <td class="nowrap"><span class="badge green">有效</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openDetail('XZ20260726001')">详情</span>
+              <span class="link" onclick="openCancel('XZ20260726001','异议登记')">注销</span>
+              <span class="link" onclick="doDelay('XZ20260726001')">延期</span>
+            </td>
+          </tr>
+          <tr data-t="03" data-st="ok">
+            <td class="nowrap fw-600">XZ20260718003</td>
+            <td class="nowrap"><span class="type-chip"><span class="badge red">司法限制转让</span><span class="no">03</span></span></td>
+            <td>万科城 5-2-803</td>
+            <td class="nowrap">450204001008GB00256F00020009</td>
+            <td class="nowrap">XXXX市柳南区人民法院</td>
+            <td class="nowrap">黄**</td>
+            <td class="nowrap">XXXX市不动产登记中心</td>
+            <td class="nowrap">(2026)桂0204执1276号之二</td>
+            <td class="vd">2026-07-18 <span class="to">→ 2029-07-17</span></td>
+            <td><span class="ell" title="执行案件期间限制被执行人转让、赠与、设立抵押；经法院书面同意的司法拍卖、以物抵债等强制处分除外。">限制转让、赠与与设立抵押，强制处分经法院同意除外</span></td>
+            <td class="nowrap"><span class="badge green">有效</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openDetail('XZ20260718003')">详情</span>
+              <span class="link" onclick="openCancel('XZ20260718003','司法限制转让')">注销</span>
+              <span class="link" onclick="doDelay('XZ20260718003')">延期</span>
+            </td>
+          </tr>
+          <tr data-t="04" data-st="ok">
+            <td class="nowrap fw-600">XZ20260715004</td>
+            <td class="nowrap"><span class="type-chip"><span class="badge orange">行政限制转让</span><span class="no">04</span></span></td>
+            <td>恒兴时代广场 A 座 1801</td>
+            <td class="nowrap">450202001003GB00088F00180001</td>
+            <td class="nowrap">XXXX市自然资源和规划局</td>
+            <td class="nowrap">柳州某置业有限公司</td>
+            <td class="nowrap">XXXX市不动产登记中心</td>
+            <td class="nowrap">柳自然资规限字〔2026〕011 号</td>
+            <td class="vd">2026-07-15 <span class="to">→ 2027-07-14</span></td>
+            <td><span class="ell" title="因土地出让金未缴清，限制该幢商业办公用房的转让与抵押；缴清出让金并经出让方书面确认后解除。">土地出让金未缴清，限制转让与抵押，缴清后解除</span></td>
+            <td class="nowrap"><span class="badge green">有效</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openDetail('XZ20260715004')">详情</span>
+              <span class="link" onclick="openCancel('XZ20260715004','行政限制转让')">注销</span>
+              <span class="link" onclick="doDelay('XZ20260715004')">延期</span>
+            </td>
+          </tr>
+          <tr data-t="05" data-st="ok">
+            <td class="nowrap fw-600">XZ20260710005</td>
+            <td class="nowrap"><span class="type-chip"><span class="badge cyan">政府优先购买权</span><span class="no">05</span></span></td>
+            <td>柳石路 128 号老厂区宿舍 3-402</td>
+            <td class="nowrap">450203001002GB00045F00030004</td>
+            <td class="nowrap">XXXX市住房和城乡建设局</td>
+            <td class="nowrap">柳州某机械厂</td>
+            <td class="nowrap">XXXX市不动产登记中心</td>
+            <td class="nowrap">柳住建优字〔2026〕003 号</td>
+            <td class="vd">2026-07-10 <span class="to">→ 2026-10-09</span></td>
+            <td><span class="ell" title="该房屋列入保障性住房收储范围，出售前须书面告知住建部门，同等条件下政府享有优先购买权，答复期 30 日。">出售前须告知住建部门，同等条件下政府优先购买，答复期 30 日</span></td>
+            <td class="nowrap"><span class="badge green">有效</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openDetail('XZ20260710005')">详情</span>
+              <span class="link" onclick="openCancel('XZ20260710005','政府优先购买权登记')">注销</span>
+              <span class="link" onclick="doDelay('XZ20260710005')">延期</span>
+            </td>
+          </tr>
+          <tr data-t="06" data-st="ok">
+            <td class="nowrap fw-600">XZ20260724003</td>
+            <td class="nowrap"><span class="type-chip"><span class="badge orange">破产受理限制</span><span class="no">06</span></span></td>
+            <td>恒兴时代广场 A 座 8 ~ 12 层（共 46 套）</td>
+            <td class="nowrap">450202001003GB00088F00080001 等</td>
+            <td class="nowrap">XXXX市中级人民法院</td>
+            <td class="nowrap">柳州某置业有限公司</td>
+            <td class="nowrap">XXXX市不动产登记中心</td>
+            <td class="nowrap">(2026)桂02破申12号</td>
+            <td class="vd">2026-07-24 <span class="to">→ 破产程序终结</span></td>
+            <td><span class="ell" title="破产受理后债务人财产的处分须经管理人同意并报法院许可，个别清偿无效；已签署但未备案的合同由管理人决定是否继续履行。">处分须经管理人同意并报法院许可，个别清偿无效</span></td>
+            <td class="nowrap"><span class="badge green">有效</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openDetail('XZ20260724003')">详情</span>
+              <span class="link" onclick="openCancel('XZ20260724003','破产受理限制')">注销</span>
+              <span class="link" onclick="doDelay('XZ20260724003')">延期</span>
+            </td>
+          </tr>
+          <tr data-t="07" data-st="ok">
+            <td class="nowrap fw-600">XZ20260712006</td>
+            <td class="nowrap"><span class="type-chip"><span class="badge gray">遗产未析产限制</span><span class="no">07</span></span></td>
+            <td>南亚国际城 2-3-1103</td>
+            <td class="nowrap">450205001001GB00312F00030011</td>
+            <td class="nowrap">莫**等 3 人</td>
+            <td class="nowrap">莫**（被继承人）</td>
+            <td class="nowrap">XXXX市不动产登记中心</td>
+            <td class="nowrap">(2026)桂0205民初1862号</td>
+            <td class="vd">2026-07-12 <span class="to">→ 析产完成</span></td>
+            <td><span class="ell" title="继承人之间尚未完成遗产分割，任一继承人不得单方处分该房屋；须经全体继承人书面一致同意或经生效裁判确定份额后方可交易。">析产完成前不得单方处分，须全体继承人一致同意</span></td>
+            <td class="nowrap"><span class="badge green">有效</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openDetail('XZ20260712006')">详情</span>
+              <span class="link" onclick="openCancel('XZ20260712006','遗产未析产限制')">注销</span>
+              <span class="link" onclick="doDelay('XZ20260712006')">延期</span>
+            </td>
+          </tr>
+          <tr data-t="02" data-st="cancel">
+            <td class="nowrap fw-600">XZ20260605008</td>
+            <td class="nowrap"><span class="type-chip"><span class="badge blue">预告登记（买卖）</span><span class="no">02</span></span></td>
+            <td>保利花园 3-1-1601</td>
+            <td class="nowrap">450203001004GB00177F00010016</td>
+            <td class="nowrap">梁**</td>
+            <td class="nowrap">柳州某建材有限公司</td>
+            <td class="nowrap">XXXX市不动产登记中心</td>
+            <td class="nowrap">柳不动产预字〔2026〕182 号</td>
+            <td class="vd over">2026-06-05 <span class="to">→ 2026-07-18</span></td>
+            <td><span class="ell" title="预告登记期间未经预告权利人同意，处分该房屋的不发生物权效力；因以物抵债已完成过户，预告登记同步注销。">未经预告权利人同意处分不发生物权效力（已随过户注销）</span></td>
+            <td class="nowrap"><span class="badge gray">已注销</span></td>
+            <td class="col-ops"><span class="link" onclick="openDetail('XZ20260605008')">详情</span></td>
+          </tr>
+          <tr data-t="01" data-st="expire">
+            <td class="nowrap fw-600">XZ20260528010</td>
+            <td class="nowrap"><span class="type-chip"><span class="badge purple">异议登记</span><span class="no">01</span></span></td>
+            <td>荣和公园大道 12-1-703</td>
+            <td class="nowrap">450202001007GB00203F00010007</td>
+            <td class="nowrap">覃**</td>
+            <td class="nowrap">莫**</td>
+            <td class="nowrap">XXXX市不动产登记中心</td>
+            <td class="nowrap">柳不动产异字〔2026〕019 号</td>
+            <td class="vd over">2026-05-28 <span class="to">→ 2026-06-12</span></td>
+            <td><span class="ell" title="申请人在异议登记之日起 15 日内未提起诉讼，异议登记依法自动失效，房屋恢复正常交易。">15 日内未起诉，异议登记自动失效</span></td>
+            <td class="nowrap"><span class="badge gray">已失效</span></td>
+            <td class="col-ops"><span class="link" onclick="openDetail('XZ20260528010')">详情</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- 详情抽屉 -->
+<div class="drawer-mask"></div>
+<div class="drawer drawer-lg" id="drDs">
+    <div class="drawer-head">
+      <h3 id="dsTitle">登记详情</h3>
+      <button type="button" class="btn btn-ghost" style="margin-left:auto" data-close-drawer><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="drawer-body">
+      <div class="section-title">登记信息</div>
+      <dl class="desc-list">
+        <div class="desc-item"><dt>登记编号</dt><dd id="dsNo">XZ20260726001</dd></div>
+        <div class="desc-item"><dt>登记类型</dt><dd id="dsType">01 异议登记</dd></div>
+        <div class="desc-item"><dt>房屋坐落</dt><dd id="dsAddr">阳光城 8-1-1902</dd></div>
+        <div class="desc-item"><dt>不动产单元号</dt><dd id="dsUnit">450202001005GB00131F00010012</dd></div>
+        <div class="desc-item"><dt>申请人</dt><dd id="dsApp">李**</dd></div>
+        <div class="desc-item"><dt>被异议人</dt><dd id="dsObj">吴**</dd></div>
+        <div class="desc-item"><dt>登记机关</dt><dd>XXXX市不动产登记中心</dd></div>
+        <div class="desc-item"><dt>文书编号</dt><dd id="dsDoc">柳不动产异字〔2026〕026 号</dd></div>
+        <div class="desc-item"><dt>有效期</dt><dd id="dsValid">2026-07-26 至 2026-08-10</dd></div>
+        <div class="desc-item"><dt>登记状态</dt><dd id="dsSt"><span class="badge green">有效</span></dd></div>
+        <div class="desc-item span-2"><dt>限制交易内容</dt><dd id="dsTxt">异议登记期间该房屋不得办理转移登记与抵押登记；申请人应在 15 日内提起诉讼，逾期异议登记自动失效。</dd></div>
+      </dl>
+
+      <div class="section-title">对交易的影响</div>
+      <div class="alert alert-warning">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>本登记有效期内，该房屋在网签合同备案、抵押合同备案、转移登记推送三个环节均会被限制校验服务拦截。</div>
+      </div>
+      <table class="data-table compact" data-static>
+        <thead><tr><th>校验环节</th><th>校验结果</th><th>提示语</th></tr></thead>
+        <tbody>
+          <tr><td>网签合同备案</td><td><span class="badge red">拦截</span></td><td>该房屋存在异议登记，暂不可办理买卖网签</td></tr>
+          <tr><td>抵押合同备案</td><td><span class="badge red">拦截</span></td><td>该房屋存在异议登记，暂不可设立抵押</td></tr>
+          <tr><td>转移登记推送</td><td><span class="badge red">拦截</span></td><td>异议登记未注销，登记机构不予受理转移登记</td></tr>
+          <tr><td>租赁备案</td><td><span class="badge green">通过</span></td><td>异议登记不限制租赁备案</td></tr>
+        </tbody>
+      </table>
+
+      <div class="section-title">办理轨迹</div>
+      <ul class="timeline">
+        <li class="done"><div class="t-dot"></div><div class="t-body"><div class="t-title">受理异议登记申请</div><div class="t-meta">2026-07-26 09:12 · 韦国强 · XXXX市房产交易所</div></div></li>
+        <li class="done"><div class="t-dot"></div><div class="t-body"><div class="t-title">登簿并同步限制状态</div><div class="t-meta">2026-07-26 09:20 · 系统自动 · 可交易标识变更为「不可交易」</div></div></li>
+        <li class="done"><div class="t-dot"></div><div class="t-body"><div class="t-title">推送不动产登记系统</div><div class="t-meta">2026-07-26 09:20 · 回执成功</div></div></li>
+        <li><div class="t-dot"></div><div class="t-body"><div class="t-title">等待申请人起诉证明（2026-08-10 前）</div><div class="t-meta">逾期未提交将自动失效并恢复交易</div></div></li>
+      </ul>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.toast('《限制登记证明》PDF 已生成','success')"><i class="fa-solid fa-print"></i> 打印登记证明</button>
+    </div>
+</div>
+
+<!-- 注销弹窗 -->
+<div class="modal-mask" id="mdCancel">
+  <div class="modal">
+    <div class="modal-head">注销限制登记</div>
+    <div class="modal-body">
+      <div class="alert alert-warning">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>注销后该项限制立即失效，房屋限制状态与可交易标识将实时刷新。注销操作不可撤销。</div>
+      </div>
+      <dl class="desc-list" style="margin-top:12px">
+        <div class="desc-item"><dt>登记编号</dt><dd id="cxNo">XZ20260726001</dd></div>
+        <div class="desc-item"><dt>登记类型</dt><dd id="cxType">异议登记</dd></div>
+      </dl>
+      <div class="form-grid form-align" style="margin-top:12px">
+        <div class="form-item"><label>注销时间<span class="req">*</span></label><input type="text" value="2026-08-01 15:30" readonly></div>
+        <div class="form-item"><label>注销文书编号<span class="req">*</span></label><input type="text" value="柳不动产异注字〔2026〕031 号"></div>
+        <div class="form-item" style="grid-column:span 2">
+          <label>注销原因<span class="req">*</span></label>
+          <div class="radio-line">
+            <label><input type="radio" name="cxr" checked> 申请人主动撤回</label>
+            <label><input type="radio" name="cxr"> 法定期限届满</label>
+            <label><input type="radio" name="cxr"> 生效裁判确定</label>
+            <label><input type="radio" name="cxr"> 登记机关依职权注销</label>
+          </div>
+        </div>
+        <div class="form-item" style="grid-column:span 2"><label>注销说明</label><textarea rows="2">申请人李**提交撤回申请并出具书面承诺，经审核符合注销条件，予以注销异议登记。</textarea></div>
+        <div class="form-item" style="grid-column:span 2">
+          <label>注销文书上传<span class="req">*</span></label>
+          <span class="flex gap-8"><input type="text" value="异议登记注销申请书.pdf" readonly><button type="button" class="btn btn-sm" onclick="PMS.toast('已打开上传窗口')">上传</button></span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" onclick="PMS.closeModal('mdCancel')">取消</button>
+      <button type="button" class="btn btn-danger" onclick="doCancel()"><i class="fa-solid fa-ban"></i> 确认注销</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新增登记弹窗 -->
+<div class="modal-mask" id="mdNew">
+  <div class="modal">
+    <div class="modal-head">新增限制登记</div>
+    <div class="modal-body">
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>登记类型<span class="req">*</span></label>
+          <select><option>01 异议登记</option><option>02 预告登记（买卖）</option><option>03 司法限制转让</option><option>04 行政限制转让</option><option>05 政府优先购买权登记</option><option>06 破产受理限制</option><option>07 遗产未析产限制</option><option>99 其他</option></select>
+        </div>
+        <div class="form-item"><label>登记机关<span class="req">*</span></label><input type="text" value="XXXX市不动产登记中心"></div>
+        <div class="form-item" style="grid-column:span 2">
+          <label>房屋坐落<span class="req">*</span></label>
+          <span class="flex gap-8"><input type="text" placeholder="输入不动产单元号或小区房号检索"><button type="button" class="btn btn-sm" onclick="PMS.toast('已检索到 1 套房屋')">检索</button></span>
+        </div>
+        <div class="form-item"><label>申请人<span class="req">*</span></label><input type="text" placeholder="姓名 / 机构名称"></div>
+        <div class="form-item"><label>被异议人<span class="req">*</span></label><input type="text" placeholder="姓名 / 机构名称"></div>
+        <div class="form-item"><label>文书编号<span class="req">*</span></label><input type="text" placeholder="如 柳不动产异字〔2026〕027 号"></div>
+        <div class="form-item"><label>有效期起<span class="req">*</span></label><input type="date" value="2026-08-01"></div>
+        <div class="form-item"><label>有效期止</label><input type="date" placeholder="不填表示至条件成就时止"></div>
+        <div class="form-item"><label>文书附件<span class="req">*</span></label><span class="flex gap-8"><input type="text" placeholder="上传登记文书扫描件" readonly><button type="button" class="btn btn-sm" onclick="PMS.toast('已打开上传窗口')">上传</button></span></div>
+        <div class="form-item" style="grid-column:span 2"><label>限制交易内容说明<span class="req">*</span></label><textarea rows="3" placeholder="描述该登记限制的具体交易行为，将在限制状态总览与校验拦截提示中展示"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" onclick="PMS.closeModal('mdNew')">取消</button>
+      <button type="button" class="btn btn-primary" onclick="doNew()"><i class="fa-solid fa-check"></i> 登簿</button>
+    </div>
+  </div>
+</div>
+<script src="../../assets/js/app.js"></script>
+<script>
+var DETAIL = {
+  'XZ20260726001': { type: '01 异议登记', addr: '阳光城 8-1-1902', unit: '450202001005GB00131F00010012', app: '李**', obj: '吴**', doc: '柳不动产异字〔2026〕026 号', valid: '2026-07-26 至 2026-08-10', st: '<span class="badge green">有效</span>', txt: '异议登记期间该房屋不得办理转移登记与抵押登记；申请人应在 15 日内提起诉讼，逾期异议登记自动失效。' },
+  'XZ20260718003': { type: '03 司法限制转让', addr: '万科城 5-2-803', unit: '450204001008GB00256F00020009', app: 'XXXX市柳南区人民法院', obj: '黄**', doc: '(2026)桂0204执1276号之二', valid: '2026-07-18 至 2029-07-17', st: '<span class="badge green">有效</span>', txt: '执行案件期间限制被执行人转让、赠与、设立抵押；经法院书面同意的司法拍卖、以物抵债等强制处分除外。' },
+  'XZ20260715004': { type: '04 行政限制转让', addr: '恒兴时代广场 A 座 1801', unit: '450202001003GB00088F00180001', app: 'XXXX市自然资源和规划局', obj: '柳州某置业有限公司', doc: '柳自然资规限字〔2026〕011 号', valid: '2026-07-15 至 2027-07-14', st: '<span class="badge green">有效</span>', txt: '因土地出让金未缴清，限制该幢商业办公用房的转让与抵押；缴清出让金并经出让方书面确认后解除。' },
+  'XZ20260710005': { type: '05 政府优先购买权登记', addr: '柳石路 128 号老厂区宿舍 3-402', unit: '450203001002GB00045F00030004', app: 'XXXX市住房和城乡建设局', obj: '柳州某机械厂', doc: '柳住建优字〔2026〕003 号', valid: '2026-07-10 至 2026-10-09', st: '<span class="badge green">有效</span>', txt: '该房屋列入保障性住房收储范围，出售前须书面告知住建部门，同等条件下政府享有优先购买权，答复期 30 日。' },
+  'XZ20260724003': { type: '06 破产受理限制', addr: '恒兴时代广场 A 座 8 ~ 12 层（共 46 套）', unit: '450202001003GB00088F00080001 等', app: 'XXXX市中级人民法院', obj: '柳州某置业有限公司', doc: '(2026)桂02破申12号', valid: '2026-07-24 至 破产程序终结', st: '<span class="badge green">有效</span>', txt: '破产受理后债务人财产的处分须经管理人同意并报法院许可，个别清偿无效；已签署但未备案的合同由管理人决定是否继续履行。' },
+  'XZ20260712006': { type: '07 遗产未析产限制', addr: '南亚国际城 2-3-1103', unit: '450205001001GB00312F00030011', app: '莫**等 3 人', obj: '莫**（被继承人）', doc: '(2026)桂0205民初1862号', valid: '2026-07-12 至 析产完成', st: '<span class="badge green">有效</span>', txt: '继承人之间尚未完成遗产分割，任一继承人不得单方处分该房屋；须经全体继承人书面一致同意或经生效裁判确定份额后方可交易。' },
+  'XZ20260605008': { type: '02 预告登记（买卖）', addr: '保利花园 3-1-1601', unit: '450203001004GB00177F00010016', app: '梁**', obj: '柳州某建材有限公司', doc: '柳不动产预字〔2026〕182 号', valid: '2026-06-05 至 2026-07-18', st: '<span class="badge gray">已注销</span>', txt: '预告登记期间未经预告权利人同意，处分该房屋的不发生物权效力；因以物抵债已完成过户，预告登记同步注销。' },
+  'XZ20260528010': { type: '01 异议登记', addr: '荣和公园大道 12-1-703', unit: '450202001007GB00203F00010007', app: '覃**', obj: '莫**', doc: '柳不动产异字〔2026〕019 号', valid: '2026-05-28 至 2026-06-12', st: '<span class="badge gray">已失效</span>', txt: '申请人在异议登记之日起 15 日内未提起诉讼，异议登记依法自动失效，房屋恢复正常交易。' }
+};
+
+function openDetail(no) {
+  var d = DETAIL[no]; if (!d) return;
+  document.getElementById('dsTitle').textContent = '登记详情 · ' + no;
+  document.getElementById('dsNo').textContent = no;
+  document.getElementById('dsType').textContent = d.type;
+  document.getElementById('dsAddr').textContent = d.addr;
+  document.getElementById('dsUnit').textContent = d.unit;
+  document.getElementById('dsApp').textContent = d.app;
+  document.getElementById('dsObj').textContent = d.obj;
+  document.getElementById('dsDoc').textContent = d.doc;
+  document.getElementById('dsValid').textContent = d.valid;
+  document.getElementById('dsSt').innerHTML = d.st;
+  document.getElementById('dsTxt').textContent = d.txt;
+  PMS.openDrawer('drDs');
+}
+
+function openCancel(no, type) {
+  document.getElementById('cxNo').textContent = no;
+  document.getElementById('cxType').textContent = type;
+  PMS.openModal('mdCancel');
+}
+
+function doCancel() {
+  var no = document.getElementById('cxNo').textContent;
+  PMS.confirm({
+    title: '确认注销限制登记',
+    message: '确认注销 ' + no + ' 吗？',
+    detail: '注销后该项限制立即失效，房屋限制状态与可交易标识将实时刷新，且无法撤销。',
+    type: 'danger',
+    okText: '确认注销',
+    onOk: function () {
+      PMS.closeModal('mdCancel');
+      PMS.toast('已注销 ' + no + '；限制状态已刷新，该房屋剩余限制 1 项（抵押），可交易标识仍为「限制交易」', 'success');
+    }
+  });
+}
+
+function doDelay(no) {
+  PMS.confirm({
+    title: '登记延期',
+    message: '为 ' + no + ' 办理有效期延期？',
+    detail: '延期须由原登记机关出具延期文书，延期后有效期顺延，限制状态保持不变。',
+    type: 'info',
+    okText: '办理延期',
+    onOk: function () { PMS.toast('已受理延期申请，待上传延期文书后生效', 'success'); }
+  });
+}
+
+function doNew() {
+  PMS.confirm({
+    title: '确认登簿',
+    message: '确认新增该限制登记并立即生效？',
+    detail: '登簿后房屋限制状态实时刷新，相关交易环节将被限制校验服务拦截。',
+    type: 'info',
+    okText: '确认登簿',
+    onOk: function () { PMS.closeModal('mdNew'); PMS.toast('限制登记已登簿，编号 XZ20260801011', 'success'); }
+  });
+}
+
+function applyFilter() {
+  var t = document.getElementById('fType').value, s = document.getElementById('fSt').value, n = 0;
+  document.querySelectorAll('#tblDs tbody tr').forEach(function (tr) {
+    var ok = (!t || tr.dataset.t === t) && (!s || tr.dataset.st === s);
+    tr.style.display = ok ? '' : 'none';
+    if (ok) n++;
+  });
+  PMS.toast('已按条件筛选，共 ' + n + ' 条');
+}
+
+function resetFilter() {
+  document.getElementById('fType').value = '';
+  document.getElementById('fSt').value = '';
+  document.querySelectorAll('#tblDs tbody tr').forEach(function (tr) { tr.style.display = ''; });
+  PMS.toast('筛选条件已重置');
+}
+
+PMS.renderPager(document.getElementById('tblDs'), {
+  pageNum: 1, pageSize: 20, total: 53,
+  onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+});
+</script>
+</body>
+</html>

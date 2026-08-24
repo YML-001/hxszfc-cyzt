@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>企业交易协同 · 存量房交易网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：共享数据核验结果卡与涉企要素清单 */
+  .vf-card {
+    border: 1px solid var(--border); border-left: 4px solid var(--success);
+    border-radius: var(--radius); background: #fff; padding: 0 14px 12px;
+  }
+  .vf-card.warn { border-left-color: var(--warning); background: var(--warning-light); }
+  .vf-card .vf-hd {
+    display: flex; align-items: center; gap: 9px; padding: 11px 0 9px;
+    border-bottom: 1px dashed var(--border); margin-bottom: 10px;
+  }
+  .vf-card .vf-hd h4 { font-size: 13.5px; font-weight: 700; flex: 1; }
+  .vf-card .vf-src { font-size: 12px; color: var(--text-3); }
+  .ele-item {
+    display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px dashed var(--border); font-size: 13px;
+  }
+  .ele-item:last-child { border-bottom: 0; }
+  .ele-item .el-n {
+    width: 22px; height: 22px; border-radius: 50%; background: var(--primary-light); color: var(--primary);
+    font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .ele-item .el-b { flex: 1; }
+  .ele-item .el-t { font-weight: 600; margin-bottom: 4px; }
+  .ele-item .el-d { font-size: 12.5px; color: var(--text-2); line-height: 1.8; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wscwb-23">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 存量房交易网签备案管理系统
+        <span class="sep">/</span> <a class="link" href="onething-list.html">一件事协同</a>
+        <span class="sep">/</span> <span class="cur">企业交易协同</span>
+      </div>
+      <div class="page-title">企业购置房屋交易协同</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" onclick="PMS.openDrawer('dwNew')"><i class="fa-solid fa-plus"></i> 新增企业交易登记</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《企业购置房屋交易台账》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-building"></i></div>
+      <div><div class="s-label">企业交易在办</div><div class="s-value">11</div><div class="s-trend">件</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">本月办结</div><div class="s-value">26</div><div class="s-trend text-success">↑ 环比 18.2%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-magnifying-glass-chart"></i></div>
+      <div><div class="s-label">待核验企业主体</div><div class="s-value">4</div><div class="s-trend text-warning">含 1 家经营异常</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-paper-plane"></i></div>
+      <div><div class="s-label">涉企税费推送成功率</div><div class="s-value">100%</div><div class="s-trend">本月 26 笔全部成功</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>当事人性质为法人或其他组织时自动进入企业通道，营业执照与法定代表人身份通过部门共享数据在线核验，无需提交纸质材料。</div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs" id="mainTabs">
+      <div class="tab active" data-tab="list">企业交易清单</div>
+      <div class="tab" data-tab="push">涉企信息推送</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="list">
+      <div class="filter-bar">
+        <div class="filter-item">
+          <label>关键词</label>
+          <input type="text" placeholder="企业名称 / 统一社会信用代码 / 合同编号">
+        </div>
+        <div class="filter-item">
+          <label>当事人角色</label>
+          <select><option value="">全部</option><option>买方</option><option>卖方</option></select>
+        </div>
+        <div class="filter-item">
+          <label>企业类型</label>
+          <select><option value="">全部</option><option>有限责任公司</option><option>股份有限公司</option><option>合伙企业</option><option>事业单位</option><option>社会团体</option></select>
+        </div>
+        <div class="filter-item">
+          <label>核验状态</label>
+          <select><option value="">全部</option><option>待核验</option><option>核验通过</option><option>核验不通过</option><option>需人工复核</option></select>
+        </div>
+        <div class="filter-item">
+          <label>交易类型</label>
+          <select><option value="">全部</option><option>企业购置</option><option>企业出售</option><option>企业间转让</option><option>司法拍卖过户</option></select>
+        </div>
+        <div class="filter-item">
+          <label>申请时间</label>
+          <input type="date" value="2026-07-01">
+        </div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 37 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table" id="tblEnt" data-static>
+          <thead>
+            <tr>
+              <th>合同编号</th>
+              <th>企业名称</th>
+              <th>统一社会信用代码</th>
+              <th>当事人角色</th>
+              <th>法定代表人</th>
+              <th>经办人</th>
+              <th>授权文件核验</th>
+              <th>营业执照核验</th>
+              <th>交易类型</th>
+              <th class="num">成交价格(元)</th>
+              <th>涉企税费推送</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-no="CLF450200202600341">
+              <td class="nowrap fw-600">CLF450200202600341</td>
+              <td class="cell-lg">XXXX市桂中商贸发展有限公司</td>
+              <td class="nowrap">91450200MA5KX7Q23B</td>
+              <td class="nowrap"><span class="badge blue">买方</span></td>
+              <td class="nowrap">梁文昊</td>
+              <td class="nowrap">韦晓玲</td>
+              <td class="nowrap" data-col="auth"><span class="badge orange">待核验</span></td>
+              <td class="nowrap" data-col="lic"><span class="badge orange">待核验</span></td>
+              <td class="nowrap">企业购置</td>
+              <td class="num">2,860,000</td>
+              <td class="nowrap"><span class="badge gray">待推送</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openVerify('CLF450200202600341','XXXX市桂中商贸发展有限公司','91450200MA5KX7Q23B','梁文昊','韦晓玲','ok')">主体核验</span>
+                <span class="link" onclick="PMS.toast('该单为企业购置办公用房，已进入企业通道待主体核验')">查看</span>
+              </td>
+            </tr>
+            <tr data-no="CLF450200202600337">
+              <td class="nowrap fw-600">CLF450200202600337</td>
+              <td class="cell-lg">广西龙城建筑工程有限公司</td>
+              <td class="nowrap">91450200MA5J8P614N</td>
+              <td class="nowrap"><span class="badge purple">卖方</span></td>
+              <td class="nowrap">陆振邦</td>
+              <td class="nowrap">谭思远</td>
+              <td class="nowrap" data-col="auth"><span class="badge orange">待核验</span></td>
+              <td class="nowrap" data-col="lic"><span class="badge green">核验通过</span></td>
+              <td class="nowrap">企业出售</td>
+              <td class="num">4,120,000</td>
+              <td class="nowrap"><span class="badge gray">待推送</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openVerify('CLF450200202600337','广西龙城建筑工程有限公司','91450200MA5J8P614N','陆振邦','谭思远','ok')">主体核验</span>
+                <span class="link" onclick="PMS.toast('营业执照已核验通过，授权文件待核验')">查看</span>
+              </td>
+            </tr>
+            <tr data-no="CLF450200202600329">
+              <td class="nowrap fw-600">CLF450200202600329</td>
+              <td class="cell-lg">XXXX市和信物业管理有限公司</td>
+              <td class="nowrap">91450200MA5L2T886R</td>
+              <td class="nowrap"><span class="badge blue">买方</span></td>
+              <td class="nowrap">黄嘉琪</td>
+              <td class="nowrap">周立文</td>
+              <td class="nowrap" data-col="auth"><span class="badge red">核验不通过</span></td>
+              <td class="nowrap" data-col="lic"><span class="badge orange">经营异常</span></td>
+              <td class="nowrap">企业购置</td>
+              <td class="num">1,680,000</td>
+              <td class="nowrap"><span class="badge gray">已阻断</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openVerify('CLF450200202600329','XXXX市和信物业管理有限公司','91450200MA5L2T886R','黄嘉琪','周立文','bad')">主体核验</span>
+                <span class="link danger" onclick="PMS.toast('市场监管共享数据显示该企业列入经营异常名录，授权文件超出授权期限，已阻断办理','error')">阻断原因</span>
+              </td>
+            </tr>
+            <tr data-no="CLF450200202600318">
+              <td class="nowrap fw-600">CLF450200202600318</td>
+              <td class="cell-lg">XXXX市锦程置业有限公司</td>
+              <td class="nowrap">91450200MA5H9K372X</td>
+              <td class="nowrap"><span class="badge purple">卖方</span></td>
+              <td class="nowrap">吴俊霖</td>
+              <td class="nowrap">李婉婷</td>
+              <td class="nowrap" data-col="auth"><span class="badge green">核验通过</span></td>
+              <td class="nowrap" data-col="lic"><span class="badge green">核验通过</span></td>
+              <td class="nowrap">企业出售</td>
+              <td class="num">1,268,000</td>
+              <td class="nowrap"><span class="badge green">推送成功</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openVerify('CLF450200202600318','XXXX市锦程置业有限公司','91450200MA5H9K372X','吴俊霖','李婉婷','done')">主体核验</span>
+                <a class="link" href="transfer-tax.html">纳税过户</a>
+              </td>
+            </tr>
+            <tr data-no="CLF450200202600309">
+              <td class="nowrap fw-600">CLF450200202600309</td>
+              <td class="cell-lg">广西柳工机械配套有限公司</td>
+              <td class="nowrap">91450200MA5G4W105Y</td>
+              <td class="nowrap"><span class="badge blue">买方</span></td>
+              <td class="nowrap">莫建华</td>
+              <td class="nowrap">吴晓涵</td>
+              <td class="nowrap" data-col="auth"><span class="badge green">核验通过</span></td>
+              <td class="nowrap" data-col="lic"><span class="badge green">核验通过</span></td>
+              <td class="nowrap">企业购置</td>
+              <td class="num">5,340,000</td>
+              <td class="nowrap"><span class="badge green">推送成功</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openVerify('CLF450200202600309','广西柳工机械配套有限公司','91450200MA5G4W105Y','莫建华','吴晓涵','done')">主体核验</span>
+                <a class="link" href="onething-detail.html">一件事进度</a>
+              </td>
+            </tr>
+            <tr data-no="CLF450200202600294">
+              <td class="nowrap fw-600">CLF450200202600294</td>
+              <td class="cell-lg">XXXX市城投商业运营管理有限公司</td>
+              <td class="nowrap">91450200MA5F6R249K</td>
+              <td class="nowrap"><span class="badge purple">卖方</span></td>
+              <td class="nowrap">覃志明</td>
+              <td class="nowrap">周雅琴</td>
+              <td class="nowrap" data-col="auth"><span class="badge green">核验通过</span></td>
+              <td class="nowrap" data-col="lic"><span class="badge green">核验通过</span></td>
+              <td class="nowrap">企业间转让</td>
+              <td class="num">8,750,000</td>
+              <td class="nowrap"><span class="badge green">推送成功</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openVerify('CLF450200202600294','XXXX市城投商业运营管理有限公司','91450200MA5F6R249K','覃志明','周雅琴','done')">主体核验</span>
+                <span class="link" onclick="PMS.toast('该单为国有企业间资产转让，已按涉企要素完成税务推送')">查看</span>
+              </td>
+            </tr>
+            <tr data-no="CLF450200202600287">
+              <td class="nowrap fw-600">CLF450200202600287</td>
+              <td class="cell-lg">XXXX市恒达汽配销售有限公司</td>
+              <td class="nowrap">91450200MA5E3N738P</td>
+              <td class="nowrap"><span class="badge blue">买方</span></td>
+              <td class="nowrap">黄志文</td>
+              <td class="nowrap">罗晓东</td>
+              <td class="nowrap" data-col="auth"><span class="badge green">核验通过</span></td>
+              <td class="nowrap" data-col="lic"><span class="badge green">核验通过</span></td>
+              <td class="nowrap">司法拍卖过户</td>
+              <td class="num">2,240,000</td>
+              <td class="nowrap"><span class="badge green">推送成功</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openVerify('CLF450200202600287','XXXX市恒达汽配销售有限公司','91450200MA5E3N738P','黄志文','罗晓东','done')">主体核验</span>
+                <span class="link" onclick="PMS.toast('司法拍卖成交确认书已与法院系统核验一致，免提交纸质材料')">拍卖核验</span>
+              </td>
+            </tr>
+            <tr data-no="CLF450200202600231">
+              <td class="nowrap fw-600">CLF450200202600231</td>
+              <td class="cell-lg">XXXX市青云商业管理有限公司</td>
+              <td class="nowrap">91450200MA5D8Q416M</td>
+              <td class="nowrap"><span class="badge purple">卖方</span></td>
+              <td class="nowrap">陈立群</td>
+              <td class="nowrap">莫雅雯</td>
+              <td class="nowrap" data-col="auth"><span class="badge green">核验通过</span></td>
+              <td class="nowrap" data-col="lic"><span class="badge green">核验通过</span></td>
+              <td class="nowrap">企业出售</td>
+              <td class="num">3,560,000</td>
+              <td class="nowrap"><span class="badge blue">推送中</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openVerify('CLF450200202600231','XXXX市青云商业管理有限公司','91450200MA5D8Q416M','陈立群','莫雅雯','done')">主体核验</span>
+                <span class="link" onclick="PMS.toast('涉企税费要素正在推送税务系统，预计 5 分钟内返回回执')">推送详情</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="push">
+      <div class="table-wrap">
+       <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>企业主体核验通过后，系统按税务要求自动组装涉企要素并推送，税务系统返回受理回执后方可进入核税环节。</div>
+        </div>
+
+        <div class="section-title mt-16">推送税务的涉企要素清单</div>
+        <div class="card">
+          <div class="card-body">
+            <div class="ele-item">
+              <span class="el-n">1</span>
+              <div class="el-b">
+                <div class="el-t">土地增值税相关信息</div>
+                <div class="el-d">
+                  房屋取得方式与取得时间、原值凭证与发票、开发成本与费用、可扣除项目金额、增值额与适用税率；
+                  企业出售存量房须按《土地增值税暂行条例》据实清算，系统按合同成交价与共享的原值信息自动测算。
+                </div>
+              </div>
+              <span class="badge green" style="align-self:flex-start">已组装</span>
+            </div>
+            <div class="ele-item">
+              <span class="el-n">2</span>
+              <div class="el-b">
+                <div class="el-t">企业所得税相关信息</div>
+                <div class="el-d">
+                  转让方企业统一社会信用代码、纳税人识别号、财产转让收入、资产原值与折旧、转让净收益；
+                  作为企业所得税汇算清缴的财产转让所得依据，与税务共享库比对纳税人状态。
+                </div>
+              </div>
+              <span class="badge green" style="align-self:flex-start">已组装</span>
+            </div>
+            <div class="ele-item">
+              <span class="el-n">3</span>
+              <div class="el-b">
+                <div class="el-t">发票开具要求</div>
+                <div class="el-d">
+                  购买方企业名称与统一社会信用代码、开户银行与账号、注册地址与电话、发票种类（增值税专用发票）、
+                  税率与价税合计；由税务系统据此开具不动产销售发票，买方可在电子税务局直接下载。
+                </div>
+              </div>
+              <span class="badge green" style="align-self:flex-start">已组装</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title mt-16">推送状态与回执</div>
+        <table class="data-table compact">
+          <thead>
+            <tr>
+              <th>合同编号</th>
+              <th>企业名称</th>
+              <th>推送要素</th>
+              <th>推送时间</th>
+              <th>推送状态</th>
+              <th>税务受理回执号</th>
+              <th>回执时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="nowrap fw-600">CLF450200202600318</td>
+              <td class="cell-lg">XXXX市锦程置业有限公司</td>
+              <td class="nowrap">土增税 / 企业所得税 / 发票要求</td>
+              <td class="nowrap">2026-07-31 09:52</td>
+              <td class="nowrap"><span class="badge green">推送成功</span></td>
+              <td class="nowrap">SW2026073100418</td>
+              <td class="nowrap">2026-07-31 09:53</td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('回执内容：涉企要素校验通过，已生成核税任务 HS2026073100418')">查看回执</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">CLF450200202600309</td>
+              <td class="cell-lg">广西柳工机械配套有限公司</td>
+              <td class="nowrap">土增税 / 企业所得税 / 发票要求</td>
+              <td class="nowrap">2026-07-30 16:18</td>
+              <td class="nowrap"><span class="badge green">推送成功</span></td>
+              <td class="nowrap">SW2026073000392</td>
+              <td class="nowrap">2026-07-30 16:19</td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('回执内容：涉企要素校验通过，增值税专用发票开具信息已登记')">查看回执</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">CLF450200202600294</td>
+              <td class="cell-lg">XXXX市城投商业运营管理有限公司</td>
+              <td class="nowrap">土增税 / 企业所得税 / 发票要求</td>
+              <td class="nowrap">2026-07-28 10:06</td>
+              <td class="nowrap"><span class="badge green">推送成功</span></td>
+              <td class="nowrap">SW2026072800347</td>
+              <td class="nowrap">2026-07-28 10:07</td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('回执内容：国有资产转让，按核定征收方式受理')">查看回执</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">CLF450200202600287</td>
+              <td class="cell-lg">XXXX市恒达汽配销售有限公司</td>
+              <td class="nowrap">土增税 / 企业所得税 / 发票要求</td>
+              <td class="nowrap">2026-07-27 15:33</td>
+              <td class="nowrap"><span class="badge green">推送成功</span></td>
+              <td class="nowrap">SW2026072700318</td>
+              <td class="nowrap">2026-07-27 15:34</td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('回执内容：司法拍卖过户，土增税由被执行人承担')">查看回执</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">CLF450200202600231</td>
+              <td class="cell-lg">XXXX市青云商业管理有限公司</td>
+              <td class="nowrap">土增税 / 企业所得税 / 发票要求</td>
+              <td class="nowrap">2026-07-31 21:38</td>
+              <td class="nowrap"><span class="badge blue">推送中</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap text-3">—</td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已重新推送涉企要素，等待税务系统应答','success')">重推</span></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="section-title mt-16">推送效能</div>
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-body">
+              <div class="s-label">本月推送笔数</div>
+              <div class="s-value" style="font-size:24px">26</div>
+              <div class="text-3 text-sm mt-8">覆盖企业购置 14 笔、企业出售 9 笔、企业间转让 3 笔。</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-body">
+              <div class="s-label">平均回执时长</div>
+              <div class="s-value" style="font-size:24px">58 秒</div>
+              <div class="text-3 text-sm mt-8">较人工填报申报环节的 1.5 个工作日大幅压缩。</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-body">
+              <div class="s-label">纸质材料压减</div>
+              <div class="s-value" style="font-size:24px">6 → 0 份</div>
+              <div class="text-3 text-sm mt-8">营业执照、法定代表人身份证、授权委托书等均在线核验。</div>
+            </div>
+          </div>
+        </div>
+       </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 企业主体核验 -->
+  <div class="drawer-mask"></div>
+  <div class="drawer drawer-lg" id="dwVerify">
+    <div class="drawer-head">
+      <h3>企业主体核验</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-info" id="vfTip">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>营业执照、法定代表人身份、授权文件均通过部门共享数据在线核验，核验结果与来源部门实时一致，无需提交纸质材料。</div>
+      </div>
+
+      <div class="section-title mt-16">合同与当事人</div>
+      <dl class="desc-list">
+        <div class="desc-item"><dt>合同编号</dt><dd id="vfNo">—</dd></div>
+        <div class="desc-item"><dt>企业名称</dt><dd id="vfEnt">—</dd></div>
+        <div class="desc-item"><dt>统一社会信用代码</dt><dd id="vfCode">—</dd></div>
+      </dl>
+
+      <div class="section-title mt-16">营业执照在线核验</div>
+      <div class="vf-card" id="vfLicCard">
+        <div class="vf-hd">
+          <i class="fa-solid fa-file-contract text-primary"></i>
+          <h4>营业执照核验结果</h4>
+          <span class="badge green" id="vfLicBadge">核验通过</span>
+        </div>
+        <dl class="desc-list">
+          <div class="desc-item"><dt>企业名称</dt><dd id="vfLicName">—</dd></div>
+          <div class="desc-item"><dt>统一社会信用代码</dt><dd id="vfLicCode">—</dd></div>
+          <div class="desc-item"><dt>登记状态</dt><dd id="vfLicStatus"><span class="badge green">存续（在营、开业、在册）</span></dd></div>
+          <div class="desc-item"><dt>成立日期</dt><dd>2018-04-16</dd></div>
+          <div class="desc-item"><dt>注册资本</dt><dd>2,000 万元人民币</dd></div>
+          <div class="desc-item"><dt>企业类型</dt><dd>有限责任公司（自然人投资或控股）</dd></div>
+          <div class="desc-item full"><dt>经营范围</dt><dd>房地产开发经营；物业管理；房地产咨询；商业综合体管理服务；企业管理咨询（依法须经批准的项目，经相关部门批准后方可开展经营活动）。</dd></div>
+          <div class="desc-item"><dt>核验来源</dt><dd>市场监管共享（政务数据共享交换平台）</dd></div>
+          <div class="desc-item"><dt>核验时间</dt><dd>2026-07-31 21:42</dd></div>
+          <div class="desc-item"><dt>核验结论</dt><dd class="fw-600 text-success" id="vfLicConc">主体资格有效，可进入企业交易通道</dd></div>
+        </dl>
+      </div>
+
+      <div class="section-title mt-16">法定代表人身份核验</div>
+      <div class="vf-card">
+        <div class="vf-hd">
+          <i class="fa-solid fa-user-tie text-primary"></i>
+          <h4>法定代表人核验结果</h4>
+          <span class="badge green">核验通过</span>
+        </div>
+        <dl class="desc-list">
+          <div class="desc-item"><dt>姓名</dt><dd id="vfLegal">—</dd></div>
+          <div class="desc-item"><dt>证件号</dt><dd>4502**********3517</dd></div>
+          <div class="desc-item"><dt>核验方式</dt><dd>公安人口库比对 + 市场监管登记信息一致性校验</dd></div>
+          <div class="desc-item"><dt>与登记信息一致性</dt><dd><span class="badge green">一致</span></dd></div>
+          <div class="desc-item"><dt>核验时间</dt><dd>2026-07-31 21:42</dd></div>
+          <div class="desc-item"><dt>核验结论</dt><dd class="fw-600 text-success">法定代表人身份真实有效</dd></div>
+        </dl>
+      </div>
+
+      <div class="section-title mt-16">授权文件核验</div>
+      <div class="vf-card" id="vfAuthCard">
+        <div class="vf-hd">
+          <i class="fa-solid fa-stamp text-primary"></i>
+          <h4>经办人授权核验结果</h4>
+          <span class="badge green" id="vfAuthBadge">核验通过</span>
+        </div>
+        <dl class="desc-list">
+          <div class="desc-item"><dt>经办人姓名</dt><dd id="vfAgent">—</dd></div>
+          <div class="desc-item"><dt>经办人证件号</dt><dd>4502**********2246</dd></div>
+          <div class="desc-item"><dt>授权范围</dt><dd>签署存量房买卖合同、办理网签备案、办理过户登记</dd></div>
+          <div class="desc-item"><dt>授权期限</dt><dd id="vfAuthTerm">2026-06-01 至 2026-12-31</dd></div>
+          <div class="desc-item"><dt>授权文件</dt><dd><span class="link" onclick="PMS.toast('《法定代表人授权委托书》已加载，附电子签章验真结果：有效')">法定代表人授权委托书.pdf</span></dd></div>
+          <div class="desc-item"><dt>签章验真</dt><dd id="vfSeal"><span class="badge green">企业电子签章有效</span></dd></div>
+          <div class="desc-item full"><dt>核验结论</dt><dd class="fw-600 text-success" id="vfAuthConc">授权真实有效，经办人可代表企业签署本合同</dd></div>
+        </dl>
+      </div>
+
+      <div class="section-title mt-16">核验轨迹</div>
+      <div class="timeline">
+        <div class="tl-item done">
+          <div class="tl-dot"></div>
+          <div class="tl-title">识别当事人性质为法人，自动进入企业通道</div>
+          <div class="tl-meta">2026-07-31 21:40 · 系统</div>
+        </div>
+        <div class="tl-item done">
+          <div class="tl-dot"></div>
+          <div class="tl-title">调用市场监管共享接口核验营业执照</div>
+          <div class="tl-meta">2026-07-31 21:42 · 政务数据共享交换平台</div>
+          <div class="tl-desc">返回登记状态「存续」，与合同填报的企业名称、统一社会信用代码一致。</div>
+        </div>
+        <div class="tl-item done">
+          <div class="tl-dot"></div>
+          <div class="tl-title">核验法定代表人身份与经办人授权</div>
+          <div class="tl-meta">2026-07-31 21:42 · 公安人口库 / 电子签章平台</div>
+        </div>
+        <div class="tl-item pending">
+          <div class="tl-dot"></div>
+          <div class="tl-title">核验通过后推送涉企税费要素</div>
+          <div class="tl-meta">待处理</div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+      <button type="button" class="btn" onclick="PMS.toast('已发起共享数据重新核验，稍后刷新结果','success')"><i class="fa-solid fa-rotate"></i> 重新核验</button>
+      <button type="button" class="btn btn-primary" onclick="passVerify()"><i class="fa-solid fa-check"></i> 核验通过并推送税务</button>
+    </div>
+  </div>
+
+  <!-- 新增企业交易登记 -->
+  <div class="drawer" id="dwNew">
+    <div class="drawer-head">
+      <h3>新增企业交易登记</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-info">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>录入统一社会信用代码后点击「在线核验」，系统自动回填企业登记信息与法定代表人，无需人工录入。</div>
+      </div>
+
+      <div class="section-title mt-16">企业当事人</div>
+      <div class="form-grid">
+        <div class="form-item">
+          <label>统一社会信用代码<span class="req">*</span></label>
+          <input type="text" id="nwCode" placeholder="如 91450200MA5KX7Q23B" value="91450200MA5KX7Q23B">
+        </div>
+        <div class="form-item">
+          <label>&nbsp;</label>
+          <button type="button" class="btn btn-primary" onclick="pullEnt()"><i class="fa-solid fa-cloud-arrow-down"></i> 在线核验并回填</button>
+        </div>
+        <div class="form-item">
+          <label>企业名称<span class="req">*</span></label>
+          <input type="text" id="nwName" placeholder="核验后自动回填" readonly>
+        </div>
+        <div class="form-item">
+          <label>企业类型</label>
+          <input type="text" id="nwType" placeholder="核验后自动回填" readonly>
+        </div>
+        <div class="form-item">
+          <label>法定代表人</label>
+          <input type="text" id="nwLegal" placeholder="核验后自动回填" readonly>
+        </div>
+        <div class="form-item">
+          <label>登记状态</label>
+          <input type="text" id="nwStatus" placeholder="核验后自动回填" readonly>
+        </div>
+        <div class="form-item">
+          <label>当事人角色<span class="req">*</span></label>
+          <select><option>买方</option><option>卖方</option></select>
+        </div>
+        <div class="form-item">
+          <label>交易类型<span class="req">*</span></label>
+          <select><option>企业购置</option><option>企业出售</option><option>企业间转让</option><option>司法拍卖过户</option></select>
+        </div>
+      </div>
+
+      <div class="section-title mt-16">经办人与授权</div>
+      <div class="form-grid">
+        <div class="form-item">
+          <label>经办人姓名<span class="req">*</span></label>
+          <input type="text" placeholder="请输入经办人姓名" value="韦晓玲">
+        </div>
+        <div class="form-item">
+          <label>经办人证件号<span class="req">*</span></label>
+          <input type="text" placeholder="请输入身份证号" value="450202199205112246">
+        </div>
+        <div class="form-item">
+          <label>授权期限<span class="req">*</span></label>
+          <input type="date" value="2026-12-31">
+        </div>
+        <div class="form-item col-full">
+          <label>授权文件<span class="req">*</span></label>
+          <div class="file-up">
+            <input type="hidden" class="file-up-val" value="法定代表人授权委托书_签章版.pdf">
+            <div class="file-up-grid">
+              <div class="file-up-tile file-up-add" title="添加文件（可多选）">
+                <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png">
+                <i class="fa-solid fa-plus"></i><span>上传</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="form-item col-full">
+          <label>授权范围<span class="req">*</span></label>
+          <div class="flex gap-16" style="flex-wrap:wrap;padding-top:6px">
+            <label class="flex items-center gap-8"><input type="checkbox" checked> 签署买卖合同</label>
+            <label class="flex items-center gap-8"><input type="checkbox" checked> 办理网签备案</label>
+            <label class="flex items-center gap-8"><input type="checkbox" checked> 办理过户登记</label>
+            <label class="flex items-center gap-8"><input type="checkbox"> 领取证照</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title mt-16">关联合同</div>
+      <div class="form-grid">
+        <div class="form-item">
+          <label>合同编号</label>
+          <input type="text" placeholder="选择已拟定的合同" value="CLF450200202600341">
+        </div>
+        <div class="form-item">
+          <label>房源坐落</label>
+          <input type="text" readonly value="阳光 100 城市广场 B 座 2203">
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn" onclick="PMS.toast('企业交易登记草稿已保存','success')">保存草稿</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('企业交易登记已提交，已自动发起主体核验','success')"><i class="fa-solid fa-check"></i> 提交并核验</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  PMS.renderPager(document.getElementById('tblEnt'), {
+    pageNum: 1, pageSize: 20, total: 37,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+
+var curNo = '';
+
+function openVerify(no, ent, code, legal, agent, kind) {
+  curNo = no;
+  document.getElementById('vfNo').textContent = no;
+  document.getElementById('vfEnt').textContent = ent;
+  document.getElementById('vfCode').textContent = code;
+  document.getElementById('vfLicName').textContent = ent;
+  document.getElementById('vfLicCode').textContent = code;
+  document.getElementById('vfLegal').textContent = legal;
+  document.getElementById('vfAgent').textContent = agent;
+
+  var bad = kind === 'bad';
+  var licCard = document.getElementById('vfLicCard');
+  var authCard = document.getElementById('vfAuthCard');
+  licCard.className = 'vf-card' + (bad ? ' warn' : '');
+  authCard.className = 'vf-card' + (bad ? ' warn' : '');
+  document.getElementById('vfLicBadge').className = 'badge ' + (bad ? 'orange' : 'green');
+  document.getElementById('vfLicBadge').textContent = bad ? '经营异常' : '核验通过';
+  document.getElementById('vfLicStatus').innerHTML = bad
+    ? '<span class="badge orange">存续（已列入经营异常名录）</span>'
+    : '<span class="badge green">存续（在营、开业、在册）</span>';
+  document.getElementById('vfLicConc').className = 'fw-600 ' + (bad ? 'text-danger' : 'text-success');
+  document.getElementById('vfLicConc').textContent = bad
+    ? '企业列入经营异常名录，须先申请移出后方可办理'
+    : '主体资格有效，可进入企业交易通道';
+  document.getElementById('vfAuthBadge').className = 'badge ' + (bad ? 'red' : 'green');
+  document.getElementById('vfAuthBadge').textContent = bad ? '核验不通过' : '核验通过';
+  document.getElementById('vfAuthTerm').innerHTML = bad
+    ? '<span class="text-danger fw-600">2025-06-01 至 2026-05-31（已过期）</span>'
+    : '2026-06-01 至 2026-12-31';
+  document.getElementById('vfSeal').innerHTML = bad
+    ? '<span class="badge red">签章已失效</span>'
+    : '<span class="badge green">企业电子签章有效</span>';
+  document.getElementById('vfAuthConc').className = 'fw-600 ' + (bad ? 'text-danger' : 'text-success');
+  document.getElementById('vfAuthConc').textContent = bad
+    ? '授权已超期，须重新出具授权委托书'
+    : '授权真实有效，经办人可代表企业签署本合同';
+  document.getElementById('vfTip').className = 'alert ' + (bad ? 'alert-warning' : 'alert-info');
+  PMS.openDrawer('dwVerify');
+}
+
+function passVerify() {
+  var tr = document.querySelector('#tblEnt tbody tr[data-no="' + curNo + '"]');
+  if (tr) {
+    tr.querySelector('[data-col="lic"]').innerHTML = '<span class="badge green">核验通过</span>';
+    tr.querySelector('[data-col="auth"]').innerHTML = '<span class="badge green">核验通过</span>';
+    tr.children[10].innerHTML = '<span class="badge blue">推送中</span>';
+    tr.querySelector('.col-ops').innerHTML =
+      '<span class="link" onclick="PMS.toast(\'主体核验已通过，涉企税费要素正在推送税务系统\')">推送详情</span>' +
+      '<a class="link" href="transfer-tax.html">纳税过户</a>';
+  }
+  PMS.closeDrawer();
+  PMS.toast('主体核验通过，已按涉企要素推送税务系统', 'success');
+}
+
+function pullEnt() {
+  var code = document.getElementById('nwCode').value.trim();
+  if (!code) { PMS.toast('请先录入统一社会信用代码', 'error'); return; }
+  document.getElementById('nwName').value = 'XXXX市桂中商贸发展有限公司';
+  document.getElementById('nwType').value = '有限责任公司（自然人投资或控股）';
+  document.getElementById('nwLegal').value = '梁文昊';
+  document.getElementById('nwStatus').value = '存续（在营、开业、在册）';
+  PMS.toast('市场监管共享数据核验通过，企业登记信息已自动回填', 'success');
+}
+</script>
+</body>
+</html>

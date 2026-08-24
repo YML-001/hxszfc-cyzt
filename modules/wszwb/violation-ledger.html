@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>违规行为台账 · 房屋租赁网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：违规类型分布条、主体聚合轨迹 */
+  .type-row {
+    display: flex; align-items: center; gap: 12px; padding: 8px 0; font-size: 13px;
+    border-bottom: 1px dashed var(--row-line); cursor: pointer;
+  }
+  .type-row:last-child { border-bottom: none; }
+  .type-row:hover .tr-n { color: var(--primary); }
+  .type-row .tr-n { flex: 0 0 128px; }
+  .type-row .tr-track { flex: 1; height: 10px; border-radius: 5px; background: #eef1f6; overflow: hidden; }
+  .type-row .tr-fill { height: 100%; border-radius: 5px; background: var(--primary); }
+  .type-row.warn .tr-fill { background: var(--warning); }
+  .type-row.danger .tr-fill { background: var(--danger); }
+  .type-row .tr-v { flex: 0 0 52px; text-align: right; font-weight: 600; font-family: Consolas, monospace; }
+
+  .subj-layout { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
+  @media (max-width: 1280px) { .subj-layout { grid-template-columns: 1fr; } }
+
+  .sum-card { border: 1px solid var(--border); border-radius: var(--radius); background: #fafbfd; padding: 14px; }
+  .sum-card .sc-t { font-size: 13.5px; font-weight: 600; margin-bottom: 10px; }
+  .sum-row {
+    display: flex; align-items: center; justify-content: space-between; padding: 8px 0;
+    border-bottom: 1px dashed var(--row-line); font-size: 13px;
+  }
+  .sum-row:last-of-type { border-bottom: none; }
+  .sum-row .sr-v { font-weight: 700; font-family: Consolas, monospace; }
+
+  .upload-box {
+    border: 1px dashed var(--border); border-radius: 8px; padding: 16px; text-align: center;
+    color: var(--text-3); font-size: 13px; cursor: pointer; background: #fafbfd;
+  }
+  .upload-box:hover { border-color: var(--primary); color: var(--primary); }
+  .upload-box i { font-size: 22px; color: var(--primary); display: block; margin-bottom: 6px; }
+
+  .data-table tbody tr.is-warn > td { background: #fff8ed; }
+  .data-table tbody tr.is-warn:hover > td { background: #fdf0d9; }
+  .data-table tbody tr.is-danger > td { background: #fdeeee; }
+  .data-table tbody tr.is-danger:hover > td { background: #fbe0e0; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wszwb-05">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋租赁网签备案管理系统
+        <span class="sep">/</span> 租赁主体监管
+        <span class="sep">/</span> <span class="cur">违规行为台账</span>
+      </div>
+      <div class="page-title">违规行为台账</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" data-open-drawer="drWg"><i class="fa-solid fa-pen-to-square"></i> 登记违规</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《租赁违规行为台账》Excel','success')"><i class="fa-solid fa-download"></i> 批量导出</button>
+      <button type="button" class="btn" onclick="genReport()"><i class="fa-solid fa-file-lines"></i> 生成通报</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-book"></i></div>
+      <div><div class="s-label">本年违规记录</div><div class="s-value">1,286</div><div class="s-trend text-3">条</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">已办结</div><div class="s-value">1,142</div><div class="s-trend text-3">办结率 88.8%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-screwdriver-wrench"></i></div>
+      <div><div class="s-label">处置中</div><div class="s-value">144</div><div class="s-trend text-danger">含逾期未整改 12 条</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-money-bill-wave"></i></div>
+      <div><div class="s-label">罚款金额</div><div class="s-value">186.4</div><div class="s-trend text-3">万元</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-user-slash"></i></div>
+      <div><div class="s-label">列入黑名单</div><div class="s-value">2</div><div class="s-trend text-danger">业务环节强制拦截</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      处置结果按主体挂接从业主体信用档案并扣分，黑名单主体在签约、房源发布、备案环节强制拦截。移交执法的记录接收部门与反馈结果。
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <span><i class="fa-solid fa-chart-simple"></i> 违规类型分布 · 2026 年累计 1,286 条</span>
+      <span class="text-3 text-sm">点击类型筛选下方台账</span>
+    </div>
+    <div class="card-body">
+      <div class="type-row danger" onclick="pickType('未备案出租')"><span class="tr-n">未备案出租</span><span class="tr-track"><span class="tr-fill" style="width:100%"></span></span><span class="tr-v">486</span></div>
+      <div class="type-row danger" onclick="pickType('虚假房源')"><span class="tr-n">虚假房源</span><span class="tr-track"><span class="tr-fill" style="width:44.0%"></span></span><span class="tr-v">214</span></div>
+      <div class="type-row warn" onclick="pickType('违规隔断出租')"><span class="tr-n">违规隔断出租</span><span class="tr-track"><span class="tr-fill" style="width:34.6%"></span></span><span class="tr-v">168</span></div>
+      <div class="type-row warn" onclick="pickType('克扣押金')"><span class="tr-n">克扣押金</span><span class="tr-track"><span class="tr-fill" style="width:25.9%"></span></span><span class="tr-v">126</span></div>
+      <div class="type-row warn" onclick="pickType('违规收费')"><span class="tr-n">违规收费</span><span class="tr-track"><span class="tr-fill" style="width:20.2%"></span></span><span class="tr-v">98</span></div>
+      <div class="type-row" onclick="pickType('无照经营')"><span class="tr-n">无照经营</span><span class="tr-track"><span class="tr-fill" style="width:12.8%"></span></span><span class="tr-v">62</span></div>
+      <div class="type-row" onclick="pickType('租金贷违规')"><span class="tr-n">租金贷违规</span><span class="tr-track"><span class="tr-fill" style="width:9.5%"></span></span><span class="tr-v">46</span></div>
+      <div class="type-row" onclick="pickType('其他')"><span class="tr-n">其他</span><span class="tr-track"><span class="tr-fill" style="width:17.7%"></span></span><span class="tr-v">86</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <span><i class="fa-solid fa-table-list"></i> 违规行为台账</span>
+      <span class="link" onclick="resetType()">清除类型筛选</span>
+    </div>
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>关键词</label>
+        <input type="text" placeholder="违规编号 / 主体名称 / 合同编号">
+      </div>
+      <div class="filter-item">
+        <label>违规主体类型</label>
+        <select><option value="">全部</option><option>企业</option><option>门店</option><option>经纪人</option><option>个人出租人</option><option>承租人</option></select>
+      </div>
+      <div class="filter-item">
+        <label>违规类型</label>
+        <select id="fType">
+          <option value="">全部</option>
+          <option>未备案出租</option><option>虚假房源</option><option>违规隔断出租</option><option>克扣押金</option>
+          <option>违规收费</option><option>无照经营</option><option>租金贷违规</option><option>其他</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>线索来源</label>
+        <select><option value="">全部</option><option>投诉举报</option><option>系统预警</option><option>日常检查</option><option>部门移送</option><option>媒体曝光</option></select>
+      </div>
+      <div class="filter-item">
+        <label>处罚类型</label>
+        <select><option value="">全部</option><option>警告</option><option>罚款</option><option>暂停网签</option><option>列入黑名单</option><option>移交执法</option></select>
+      </div>
+      <div class="filter-item">
+        <label>问题等级</label>
+        <select><option value="">全部</option><option>一般</option><option>较重</option><option>严重</option></select>
+      </div>
+      <div class="filter-item">
+        <label>办结状态</label>
+        <select><option value="">全部</option><option>未办结</option><option>已办结</option></select>
+      </div>
+      <div class="filter-item">
+        <label>发现时间起</label>
+        <input type="date" value="2026-01-01">
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 1,286 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn" onclick="resetType()"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tblWg" data-static>
+        <thead>
+          <tr>
+            <th>违规编号</th>
+            <th>违规主体</th>
+            <th>主体类型</th>
+            <th>违规类型</th>
+            <th>线索来源</th>
+            <th>发现时间</th>
+            <th>核查情况摘要</th>
+            <th>问题等级</th>
+            <th>整改状态</th>
+            <th>处罚类型</th>
+            <th class="num">处罚金额(元)</th>
+            <th>处罚文书编号</th>
+            <th class="num">信用扣分</th>
+            <th>办结时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="is-danger" data-type="虚假房源">
+            <td class="nowrap fw-600">WG2026001286</td>
+            <td class="cell-lg">XXXX市桂中房产经纪有限公司</td>
+            <td class="nowrap">企业</td>
+            <td class="nowrap"><span class="badge red">虚假房源</span></td>
+            <td class="nowrap">系统预警</td>
+            <td class="nowrap">2026-07-30</td>
+            <td class="cell-lg">核验码失效仍在展示、图片查重 96.8%、信息与登记库不一致，限期举证未提交材料</td>
+            <td class="nowrap"><span class="badge red">严重</span></td>
+            <td class="nowrap"><span class="badge orange">整改中</span></td>
+            <td class="nowrap"><span class="badge orange">罚款</span></td>
+            <td class="num">30,000.00</td>
+            <td class="nowrap">柳住建罚〔2026〕86 号</td>
+            <td class="num">8</td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openDetail('WG2026001286')">查看详情</span>
+              <span class="link" onclick="openFine('WG2026001286')">处罚</span>
+              <span class="link" onclick="linkCredit('WG2026001286', 8)">挂接信用</span>
+            </td>
+          </tr>
+          <tr class="is-danger" data-type="租金贷违规">
+            <td class="nowrap fw-600">WG2026001272</td>
+            <td class="cell-lg">柳州寓家公寓管理有限公司</td>
+            <td class="nowrap">企业</td>
+            <td class="nowrap"><span class="badge red">租金贷违规</span></td>
+            <td class="nowrap">系统预警</td>
+            <td class="nowrap">2026-07-28</td>
+            <td class="cell-lg">租金贷未备案且未明确告知承租人，贷款占年租金 62.4% 超上限，一次性收租未进监管账户</td>
+            <td class="nowrap"><span class="badge red">严重</span></td>
+            <td class="nowrap"><span class="badge red">逾期未整改</span></td>
+            <td class="nowrap"><span class="badge red">暂停网签</span></td>
+            <td class="num">50,000.00</td>
+            <td class="nowrap">柳住建罚〔2026〕82 号</td>
+            <td class="num">15</td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openDetail('WG2026001272')">查看详情</span>
+              <span class="link" onclick="openRecheck('WG2026001272')">复查</span>
+              <a class="link" href="fund-compliance.html">合规监测</a>
+            </td>
+          </tr>
+          <tr class="is-warn" data-type="未备案出租">
+            <td class="nowrap fw-600">WG2026001248</td>
+            <td class="cell-lg">卢某某</td>
+            <td class="nowrap">个人出租人</td>
+            <td class="nowrap"><span class="badge orange">未备案出租</span></td>
+            <td class="nowrap">部门移送</td>
+            <td class="nowrap">2026-07-24</td>
+            <td class="cell-lg">名下 3 套房屋实际出租未办理备案，公安流动人口登记与平台数据比对发现</td>
+            <td class="nowrap"><span class="badge orange">较重</span></td>
+            <td class="nowrap"><span class="badge orange">整改中</span></td>
+            <td class="nowrap"><span class="badge gray">警告</span></td>
+            <td class="num">0.00</td>
+            <td class="nowrap">柳住建告〔2026〕214 号</td>
+            <td class="num">3</td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openDetail('WG2026001248')">查看详情</span>
+              <span class="link" onclick="openRectify('WG2026001248')">整改反馈</span>
+              <a class="link" href="tenant-filing.html">承租人备案</a>
+            </td>
+          </tr>
+          <tr data-type="违规隔断出租">
+            <td class="nowrap fw-600">WG2026001214</td>
+            <td class="cell-lg">柳州安寓住房租赁有限公司 · 城中直营店</td>
+            <td class="nowrap">门店</td>
+            <td class="nowrap"><span class="badge orange">违规隔断出租</span></td>
+            <td class="nowrap">日常检查</td>
+            <td class="nowrap">2026-07-16</td>
+            <td class="cell-lg">将两房隔断为四间对外出租，人均使用面积低于 6 ㎡，未设独立疏散通道</td>
+            <td class="nowrap"><span class="badge orange">较重</span></td>
+            <td class="nowrap"><span class="badge green">已整改</span></td>
+            <td class="nowrap"><span class="badge orange">罚款</span></td>
+            <td class="num">10,000.00</td>
+            <td class="nowrap">柳住建罚〔2026〕74 号</td>
+            <td class="num">5</td>
+            <td class="nowrap">2026-07-26</td>
+            <td class="col-ops">
+              <span class="link" onclick="openDetail('WG2026001214')">查看详情</span>
+              <span class="link" onclick="openRecheck('WG2026001214')">复查</span>
+            </td>
+          </tr>
+          <tr data-type="克扣押金">
+            <td class="nowrap fw-600">WG2026001186</td>
+            <td class="cell-lg">陈某某</td>
+            <td class="nowrap">个人出租人</td>
+            <td class="nowrap"><span class="badge orange">克扣押金</span></td>
+            <td class="nowrap">投诉举报</td>
+            <td class="nowrap">2026-07-26</td>
+            <td class="cell-lg">退租时以墙面污渍为由扣除押金 1,800 元，未提供维修票据与验房记录，经调解退还 1,500 元</td>
+            <td class="nowrap"><span class="badge gray">一般</span></td>
+            <td class="nowrap"><span class="badge green">已整改</span></td>
+            <td class="nowrap"><span class="badge gray">警告</span></td>
+            <td class="num">0.00</td>
+            <td class="nowrap">柳住建告〔2026〕198 号</td>
+            <td class="num">2</td>
+            <td class="nowrap">2026-08-01</td>
+            <td class="col-ops">
+              <span class="link" onclick="openDetail('WG2026001186')">查看详情</span>
+              <a class="link" href="behavior-supervise.html">纠纷调处</a>
+            </td>
+          </tr>
+          <tr data-type="违规收费">
+            <td class="nowrap fw-600">WG2026001142</td>
+            <td class="cell-lg">石某某（执业编号 4502202400862）</td>
+            <td class="nowrap">经纪人</td>
+            <td class="nowrap"><span class="badge orange">违规收费</span></td>
+            <td class="nowrap">投诉举报</td>
+            <td class="nowrap">2026-07-08</td>
+            <td class="cell-lg">在明码标价之外收取「看房费」「加急费」合计 800 元，未开具票据</td>
+            <td class="nowrap"><span class="badge orange">较重</span></td>
+            <td class="nowrap"><span class="badge green">已整改</span></td>
+            <td class="nowrap"><span class="badge purple">移交执法</span></td>
+            <td class="num">2,000.00</td>
+            <td class="nowrap">柳市监罚〔2026〕126 号</td>
+            <td class="num">4</td>
+            <td class="nowrap">2026-07-22</td>
+            <td class="col-ops">
+              <span class="link" onclick="openDetail('WG2026001142')">查看详情</span>
+              <a class="link" href="enterprise-supervise.html">从业人员</a>
+            </td>
+          </tr>
+          <tr data-type="无照经营">
+            <td class="nowrap fw-600">WG2026001086</td>
+            <td class="cell-lg">柳州某公寓管理工作室</td>
+            <td class="nowrap">企业</td>
+            <td class="nowrap"><span class="badge orange">无照经营</span></td>
+            <td class="nowrap">媒体曝光</td>
+            <td class="nowrap">2026-06-18</td>
+            <td class="cell-lg">未办理开业报告即开展住房租赁经营，管理房源 62 套，无监管账户</td>
+            <td class="nowrap"><span class="badge red">严重</span></td>
+            <td class="nowrap"><span class="badge green">已整改</span></td>
+            <td class="nowrap"><span class="badge red">列入黑名单</span></td>
+            <td class="num">80,000.00</td>
+            <td class="nowrap">柳住建罚〔2026〕48 号</td>
+            <td class="num">20</td>
+            <td class="nowrap">2026-07-02</td>
+            <td class="col-ops">
+              <span class="link" onclick="openDetail('WG2026001086')">查看详情</span>
+              <a class="link" href="enterprise-report.html">开业报告</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <span><i class="fa-solid fa-user-shield"></i> 主体聚合视图</span>
+      <div class="filter-item" style="margin:0">
+        <label>选择主体</label>
+        <select id="subjSel" onchange="loadSubj(this.value)">
+          <option value="yujia">柳州寓家公寓管理有限公司</option>
+          <option value="guizhong">XXXX市桂中房产经纪有限公司</option>
+          <option value="lu">卢某某（个人出租人）</option>
+        </select>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="subj-layout">
+        <div>
+          <div class="section-title" id="subjTitle">柳州寓家公寓管理有限公司 · 违规轨迹</div>
+          <div class="timeline" id="subjTl"></div>
+        </div>
+        <div>
+          <div class="sum-card">
+            <div class="sc-t"><i class="fa-solid fa-clipboard-list"></i> 主体违规汇总</div>
+            <div class="sum-row"><span>累计违规次数</span><span class="sr-v" id="sumCnt">5 次</span></div>
+            <div class="sum-row"><span>累计扣分</span><span class="sr-v text-danger" id="sumScore">38 分</span></div>
+            <div class="sum-row"><span>累计罚款</span><span class="sr-v" id="sumFine">86,000.00 元</span></div>
+            <div class="sum-row"><span>当前信用等级</span><span class="sr-v" id="sumLevel"><span class="badge red">D 级 · 62 分</span></span></div>
+            <div class="sum-row"><span>是否黑名单</span><span class="sr-v" id="sumBlack"><span class="badge orange">重点关注</span></span></div>
+            <div class="sum-row"><span>业务拦截状态</span><span class="sr-v" id="sumBlock"><span class="badge red">暂停网签</span></span></div>
+            <button type="button" class="btn btn-primary mt-16" style="width:100%" onclick="genSubjReport()">
+              <i class="fa-solid fa-file-lines"></i> 生成主体违规通报
+            </button>
+            <a class="btn mt-8" style="width:100%" href="enterprise-supervise.html">
+              <i class="fa-solid fa-building"></i> 查看企业档案
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 登记违规抽屉 -->
+  <div class="drawer-mask" data-close-drawer></div>
+  <div class="drawer" id="drWg">
+    <div class="drawer-head">
+      <span>登记违规行为</span>
+      <i class="fa-solid fa-xmark" data-close-drawer></i>
+    </div>
+    <div class="drawer-body">
+      <div class="section-title">违规主体</div>
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>主体类型</label><span class="req">*</span>
+          <select><option>企业</option><option>门店</option><option>经纪人</option><option>个人出租人</option><option>承租人</option></select>
+        </div>
+        <div class="form-item">
+          <label>主体名称</label><span class="req">*</span>
+          <input type="text" placeholder="输入企业名称或个人姓名">
+        </div>
+        <div class="form-item col-full">
+          <label>关联合同 / 房源编号</label>
+          <input type="text" placeholder="如 ZLHT450200202600418">
+        </div>
+      </div>
+
+      <div class="section-title mt-16">违规情况</div>
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>违规类型</label><span class="req">*</span>
+          <select>
+            <option>未备案出租</option><option>虚假房源</option><option>违规隔断出租</option><option>克扣押金</option>
+            <option>违规收费</option><option>无照经营</option><option>租金贷违规</option><option>其他</option>
+          </select>
+        </div>
+        <div class="form-item">
+          <label>线索来源</label><span class="req">*</span>
+          <select><option>投诉举报</option><option>系统预警</option><option>日常检查</option><option>部门移送</option><option>媒体曝光</option></select>
+        </div>
+        <div class="form-item">
+          <label>发现时间</label><span class="req">*</span>
+          <input type="date" value="2026-08-01">
+        </div>
+        <div class="form-item">
+          <label>问题等级</label><span class="req">*</span>
+          <select><option>一般</option><option>较重</option><option>严重</option></select>
+        </div>
+        <div class="form-item">
+          <label>整改期限</label><span class="req">*</span>
+          <select><option>10 个工作日</option><option>15 个工作日</option><option>30 日</option></select>
+        </div>
+        <div class="form-item">
+          <label>信用扣分值</label><span class="req">*</span>
+          <input type="text" value="5">
+        </div>
+        <div class="form-item col-full">
+          <label>核查情况摘要</label><span class="req">*</span>
+          <textarea rows="3" placeholder="简要描述违规事实、核查过程与证据情况"></textarea>
+        </div>
+        <div class="form-item col-full">
+          <label>证据材料</label>
+          <div class="upload-box" onclick="PMS.toast('演示环境不支持真实上传')">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <div>上传现场照片、笔录、投诉工单、系统预警截图等（PDF / JPG）</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="saveWg()"><i class="fa-solid fa-check"></i> 登记并下达整改</button>
+    </div>
+  </div>
+
+  <!-- 违规详情抽屉 -->
+  <div class="drawer-mask" data-close-drawer></div>
+  <div class="drawer drawer-lg" id="drDetail">
+    <div class="drawer-head">
+      <span>违规详情 · <span id="dtNo">WG2026001286</span></span>
+      <i class="fa-solid fa-xmark" data-close-drawer></i>
+    </div>
+    <div class="drawer-body">
+      <div class="section-title">基本信息</div>
+      <dl class="desc-list">
+        <div class="desc-item full"><dt>违规主体</dt><dd class="fw-600">XXXX市桂中房产经纪有限公司（统一社会信用代码 91450200MA5K***X8G）</dd></div>
+        <div class="desc-item"><dt>主体类型</dt><dd>企业 · 房地产经纪机构</dd></div>
+        <div class="desc-item"><dt>违规类型</dt><dd>虚假房源</dd></div>
+        <div class="desc-item"><dt>线索来源</dt><dd>系统预警（发布编号 FB2026004128）</dd></div>
+        <div class="desc-item"><dt>发现时间</dt><dd>2026-07-30</dd></div>
+        <div class="desc-item"><dt>问题等级</dt><dd><span class="badge red">严重</span></dd></div>
+        <div class="desc-item"><dt>整改期限</dt><dd>2026-08-14</dd></div>
+        <div class="desc-item full">
+          <dt>核查情况</dt>
+          <dd>该机构发布的江与城 5 栋 1 单元 706 室房源，核验码已于 2026-06-30 到期失效仍在租房超市与第三方平台展示；发布图片与 2025-11-08 已下架房源图片相似度 96.8%；发布建筑面积 96.50 ㎡、户型三房两厅与登记库 86.24 ㎡、两房两厅不符；发布租金低于片区同户型市场水平 37.8%。限期 3 个工作日举证，未提交有效材料。</dd>
+        </div>
+      </dl>
+
+      <div class="section-title mt-16">处置过程</div>
+      <div class="timeline">
+        <div class="tl-item">
+          <div class="tl-dot"></div>
+          <div class="tl-title">系统预警命中</div>
+          <div class="tl-meta">2026-07-30 09:14 · 虚假房源识别引擎</div>
+          <div class="tl-desc">命中「核验码失效仍在展示」「房源图片查重」「租金显著偏离市场水平」三项规则，自动固定页面快照。</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot"></div>
+          <div class="tl-title">发出举证通知</div>
+          <div class="tl-meta">2026-07-30 09:26 · 韦国强</div>
+          <div class="tl-desc">短信与站内信各 1 条，举证期限 3 个工作日，截止 2026-08-04 09:26。</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot"></div>
+          <div class="tl-title">认定为虚假房源并强制下架</div>
+          <div class="tl-meta">2026-08-01 10:08 · 韦国强</div>
+          <div class="tl-desc">举证期内未提交有效材料，认定为虚假房源，房源在租房超市、微信小程序与第三方平台同步撤下。</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot"></div>
+          <div class="tl-title">记入违规台账并下达处罚</div>
+          <div class="tl-meta">2026-08-01 10:26 · 韦国强</div>
+          <div class="tl-desc">出具《柳住建罚〔2026〕86 号》，罚款 30,000.00 元，信用扣 8 分，报送市场监管、网信部门。</div>
+        </div>
+        <div class="tl-item pending">
+          <div class="tl-dot"></div>
+          <div class="tl-title">整改反馈与复查</div>
+          <div class="tl-meta">待办理 · 整改期限 2026-08-14</div>
+          <div class="tl-desc">企业须提交全量在展房源自查报告与核验码续期材料，逾期未反馈的升级为逾期未整改。</div>
+        </div>
+      </div>
+
+      <div class="section-title mt-16">关联记录</div>
+      <table class="data-table" data-static>
+        <thead>
+          <tr><th>关联类型</th><th>编号</th><th>说明</th><th style="width:96px">操作</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="nowrap">虚假房源处置</td><td class="nowrap">FB2026004128</td><td>证据固定、限期举证、认定与下架全过程留痕</td><td><a class="link" href="publisher-verify.html">查看</a></td></tr>
+          <tr><td class="nowrap">企业信用档案</td><td class="nowrap">ZLQY45020000063</td><td>信用等级 C 级 · 73 分，本次扣 8 分后为 65 分</td><td><a class="link" href="enterprise-supervise.html">查看</a></td></tr>
+          <tr><td class="nowrap">部门报告</td><td class="nowrap">BG2026000086</td><td>已报送市场监管、网信部门与发布渠道平台方</td><td><a class="link" href="data-share.html">查看</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+      <button type="button" class="btn" onclick="PMS.toast('已下载《行政处罚决定书》PDF','success')"><i class="fa-solid fa-file-pdf"></i> 处罚文书</button>
+      <button type="button" class="btn btn-primary" onclick="linkCredit(document.getElementById('dtNo').textContent, 8)"><i class="fa-solid fa-link"></i> 挂接信用</button>
+    </div>
+  </div>
+
+  <!-- 整改反馈抽屉 -->
+  <div class="drawer-mask" data-close-drawer></div>
+  <div class="drawer" id="drRectify">
+    <div class="drawer-head">
+      <span>登记整改反馈 · <span id="rfNo">WG2026001248</span></span>
+      <i class="fa-solid fa-xmark" data-close-drawer></i>
+    </div>
+    <div class="drawer-body">
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>反馈时间</label><span class="req">*</span>
+          <input type="date" value="2026-08-01">
+        </div>
+        <div class="form-item">
+          <label>整改状态</label><span class="req">*</span>
+          <select><option>整改中</option><option>已整改</option><option>逾期未整改</option></select>
+        </div>
+        <div class="form-item col-full">
+          <label>整改情况说明</label><span class="req">*</span>
+          <textarea rows="4">已补办 2 套房屋的租赁备案，剩余 1 套因承租人未配合提交材料，承诺 2026-08-10 前完成。</textarea>
+        </div>
+        <div class="form-item col-full">
+          <label>整改证明材料</label>
+          <div class="upload-box" onclick="PMS.toast('演示环境不支持真实上传')">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <div>上传备案证明、整改照片、书面承诺等</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('整改反馈已登记，待复查确认','success')"><i class="fa-solid fa-check"></i> 保存反馈</button>
+    </div>
+  </div>
+
+  <!-- 复查抽屉 -->
+  <div class="drawer-mask" data-close-drawer></div>
+  <div class="drawer" id="drRecheck">
+    <div class="drawer-head">
+      <span>整改复查 · <span id="rcNo">WG2026001214</span></span>
+      <i class="fa-solid fa-xmark" data-close-drawer></i>
+    </div>
+    <div class="drawer-body">
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>复查人</label><span class="req">*</span>
+          <input type="text" value="韦国强">
+        </div>
+        <div class="form-item">
+          <label>复查时间</label><span class="req">*</span>
+          <input type="date" value="2026-08-01">
+        </div>
+        <div class="form-item">
+          <label>复查方式</label><span class="req">*</span>
+          <select><option>现场复查</option><option>书面复查</option><option>系统核验</option></select>
+        </div>
+        <div class="form-item">
+          <label>复查结果</label><span class="req">*</span>
+          <select><option>整改到位</option><option>整改不到位</option><option>逾期未整改</option></select>
+        </div>
+        <div class="form-item col-full">
+          <label>复查意见</label><span class="req">*</span>
+          <textarea rows="4">现场复查已拆除违规隔断并恢复原户型，疏散通道畅通，人均使用面积符合要求，整改到位，予以办结。</textarea>
+        </div>
+      </div>
+      <div class="alert alert-info mt-16">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>复查结果为「整改不到位」或「逾期未整改」的，自动升级处罚类型并推送预警督办。</div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('复查结果已登记，该违规记录已办结','success')"><i class="fa-solid fa-check"></i> 保存并办结</button>
+    </div>
+  </div>
+
+  <!-- 处罚抽屉 -->
+  <div class="drawer-mask" data-close-drawer></div>
+  <div class="drawer" id="drFine">
+    <div class="drawer-head">
+      <span>登记处罚 · <span id="fnNo">WG2026001286</span></span>
+      <i class="fa-solid fa-xmark" data-close-drawer></i>
+    </div>
+    <div class="drawer-body">
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>处罚类型</label><span class="req">*</span>
+          <select><option>罚款</option><option>警告</option><option>暂停网签</option><option>列入黑名单</option><option>移交执法</option></select>
+        </div>
+        <div class="form-item">
+          <label>处罚金额(元)</label><span class="req">*</span>
+          <input type="text" value="30000.00">
+        </div>
+        <div class="form-item">
+          <label>处罚文书编号</label><span class="req">*</span>
+          <input type="text" value="柳住建罚〔2026〕86 号">
+        </div>
+        <div class="form-item">
+          <label>信用扣分值</label><span class="req">*</span>
+          <input type="text" value="8">
+        </div>
+        <div class="form-item">
+          <label>处罚决定日期</label><span class="req">*</span>
+          <input type="date" value="2026-08-01">
+        </div>
+        <div class="form-item">
+          <label>缴款期限</label><span class="req">*</span>
+          <input type="date" value="2026-08-15">
+        </div>
+        <div class="form-item col-full">
+          <label>处罚依据与理由</label><span class="req">*</span>
+          <textarea rows="3">依据《商品房屋租赁管理办法》及《房地产经纪管理办法》相关规定，对发布虚假房源信息的行为予以罚款处罚。</textarea>
+        </div>
+        <div class="form-item col-full">
+          <label>处罚文书</label>
+          <div class="upload-box" onclick="PMS.toast('演示环境不支持真实上传')">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <div>上传加盖公章的《行政处罚决定书》扫描件（PDF）</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('处罚已登记，信用扣 8 分已同步至从业主体信用档案','success')"><i class="fa-solid fa-check"></i> 保存处罚</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+var SUBJ = {
+  yujia: {
+    name: '柳州寓家公寓管理有限公司',
+    cnt: '5 次', score: '38 分', fine: '86,000.00 元',
+    level: '<span class="badge red">D 级 · 62 分</span>',
+    black: '<span class="badge orange">重点关注</span>',
+    block: '<span class="badge red">暂停网签</span>',
+    tl: [
+      ['2026-07-28', '租金贷违规', '暂停网签 + 罚款 50,000 元', 15, '租金贷未备案且未告知承租人，占年租金 62.4% 超上限'],
+      ['2026-07-15', '虚假房源', '强制下架 + 约谈', 4, '万科城房源租金偏离市场 46%，联系电话被 14 套房源复用'],
+      ['2026-06-20', '监管账户留存不足', '责令补足 + 冻结新增上架', 15, '租金监管专户余额低于最低留存金额 186 万元'],
+      ['2026-05-12', '违规收费', '警告', 2, '收取「服务费」未明码标价，经调解已退还'],
+      ['2026-03-08', '未备案出租', '责令限期备案', 2, '管理房源中 42 套超 30 日未办理备案']
+    ]
+  },
+  guizhong: {
+    name: 'XXXX市桂中房产经纪有限公司',
+    cnt: '3 次', score: '14 分', fine: '32,000.00 元',
+    level: '<span class="badge orange">C 级 · 65 分</span>',
+    black: '<span class="badge gray">否</span>',
+    block: '<span class="badge green">正常</span>',
+    tl: [
+      ['2026-07-30', '虚假房源', '强制下架 + 罚款 30,000 元', 8, '核验码失效仍在展示，图片查重 96.8%，信息与登记库不一致'],
+      ['2026-05-26', '违规收费', '移交执法 + 罚款 2,000 元', 4, '经纪人在明码标价之外收取看房费、加急费'],
+      ['2026-02-14', '未备案出租', '警告', 2, '代理出租房源 18 套未在 30 日内办理备案']
+    ]
+  },
+  lu: {
+    name: '卢某某（个人出租人）',
+    cnt: '2 次', score: '5 分', fine: '0.00 元',
+    level: '<span class="badge orange">重点关注</span>',
+    black: '<span class="badge gray">否</span>',
+    block: '<span class="badge green">正常</span>',
+    tl: [
+      ['2026-07-24', '未备案出租', '责令 10 日内补办', 3, '名下 3 套房屋实际出租未办理备案，公安登记比对发现'],
+      ['2026-04-18', '虚假房源', '下架并提示', 2, '代理发布授权委托已过期，房源信息与登记库不一致']
+    ]
+  }
+};
+
+function loadSubj(k) {
+  var d = SUBJ[k];
+  document.getElementById('subjTitle').textContent = d.name + ' · 违规轨迹';
+  document.getElementById('sumCnt').textContent = d.cnt;
+  document.getElementById('sumScore').textContent = d.score;
+  document.getElementById('sumFine').textContent = d.fine;
+  document.getElementById('sumLevel').innerHTML = d.level;
+  document.getElementById('sumBlack').innerHTML = d.black;
+  document.getElementById('sumBlock').innerHTML = d.block;
+  document.getElementById('subjTl').innerHTML = d.tl.map(function (t) {
+    return '<div class="tl-item"><div class="tl-dot"></div>' +
+      '<div class="tl-title">' + t[1] + ' · ' + t[2] + '</div>' +
+      '<div class="tl-meta">' + t[0] + ' · 信用扣 ' + t[3] + ' 分</div>' +
+      '<div class="tl-desc">' + t[4] + '</div></div>';
+  }).join('');
+}
+
+function pickType(name) {
+  document.getElementById('fType').value = name;
+  document.querySelectorAll('#tblWg tbody tr').forEach(function (tr) {
+    tr.style.display = tr.getAttribute('data-type') === name ? '' : 'none';
+  });
+  PMS.toast('已按「' + name + '」筛选台账');
+}
+
+function resetType() {
+  document.getElementById('fType').value = '';
+  document.querySelectorAll('#tblWg tbody tr').forEach(function (tr) { tr.style.display = ''; });
+  PMS.toast('已清除类型筛选');
+}
+
+function openDetail(no) { document.getElementById('dtNo').textContent = no; PMS.openDrawer('drDetail'); }
+function openRectify(no) { document.getElementById('rfNo').textContent = no; PMS.openDrawer('drRectify'); }
+function openRecheck(no) { document.getElementById('rcNo').textContent = no; PMS.openDrawer('drRecheck'); }
+function openFine(no) { document.getElementById('fnNo').textContent = no; PMS.openDrawer('drFine'); }
+
+function saveWg() {
+  PMS.closeDrawer();
+  PMS.toast('违规行为已登记，整改通知书已生成并送达', 'success');
+}
+
+function linkCredit(no, score) {
+  PMS.confirm({
+    title: '挂接信用',
+    message: '将违规记录 ' + no + ' 挂接至从业主体信用档案？',
+    detail: '挂接后按问题等级扣分，累计扣分导致等级降为 D 级的列入检查重点，两次 D 级列入黑名单。',
+    type: 'info',
+    okText: '挂接信用',
+    onOk: function () { PMS.toast('已同步至从业主体信用档案，扣 ' + score + ' 分', 'success'); }
+  });
+}
+
+function genReport() {
+  PMS.confirm({
+    title: '生成通报',
+    message: '生成本期租赁市场违规行为通报？',
+    detail: '通报按违规类型与主体汇总，含典型案例 5 例，生成后可对外公开发布。',
+    type: 'info',
+    okText: '生成通报',
+    onOk: function () { PMS.toast('《2026 年 7 月租赁市场违规行为通报》已生成', 'success'); }
+  });
+}
+
+function genSubjReport() {
+  var name = document.getElementById('subjSel').selectedOptions[0].text;
+  PMS.toast('已生成《' + name + '违规情况通报》PDF', 'success');
+}
+
+(function () {
+  loadSubj('yujia');
+  PMS.renderPager(document.getElementById('tblWg'), {
+    pageNum: 1, pageSize: 20, total: 1286,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+</script>
+</body>
+</html>

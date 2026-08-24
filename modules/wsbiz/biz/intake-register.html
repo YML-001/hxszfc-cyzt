@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>收件登记 · 统一工作门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="biz" data-active="intake-register">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 收件受理
+        <span class="sep">/</span> <span class="cur">收件登记</span>
+      </div>
+      <div class="page-title">收件登记</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="correction-apply.html?role=biz"><i class="fa-solid fa-rotate-left"></i> 更正撤销受理</a>
+      <a class="btn btn-primary" href="intake.html?role=biz"><i class="fa-solid fa-plus"></i> 新建收件</a>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-stamp"></i></div><div>
+      <div class="s-label">今日收件</div><div class="s-value" id="kToday">—</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-receipt"></i></div><div>
+      <div class="s-label">已出回执</div><div class="s-value" id="kReceipt">—</div></div></div>
+    <div class="stat-card"><div class="s-icon orange"><i class="fa-solid fa-file-pen"></i></div><div>
+      <div class="s-label">待补正</div><div class="s-value" id="kCorr">—</div></div></div>
+    <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-box-archive"></i></div><div>
+      <div class="s-label">已随办随归</div><div class="s-value" id="kArch">—</div><div class="s-trend text-success">推送房产档案</div></div></div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-clock"></i>
+    <span><b>一次性告知补正制</b>：同一办件只能发出一次补正通知，须列明全部补正内容与期限，避免多次退件。逾期未补正的按规则终止办理或退件。收件完成后材料影像<b>随办随归</b>自动推送房产档案。</span>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item"><label>收件编号 / 申请人</label><input type="text" id="fKw" placeholder="编号或申请人" oninput="repaint()"></div>
+      <div class="filter-item"><label>办理状态</label><select id="fBlzt" data-dict="blzt" onchange="repaint()"></select></div>
+      <div class="filter-item"><label>收件方式</label><select id="fSjfs" data-dict="sjfs" onchange="repaint()"></select></div>
+      <div class="filter-item"><label>属地</label><select id="fSaid" data-dict="said" onchange="repaint()"></select></div>
+      <button class="btn btn-primary" onclick="repaint()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+      <button class="btn" onclick="resetFilter()">重置</button>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tbReg" data-static>
+        <thead>
+          <tr><th>收件编号</th><th>事项名称</th><th>申请人</th><th>收件方式</th><th>收件时间</th>
+              <th>查询码</th><th>回执</th><th>归档</th><th>办理状态</th><th>操作</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- 出件文书 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="docDrawer">
+  <div class="drawer-head"><h3>出具文书</h3><span class="badge blue" id="ddNo">—</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>
+      <span>出件类型取章内 ZD8；不予受理必须注明依据与救济途径，出具后办件转为已退件。</span></div>
+    <div class="form-grid">
+      <div class="form-item"><label>出件类型<span class="req">*</span></label>
+        <select id="dCjlx" onchange="syncDoc()">
+          <option value="1">受理通知书</option>
+          <option value="2">不予受理通知书</option>
+          <option value="0">备案证明</option>
+          <option value="9">查档结果证明</option>
+          <option value="99">其他文书</option>
+        </select></div>
+      <div class="form-item"><label>模板</label>
+        <select id="dTpl">
+          <option>华信房产交易中心通用模板（2026 版）</option>
+          <option>省级统一格式模板</option>
+        </select></div>
+      <div class="form-item col-full" id="dReasonBox" style="display:none">
+        <label>依据与救济途径<span class="req">*</span></label>
+        <textarea id="dReason" rows="3" placeholder="如：不符合《华信房产交易备案管理办法》第十条规定的受理条件。如不服本决定，可在六十日内申请行政复议或六个月内提起行政诉讼。"></textarea>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="saveDoc()"><i class="fa-solid fa-stamp"></i> 出具文书</button>
+  </div>
+</div>
+
+<!-- 一次性补正通知 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="corrDrawer">
+  <div class="drawer-head"><h3>一次性补正通知</h3><span class="badge orange" id="cdNo">—</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation"></i>
+      <span>必须<b>一次性列明全部补正内容</b>，本办件后续不能再次发出补正通知。逾期未补正的可选择终止办理或退件。</span></div>
+    <div class="section-title">选择需要补正的内容</div>
+    <div id="corrItems"></div>
+    <div class="form-grid mt-16">
+      <div class="form-item"><label>补正期限（自然日）<span class="req">*</span></label>
+        <select id="cDays"><option value="5">5 日</option><option value="10" selected>10 日</option><option value="15">15 日</option><option value="30">30 日</option></select></div>
+      <div class="form-item col-full"><label>补充说明</label>
+        <textarea id="cNote" rows="2" placeholder="可补充具体的补正要求"></textarea></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="saveCorr()"><i class="fa-solid fa-file-pen"></i> 出具补正通知</button>
+  </div>
+</div>
+
+<!-- 归档明细 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="archDrawer">
+  <div class="drawer-head"><h3>归档明细</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body" id="archBody"></div>
+  <div class="drawer-foot"><button class="btn btn-primary" data-close-drawer>关闭</button></div>
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/flow-data.js"></script>
+<script src="../assets/js/flow.js"></script>
+<script>
+(function () {
+  var curId = null;
+  function val(id) { return (document.getElementById(id).value || '').trim(); }
+  window.resetFilter = function () {
+    ['fKw', 'fBlzt', 'fSjfs', 'fSaid'].forEach(function (id) { document.getElementById(id).value = ''; });
+    repaint(); PMS.toast('已重置查询条件');
+  };
+
+  function rows() {
+    var kw = val('fKw'), zt = val('fBlzt'), fs = val('fSjfs'), said = val('fSaid');
+    return FLOW.get('cases').slice().sort(function (a, b) { return b.sjsj - a.sjsj; })
+      .filter(function (c) {
+        if (kw && c.sjbh.indexOf(kw) < 0 && c.sqr.indexOf(kw) < 0) return false;
+        if (zt && c.blzt !== zt) return false;
+        if (fs && c.sjfs !== fs) return false;
+        if (said && c.said !== said) return false;
+        return true;
+      });
+  }
+  window.repaint = function () { FLOW.paint('tbReg'); syncKpi(); };
+  function syncKpi() {
+    document.getElementById('kToday').textContent = FLOW.stat('todayIntake');
+    document.getElementById('kReceipt').textContent = FLOW.where('cases', function (c) { return c.receiptAt; }).length;
+    document.getElementById('kCorr').textContent = FLOW.where('cases', function (c) { return c.blzt === '5'; }).length;
+    document.getElementById('kArch').textContent = FLOW.get('archives').length;
+  }
+
+  /* 功能点 28 收件回执 */
+  window.doReceipt = function (id) { FLOW.goto('intake-receipt.html', { id: id }); };
+
+  /* 功能点 29 受理结果告知 */
+  window.openDoc = function (id) {
+    curId = id;
+    var c = FLOW.byId('cases', id);
+    document.getElementById('ddNo').textContent = c.sjbh;
+    document.getElementById('dCjlx').value = '1';
+    document.getElementById('dReason').value = '';
+    syncDoc();
+    PMS.openDrawer('docDrawer');
+  };
+  window.syncDoc = function () {
+    document.getElementById('dReasonBox').style.display = (val('dCjlx') === '2') ? '' : 'none';
+  };
+  window.saveDoc = function () {
+    if (FLOW.act.issueNotice(curId, val('dCjlx'), val('dReason'))) PMS.closeDrawer('docDrawer');
+  };
+
+  /* 功能点 30 一次性补正通知 */
+  window.openCorr = function (id) {
+    curId = id;
+    var c = FLOW.byId('cases', id);
+    if (c.corrNotified) {
+      PMS.toast('该办件已发出一次性补正告知，不得重复告知', 'error');
+      return;
+    }
+    document.getElementById('cdNo').textContent = c.sjbh;
+    var mats = FLOW.where('materials', function (m) { return m.bjzj === id; });
+    document.getElementById('corrItems').innerHTML = mats.map(function (m) {
+      var suggest = !m.ok || (m.must && !m.got);
+      return '<label class="flex items-center gap-8" style="padding:8px 4px;border-bottom:1px solid var(--row-line);font-weight:400">' +
+        '<input type="checkbox" data-pick="' + FLOW.esc(m.clmc) + '"' + (suggest ? ' checked' : '') + '> ' +
+        FLOW.esc(m.clmc) +
+        (m.must ? ' <span class="badge red">必要</span>' : '') +
+        (!m.ok ? ' <span class="badge orange">形式要件不合格</span>' : '') +
+        (m.must && !m.got ? ' <span class="badge red">缺件</span>' : '') +
+        '</label>';
+    }).join('');
+    document.getElementById('cNote').value = '';
+    PMS.openDrawer('corrDrawer');
+  };
+  window.saveCorr = function () {
+    var items = FLOW.checked('corrItems');
+    var note = val('cNote');
+    if (note) items = items.concat([note]);
+    if (FLOW.act.issueCorrection(curId, items, Number(val('cDays')))) PMS.closeDrawer('corrDrawer');
+  };
+
+  /* 功能点 32 归档明细 */
+  window.openArch = function (id) {
+    var c = FLOW.byId('cases', id);
+    var a = FLOW.where('archives', function (x) { return x.bjzj === id; })[0];
+    var mats = FLOW.where('materials', function (m) { return m.bjzj === id && m.got; });
+    document.getElementById('archBody').innerHTML = a
+      ? '<div class="alert alert-success"><i class="fa-solid fa-box-archive"></i>' +
+        '<span>材料影像已按<b>随办随归</b>规则推送房产档案，无需人工移交纸质件。</span></div>' +
+        '<dl class="desc-list">' + row('档案编号', a.dabh) + row('收件编号', a.sjbh) +
+        row('归档方式', a.way) + row('归档时间', FLOW.fmt.time(a.czsj)) +
+        row('影像份数', a.count + ' 份') + '</dl>' +
+        '<div class="section-title mt-16" data-icon="fa-images">已归档材料</div>' +
+        '<dl class="desc-list">' + mats.map(function (m, i) {
+          return row('材料 ' + (i + 1), m.clmc + '（' + m.pages + ' 页 · ' + FLOW.dict('tjfs', m.tjfs) + '）');
+        }).join('') + '</dl>'
+      : '<div class="empty"><i class="fa-regular fa-box"></i><div>该办件尚未触发归档</div>' +
+        '<div class="mt-16"><button class="btn btn-primary" onclick="doArch(\'' + id + '\')">立即推送房产档案</button></div></div>';
+    PMS.openDrawer('archDrawer');
+  };
+  window.doArch = function (id) {
+    if (FLOW.act.archive(id)) { PMS.closeDrawer('archDrawer'); }
+  };
+  function row(label, value) {
+    return '<div class="desc-item"><dt>' + label + '</dt><dd>' + FLOW.esc(value == null || value === '' ? '—' : value) + '</dd></div>';
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    FLOW.table({
+      id: 'tbReg', pageSize: 10, empty: '没有匹配的收件记录', icon: 'fa-stamp',
+      rows: rows,
+      cells: function (c) {
+        var arch = FLOW.where('archives', function (a) { return a.bjzj === c.id; }).length;
+        var ops = ['<span class="link" onclick="event.stopPropagation();doReceipt(\'' + c.id + '\')">回执</span>',
+                   '<span class="link" onclick="event.stopPropagation();openDoc(\'' + c.id + '\')">出文书</span>'];
+        if (c.blzt === '1' || c.blzt === '0') {
+          ops.push('<span class="link" onclick="event.stopPropagation();openCorr(\'' + c.id + '\')">补正通知</span>');
+        }
+        if (c.blzt === '2') {
+          ops.push('<a class="link" href="correction-apply.html?role=biz&id=' + c.id + '">更正撤销</a>');
+        }
+        return [
+          '<td>' + FLOW.esc(c.sjbh) + '</td>',
+          '<td class="cell-lg">' + FLOW.esc(c.sxmc) + '</td>',
+          '<td>' + FLOW.esc(c.sqr) + '</td>',
+          '<td>' + FLOW.esc(FLOW.dict('sjfs', c.sjfs)) + '</td>',
+          '<td>' + FLOW.fmt.time(c.sjsj) + '</td>',
+          '<td class="fw-600 text-primary">' + FLOW.esc(c.cxm) + '</td>',
+          '<td>' + (c.receiptAt ? FLOW.badge(c.smsAt ? '已推送' : '已出具', 'green') : FLOW.badge('待出具', 'gray')) + '</td>',
+          '<td>' + (arch
+            ? '<span class="link" onclick="event.stopPropagation();openArch(\'' + c.id + '\')">已归档</span>'
+            : '<span class="link" onclick="event.stopPropagation();openArch(\'' + c.id + '\')">未归档</span>') + '</td>',
+          '<td>' + FLOW.ztBadge(c.blzt) + '</td>',
+          '<td>' + ops.join(' ') + '</td>'
+        ];
+      },
+      attrs: function (c) { return ' class="clickable" data-focus="' + c.id + '" onclick="doReceipt(\'' + c.id + '\')"'; },
+      after: syncKpi
+    });
+    FLOW.on(function () { FLOW.paint('tbReg'); syncKpi(); });
+  });
+})();
+</script>
+</body>
+</html>

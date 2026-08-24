@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>材料库管理 · 统一工作门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="biz" data-active="material-library">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 材料证照
+        <span class="sep">/</span> <span class="cur">材料库管理</span>
+      </div>
+      <div class="page-title">材料库管理</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-primary" onclick="openEdit()"><i class="fa-solid fa-plus"></i> 新增材料项</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <span><b>材料目录</b>统一维护平台全部材料项的定义，是事项材料清单的取值来源；标记<b>可复用</b>的材料会进入申请人材料库，再次办理时自动带出供勾选免交。</span>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-folder-tree"></i></div><div>
+      <div class="s-label">材料项总数</div><div class="s-value" id="kAll">—</div></div></div>
+    <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-recycle"></i></div><div>
+      <div class="s-label">可复用材料</div><div class="s-value" id="kReuse">—</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-users"></i></div><div>
+      <div class="s-label">申请人材料库</div><div class="s-value" id="kApp">—</div><div class="s-trend text-primary">已归集主体数</div></div></div>
+    <div class="stat-card"><div class="s-icon orange"><i class="fa-solid fa-clock"></i></div><div>
+      <div class="s-label">有有效期限制</div><div class="s-value" id="kExpire">—</div></div></div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="def" onclick="setTab('def')">材料目录清单</div>
+      <div class="tab" data-tab="app" onclick="setTab('app')">申请人材料库</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="def">
+      <div class="filter-bar">
+        <div class="filter-item"><label>材料名称</label><input type="text" id="fKw" placeholder="材料名称或编码" oninput="repaint()"></div>
+        <div class="filter-item"><label>材料类型</label><select id="fType" onchange="repaint()"></select></div>
+        <div class="filter-item"><label>可复用</label>
+          <select id="fReuse" onchange="repaint()"><option value="">全部</option><option value="1">可复用</option><option value="0">不可复用</option></select></div>
+        <button class="btn btn-primary" onclick="repaint()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button class="btn" onclick="resetFilter()">重置</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="tbDef" data-static>
+          <thead><tr><th>材料编码</th><th>材料名称</th><th>材料类型</th><th>格式要求</th>
+                     <th>有效期</th><th>可复用</th><th class="num">使用次数</th><th class="num">补正次数</th><th>操作</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="app">
+      <div class="filter-bar">
+        <div class="filter-item" style="flex:1"><label>选择申请人</label>
+          <select id="appSel" onchange="renderApp()" style="width:100% !important"></select></div>
+      </div>
+      <div class="card-body" id="appPanel"></div>
+    </div>
+  </div>
+</main>
+
+<!-- 材料项编辑 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="editDrawer">
+  <div class="drawer-head"><h3 id="edTitle">材料项</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>
+      <span>保存后事项办事指南的材料清单可选项即时同步；勾选可复用的材料才会进入申请人材料库。</span></div>
+    <div class="form-grid">
+      <div class="form-item"><label>材料名称<span class="req">*</span></label><input type="text" id="eName" placeholder="如 居民身份证"></div>
+      <div class="form-item"><label>材料类型<span class="req">*</span></label>
+        <select id="eType">
+          <option>身份证明</option><option>主体资格</option><option>委托材料</option>
+          <option>许可证照</option><option>合同文本</option><option>权属证明</option>
+          <option>技术报告</option><option>税费凭证</option><option>其他</option>
+        </select></div>
+      <div class="form-item"><label>格式要求</label>
+        <select id="eGs"><option>PDF</option><option>PDF/JPG</option><option>JPG</option><option>不限</option></select></div>
+      <div class="form-item"><label>有效期（月，0 表示长期）</label><input type="number" id="eYxq" min="0" value="0"></div>
+      <div class="form-item col-full">
+        <label>可复用标识</label>
+        <label class="flex items-center gap-8" style="font-weight:400"><input type="checkbox" id="eReuse"> 允许在申请人材料库中复用</label>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="saveDef()"><i class="fa-solid fa-check"></i> 保存</button>
+  </div>
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/flow-data.js"></script>
+<script src="../assets/js/flow.js"></script>
+<script>
+(function () {
+  var tab = 'def', editingId = null;
+  function val(id) { return (document.getElementById(id).value || '').trim(); }
+  window.setTab = function (t) {
+    tab = t;
+    document.querySelectorAll('.tabs .tab').forEach(function (el) {
+      el.classList.toggle('active', el.getAttribute('data-tab') === tab);
+    });
+    document.querySelectorAll('.tab-panel').forEach(function (p) {
+      p.classList.toggle('active', p.getAttribute('data-panel') === tab);
+    });
+    if (tab === 'app') renderApp(); else FLOW.paint('tbDef');
+  };
+  window.resetFilter = function () {
+    ['fKw', 'fType', 'fReuse'].forEach(function (id) { document.getElementById(id).value = ''; });
+    repaint(); PMS.toast('已重置查询条件');
+  };
+
+  function rows() {
+    var kw = val('fKw'), t = val('fType'), r = val('fReuse');
+    return FLOW.where('materialDefs', function (m) {
+      if (kw && m.clmc.indexOf(kw) < 0 && m.cldm.indexOf(kw) < 0) return false;
+      if (t && m.cllx !== t) return false;
+      if (r !== '' && String(m.reuse) !== r) return false;
+      return true;
+    });
+  }
+  window.repaint = function () { FLOW.paint('tbDef'); syncKpi(); };
+  function syncKpi() {
+    var all = FLOW.get('materialDefs');
+    document.getElementById('kAll').textContent = all.length;
+    document.getElementById('kReuse').textContent = all.filter(function (m) { return m.reuse; }).length;
+    document.getElementById('kExpire').textContent = all.filter(function (m) { return m.yxq > 0; }).length;
+    var names = {};
+    FLOW.get('cases').forEach(function (c) { names[c.sqr] = 1; });
+    document.getElementById('kApp').textContent = Object.keys(names).length;
+  }
+
+  /* 功能点 41 材料目录清单管理 */
+  window.openEdit = function (id) {
+    editingId = id || null;
+    var m = id ? FLOW.byId('materialDefs', id) : { clmc: '', cllx: '身份证明', gs: 'PDF', yxq: 0, reuse: 0 };
+    document.getElementById('edTitle').textContent = id ? ('编辑：' + m.clmc) : '新增材料项';
+    document.getElementById('eName').value = m.clmc;
+    document.getElementById('eType').value = m.cllx;
+    document.getElementById('eGs').value = m.gs;
+    document.getElementById('eYxq').value = m.yxq;
+    document.getElementById('eReuse').checked = !!m.reuse;
+    PMS.openDrawer('editDrawer');
+  };
+  window.saveDef = function () {
+    var ok = FLOW.act.saveMaterialDef({
+      id: editingId, clmc: val('eName'), cllx: val('eType'), gs: val('eGs'),
+      yxq: val('eYxq'), reuse: document.getElementById('eReuse').checked
+    });
+    if (ok) PMS.closeDrawer('editDrawer');
+  };
+  window.suggest = function (name) { FLOW.act.optimizeChecklist(name); };
+
+  /* 功能点 42 申请人材料库 */
+  window.renderApp = function () {
+    var sqr = val('appSel');
+    var mats = FLOW.act.applicantMaterials(sqr);
+    var cases = FLOW.where('cases', function (c) { return c.sqr === sqr; });
+    /* 按材料名称归并，保留最近一次提交 */
+    var byName = {};
+    mats.forEach(function (m) {
+      var c = FLOW.byId('cases', m.bjzj);
+      if (!byName[m.clmc] || (c && c.sjsj > byName[m.clmc].sjsj)) {
+        byName[m.clmc] = { m: m, sjsj: c ? c.sjsj : 0, sjbh: c ? c.sjbh : '—' };
+      }
+    });
+    var list = Object.keys(byName).map(function (k) { return byName[k]; });
+
+    document.getElementById('appPanel').innerHTML =
+      '<div class="alert alert-info"><i class="fa-solid fa-circle-info"></i><span>' +
+      FLOW.esc(sqr) + ' 在平台共有 <b>' + cases.length + '</b> 件办件，已归集 <b>' + list.length +
+      '</b> 类材料；标记可复用且在有效期内的材料，再次办理时可勾选免交。</span></div>' +
+      (list.length
+        ? '<div class="table-wrap"><table class="data-table" data-static><thead><tr>' +
+          '<th>材料名称</th><th>材料类型</th><th>最近提交办件</th><th>提交方式</th><th>有效期</th><th>可复用</th><th>操作</th>' +
+          '</tr></thead><tbody>' + list.map(function (x) {
+            var def = null;
+            FLOW.get('materialDefs').some(function (d) { if (d.clmc === x.m.clmc) { def = d; return true; } return false; });
+            var reuse = def && def.reuse;
+            var expired = false;
+            if (def && def.yxq > 0) {
+              expired = (Date.now() - x.sjsj) > def.yxq * 30 * 86400000;
+            }
+            return '<tr><td>' + FLOW.esc(x.m.clmc) + '</td>' +
+              '<td>' + FLOW.esc(def ? def.cllx : '—') + '</td>' +
+              '<td>' + FLOW.esc(x.sjbh) + '<div class="text-3 text-sm">' + FLOW.fmt.date(x.sjsj) + '</div></td>' +
+              '<td>' + FLOW.esc(FLOW.dict('tjfs', x.m.tjfs)) + '</td>' +
+              '<td>' + (def && def.yxq ? (def.yxq + ' 个月' + (expired ? ' <span class="badge red">已过期</span>' : ' <span class="badge green">有效</span>')) : '长期有效') + '</td>' +
+              '<td>' + (reuse ? FLOW.badge('可复用', 'green') : FLOW.badge('不可复用', 'gray')) + '</td>' +
+              '<td>' + (reuse && !expired
+                ? '<a class="link" href="material-exempt.html?role=biz&sqr=' + encodeURIComponent(sqr) + '">去复用</a>'
+                : '<span class="text-3">—</span>') + '</td></tr>';
+          }).join('') + '</tbody></table></div>'
+        : '<div class="empty"><i class="fa-regular fa-folder-open"></i><div>该申请人暂无归集材料</div></div>');
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    /* 材料类型下拉取自真实数据 */
+    var types = {};
+    FLOW.get('materialDefs').forEach(function (m) { types[m.cllx] = 1; });
+    document.getElementById('fType').innerHTML = '<option value="">全部</option>' +
+      Object.keys(types).map(function (t) { return '<option value="' + t + '">' + t + '</option>'; }).join('');
+    /* 申请人下拉 */
+    var names = {};
+    FLOW.get('cases').forEach(function (c) { names[c.sqr] = (names[c.sqr] || 0) + 1; });
+    document.getElementById('appSel').innerHTML = Object.keys(names)
+      .sort(function (a, b) { return names[b] - names[a]; })
+      .map(function (n) { return '<option value="' + FLOW.esc(n) + '">' + FLOW.esc(n) + '（' + names[n] + ' 件办件）</option>'; }).join('');
+
+    FLOW.table({
+      id: 'tbDef', pageSize: 10, empty: '没有匹配的材料项', icon: 'fa-folder-tree',
+      rows: rows,
+      cells: function (m) {
+        return [
+          '<td>' + FLOW.esc(m.cldm) + '</td>',
+          '<td class="cell-lg">' + FLOW.esc(m.clmc) + '</td>',
+          '<td>' + FLOW.esc(m.cllx) + '</td>',
+          '<td>' + FLOW.esc(m.gs) + '</td>',
+          '<td>' + (m.yxq ? m.yxq + ' 个月' : '长期有效') + '</td>',
+          '<td>' + (m.reuse ? FLOW.badge('可复用', 'green') : FLOW.badge('不可复用', 'gray')) + '</td>',
+          '<td class="num">' + m.useCount + '</td>',
+          '<td class="num">' + (m.bzCount > 10 ? '<span class="text-danger fw-600">' + m.bzCount + '</span>' : m.bzCount) + '</td>',
+          '<td><span class="link" onclick="event.stopPropagation();openEdit(\'' + m.id + '\')">编辑</span>' +
+            (m.bzCount > 10 ? ' <span class="link" onclick="event.stopPropagation();suggest(\'' + FLOW.esc(m.clmc) + '\')">优化建议</span>' : '') + '</td>'
+        ];
+      },
+      attrs: function (m) { return ' class="clickable" onclick="openEdit(\'' + m.id + '\')"'; },
+      after: syncKpi
+    });
+    FLOW.on(function () {
+      if (tab === 'def') FLOW.paint('tbDef'); else renderApp();
+      syncKpi();
+    });
+  });
+})();
+</script>
+</body>
+</html>

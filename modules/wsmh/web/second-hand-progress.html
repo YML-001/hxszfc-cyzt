@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>二手房办理进度查询 · 统一服务门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  .shp-body { padding: 0 0 40px; }
+  .shp-query {
+    background: linear-gradient(120deg, var(--primary-deep), var(--primary) 68%, #4272d8);
+    border-radius: var(--radius-card); padding: 22px 26px; color: #fff; margin-bottom: 18px;
+  }
+  .shp-query h3 { font-size: 18px; }
+  .shp-query .qd { font-size: 13px; opacity: .88; margin-top: 6px; line-height: 1.8; }
+  .shp-query .qrow { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; align-items: flex-end; }
+  .shp-query .qi { flex: 1; min-width: 170px; }
+  .shp-query .qi label { display: block; font-size: 12.5px; opacity: .85; margin-bottom: 5px; }
+  .shp-query .qsp { color: rgba(255, 255, 255, .6); font-size: 13px; padding-bottom: 9px; }
+  .shp-cert { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card); padding: 18px 20px; margin-top: 16px; }
+  .shp-cert .sc-h { display: flex; align-items: center; gap: 10px; }
+  .shp-cert .sc-h h3 { font-size: 16px; }
+  .cert-view { border: 2px solid var(--primary-soft); border-radius: 8px; padding: 22px 24px; background: #fdfefe; }
+  .cert-view .cv-t { text-align: center; font-size: 21px; font-weight: 700; letter-spacing: 3px; color: var(--primary-deep); }
+  .cert-view .cv-s { text-align: center; font-size: 12.5px; color: var(--text-3); margin-top: 6px; letter-spacing: 1px; }
+  .cert-view .cv-b { font-size: 14px; line-height: 2.2; margin-top: 18px; text-indent: 2em; color: var(--text-1); }
+  .cert-view .cv-f { display: flex; align-items: flex-end; gap: 18px; margin-top: 20px; }
+  .cert-view .cv-qr {
+    width: 96px; height: 96px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-soft);
+    display: flex; align-items: center; justify-content: center; font-size: 44px; color: var(--primary); flex: none;
+  }
+  .cert-view .cv-i { flex: 1; font-size: 12.5px; color: var(--text-2); line-height: 2; }
+  .cert-view .cv-i b { color: var(--accent); font-family: "DIN Alternate", var(--font); font-size: 16px; letter-spacing: 2px; }
+  .cert-view .cv-seal { text-align: center; font-size: 12.5px; color: var(--text-3); line-height: 2; flex: none; }
+  .cert-view .cv-seal .sl {
+    width: 84px; height: 84px; border: 2px solid var(--accent); border-radius: 50%; color: var(--accent);
+    display: flex; align-items: center; justify-content: center; font-size: 11px; text-align: center;
+    margin: 0 auto 4px; opacity: .82; padding: 8px; line-height: 1.4;
+  }
+</style>
+</head>
+<body data-nav="service">
+
+<div class="wrap">
+  <div class="crumb"><a href="home.html">首页</a><i class="fa-solid fa-angle-right"></i>
+    <a href="service-hall.html">业务办理</a><i class="fa-solid fa-angle-right"></i>二手房办理进度查询</div>
+</div>
+
+<div class="wrap shp-body">
+  <!-- 查询条 -->
+  <div class="shp-query">
+    <h3><i class="fa-solid fa-magnifying-glass-chart"></i> 办理进度查询</h3>
+    <div class="qd">凭<b>办件编号</b>可直接查询；不记得编号的，用<b>证件号码 + 姓名</b>查询本人名下全部办件。
+      备案、资金监管、纳税过户三类进度统一在此查看，数据与广西政务服务网同源，无需登录即可查基本进度。</div>
+    <div class="qrow">
+      <div class="qi"><label>办件编号</label><input class="input" id="q-bh" placeholder="如 BJ2026001861"></div>
+      <span class="qsp">或</span>
+      <div class="qi"><label>证件号码</label><input class="input" id="q-zj" placeholder="申请人身份证号" maxlength="18"></div>
+      <div class="qi"><label>姓名</label><input class="input" id="q-xm" placeholder="申请人姓名"></div>
+      <button class="btn btn-accent btn-lg" style="flex:none" id="q-go" data-fp="wsmh-17-01">
+        <i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+      <button class="btn btn-lg" style="flex:none;background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.4);color:#fff" id="q-mine">
+        <i class="fa-solid fa-list-check"></i> 我的全部办件</button>
+    </div>
+  </div>
+
+  <!-- 办件列表 / 空态 -->
+  <div id="shp-list"></div>
+
+  <!-- 查询结果 -->
+  <div id="shp-result" class="hide">
+    <div class="card mb-16">
+      <div class="card-head"><h3 id="res-t"><i class="fa-solid fa-file-lines text-primary"></i> 办件进度</h3>
+        <span class="sub" id="res-sub"></span>
+        <div class="ca"><button class="btn btn-sm" id="res-back"><i class="fa-solid fa-angle-left"></i> 返回办件列表</button></div></div>
+      <div class="card-body np" id="res-base"></div>
+    </div>
+
+    <div class="tabs" data-tabs data-scope="shp-box">
+      <a class="on" data-tab="sp-record" data-fp="wsmh-17-01">备案进度</a>
+      <a data-tab="sp-fund" data-fp="wsmh-17-02">资金监管进度</a>
+      <a data-tab="sp-tax" data-fp="wsmh-17-03">纳税过户进度</a>
+    </div>
+
+    <div id="shp-box">
+      <div class="tab-pane on" id="sp-record">
+        <div id="rec-alert"></div>
+        <div class="card">
+          <div class="card-head"><h3><i class="fa-solid fa-stamp text-primary"></i> 网签备案进度</h3>
+            <span class="sub">在线提交 → 收件受理 → 业务审核 → 办结出件</span></div>
+          <div class="card-body"><div class="timeline" id="rec-tl"></div></div>
+        </div>
+      </div>
+
+      <div class="tab-pane" id="sp-fund">
+        <div class="stat-grid mb-16" id="fund-stat"></div>
+        <div class="card">
+          <div class="card-head"><h3><i class="fa-solid fa-shield-halved text-primary"></i> 交易资金监管进度</h3>
+            <span class="sub">资金全程在监管专户，过户完成后解付给卖方</span></div>
+          <div class="card-body"><div class="timeline" id="fund-tl"></div></div>
+        </div>
+        <div class="alert alert-warning mt-16" style="margin-bottom:0">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span>购房款必须缴入监管专户，<b>任何要求把房款转入个人账户的都是高风险行为</b>。
+            监管期间资金不得挪用；交易未成的，按协议原路退回买方。监管账户与合作银行名录在
+            <a href="public-fund.html">信息公示 → 资金监管类公示</a>可核对。</span>
+        </div>
+      </div>
+
+      <div class="tab-pane" id="sp-tax">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-building-columns"></i>
+          <span>纳税与过户环节涉及<b>税务部门</b>与<b>不动产登记中心</b>跨部门协同。
+            备案信息经数据共享推送，无需重复提交材料；各环节办理时限与责任部门如下。
+            税费金额以税务机关核定为准，可先用<a href="tool-tax.html">交易税费试算</a>估算。</span>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3><i class="fa-solid fa-receipt text-primary"></i> 纳税与过户进度</h3>
+            <span class="sub">纳税申报 → 税款缴纳 → 不动产过户登记 → 领取产权证</span></div>
+          <div class="card-body"><div class="timeline" id="tax-tl"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 备案证明获取（wsmh-17-04） -->
+    <div class="shp-cert">
+      <div class="sc-h">
+        <h3><i class="fa-solid fa-file-shield text-accent"></i> 备案证明获取</h3>
+        <span class="sub text-3 text-xs" id="cert-tip"></span>
+        <div class="ml-auto flex gap-8">
+          <button class="btn btn-accent" id="btn-cert" data-fp="wsmh-17-04"><i class="fa-solid fa-file-shield"></i> 获取备案证明</button>
+          <a class="btn" href="../person/my-cert.html" data-fp="wsmh-30-08"><i class="fa-solid fa-folder-open"></i> 我的证照与票据</a>
+        </div>
+      </div>
+      <div id="cert-box"></div>
+    </div>
+  </div>
+
+  <div id="src-note"></div>
+</div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+var cur = null;
+
+function pageInit() {
+  var tab = UI.param('tab');
+  if (tab) { var t = document.querySelector('[data-tab="' + tab + '"]'); if (t) t.click(); }
+
+  var bh = UI.param('bh');
+  if (bh) {
+    document.getElementById('q-bh').value = bh;
+    cur = PORTAL.caseOf(bh) || null;
+  }
+
+  document.getElementById('q-go').onclick = doQuery;
+  document.getElementById('q-mine').onclick = function () { cur = null; render(); };
+  document.getElementById('res-back').onclick = function () { cur = null; render(); };
+  document.getElementById('btn-cert').onclick = doCert;
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && (e.target.id === 'q-bh' || e.target.id === 'q-zj' || e.target.id === 'q-xm')) doQuery();
+  });
+
+  render();
+  PORTAL.on(function () { if (cur) cur = PORTAL.caseOf(cur.bh) || cur; render(); });
+
+  document.getElementById('src-note').innerHTML = UI.sourceNote(
+    '办件进度来源于存量房交易网签备案管理系统；资金监管节点来源于监管银行回单；纳税与过户节点来源于税务、不动产登记部门共享数据。');
+}
+
+function doQuery() {
+  var bh = document.getElementById('q-bh').value.trim();
+  var zj = document.getElementById('q-zj').value.trim();
+  var xm = document.getElementById('q-xm').value.trim();
+  if (bh) {
+    var c = PORTAL.caseOf(bh);
+    if (!c) {
+      cur = null; render();
+      UI.toast('未查询到办件编号「' + UI.esc(bh) + '」，请核对编号；也可用证件号 + 姓名查询本人全部办件', 'error');
+      return;
+    }
+    cur = c; render();
+    UI.toast('已查询到办件 ' + c.bh + '，当前状态「' + UI.esc(c.ztmc) + '」', 'success');
+    PORTAL.act('query.log', { dx: c.bh + ' ' + c.sxmc, lx: '网签备案进度查询', yt: '自用' });
+    return;
+  }
+  if (zj && xm) {
+    cur = null; render();
+    UI.toast('已按「' + UI.esc(xm) + ' ' + PORTAL.mask('id', zj) + '」检索到 ' + PORTAL.cases().length + ' 件办件，请在下方列表选择', 'success');
+    PORTAL.act('query.log', { dx: xm + ' 名下办件', lx: '网签备案进度查询', yt: '自用' });
+    return;
+  }
+  UI.toast('请输入办件编号，或同时填写证件号码与姓名', 'warning');
+}
+
+function render() {
+  if (!cur) { document.getElementById('shp-result').className = 'hide'; renderList(); return; }
+  document.getElementById('shp-list').innerHTML = '';
+  document.getElementById('shp-result').className = '';
+  renderBase();
+  renderRecord();
+  renderFund();
+  renderTax();
+  renderCertArea();
+}
+
+/* ---------------- 办件列表 ---------------- */
+function renderList() {
+  var arr = PORTAL.cases();
+  var box = document.getElementById('shp-list');
+  if (!arr.length) {
+    box.innerHTML = '<div class="card"><div class="card-body">'
+      + UI.empty('暂无可查询的办件', '您还没有提交过办件，可先到二手房自助办理提交申请',
+        '<a class="btn btn-primary" href="second-hand-apply.html"><i class="fa-solid fa-bolt"></i> 去二手房自助办理</a>')
+      + '</div></div>';
+    return;
+  }
+  box.innerHTML = '<div class="card"><div class="card-head">'
+    + '<h3><i class="fa-solid fa-list-check text-primary"></i> 本人办件列表</h3>'
+    + '<span class="sub">共 ' + arr.length + ' 件，点击「查看进度」展开三类进度</span>'
+    + '<div class="ca"><a class="btn btn-sm" href="../person/my-case.html">个人中心 · 我的办件</a></div></div>'
+    + '<div class="card-body np"><table class="pub-table"><thead><tr>'
+    + '<th style="width:160px">办件编号</th><th>办理事项</th><th style="width:210px">房屋坐落</th>'
+    + '<th style="width:130px">承办科室</th><th style="width:160px">申请时间</th>'
+    + '<th style="width:110px">状态</th><th style="width:150px">操作</th></tr></thead><tbody>'
+    + arr.map(function (c) {
+      return '<tr><td class="strong">' + c.bh + '</td>'
+        + '<td>' + UI.esc(c.sxmc) + '</td>'
+        + '<td>' + UI.esc(c.fw || '—') + '</td>'
+        + '<td>' + UI.esc(c.dept) + '</td>'
+        + '<td>' + c.sqrq + '</td>'
+        + '<td>' + PORTAL.caseBadge(c) + (c.zt === '3' ? ' <span class="text-warning text-xs">剩 ' + c.xqts + ' 天</span>' : '') + '</td>'
+        + '<td class="acts"><a href="javascript:;" data-see="' + c.bh + '" data-fp="wsmh-17-01">查看进度</a>'
+        + '<a href="../person/my-case-detail.html?id=' + c.id + '">办件详情</a></td></tr>';
+    }).join('')
+    + '</tbody></table>'
+    + '<div class="table-note"><i class="fa-solid fa-circle-info"></i> 列表按申请时间倒序。'
+    + '「待补正」办件请在告知期限内一次性补齐材料，逾期未补正的将作退件处理。</div>'
+    + '</div></div>';
+  box.querySelectorAll('[data-see]').forEach(function (a) {
+    a.onclick = function () {
+      cur = PORTAL.caseOf(a.getAttribute('data-see'));
+      document.getElementById('q-bh').value = cur ? cur.bh : '';
+      render();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+  });
+}
+
+/* ---------------- 基本信息 ---------------- */
+function renderBase() {
+  var c = cur, it = PORTAL.item(c.sxdm);
+  document.getElementById('res-t').innerHTML = '<i class="fa-solid fa-file-lines text-primary"></i> ' + UI.esc(c.sxmc);
+  document.getElementById('res-sub').innerHTML = '办件编号 ' + c.bh + '　' + PORTAL.caseBadge(c);
+  document.getElementById('res-base').innerHTML =
+    '<div class="desc-list c2" style="border:0;border-radius:0"><dl>'
+    + '<dt>办件编号</dt><dd><b>' + c.bh + '</b></dd>'
+    + '<dt>办理事项</dt><dd>' + UI.esc(c.sxmc) + (it ? '（' + it.code + '）' : '') + '</dd>'
+    + '<dt>房屋坐落</dt><dd>' + UI.esc(c.fw || '—') + '</dd>'
+    + '<dt>承办科室</dt><dd>' + UI.esc(c.dept) + '</dd>'
+    + '<dt>申请时间</dt><dd>' + c.sqrq + '</dd>'
+    + '<dt>承诺办结</dt><dd>' + (it ? '<b class="text-accent">' + it.nsrq + '</b> 个工作日（法定 ' + it.fdrq + ' 个）' : '按事项承诺时限') + '</dd>'
+    + '<dt>当前状态</dt><dd>' + PORTAL.caseBadge(c) + '</dd>'
+    + '<dt>办结时间</dt><dd>' + (c.bjrq || '未办结') + '</dd>'
+    + '<dt>申报渠道</dt><dd>' + UI.esc(c.source || '门户网站') + '</dd>'
+    + '<dt>提交材料</dt><dd>' + (c.files && c.files.length ? c.files.map(function (f) { return UI.esc(f); }).join('、') : '电子证照直接调取') + '</dd>'
+    + '</dl></div>';
+}
+
+/* ---------------- Tab1 备案进度（wsmh-17-01） ---------------- */
+function renderRecord() {
+  var c = cur;
+  var alertBox = document.getElementById('rec-alert');
+  var h = '';
+  if (c.zt === '3') {
+    h = '<div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation"></i>'
+      + '<span><b>本办件需要补正材料，剩余 ' + c.xqts + ' 天。</b>补正要求：' + UI.esc(c.bzyq)
+      + '　逾期未补正的将作退件处理，补正后办件回到「已受理」继续审核，无需重新排队。'
+      + '<a class="btn btn-sm btn-accent" style="margin-left:10px" href="../person/my-case-detail.html?id=' + c.id
+      + '" data-fp="wsmh-30-01"><i class="fa-solid fa-cloud-arrow-up"></i> 去在线补交</a></span></div>';
+  } else if (c.zt === '5') {
+    h = '<div class="alert alert-danger"><i class="fa-solid fa-circle-xmark"></i>'
+      + '<span><b>本办件已退件。</b>退件原因：' + UI.esc(c.tjly)
+      + '　消除退件情形后可重新申报；对退件结论有异议的，可通过咨询投诉渠道申请复核。'
+      + '<a class="btn btn-sm" style="margin-left:10px" href="second-hand-apply.html"><i class="fa-solid fa-rotate-left"></i> 重新申报</a>'
+      + '<a class="btn btn-sm" style="margin-left:6px" href="complaint.html"><i class="fa-solid fa-comment-dots"></i> 申请复核</a></span></div>';
+  } else if (c.zt === '4') {
+    h = '<div class="alert alert-success"><i class="fa-solid fa-circle-check"></i>'
+      + '<span><b>本办件已于 ' + c.bjrq + ' 办结。</b>备案证明已生成，可在本页底部「获取备案证明」下载电子件并扫码验真，'
+      + '也可在「个人中心 → 我的证照与票据」查看。</span></div>';
+  } else {
+    h = '<div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>'
+      + '<span>办件正在办理中，每个环节状态变化都会推送站内消息与短信。'
+      + '超过承诺时限未办结的，可通过<a href="complaint.html">咨询投诉</a>催办。</span></div>';
+  }
+  alertBox.innerHTML = h;
+
+  var TIP = [
+    ['申请人在线提交申报信息与材料，系统完成完整性校验', '申请人自助'],
+    ['收件人员核对材料齐全性与法定形式，材料齐全的当场受理', '综合受理科'],
+    ['业务科室核验权属、限制交易情形与合同要素', c.dept],
+    ['审核通过后办结出件，生成备案编号与电子备案证明', c.dept]
+  ];
+  document.getElementById('rec-tl').innerHTML = c.steps.map(function (s, i) {
+    var cls = s.s === 1 ? 'done' : (s.s === 0 ? 'wait' : 'on');
+    var st = { 0: '未开始', 1: '已完成', 2: '进行中', 3: '待补正', 4: '已退件' }[s.s];
+    var color = { 0: 'gray', 1: 'green', 2: 'blue', 3: 'orange', 4: 'red' }[s.s];
+    return '<div class="tl-i ' + cls + '">'
+      + '<div class="tl-t">' + s.n + ' ' + PORTAL.badge(st, color) + '</div>'
+      + '<div class="tl-m">' + (s.d ? '办理时间 ' + s.d : '尚未开始') + '　责任部门 ' + UI.esc(TIP[i][1]) + '</div>'
+      + '<div class="tl-c">' + TIP[i][0]
+      + (s.s === 3 ? '<br><b class="text-warning">补正要求：' + UI.esc(c.bzyq) + '（剩余 ' + c.xqts + ' 天）</b>' : '')
+      + (s.s === 4 ? '<br><b class="text-danger">退件原因：' + UI.esc(c.tjly) + '</b>' : '')
+      + '</div></div>';
+  }).join('');
+}
+
+/* ---------------- Tab2 资金监管进度（wsmh-17-02） ---------------- */
+function amount() {
+  var d = cur.data || {};
+  var v = Number(d.cjjg || d.jg || 0);
+  return v > 0 ? v * 10000 : 824000;
+}
+function renderFund() {
+  var c = cur, total = amount();
+  var aj = !(c.data && c.data.aj === '否');
+  var sf = aj ? Math.round(total * 0.3) : total;
+  var dk = aj ? total - sf : 0;
+  var bank = (c.data && c.data.bank) || PDATA.BANKS[0];
+
+  var st = c.zt;
+  var s1 = st === '1' ? 2 : 1;
+  var s2 = !aj ? (st === '1' ? 0 : 1) : (st === '1' ? 0 : (st === '2' || st === '3' ? 2 : (st === '4' ? 1 : 0)));
+  var s3 = st === '4' ? 1 : 0;
+  var s4 = st === '4' ? 2 : 0;
+
+  var cunru = s1 === 1 ? sf : 0;
+  var fangkuan = s2 === 1 ? dk : 0;
+  var daijiefu = cunru + fangkuan;
+
+  document.getElementById('fund-stat').innerHTML = [
+    ['fa-shield-halved', 'blue', total, '监管金额（元）'],
+    ['fa-arrow-down-long', 'green', cunru, '买方已存入（元）'],
+    ['fa-building-columns', 'cyan', fangkuan, '银行已放款（元）'],
+    ['fa-money-bill-transfer', 'orange', s4 === 1 ? 0 : daijiefu, '待解付给卖方（元）']
+  ].map(function (x) {
+    return '<div class="stat-card"><span class="s-ico ' + x[1] + '"><i class="fa-solid ' + x[0] + '"></i></span>'
+      + '<div><div class="s-value">' + UI.money(x[2], 0) + '</div><div class="s-label">' + x[3] + '</div></div></div>';
+  }).join('');
+
+  var NODES = [
+    ['首付款存入监管专户', s1, sf, bank, '买方按三方协议将首付款存入监管专户，银行出具入账回单，资金进入监管状态'],
+    [aj ? '贷款审批放款到账' : '尾款存入监管专户', s2, dk || (aj ? 0 : 0), bank,
+      aj ? '贷款银行审批通过后直接将贷款划入监管专户，不经过卖方个人账户' : '一次性付款交易，无贷款环节，全额已在首付款节点存入'],
+    ['产权过户完成', s3, 0, 'XXXX市不动产登记中心', '不动产转移登记办结，登记结果回传平台与监管银行，作为解付前置条件'],
+    ['监管资金解付给卖方', s4, daijiefu, bank, '过户完成且双方无争议后 3 个工作日内，银行将监管资金一次性解付至卖方账户']
+  ];
+  document.getElementById('fund-tl').innerHTML = NODES.map(function (n) {
+    var cls = n[1] === 1 ? 'done' : (n[1] === 2 ? 'on' : 'wait');
+    var st2 = { 0: '待办理', 1: '已完成', 2: '进行中' }[n[1]];
+    var color = { 0: 'gray', 1: 'green', 2: 'blue' }[n[1]];
+    return '<div class="tl-i ' + cls + '">'
+      + '<div class="tl-t">' + n[0] + ' ' + PORTAL.badge(st2, color) + '</div>'
+      + '<div class="tl-m">'
+      + (n[2] ? '金额 <b class="text-accent">' + UI.money(n[2], 0) + '</b> 元　' : '')
+      + '经办机构 ' + UI.esc(n[3]) + '　'
+      + (n[1] === 1 ? '完成时间 ' + (c.steps[1].d || c.sqrq) : n[1] === 2 ? '办理中' : '待前序节点完成')
+      + '</div>'
+      + '<div class="tl-c">' + n[4] + '</div></div>';
+  }).join('');
+}
+
+/* ---------------- Tab3 纳税过户进度（wsmh-17-03） ---------------- */
+function renderTax() {
+  var c = cur, total = amount();
+  var st = c.zt;
+  var qs = Math.round(total * 0.015);
+  var it = PORTAL.item(c.sxdm);
+  var allDays = (it ? it.nsrq : 2) + 3 + 3;
+  var TAX = [
+    ['纳税申报', st === '4' ? 1 : (st === '2' || st === '3' ? 2 : 0), '税务部门（XXXX市税务局）', '3 个工作日',
+      '备案信息经数据共享推送税务部门，买卖双方在线核对计税价格与套次后申报，无需重复提交材料。应缴契税约 '
+      + UI.money(qs, 0) + ' 元（首套 90㎡ 以上按 1.5% 计征，最终以税务机关核定为准）。'],
+    ['税款缴纳', st === '4' ? 1 : 0, '税务部门（XXXX市税务局）', '即时',
+      '可在线缴纳或到办税服务厅缴纳，缴款成功后电子完税凭证自动回传平台，作为过户登记的前置材料。'],
+    ['不动产过户登记', st === '4' ? 2 : 0, 'XXXX市不动产登记中心', '3 个工作日',
+      '备案证明与完税凭证经共享推送登记机构，申请人无需另行提交；登记机构核发不动产权证书并回传登记结果。'],
+    ['领取产权证', 0, 'XXXX市不动产登记中心', '即时',
+      '可选择窗口领取、自助终端打印或邮寄到家；电子证照同步至「个人中心 → 我的证照与票据」，可扫码验真。']
+  ];
+  document.getElementById('tax-tl').innerHTML = TAX.map(function (n) {
+    var cls = n[1] === 1 ? 'done' : (n[1] === 2 ? 'on' : 'wait');
+    var st2 = { 0: '待办理', 1: '已完成', 2: '进行中' }[n[1]];
+    var color = { 0: 'gray', 1: 'green', 2: 'blue' }[n[1]];
+    return '<div class="tl-i ' + cls + '">'
+      + '<div class="tl-t">' + n[0] + ' ' + PORTAL.badge(st2, color) + ' '
+      + PORTAL.badge('跨部门', 'purple') + '</div>'
+      + '<div class="tl-m">责任部门 ' + UI.esc(n[2]) + '　办理时限 ' + n[3] + '</div>'
+      + '<div class="tl-c">' + n[4] + '</div></div>';
+  }).join('')
+    + '<div class="tl-i wait"><div class="tl-t">交易完成</div>'
+    + '<div class="tl-m">全流程合计约 ' + allDays + ' 个工作日（备案 ' + (it ? it.nsrq : 2) + ' 日 + 纳税 3 日 + 登记 3 日）</div>'
+    + '<div class="tl-c">产权证领取后，监管资金解付给卖方，交易全流程闭环。'
+    + '可在<a href="../person/my-contract.html">我的合同</a>查看交易六节点时间轴。</div></div>';
+}
+
+/* ---------------- 备案证明获取（wsmh-17-04） ---------------- */
+/* 证明名称随办件事项而定，避免所有办件都出具「存量房买卖合同备案证明」 */
+function certType(c) {
+  var n = c.sxmc || '';
+  if (n.indexOf('网签备案') >= 0) return n.replace('网签备案', '备案证明');
+  if (n.indexOf('备案') >= 0) return n.replace('备案', '备案证明');
+  if (n.indexOf('缴存') >= 0) return n.replace('缴存', '缴存证明');
+  return n + '办结证明';
+}
+function certUse(c) {
+  return c.sxdm === 'SX0201' || c.sxdm === 'SX0203' ? '办理不动产登记' : '办理后续手续';
+}
+
+function renderCertArea() {
+  var c = cur;
+  var btn = document.getElementById('btn-cert');
+  var tip = document.getElementById('cert-tip');
+  var lx = certType(c);
+  var exist = c.fw ? PORTAL.certs().filter(function (x) { return x.fw === c.fw && x.lx === lx; })[0] : null;
+  if (c.zt === '4') {
+    btn.className = 'btn btn-accent';
+    btn.removeAttribute('disabled');
+    tip.innerHTML = '办件已办结，可在线获取带二维码与验真码的电子备案证明';
+  } else {
+    btn.className = 'btn dis';
+    btn.setAttribute('disabled', 'disabled');
+    tip.innerHTML = '<span class="text-warning">当前状态「' + UI.esc(c.ztmc) + '」，办件办结后可获取备案证明</span>';
+  }
+  document.getElementById('cert-box').innerHTML = exist
+    ? '<div class="alert alert-success mt-12" style="margin-bottom:0"><i class="fa-solid fa-file-shield"></i>'
+    + '<span>本房屋已出具证明 <b>' + exist.bh + '</b>（' + UI.esc(exist.lx) + '），验真码 <b>' + exist.yzm
+    + '</b>，有效期至 ' + exist.yxq + '，已存入「我的证照与票据」。'
+    + '<a href="query-verify.html?code=' + exist.yzm + '" data-fp="wsmh-30-08">去扫码验真</a></span></div>'
+    : '<div class="text-3 text-xs mt-12" style="line-height:1.9"><i class="fa-solid fa-circle-info"></i> '
+    + '备案证明可用于办理不动产转移登记、贷款、落户等事项，第三方可凭证明上的二维码或验真码核验真伪与有效期，'
+    + '有效期 90 天，过期可重新出证。</div>';
+}
+
+function doCert() {
+  var c = cur;
+  if (c.zt !== '4') { UI.toast('办件当前为「' + UI.esc(c.ztmc) + '」，办结后才能获取备案证明', 'warning'); return; }
+  if (!UI.needLogin('获取备案证明')) return;
+
+  var lx = certType(c);
+  var cert = PORTAL.act('cert.issue', {
+    lx: lx, fw: c.fw, yt: certUse(c),
+    nr: '兹证明' + (c.fw || '') + '的「' + c.sxmc + '」已于 ' + (c.bjrq || UI.today())
+      + ' 办结，办件编号 ' + c.bh + '，承办科室' + c.dept
+      + '。本证明信息与华信数智房产交易一体化平台业务库一致，可凭本证明办理相关后续手续。'
+  });
+
+  UI.modal('<i class="fa-solid fa-file-shield text-accent"></i> ' + UI.esc(lx),
+    '<div class="cert-view">'
+    + '<div class="cv-t">' + UI.esc(lx) + '</div>'
+    + '<div class="cv-s">XXXX市房产交易管理中心　电子证明</div>'
+    + '<div class="cv-b">' + UI.esc(cert.nr) + '</div>'
+    + '<div class="cv-f">'
+    + '<div class="cv-qr"><i class="fa-solid fa-qrcode"></i></div>'
+    + '<div class="cv-i">证明编号：' + cert.bh + '<br>'
+    + '验真码：<b>' + cert.yzm + '</b><br>'
+    + '出具时间：' + cert.d + '　有效期至：' + cert.yxq + '<br>'
+    + '用途：' + UI.esc(cert.yt) + '</div>'
+    + '<div class="cv-seal"><div class="sl">XXXX市房产交易<br>管理中心<br>证明专用章</div>' + UI.today() + '</div>'
+    + '</div></div>'
+    + '<div class="alert alert-info mt-16" style="margin-bottom:0"><i class="fa-solid fa-circle-info"></i>'
+    + '<span>本证明已存入「个人中心 → 我的证照与票据」，可随时下载、打印或电子亮证。'
+    + '第三方可扫描左下角二维码，或在「查询中心 → 扫码验真」输入验真码 <b>' + cert.yzm + '</b> 核验真伪与有效期。'
+    + '编造的验真码会返回「未查询到该证明」。</span></div>',
+    '<button class="btn" data-act="close-modal">关闭</button>'
+    + '<button class="btn" id="cert-dl"><i class="fa-solid fa-download"></i> 下载 PDF</button>'
+    + '<a class="btn btn-primary" href="query-verify.html?code=' + cert.yzm + '" data-fp="wsmh-17-04">'
+    + '<i class="fa-solid fa-qrcode"></i> 去扫码验真</a>', 1);
+
+  document.getElementById('cert-dl').onclick = function () {
+    UI.toast('已下载《' + UI.esc(lx) + '》 ' + cert.bh + '.pdf，文件含防伪二维码与验真码 ' + cert.yzm, 'success');
+  };
+  UI.toast('「' + UI.esc(lx) + '」已出具，编号 <b>' + cert.bh + '</b>，验真码 ' + cert.yzm + '，已存入我的证照与票据', 'success');
+  renderCertArea();
+}
+</script>
+</body>
+</html>

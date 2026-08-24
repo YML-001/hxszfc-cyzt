@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>成果接入与批量导入 · 房屋交易面积信息管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：三表上传卡、图形文件分组、校验统计条与失败明细 */
+  .up3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 1000px) { .up3 { grid-template-columns: 1fr; } }
+  .up-card { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: #fff; }
+  .up-card .uh {
+    display: flex; align-items: center; gap: 8px; padding: 9px 12px; font-size: 13.5px; font-weight: 700;
+    background: var(--bg-2); border-bottom: 1px solid var(--border);
+  }
+  .up-card .uh .tpl { margin-left: auto; font-weight: 400; font-size: 12.5px; }
+  .up-card .ub { padding: 12px; }
+  .drop {
+    border: 1.5px dashed var(--primary-soft, #b6c8ee); background: var(--primary-light); border-radius: 8px;
+    padding: 18px 12px; text-align: center; cursor: pointer; transition: .18s; color: var(--primary);
+  }
+  .drop:hover { border-color: var(--primary); background: #e8efff; }
+  .drop i { font-size: 22px; display: block; margin-bottom: 7px; }
+  .drop .dt { font-size: 13px; }
+  .drop .ds { font-size: 12px; color: var(--text-3); margin-top: 4px; }
+  .uf {
+    display: none; align-items: center; gap: 9px; font-size: 13px; border-radius: 8px;
+    background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px 12px;
+  }
+  .uf.show { display: flex; }
+  .uf .fn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .uf .rows { color: var(--success); font-weight: 700; white-space: nowrap; }
+  /* 图形文件分组 */
+  .gf { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .gf .gi {
+    display: flex; align-items: center; gap: 7px; font-size: 12.5px; border: 1px solid var(--border);
+    border-radius: 20px; padding: 4px 13px; background: #fff;
+  }
+  .gf .gi b { color: var(--primary); }
+  .gf .gi.miss { border-color: #fca5a5; background: #fef2f2; color: var(--danger); }
+  .gf .gi.miss b { color: var(--danger); }
+  /* 校验统计条 */
+  .vs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .vs .vc { border: 1px solid var(--border); border-radius: var(--radius); padding: 11px 13px; }
+  .vs .vc .v { font-size: 22px; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
+  .vs .vc .l { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+  .vs .vc.ok { background: #f0fdf4; border-color: #bbf7d0; } .vs .vc.ok .v { color: var(--success); }
+  .vs .vc.bad { background: #fef2f2; border-color: #fca5a5; } .vs .vc.bad .v { color: var(--danger); }
+  .vs .vc.warn { background: #fffbeb; border-color: #fde68a; } .vs .vc.warn .v { color: #b45309; }
+  .vbar { height: 10px; border-radius: 20px; overflow: hidden; display: flex; margin-top: 10px; background: var(--bg-soft); }
+  .vbar i { display: block; height: 100%; }
+  .amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .unit { color: var(--text-3); font-size: 11.5px; margin-left: 2px; }
+  .sum-box { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }
+  .wz-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .tbl-box { overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+  .tbl-box .data-table { margin: 0; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wschcg-06">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易面积信息管理系统
+        <span class="sep">/</span> <a class="link" href="result-list.html">测绘成果台账</a>
+        <span class="sep">/</span> <span class="cur">成果接入与批量导入</span>
+      </div>
+      <div class="page-title">成果接入与批量导入</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="PMS.toast('已下载幢表 / 层表 / 户表三张标准导入模板（v3.2）','success')"><i class="fa-solid fa-file-arrow-down"></i> 下载导入模板</button>
+      <button type="button" class="btn" onclick="PMS.toast('接入草稿已保存','success')"><i class="fa-regular fa-floppy-disk"></i> 保存草稿</button>
+      <button type="button" class="btn" onclick="location.href='result-list.html'"><i class="fa-solid fa-arrow-left"></i> 返回台账</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <div class="wizard" id="wz">
+        <div class="w-step active" data-step="1"><span class="w-num">1</span><span class="w-label">选择项目与成果类型</span></div>
+        <div class="w-line"></div>
+        <div class="w-step" data-step="2"><span class="w-num">2</span><span class="w-label">上传数据包</span></div>
+        <div class="w-line"></div>
+        <div class="w-step" data-step="3"><span class="w-num">3</span><span class="w-label">逐条校验结果</span></div>
+        <div class="w-line"></div>
+        <div class="w-step" data-step="4"><span class="w-num">4</span><span class="w-label">确认接入</span></div>
+      </div>
+
+      <!-- 第 1 步 -->
+      <div class="wz-panel active" data-panel="1">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>本系统<b>不做测绘生产</b>，只接入房产测绘面积测算系统（EPCAD）的测算成果。成果接入后先落<b>暂存区</b>，须通过 12 项质检才能入库楼盘表。</div>
+        </div>
+
+        <div class="form-grid form-align mt-16">
+          <div class="form-item">
+            <label>报送方式<span class="req">*</span></label>
+            <select id="way"><option>接口报送（EPCAD 直连推送）</option><option>平台上传（测绘机构企业端）</option><option>离线导入（窗口导入介质）</option></select>
+          </div>
+          <div class="form-item">
+            <label>项目名称<span class="req">*</span></label>
+            <select id="proj" onchange="onProj()">
+              <option>荣和公园大道二期</option><option>彰泰滨江学府</option><option>万科城</option><option>恒大城</option>
+            </select>
+          </div>
+          <div class="form-item">
+            <label>楼盘名称<span class="req">*</span></label>
+            <input type="text" value="荣和公园大道二期" readonly>
+          </div>
+          <div class="form-item">
+            <label>幢号范围<span class="req">*</span></label>
+            <input type="text" value="8 栋">
+          </div>
+          <div class="form-item">
+            <label>成果类型<span class="req">*</span></label>
+            <select id="cglx" onchange="onType()">
+              <option value="02">实测成果（竣工面积实测绘）</option>
+              <option value="01">预测成果（预售面积预测绘）</option>
+              <option value="03">分户成果（存量房分户测绘）</option>
+              <option value="04">变更成果（改扩建重测）</option>
+              <option value="05">更正成果（错误纠正）</option>
+              <option value="06">征收测绘成果</option>
+            </select>
+          </div>
+          <div class="form-item">
+            <label>版本号<span class="req">*</span></label>
+            <input type="text" id="bbh" value="V2.0" readonly>
+          </div>
+          <div class="form-item">
+            <label>测绘机构<span class="req">*</span></label>
+            <select><option>XXXX市测绘院（甲级 · 质检合格率 96.2%）</option><option>广西华测（乙级 91.8%）</option><option>柳州建元（乙级 88.4%）</option><option>南宁精测（乙级 82.6%）</option><option>柳州恒信（丙级 76.3%）</option></select>
+          </div>
+          <div class="form-item">
+            <label>测绘人</label>
+            <input type="text" value="韦**、陈**（注册测绘师 2 人）">
+          </div>
+          <div class="form-item">
+            <label>测绘日期<span class="req">*</span></label>
+            <input type="date" value="2026-07-22">
+          </div>
+          <div class="form-item">
+            <label>测绘报告编号<span class="req">*</span></label>
+            <input type="text" value="LZCH-2026-CH-0862">
+          </div>
+          <div class="form-item">
+            <label>坐标系统<span class="req">*</span></label>
+            <select><option>CGCS2000 国家大地坐标系</option><option>XXXX市独立坐标系</option><option>WGS-84</option></select>
+          </div>
+          <div class="form-item">
+            <label>测绘技术依据</label>
+            <input type="text" value="《房产测量规范》GB/T 17986.1-2000">
+          </div>
+        </div>
+
+        <div class="alert alert-warning mt-16">
+          <i class="fa-solid fa-code-branch"></i>
+          <div>该幢已有 <b>V1.0 预测成果</b>（CG450200202500862，2025-03-18 测绘，总建面 28,600.00 ㎡，已入库生效），本次报送将作为 <b>V2.0</b>，入库后 V1.0 自动置为「已被新版本替代」。</div>
+        </div>
+        <div class="alert alert-info" id="tipMeasure">
+          <i class="fa-solid fa-scale-balanced"></i>
+          <div><b>实测成果</b>入库生效后将<b>自动触发预实测逐户比对</b>，逐户算出建筑面积差与差异比例，超合同约定幅度（3%）的转入面积差异处理流程。</div>
+        </div>
+
+        <div class="wz-foot">
+          <button type="button" class="btn" disabled>上一步</button>
+          <button type="button" class="btn btn-primary" onclick="goto(2)">下一步：上传数据包</button>
+        </div>
+      </div>
+
+      <!-- 第 2 步 -->
+      <div class="wz-panel" data-panel="2">
+        <div class="section-title">结构化数据（幢表 / 层表 / 户表）</div>
+        <div class="up3">
+          <div class="up-card">
+            <div class="uh"><i class="fa-solid fa-building text-primary"></i> 幢表
+              <span class="tpl"><span class="link" onclick="dlTpl('幢表')">下载模板</span></span>
+            </div>
+            <div class="ub">
+              <div class="drop" id="dropZ" onclick="upload('Z','SUV_CGZXX_荣和二期8栋_幢表.xlsx',1)">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+                <div class="dt">点击或拖拽上传幢表</div>
+                <div class="ds">支持 .xlsx / .csv，单文件 ≤ 20 MB</div>
+              </div>
+              <div class="uf" id="ufZ">
+                <i class="fa-solid fa-file-excel text-success"></i>
+                <span class="fn">SUV_CGZXX_荣和二期8栋_幢表.xlsx</span>
+                <span class="rows">1 行</span>
+                <i class="fa-solid fa-xmark link" onclick="reUpload('Z')" title="移除"></i>
+              </div>
+            </div>
+          </div>
+          <div class="up-card">
+            <div class="uh"><i class="fa-solid fa-layer-group text-primary"></i> 层表
+              <span class="tpl"><span class="link" onclick="dlTpl('层表')">下载模板</span></span>
+            </div>
+            <div class="ub">
+              <div class="drop" id="dropC" onclick="upload('C','SUV_CGCXX_荣和二期8栋_层表.xlsx',26)">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+                <div class="dt">点击或拖拽上传层表</div>
+                <div class="ds">含标准层与地下室、屋顶层等非标准层</div>
+              </div>
+              <div class="uf" id="ufC">
+                <i class="fa-solid fa-file-excel text-success"></i>
+                <span class="fn">SUV_CGCXX_荣和二期8栋_层表.xlsx</span>
+                <span class="rows">26 行</span>
+                <i class="fa-solid fa-xmark link" onclick="reUpload('C')" title="移除"></i>
+              </div>
+            </div>
+          </div>
+          <div class="up-card">
+            <div class="uh"><i class="fa-solid fa-door-open text-primary"></i> 户表
+              <span class="tpl"><span class="link" onclick="dlTpl('户表')">下载模板</span></span>
+            </div>
+            <div class="ub">
+              <div class="drop" id="dropH" onclick="upload('H','SUV_CGHXX_荣和二期8栋_户表.xlsx',96)">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+                <div class="dt">点击或拖拽上传户表</div>
+                <div class="ds">每户须含建筑面积、套内面积、分摊面积</div>
+              </div>
+              <div class="uf" id="ufH">
+                <i class="fa-solid fa-file-excel text-success"></i>
+                <span class="fn">SUV_CGHXX_荣和二期8栋_户表.xlsx</span>
+                <span class="rows">96 行</span>
+                <i class="fa-solid fa-xmark link" onclick="reUpload('H')" title="移除"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title mt-16" style="margin-top:18px">图形文件与测绘报告</div>
+        <div class="drop" onclick="uploadPics()" style="padding:24px 12px">
+          <i class="fa-solid fa-images"></i>
+          <div class="dt">点击或拖拽批量上传图形文件</div>
+          <div class="ds">支持 dwg / dxf / pdf / jpg / shp；按文件命名规则自动识别图形类型与关联房号</div>
+        </div>
+        <div class="gf" id="gfBox" style="display:none">
+          <span class="gi"><i class="fa-solid fa-layer-group"></i> 分层平面图 <b>8</b> 个</span>
+          <span class="gi" id="giFh"><i class="fa-solid fa-door-open"></i> 分户图 <b id="fhNum">96</b> 个</span>
+          <span class="gi"><i class="fa-solid fa-map"></i> 总平面图 <b>1</b> 个</span>
+          <span class="gi"><i class="fa-solid fa-file-lines"></i> 测绘技术报告 <b>1</b> 个</span>
+          <span class="gi"><i class="fa-solid fa-table"></i> 面积计算表 <b>1</b> 个</span>
+        </div>
+
+        <div class="alert alert-success mt-16" id="alertMatch">
+          <i class="fa-solid fa-circle-check"></i>
+          <div>户表 <b>96 行</b>，分户图 <b>96 个</b>，<b>图数一致</b>。分户图必须与户表记录一一对应，数量不符的成果不得进入质检环节。</div>
+        </div>
+        <div class="alert alert-danger mt-16 hidden" id="alertMiss">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>户表 <b>96 行</b>，分户图 <b>94 个</b>，<b>缺失 2 个分户图</b>：8-2-1806、8-3-902，请补传后继续。图数不一致的成果将记入接入异常台账。</div>
+        </div>
+
+        <div class="wz-foot">
+          <button type="button" class="btn" onclick="toggleMiss()"><i class="fa-solid fa-repeat"></i> 切换图数不一致场景</button>
+          <button type="button" class="btn" onclick="goto(1)">上一步</button>
+          <button type="button" class="btn btn-primary" id="btnTo3" onclick="doParse()">解析并逐条校验</button>
+        </div>
+      </div>
+
+      <!-- 第 3 步 -->
+      <div class="wz-panel" data-panel="3">
+        <div class="section-title">校验统计</div>
+        <div class="vs">
+          <div class="vc"><div class="v">96</div><div class="l">总计校验条数（户）</div></div>
+          <div class="vc ok"><div class="v">94</div><div class="l">通过</div></div>
+          <div class="vc bad"><div class="v">2</div><div class="l">失败（阻断接入）</div></div>
+          <div class="vc warn"><div class="v">3</div><div class="l">警告（可忽略继续）</div></div>
+        </div>
+        <div class="vbar">
+          <i style="width:97.9%;background:var(--success)"></i>
+          <i style="width:2.1%;background:var(--danger)"></i>
+        </div>
+        <p class="text-3 text-sm mt-16">
+          <i class="fa-solid fa-circle-info"></i>
+          接入预校验只查格式与完整性（文件齐全、字段必填、量纲正确、房号唯一）；面积平衡、分摊系数、外部一致等 12 项规则在<a class="link" href="result-check.html">成果质检</a>环节执行。
+        </p>
+
+        <div class="section-title mt-16" style="margin-top:18px">失败明细（2 条）</div>
+        <div class="tbl-box">
+          <table class="data-table compact" data-static>
+            <thead><tr><th>行号</th><th>位置</th><th>错误字段</th><th>错误类型</th><th>错误说明</th></tr></thead>
+            <tbody>
+              <tr style="background:#fef2f2">
+                <td class="fw-600">47</td>
+                <td class="nowrap">8 栋 2 单元 12 层 1201</td>
+                <td class="nowrap">房间号</td>
+                <td class="nowrap"><span class="badge red">房号重复</span></td>
+                <td>该幢该单元该层已存在房号 1201，同幢同单元同层房号不得重复</td>
+              </tr>
+              <tr style="background:#fef2f2">
+                <td class="fw-600">62</td>
+                <td class="nowrap">8 栋 2 单元 18 层 1806</td>
+                <td class="nowrap">建筑面积</td>
+                <td class="nowrap"><span class="badge red">面积不平衡</span></td>
+                <td>建筑面积 100.15 ≠ 套内 78.42 + 分摊 21.28（差 0.45 ㎡，超出允许误差 0.01 ㎡）</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section-title mt-16" style="margin-top:18px">警告明细（3 条）</div>
+        <div class="tbl-box">
+          <table class="data-table compact" data-static>
+            <thead><tr><th>行号</th><th>位置</th><th>字段</th><th>警告类型</th><th>说明</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>86</td><td class="nowrap">8 栋 1 单元 26 层 2601</td><td class="nowrap">分摊系数</td>
+                <td class="nowrap"><span class="badge orange">系数偏离</span></td>
+                <td>分摊系数 0.2814 高于本幢平均值 0.2205，偏差 +27.6%（顶层跃层带屋顶花园，需核实）</td>
+              </tr>
+              <tr>
+                <td>87</td><td class="nowrap">8 栋 1 单元 26 层 2602</td><td class="nowrap">分摊系数</td>
+                <td class="nowrap"><span class="badge orange">系数偏离</span></td>
+                <td>分摊系数 0.2798 高于本幢平均值 0.2205，偏差 +26.9%</td>
+              </tr>
+              <tr>
+                <td>34</td><td class="nowrap">8 栋 3 单元 9 层 902</td><td class="nowrap">阳台面积</td>
+                <td class="nowrap"><span class="badge orange">计算规则</span></td>
+                <td>阳台面积 12.40 ㎡ 疑似全计，按规范封闭阳台全计、未封闭阳台半计，请核实</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="alert alert-danger mt-16">
+          <i class="fa-solid fa-ban"></i>
+          <div>存在 <b>2 条失败明细</b>，「确认接入」已置灰。可导出失败清单交测绘机构修正后<b>按幢补报</b>，不需整包重来；也可整批回退本次报送。</div>
+        </div>
+
+        <div class="wz-foot">
+          <button type="button" class="btn" onclick="PMS.toast('《接入校验失败清单》Excel 已生成，正在下载（含行号、字段、错误类型与说明）','success')"><i class="fa-solid fa-download"></i> 导出失败清单</button>
+          <button type="button" class="btn" onclick="goto(2)"><i class="fa-solid fa-arrow-rotate-left"></i> 修正后重新上传</button>
+          <button type="button" class="btn" onclick="doRollback()"><i class="fa-solid fa-trash-can"></i> 整批回退</button>
+          <button type="button" class="btn" id="btnIgnore" onclick="ignoreWarn()"><i class="fa-solid fa-forward"></i> 忽略警告继续</button>
+          <button type="button" class="btn btn-primary" id="btnTo4" disabled onclick="goto(4)">确认接入</button>
+        </div>
+      </div>
+
+      <!-- 第 4 步 -->
+      <div class="wz-panel" data-panel="4">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-database"></i>
+          <div>接入后成果进入<b>暂存区</b>（SUV_CGJBXX 与幢 / 层 / 户三张明细表），须通过 <b>12 项质检</b> 才能入库楼盘表。质检不通过的成果不会污染正式楼盘表，重新报送时可整包替换。</div>
+        </div>
+
+        <div class="grp-card mt-16">
+          <div class="grp-head"><span class="gi"><i class="fa-solid fa-clipboard-list"></i></span> 成果基本信息</div>
+          <dl class="desc-list">
+            <div class="desc-item"><dt>成果编号</dt><dd class="fw-600">CG450200202600186（提交后生成）</dd></div>
+            <div class="desc-item"><dt>成果类型</dt><dd><span class="badge blue">实测成果</span></dd></div>
+            <div class="desc-item"><dt>版本号</dt><dd>V2.0（上一版本 V1.0 CG450200202500862）</dd></div>
+            <div class="desc-item"><dt>项目 / 楼盘</dt><dd>荣和公园大道二期</dd></div>
+            <div class="desc-item"><dt>幢号范围</dt><dd>8 栋</dd></div>
+            <div class="desc-item"><dt>幢数 / 总户数</dt><dd>1 幢 / 96 户</dd></div>
+            <div class="desc-item"><dt>总建筑面积</dt><dd class="amt">28,842.60 <span class="muted">㎡</span></dd></div>
+            <div class="desc-item"><dt>总套内面积</dt><dd class="amt">22,486.42 <span class="muted">㎡</span></dd></div>
+            <div class="desc-item"><dt>总分摊面积</dt><dd class="amt">6,356.18 <span class="muted">㎡</span></dd></div>
+            <div class="desc-item"><dt>总地下室面积</dt><dd class="amt">1,862.40 <span class="muted">㎡</span></dd></div>
+            <div class="desc-item"><dt>总车位面积</dt><dd class="amt">1,486.20 <span class="muted">㎡</span></dd></div>
+            <div class="desc-item"><dt>总人防面积</dt><dd class="amt">486.20 <span class="muted">㎡</span></dd></div>
+            <div class="desc-item"><dt>幢分摊系数</dt><dd class="amt">0.2827</dd></div>
+            <div class="desc-item"><dt>测绘机构</dt><dd>XXXX市测绘院（甲级）</dd></div>
+            <div class="desc-item"><dt>测绘人</dt><dd>韦**、陈**</dd></div>
+            <div class="desc-item"><dt>测绘日期</dt><dd>2026-07-22</dd></div>
+            <div class="desc-item"><dt>测绘报告编号</dt><dd>LZCH-2026-CH-0862</dd></div>
+            <div class="desc-item"><dt>坐标系统</dt><dd>CGCS2000 国家大地坐标系</dd></div>
+            <div class="desc-item"><dt>技术依据</dt><dd>《房产测量规范》GB/T 17986.1-2000</dd></div>
+            <div class="desc-item"><dt>报送方式</dt><dd><span class="badge cyan">接口报送</span> EPCAD 直连推送</dd></div>
+            <div class="desc-item"><dt>报送时间</dt><dd>2026-07-31 16:42:08</dd></div>
+          </dl>
+        </div>
+
+        <div class="grp-card">
+          <div class="grp-head"><span class="gi"><i class="fa-solid fa-box-archive"></i></span> 数据包构成</div>
+          <div class="sum-box">
+            <div class="flex items-center gap-16" style="flex-wrap:wrap">
+              <span><i class="fa-solid fa-file-excel text-success"></i> 幢表 <b>1</b> 行</span>
+              <span><i class="fa-solid fa-file-excel text-success"></i> 层表 <b>26</b> 行</span>
+              <span><i class="fa-solid fa-file-excel text-success"></i> 户表 <b>96</b> 行</span>
+              <span><i class="fa-solid fa-layer-group text-primary"></i> 分层平面图 <b>8</b> 个</span>
+              <span><i class="fa-solid fa-door-open text-primary"></i> 分户图 <b>96</b> 个</span>
+              <span><i class="fa-solid fa-map text-primary"></i> 总平面图 <b>1</b> 个</span>
+              <span><i class="fa-solid fa-file-lines text-primary"></i> 测绘技术报告 <b>1</b> 个</span>
+              <span><i class="fa-solid fa-table text-primary"></i> 面积计算表 <b>1</b> 个</span>
+              <span class="badge green"><i class="fa-solid fa-check"></i> 图数一致</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="grp-card">
+          <div class="grp-head"><span class="gi"><i class="fa-solid fa-link"></i></span> 来源信息（只读，来自测绘业务受理）</div>
+          <dl class="desc-list">
+            <div class="desc-item"><dt>测绘申请编号</dt><dd>CHSQ20260618042</dd></div>
+            <div class="desc-item"><dt>测绘类型</dt><dd>竣工面积实测绘</dd></div>
+            <div class="desc-item"><dt>委托机构</dt><dd>柳州荣和房地产开发有限公司</dd></div>
+            <div class="desc-item"><dt>测绘任务编号</dt><dd>CHRW20260186</dd></div>
+            <div class="desc-item"><dt>承接机构</dt><dd>XXXX市测绘院</dd></div>
+            <div class="desc-item"><dt>实际完成时间</dt><dd>2026-07-22</dd></div>
+          </dl>
+        </div>
+
+        <div class="wz-foot">
+          <button type="button" class="btn" onclick="goto(3)">上一步</button>
+          <button type="button" class="btn btn-primary" onclick="doSubmit()"><i class="fa-solid fa-paper-plane"></i> 确认接入暂存区</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+var step = 1, miss = false, warnIgnored = false;
+
+document.getElementById('wz').addEventListener('click', function (e) {
+  var s = e.target.closest('.w-step');
+  if (s) {
+    var n = parseInt(s.getAttribute('data-step'), 10);
+    if (n < step) goto(n);
+    else PMS.toast('分步表单不可跳步前进，请按顺序完成当前步骤');
+  }
+});
+
+function goto(n) {
+  step = n;
+  document.querySelectorAll('.w-step').forEach(function (s) {
+    var i = parseInt(s.getAttribute('data-step'), 10);
+    s.classList.toggle('active', i === n);
+    s.classList.toggle('done', i < n);
+  });
+  document.querySelectorAll('.wz-panel').forEach(function (p) {
+    p.classList.toggle('active', p.getAttribute('data-panel') === String(n));
+  });
+  var main = document.querySelector('main.app-main');
+  if (main) main.scrollTop = 0;
+}
+
+function onProj() {
+  PMS.toast('已带出该项目楼盘信息与现有成果版本情况');
+}
+
+function onType() {
+  var v = document.getElementById('cglx').value;
+  document.getElementById('bbh').value = v === '01' ? 'V1.0' : v === '05' ? 'V1.1' : v === '04' ? 'V3.0' : 'V2.0';
+  document.getElementById('tipMeasure').classList.toggle('hidden', v !== '02');
+}
+
+function dlTpl(n) { PMS.toast('《' + n + '导入模板 v3.2》已下载，含字段说明、必填标识、取值范围与示例行', 'success'); }
+
+function upload(k, name, rows) {
+  document.getElementById('drop' + k).style.display = 'none';
+  document.getElementById('uf' + k).classList.add('show');
+  PMS.toast(name + ' 上传成功，解析出 ' + rows + ' 行', 'success');
+}
+
+function reUpload(k) {
+  document.getElementById('drop' + k).style.display = '';
+  document.getElementById('uf' + k).classList.remove('show');
+}
+
+function uploadPics() {
+  document.getElementById('gfBox').style.display = 'flex';
+  PMS.toast('图形文件上传完成，已按文件命名规则自动识别图形类型并分组', 'success');
+}
+
+function toggleMiss() {
+  miss = !miss;
+  document.getElementById('gfBox').style.display = 'flex';
+  document.getElementById('fhNum').textContent = miss ? '94' : '96';
+  document.getElementById('giFh').classList.toggle('miss', miss);
+  document.getElementById('alertMatch').classList.toggle('hidden', miss);
+  document.getElementById('alertMiss').classList.toggle('hidden', !miss);
+  PMS.toast(miss ? '已切换为「缺失 2 个分户图」场景，图数不一致不得进入质检' : '已切换回「图数一致」场景');
+}
+
+function doParse() {
+  if (miss) {
+    PMS.toast('图数不一致，请先补传 8-2-1806、8-3-902 两户分户图', 'error');
+    return;
+  }
+  ['Z', 'C', 'H'].forEach(function (k) {
+    document.getElementById('drop' + k).style.display = 'none';
+    document.getElementById('uf' + k).classList.add('show');
+  });
+  PMS.toast('数据包解析完成，正在逐条校验 96 条户记录…');
+  setTimeout(function () { goto(3); PMS.toast('校验完成：通过 94 条、失败 2 条、警告 3 条', 'success'); }, 700);
+}
+
+function ignoreWarn() {
+  if (!warnIgnored) {
+    PMS.confirm({
+      title: '忽略警告继续',
+      message: '确认忽略 3 条警告明细并继续接入？',
+      detail: '警告级问题不阻断接入，但会记录在质检结果中由人工复核；失败明细（2 条）仍须修正，修正前无法确认接入。',
+      type: 'info',
+      okText: '忽略警告',
+      onOk: function () {
+        warnIgnored = true;
+        PMS.toast('已忽略 3 条警告并留痕（忽略人：韦国强 2026-08-01）', 'success');
+        PMS.confirm({
+          title: '失败明细待修正',
+          message: '仍有 2 条失败明细阻断接入，是否演示「已修正后」的接入？',
+          detail: '演示环境可直接放行，实际业务中失败明细必须由测绘机构修正后按幢补报。',
+          type: 'info',
+          okText: '演示已修正',
+          onOk: function () {
+            document.getElementById('btnTo4').disabled = false;
+            PMS.toast('失败明细已修正（房号 1201 改为 1202、1806 套内面积更正为 78.87 ㎡），可确认接入', 'success');
+          }
+        });
+      }
+    });
+  }
+}
+
+function doRollback() {
+  PMS.confirm({
+    title: '整批回退',
+    message: '确认整批回退本次报送吗？',
+    detail: '回退后本次上传的幢 / 层 / 户数据与图形文件全部清除，不进入暂存区；回退须填写原因并留痕，已通知测绘机构重新报送。',
+    type: 'danger',
+    okText: '确认回退',
+    onOk: function () { PMS.toast('已整批回退，本次报送记入接入异常台账', 'success'); setTimeout(function () { location.href = 'import-error.html'; }, 800); }
+  });
+}
+
+function doSubmit() {
+  PMS.confirm({
+    title: '确认接入暂存区',
+    message: '确认将 CG450200202600186 V2.0 接入成果暂存区？',
+    detail: '接入后成果状态为「已报送待质检」，可立即执行 12 项自动质检；暂存区数据不影响楼盘表正式数据。',
+    type: 'info',
+    okText: '确认接入',
+    onOk: function () {
+      PMS.toast('接入成功：CG450200202600186 V2.0 已进入暂存区，正在跳转质检页', 'success');
+      setTimeout(function () { location.href = 'result-check.html'; }, 1000);
+    }
+  });
+}
+</script>
+</body>
+</html>

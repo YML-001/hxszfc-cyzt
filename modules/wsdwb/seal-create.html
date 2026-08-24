@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>查封登记办理 · 房屋交易备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：来源选择卡、法院推送文书卡、自动解析标签、成功页联动动画 */
+  .src-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 900px) { .src-pick { grid-template-columns: 1fr; } }
+  .src-pick .sp {
+    border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px;
+    cursor: pointer; transition: .16s; background: #fff; display: flex; align-items: flex-start; gap: 12px;
+  }
+  .src-pick .sp:hover { border-color: var(--primary-soft); background: var(--primary-light); }
+  .src-pick .sp.on { border-color: var(--primary); background: var(--primary-light); box-shadow: 0 0 0 3px rgba(37, 99, 235, .1); }
+  .src-pick .sp .si {
+    width: 34px; height: 34px; border-radius: 9px; background: var(--primary-light); color: var(--primary);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .src-pick .sp.on .si { background: var(--primary); color: #fff; }
+  .src-pick .sp .st { font-size: 14px; font-weight: 700; }
+  .src-pick .sp .sd { font-size: 12.5px; color: var(--text-3); margin-top: 3px; line-height: 1.5; }
+  .doc-card {
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 15px; background: #fff;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 10px; transition: .16s;
+  }
+  .doc-card:hover { border-color: var(--primary-soft); box-shadow: var(--shadow-sm); }
+  .doc-card.on { border-color: var(--primary); background: var(--primary-light); }
+  .doc-card .dc { display: flex; flex-direction: column; gap: 3px; }
+  .doc-card .dc .dk { font-size: 12px; color: var(--text-3); }
+  .doc-card .dc .dv { font-size: 13.5px; font-weight: 600; }
+  .auto-tag {
+    display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--success);
+    background: var(--success-light); border-radius: 20px; padding: 1px 8px; margin-left: 6px; white-space: nowrap;
+  }
+  .form-item label { display: flex; align-items: center; }
+  .ok-page { text-align: center; padding: 30px 20px 10px; }
+  .ok-page .ok-ico {
+    width: 72px; height: 72px; border-radius: 50%; background: var(--success); color: #fff;
+    display: flex; align-items: center; justify-content: center; font-size: 34px; margin: 0 auto 16px;
+    box-shadow: 0 0 0 10px var(--success-light);
+  }
+  .ok-page .ok-t { font-size: 22px; font-weight: 800; color: #059669; }
+  .ok-page .ok-s { font-size: 13.5px; color: var(--text-3); margin-top: 6px; }
+  .link-list { max-width: 720px; margin: 26px auto 0; display: flex; flex-direction: column; gap: 10px; text-align: left; }
+  .link-list .ll {
+    display: flex; align-items: flex-start; gap: 12px; padding: 13px 16px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: #fff;
+    opacity: 0; transform: translateY(10px); animation: llIn .45s ease forwards;
+  }
+  @keyframes llIn { to { opacity: 1; transform: translateY(0); } }
+  .link-list .ll:nth-child(1) { animation-delay: .1s; }
+  .link-list .ll:nth-child(2) { animation-delay: .5s; }
+  .link-list .ll:nth-child(3) { animation-delay: .9s; }
+  .link-list .ll:nth-child(4) { animation-delay: 1.3s; }
+  .link-list .ll .li {
+    width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 14px;
+  }
+  .link-list .ll .li.g { background: var(--success-light); color: var(--success); }
+  .link-list .ll .li.r { background: var(--danger-light); color: var(--danger); }
+  .link-list .ll .li.o { background: var(--warning-light); color: #b45309; }
+  .link-list .ll .lt { font-size: 14px; font-weight: 600; }
+  .link-list .ll .ld { font-size: 12.5px; color: var(--text-3); margin-top: 3px; line-height: 1.55; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdwb-20">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易备案管理系统
+        <span class="sep">/</span> <a class="link" href="seal-list.html">司法查封登记台账</a>
+        <span class="sep">/</span> <span class="cur">查封登记办理</span>
+      </div>
+      <div class="page-title">查封登记办理</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="location.href='seal-list.html'"><i class="fa-solid fa-arrow-left"></i> 返回台账</button>
+    </div>
+  </div>
+
+  <div id="formArea">
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-inbox"></i> 信息来源</h3><span class="sub">三选一，默认法院直连推送</span></div>
+      <div class="card-body">
+        <div class="src-pick">
+          <div class="sp on" data-src="push" onclick="pickSrc(this)">
+            <span class="si"><i class="fa-solid fa-tower-broadcast"></i></span>
+            <div><div class="st">法院推送</div><div class="sd">协助执行文书直连接收，自动解析要素，人工确认后生效</div></div>
+          </div>
+          <div class="sp" data-src="win" onclick="pickSrc(this)">
+            <span class="si"><i class="fa-solid fa-pen-to-square"></i></span>
+            <div><div class="st">窗口录入</div><div class="sd">法院送达纸质文书，窗口人员逐项录入并上传扫描件</div></div>
+          </div>
+          <div class="sp" data-src="reg" onclick="pickSrc(this)">
+            <span class="si"><i class="fa-solid fa-rotate"></i></span>
+            <div><div class="st">不动产登记同步</div><div class="sd">不动产登记机构已办查封登记，通过接口同步至本系统</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="docBox">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-file-shield"></i> 待处理法院推送文书</h3>
+        <span class="sub">共 3 件</span>
+      </div>
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-bolt"></i>
+          <div>法院协助执行文书已<b>直连接收</b>，解析后人工确认即可生效，全程 ≤ 10 分钟。当前平均处理时长 <b>8 分 12 秒</b>。</div>
+        </div>
+        <div class="doc-card on" id="doc1" onclick="pickDoc(this)">
+          <div class="dc"><span class="dk">法院名称</span><span class="dv">XXXX市柳南区人民法院</span></div>
+          <div class="dc"><span class="dk">案件编号</span><span class="dv">(2026)桂0204执1276号</span></div>
+          <div class="dc"><span class="dk">文书编号</span><span class="dv">(2026)桂0204执1276号之一</span></div>
+          <div class="dc"><span class="dk">送达时间</span><span class="dv">2026-08-01 09:02</span></div>
+          <div class="dc"><span class="dk">涉及房屋</span><span class="dv">万科城 5-2-803</span></div>
+          <div class="dc"><span class="dk">被执行人</span><span class="dv">黄**</span></div>
+          <button type="button" class="btn btn-primary" style="margin-left:auto" onclick="event.stopPropagation();parseDoc()">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> 解析并登记
+          </button>
+        </div>
+        <div class="doc-card" onclick="pickDoc(this)">
+          <div class="dc"><span class="dk">法院名称</span><span class="dv">XXXX市城中区人民法院</span></div>
+          <div class="dc"><span class="dk">案件编号</span><span class="dv">(2026)桂0202执0918号</span></div>
+          <div class="dc"><span class="dk">文书编号</span><span class="dv">(2026)桂0202执0918号之二</span></div>
+          <div class="dc"><span class="dk">送达时间</span><span class="dv">2026-08-01 08:36</span></div>
+          <div class="dc"><span class="dk">涉及房屋</span><span class="dv">荣和公园大道 12-1-703</span></div>
+          <div class="dc"><span class="dk">被执行人</span><span class="dv">覃**</span></div>
+          <button type="button" class="btn" style="margin-left:auto" onclick="event.stopPropagation();parseDoc()">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> 解析并登记
+          </button>
+        </div>
+        <div class="doc-card" onclick="pickDoc(this)">
+          <div class="dc"><span class="dk">法院名称</span><span class="dv">XXXX市中级人民法院</span></div>
+          <div class="dc"><span class="dk">案件编号</span><span class="dv">(2026)桂02执0242号</span></div>
+          <div class="dc"><span class="dk">文书编号</span><span class="dv">(2026)桂02执0242号之一</span></div>
+          <div class="dc"><span class="dk">送达时间</span><span class="dv">2026-07-31 17:18</span></div>
+          <div class="dc"><span class="dk">涉及房屋</span><span class="dv">恒兴时代广场 A-2-1102</span></div>
+          <div class="dc"><span class="dk">被执行人</span><span class="dv">韦**</span></div>
+          <button type="button" class="btn" style="margin-left:auto" onclick="event.stopPropagation();parseDoc()">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> 解析并登记
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-list-check"></i> 文书解析结果</h3>
+        <span class="sub" id="parseSub">已自动解析 12 项要素，人工可修改</span>
+      </div>
+      <div class="card-body">
+        <div class="form-grid form-align">
+          <div class="form-item"><label>查封机关名称<span class="req">*</span><span class="auto-tag"><i class="fa-solid fa-wand-magic-sparkles"></i>已自动解析</span></label><input type="text" value="XXXX市柳南区人民法院"></div>
+          <div class="form-item"><label>查封机关代码<span class="auto-tag"><i class="fa-solid fa-wand-magic-sparkles"></i>已自动解析</span></label><input type="text" value="FY450204001"></div>
+          <div class="form-item"><label>查封文书编号<span class="req">*</span><span class="auto-tag"><i class="fa-solid fa-wand-magic-sparkles"></i>已自动解析</span></label><input type="text" value="(2026)桂0204执1276号"></div>
+          <div class="form-item"><label>协助执行通知书编号<span class="req">*</span><span class="auto-tag"><i class="fa-solid fa-wand-magic-sparkles"></i>已自动解析</span></label><input type="text" value="(2026)桂0204执1276号之一"></div>
+          <div class="form-item"><label>案件编号<span class="req">*</span><span class="auto-tag"><i class="fa-solid fa-wand-magic-sparkles"></i>已自动解析</span></label><input type="text" value="(2026)桂0204执1276号"></div>
+          <div class="form-item"><label>被执行人姓名<span class="req">*</span><span class="auto-tag"><i class="fa-solid fa-wand-magic-sparkles"></i>已自动解析</span></label><input type="text" value="黄**"></div>
+          <div class="form-item"><label>被执行人证件号码<span class="req">*</span><span class="auto-tag"><i class="fa-solid fa-wand-magic-sparkles"></i>已自动解析</span></label><input type="text" value="450***********1537"></div>
+          <div class="form-item"><label>查封标的金额（元）<span class="req">*</span><span class="auto-tag"><i class="fa-solid fa-wand-magic-sparkles"></i>已自动解析</span></label><input type="text" value="860,000.00"></div>
+          <div class="form-item" style="grid-column:span 2"><label>查封原因<span class="req">*</span><span class="auto-tag"><i class="fa-solid fa-wand-magic-sparkles"></i>已自动解析</span></label><input type="text" value="民间借贷纠纷执行案件，申请执行人梁**申请查封被执行人黄**名下不动产"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-house-lock"></i> 房屋核验</h3><span class="sub">按文书中的房屋信息自动匹配房源</span></div>
+      <div class="card-body">
+        <dl class="desc-list">
+          <div class="desc-item"><dt>房屋坐落</dt><dd>柳州市柳南区航生路 26 号万科城 5 栋 2 单元 803</dd></div>
+          <div class="desc-item"><dt>不动产单元号</dt><dd>450204001008GB00256F00020009</dd></div>
+          <div class="desc-item"><dt>产权证号</dt><dd>桂(2022)柳州市不动产权第 0043158 号</dd></div>
+          <div class="desc-item"><dt>产权人</dt><dd>黄**（与被执行人一致 <i class="fa-solid fa-circle-check text-success"></i>）</dd></div>
+          <div class="desc-item"><dt>建筑面积</dt><dd>96.40 ㎡</dd></div>
+          <div class="desc-item"><dt>房屋用途</dt><dd>成套住宅</dd></div>
+          <div class="desc-item"><dt>当前可交易标识</dt><dd><span class="badge orange">有条件可交易</span></dd></div>
+          <div class="desc-item"><dt>现有限制情形</dt><dd>抵押 1 笔 · 限售至 2027-03-15 · 租赁备案至 2027-05-31</dd></div>
+        </dl>
+        <div class="alert alert-danger mt-16">
+          <i class="fa-solid fa-layer-group"></i>
+          <div>该房屋<b>已被查封</b>（CF45020420260126，XXXX市柳南区人民法院，2026-07-28 登记），本次登记自动切换为
+            <b>轮候查封，轮候序号 2</b>，前序查封编号 CF45020420260126。
+            <a class="link" href="seal-list.html">查看顺位链路</a></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-calendar-days"></i> 查封类型与期限</h3></div>
+      <div class="card-body">
+        <div class="form-grid form-align">
+          <div class="form-item">
+            <label>查封类型<span class="req">*</span></label>
+            <select id="cflx" onchange="onTypeChange()">
+              <option value="0">0 查封</option>
+              <option value="1">1 预查封（针对未办理产权登记的预售商品房）</option>
+              <option value="2" selected>2 轮候查封（该房已被查封，自动识别）</option>
+              <option value="3">3 续封</option>
+            </select>
+          </div>
+          <div class="form-item"><label>轮候序号</label><input type="text" value="2" readonly></div>
+          <div class="form-item"><label>前序查封编号</label><input type="text" value="CF45020420260126" readonly></div>
+          <div class="form-item"><label>查封期限起<span class="req">*</span></label><input type="date" id="dStart" value="2026-08-01" onchange="calcDays()"></div>
+          <div class="form-item"><label>查封期限止<span class="req">*</span></label><input type="date" id="dEnd" value="2029-07-31" onchange="calcDays()"></div>
+          <div class="form-item"><label>期限天数</label><input type="text" id="dDays" value="1,095 天" readonly></div>
+          <div class="form-item"><label>查封登记时间<span class="req">*</span></label><input type="text" value="2026-08-01 09:12" readonly></div>
+          <div class="form-item"><label>登记人</label><input type="text" value="韦国强" readonly></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-paperclip"></i> 文书附件</h3></div>
+      <div class="card-body">
+        <table class="data-table compact" data-static>
+          <thead><tr><th>材料名称</th><th>必要性</th><th>来源</th><th>状态</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr><td>协助执行通知书</td><td><span class="badge red">必要</span></td><td>法院直连推送</td><td><span class="badge green">已接收</span></td><td><span class="link" onclick="PMS.toast('预览：协助执行通知书.pdf')">预览</span> <span class="link" onclick="PMS.toast('已开始下载')">下载</span></td></tr>
+            <tr><td>查封裁定书</td><td><span class="badge red">必要</span></td><td>法院直连推送</td><td><span class="badge green">已接收</span></td><td><span class="link" onclick="PMS.toast('预览：查封裁定书.pdf')">预览</span> <span class="link" onclick="PMS.toast('已开始下载')">下载</span></td></tr>
+            <tr><td>送达回证</td><td><span class="badge gray">可选</span></td><td>窗口补录</td><td><span class="badge gray">未上传</span></td><td><span class="link" onclick="PMS.toast('已打开上传窗口')">上传</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <div class="btn-row justify-between">
+          <span class="text-3 text-sm">
+            <i class="fa-solid fa-circle-info"></i>
+            登记生效后即刻刷新房屋交易限制状态并联动房源销控，所有在途网签业务将被拦截。
+          </span>
+          <span class="flex gap-8">
+            <button type="button" class="btn" onclick="PMS.toast('登记草稿已保存','success')"><i class="fa-regular fa-floppy-disk"></i> 保存草稿</button>
+            <button type="button" class="btn btn-primary btn-lg" onclick="submitSeal()"><i class="fa-solid fa-gavel"></i> 提交查封登记</button>
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 提交成功页 -->
+  <div class="card hidden" id="okArea">
+    <div class="card-body">
+      <div class="ok-page">
+        <div class="ok-ico"><i class="fa-solid fa-check"></i></div>
+        <div class="ok-t">查封登记成功</div>
+        <div class="ok-s">XXXX市柳南区人民法院 (2026)桂0204执1276号 · 万科城 5 栋 2 单元 803 · 登记耗时 8 分 12 秒</div>
+        <div class="link-list" id="llBox"></div>
+        <div class="btn-row justify-center mt-16" style="margin-top:26px">
+          <button type="button" class="btn btn-primary" onclick="location.href='restriction-status.html?code=B'"><i class="fa-solid fa-traffic-light"></i> 查看限制状态</button>
+          <button type="button" class="btn" onclick="location.href='seal-list.html'">返回台账</button>
+          <button type="button" class="btn" onclick="location.reload()">继续登记</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function pickSrc(el) {
+  document.querySelectorAll('.src-pick .sp').forEach(function (s) { s.classList.remove('on'); });
+  el.classList.add('on');
+  var src = el.getAttribute('data-src');
+  document.getElementById('docBox').classList.toggle('hidden', src !== 'push');
+  document.getElementById('parseSub').textContent = src === 'push'
+    ? '已自动解析 12 项要素，人工可修改'
+    : (src === 'win' ? '窗口录入模式，请按纸质文书逐项填写' : '不动产登记同步模式，要素由接口带入');
+  document.querySelectorAll('.auto-tag').forEach(function (t) { t.classList.toggle('hidden', src !== 'push'); });
+  PMS.toast('已切换信息来源：' + el.querySelector('.st').textContent);
+}
+
+function pickDoc(el) {
+  document.querySelectorAll('.doc-card').forEach(function (d) {
+    d.classList.remove('on');
+    d.querySelector('.btn').className = 'btn';
+  });
+  el.classList.add('on');
+  el.querySelector('.btn').className = 'btn btn-primary';
+}
+
+function parseDoc() {
+  PMS.toast('文书解析完成，共提取 12 项要素，已填入下方表单', 'success');
+  window.scrollTo({ top: 420, behavior: 'smooth' });
+}
+
+function onTypeChange() {
+  var v = document.getElementById('cflx').value;
+  if (v !== '2') {
+    PMS.toast('该房屋已被查封（CF45020420260126），本次登记应为轮候查封', 'error');
+    document.getElementById('cflx').value = '2';
+  }
+}
+
+function calcDays() {
+  var s = new Date(document.getElementById('dStart').value);
+  var e = new Date(document.getElementById('dEnd').value);
+  var d = Math.round((e - s) / 86400000);
+  document.getElementById('dDays').value = isNaN(d) ? '—' : d.toLocaleString('en-US') + ' 天';
+}
+
+/* 提交须二次确认，成功页四条联动结果依次淡入 */
+function submitSeal() {
+  PMS.confirm({
+    title: '确认提交查封登记',
+    message: '登记后该房屋将立即置为不可交易，所有在途网签业务将被拦截，是否确认？',
+    detail: '本次为轮候查封（轮候序号 2），前序查封 CF45020420260126 解除后本笔自动生效。登记后同步刷新交易限制状态并联动房源销控。',
+    type: 'warning',
+    okText: '确认登记',
+    onOk: function () {
+      document.getElementById('formArea').classList.add('hidden');
+      document.getElementById('okArea').classList.remove('hidden');
+      document.getElementById('llBox').innerHTML =
+        '<div class="ll"><span class="li g"><i class="fa-solid fa-hashtag"></i></span>' +
+          '<div><div class="lt">查封编号 CF45020420260196 已生成</div>' +
+          '<div class="ld">查封类型「2 轮候查封」，轮候序号 2，前序查封编号 CF45020420260126；文书已归档至 wsdagl。</div></div></div>' +
+        '<div class="ll"><span class="li r"><i class="fa-solid fa-traffic-light"></i></span>' +
+          '<div><div class="lt">房屋交易限制状态已更新：可交易 → <b>不可交易</b></div>' +
+          '<div class="ld">sfcf 置 1，查封笔数 1 → 2，限制类型汇总追加「04 轮候查封」，状态更新时间 2026-08-01 09:12:36。' +
+          '<a class="link" href="restriction-status.html?code=B">查看限制状态</a></div></div></div>' +
+        '<div class="ll"><span class="li o"><i class="fa-solid fa-table-cells"></i></span>' +
+          '<div><div class="lt">房源销控已联动</div>' +
+          '<div class="ld">wsshare 楼盘表该房源已置为「限制交易」，商品房网签、存量房网签、租赁备案三类业务提交时即时拦截。</div></div></div>' +
+        '<div class="ll"><span class="li r"><i class="fa-solid fa-ban"></i></span>' +
+          '<div><div class="lt">已拦截在途业务 1 笔</div>' +
+          '<div class="ld">存量房网签备案 CFBA450200202600512（买受人周**）提交时被拦截，已通知经办机构柳州安居房产经纪有限公司。' +
+          '<span class="link" onclick="PMS.toast(\'拦截详情：校验编号 JY202608010912006 · 业务类型 1 存量房网签 · 不通过项：房源限制（已被查封）\')">查看拦截详情</span></div></div></div>';
+      window.scrollTo(0, 0);
+      PMS.toast('查封登记成功，房屋已置为不可交易', 'success');
+    }
+  });
+}
+
+calcDays();
+</script>
+</body>
+</html>

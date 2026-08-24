@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>住房品质信息 · 新建商品房网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：品质信息公示项对照与不实标记 */
+  .cmp-bad td { background: var(--danger-light); }
+  .pub { display: flex; align-items: center; gap: 8px; }
+  .pub .progress { flex: 1; display: block; min-width: 60px; }
+  .pub b { width: 42px; text-align: right; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsswb-23">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房网签备案管理系统
+        <span class="sep">/</span> 好房子
+        <span class="sep">/</span> <span class="cur">住房品质信息</span>
+      </div>
+      <div class="page-title">住房品质信息</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" data-open-drawer="dwFill"><i class="fa-solid fa-pen-to-square"></i> 品质信息填报</button>
+      <button type="button" class="btn" onclick="location.href='goodhouse-list.html'">好房子认定</button>
+      <button type="button" class="btn" onclick="location.href='quality-verify.html'">公示项配置</button>
+      <button type="button" class="btn" onclick="location.href='quality-detail.html'">交付评价</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《住房品质信息核验台账》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-star-half-stroke"></i></div>
+      <div><div class="s-label">已填报项目</div><div class="s-value">142</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-tower-broadcast"></i></div>
+      <div><div class="s-label">已公示项目</div><div class="s-value">128</div><div class="s-trend text-3">公示率 90.1%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">待核验</div><div class="s-value">24</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><div class="s-label">疑似不实</div><div class="s-value">6</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-circle-xmark"></i></div>
+      <div><div class="s-label">已认定不实</div><div class="s-value">2</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-list-check"></i></div>
+      <div><div class="s-label">公示项完整度</div><div class="s-value">92.6%</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>品质信息一经公示即作为交付验收与交付评价的比对基准；<b>公示内容与实际交付不符的记入企业信用记录</b>，好房子项目一并撤销认定。</div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>项目</label>
+        <input type="text" placeholder="项目名称关键词">
+      </div>
+      <div class="filter-item">
+        <label>行政区划</label>
+        <select><option value="">全部</option><option>城中区</option><option>鱼峰区</option><option>柳南区</option><option>柳北区</option><option>柳江区</option></select>
+      </div>
+      <div class="filter-item">
+        <label>开发企业</label>
+        <input type="text" placeholder="企业名称关键词">
+      </div>
+      <div class="filter-item">
+        <label>公示状态</label>
+        <select><option value="">全部</option><option>已公示</option><option>待公示</option><option>已下架</option></select>
+      </div>
+      <div class="filter-item">
+        <label>核验结果</label>
+        <select><option value="">全部</option><option>相符</option><option>待核验</option><option>疑似不实</option><option>已认定不实</option></select>
+      </div>
+      <div class="filter-item">
+        <label>是否好房子</label>
+        <select><option value="">全部</option><option>是</option><option>否</option></select>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 142 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="ok">相符</div>
+      <div class="tab" data-tab="wait">待核验 <span class="badge orange">24</span></div>
+      <div class="tab" data-tab="bad">疑似不实 <span class="badge red">6</span></div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblQl" data-static>
+        <thead>
+          <tr>
+            <th>项目</th>
+            <th>开发企业</th>
+            <th>行政区划</th>
+            <th>是否好房子</th>
+            <th class="num">公示项数</th>
+            <th>公示完整度</th>
+            <th>公示状态</th>
+            <th>首次公示日期</th>
+            <th>最近更新</th>
+            <th>核验结果</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="ok">
+            <td class="nowrap fw-600">彰泰江湾城（三期）</td>
+            <td class="nowrap">柳州彰泰置业有限公司</td>
+            <td class="nowrap">城中区</td>
+            <td class="nowrap"><span class="badge orange">好房子</span></td>
+            <td class="num nowrap">18 / 18</td>
+            <td><div class="pub"><span class="progress green"><span style="width:100%"></span></span><b>100%</b></div></td>
+            <td class="nowrap"><span class="badge green">已公示</span></td>
+            <td class="nowrap">2026-06-20</td>
+            <td class="nowrap">2026-07-28</td>
+            <td class="nowrap"><span class="badge green">相符</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('彰泰江湾城（三期）', 'ok')">品质档案</span>
+              <a class="link" href="project-detail.html">项目档案</a>
+            </td>
+          </tr>
+          <tr data-st="ok">
+            <td class="nowrap fw-600">华润置地柳州万象天地</td>
+            <td class="nowrap">柳州华润置地房地产开发有限公司</td>
+            <td class="nowrap">鱼峰区</td>
+            <td class="nowrap"><span class="badge orange">好房子</span></td>
+            <td class="num nowrap">18 / 18</td>
+            <td><div class="pub"><span class="progress green"><span style="width:100%"></span></span><b>100%</b></div></td>
+            <td class="nowrap"><span class="badge green">已公示</span></td>
+            <td class="nowrap">2026-07-22</td>
+            <td class="nowrap">2026-07-30</td>
+            <td class="nowrap"><span class="badge green">相符</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('华润置地柳州万象天地', 'ok')">品质档案</span>
+              <a class="link" href="project-detail.html">项目档案</a>
+            </td>
+          </tr>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">保利柳江府（二期）</td>
+            <td class="nowrap">柳州保利房地产开发有限公司</td>
+            <td class="nowrap">柳南区</td>
+            <td class="nowrap"><span class="badge orange">好房子</span></td>
+            <td class="num nowrap">16 / 18</td>
+            <td><div class="pub"><span class="progress"><span style="width:88.9%"></span></span><b>89%</b></div></td>
+            <td class="nowrap"><span class="badge green">已公示</span></td>
+            <td class="nowrap">2026-07-06</td>
+            <td class="nowrap">2026-07-26</td>
+            <td class="nowrap"><span class="badge orange">待核验</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('保利柳江府（二期）', 'wait')">品质档案</span>
+              <span class="link" onclick="PMS.toast('缺 2 项：楼板隔声实测值、可再生能源应用说明','error')">缺项提示</span>
+            </td>
+          </tr>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">荣和公园里（一期）</td>
+            <td class="nowrap">柳州荣和房地产开发有限公司</td>
+            <td class="nowrap">柳北区</td>
+            <td class="nowrap text-3">否</td>
+            <td class="num nowrap">15 / 18</td>
+            <td><div class="pub"><span class="progress orange"><span style="width:83.3%"></span></span><b>83%</b></div></td>
+            <td class="nowrap"><span class="badge orange">待公示</span></td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap">2026-07-24</td>
+            <td class="nowrap"><span class="badge orange">待核验</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('荣和公园里（一期）', 'wait')">品质档案</span>
+              <span class="link" onclick="PMS.toast('已催报缺失公示项，企业须在 5 个工作日内补齐','success')">催报</span>
+            </td>
+          </tr>
+          <tr data-st="bad">
+            <td class="nowrap fw-600">龙光玖誉城（四期）</td>
+            <td class="nowrap">柳州龙光房地产开发有限公司</td>
+            <td class="nowrap">柳江区</td>
+            <td class="nowrap text-3">否</td>
+            <td class="num nowrap">18 / 18</td>
+            <td><div class="pub"><span class="progress green"><span style="width:100%"></span></span><b>100%</b></div></td>
+            <td class="nowrap"><span class="badge green">已公示</span></td>
+            <td class="nowrap">2026-03-26</td>
+            <td class="nowrap">2026-07-18</td>
+            <td class="nowrap"><span class="badge red">疑似不实</span> <span class="text-3 text-sm">2 项</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('龙光玖誉城（四期）', 'bad')">品质档案</span>
+              <span class="link danger" onclick="PMS.toast('疑似不实项：新风系统（公示中央新风，抽查为局部壁挂新风）、充电桩预留比例（公示 30%，实测 18%）','error')">不实明细</span>
+            </td>
+          </tr>
+          <tr data-st="bad">
+            <td class="nowrap fw-600">恒兴时代广场</td>
+            <td class="nowrap">柳州恒兴房地产开发有限公司</td>
+            <td class="nowrap">柳南区</td>
+            <td class="nowrap"><span class="badge red">认定已撤销</span></td>
+            <td class="num nowrap">18 / 18</td>
+            <td><div class="pub"><span class="progress green"><span style="width:100%"></span></span><b>100%</b></div></td>
+            <td class="nowrap"><span class="badge gray">已下架</span></td>
+            <td class="nowrap">2025-09-26</td>
+            <td class="nowrap">2026-06-12</td>
+            <td class="nowrap"><span class="badge red">已认定不实</span> <span class="text-3 text-sm">已记入信用</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('恒兴时代广场', 'bad')">品质档案</span>
+              <span class="link" onclick="PMS.toast('已记入企业信用记录（柳建信〔2026〕028 号），好房子认定同步撤销','error')">处置结果</span>
+            </td>
+          </tr>
+          <tr data-st="ok">
+            <td class="nowrap fw-600">柳州万科城（五期）</td>
+            <td class="nowrap">柳州万科房地产开发有限公司</td>
+            <td class="nowrap">鱼峰区</td>
+            <td class="nowrap"><span class="badge orange">好房子</span></td>
+            <td class="num nowrap">18 / 18</td>
+            <td><div class="pub"><span class="progress green"><span style="width:100%"></span></span><b>100%</b></div></td>
+            <td class="nowrap"><span class="badge green">已公示</span></td>
+            <td class="nowrap">2026-05-14</td>
+            <td class="nowrap">2026-07-29</td>
+            <td class="nowrap"><span class="badge green">相符</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('柳州万科城（五期）', 'ok')">品质档案</span>
+              <a class="link" href="project-detail.html">项目档案</a>
+            </td>
+          </tr>
+          <tr data-st="ok">
+            <td class="nowrap fw-600">阳光城柳州樾府</td>
+            <td class="nowrap">柳州阳光城房地产开发有限公司</td>
+            <td class="nowrap">城中区</td>
+            <td class="nowrap text-3">否</td>
+            <td class="num nowrap">18 / 18</td>
+            <td><div class="pub"><span class="progress green"><span style="width:100%"></span></span><b>100%</b></div></td>
+            <td class="nowrap"><span class="badge green">已公示</span></td>
+            <td class="nowrap">2026-04-08</td>
+            <td class="nowrap">2026-07-21</td>
+            <td class="nowrap"><span class="badge green">相符</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('阳光城柳州樾府', 'ok')">品质档案</span>
+              <a class="link" href="project-detail.html">项目档案</a>
+            </td>
+          </tr>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">中南春风南岸（二期）</td>
+            <td class="nowrap">柳州中南房地产开发有限公司</td>
+            <td class="nowrap">柳北区</td>
+            <td class="nowrap"><span class="badge orange">好房子</span></td>
+            <td class="num nowrap">17 / 18</td>
+            <td><div class="pub"><span class="progress"><span style="width:94.4%"></span></span><b>94%</b></div></td>
+            <td class="nowrap"><span class="badge green">已公示</span></td>
+            <td class="nowrap">2026-07-15</td>
+            <td class="nowrap">2026-07-30</td>
+            <td class="nowrap"><span class="badge orange">待核验</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('中南春风南岸（二期）', 'wait')">品质档案</span>
+              <span class="link" onclick="PMS.toast('缺 1 项：外墙保温材料燃烧性能等级','error')">缺项提示</span>
+            </td>
+          </tr>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">融创柳江壹号院</td>
+            <td class="nowrap">柳州融创房地产开发有限公司</td>
+            <td class="nowrap">柳江区</td>
+            <td class="nowrap text-3">否</td>
+            <td class="num nowrap">14 / 18</td>
+            <td><div class="pub"><span class="progress orange"><span style="width:77.8%"></span></span><b>78%</b></div></td>
+            <td class="nowrap"><span class="badge orange">待公示</span></td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap">2026-07-19</td>
+            <td class="nowrap"><span class="badge orange">待核验</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('融创柳江壹号院', 'wait')">品质档案</span>
+              <span class="link" onclick="PMS.toast('已催报缺失公示项，企业须在 5 个工作日内补齐','success')">催报</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 品质档案 -->
+  <div class="drawer-mask"></div>
+  <div class="drawer drawer-lg" id="dwView">
+    <div class="drawer-head">
+      <h3>住房品质信息档案 · <span id="vPj">—</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert" id="vAlert"><i class="fa-solid fa-circle-info"></i><div id="vAlertTxt">—</div></div>
+
+      <div class="section-title mt-16">18 项公示信息与核验对照</div>
+      <table class="data-table compact" id="tblCmp">
+        <thead>
+          <tr><th>类别</th><th>公示项</th><th>公示值</th><th>核验 / 抽查值</th><th>核验方式</th><th>核验结果</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="nowrap">建筑</td><td class="nowrap">结构设计使用年限</td><td class="nowrap">70 年</td><td class="nowrap">70 年</td><td class="nowrap">图纸核对</td><td class="nowrap"><span class="badge green">相符</span></td></tr>
+          <tr><td class="nowrap">建筑</td><td class="nowrap">户内层高（m）</td><td class="nowrap">3.05</td><td class="nowrap">3.05</td><td class="nowrap">现场实测</td><td class="nowrap"><span class="badge green">相符</span></td></tr>
+          <tr><td class="nowrap">建筑</td><td class="nowrap">外墙保温做法</td><td class="nowrap">岩棉外保温 50mm</td><td class="nowrap">岩棉外保温 50mm</td><td class="nowrap">材料进场记录</td><td class="nowrap"><span class="badge green">相符</span></td></tr>
+          <tr><td class="nowrap">建筑</td><td class="nowrap">楼板隔声（dB）</td><td class="nowrap">62</td><td class="nowrap">63</td><td class="nowrap">第三方检测</td><td class="nowrap"><span class="badge green">相符</span></td></tr>
+          <tr><td class="nowrap">建筑</td><td class="nowrap">门窗气密性等级</td><td class="nowrap">6 级</td><td class="nowrap">6 级</td><td class="nowrap">第三方检测</td><td class="nowrap"><span class="badge green">相符</span></td></tr>
+          <tr><td class="nowrap">设备</td><td class="nowrap">电梯品牌与数量</td><td class="nowrap">日立 · 每单元 2 台</td><td class="nowrap">日立 · 每单元 2 台</td><td class="nowrap">现场查验</td><td class="nowrap"><span class="badge green">相符</span></td></tr>
+          <tr class="q-bad"><td class="nowrap">设备</td><td class="nowrap">新风系统</td><td class="nowrap">中央新风（全户）</td><td class="nowrap">局部壁挂新风</td><td class="nowrap">现场抽查（抽 12 户）</td><td class="nowrap"><span class="badge red">不符</span></td></tr>
+          <tr><td class="nowrap">设备</td><td class="nowrap">净水系统</td><td class="nowrap">全屋净水</td><td class="nowrap">全屋净水</td><td class="nowrap">现场抽查</td><td class="nowrap"><span class="badge green">相符</span></td></tr>
+          <tr><td class="nowrap">设备</td><td class="nowrap">智能门锁</td><td class="nowrap">指纹 + 人脸</td><td class="nowrap">指纹 + 人脸</td><td class="nowrap">现场抽查</td><td class="nowrap"><span class="badge green">相符</span></td></tr>
+          <tr><td class="nowrap">绿色</td><td class="nowrap">绿色建筑等级</td><td class="nowrap">二星级</td><td class="nowrap">二星级</td><td class="nowrap">标识证书核对</td><td class="nowrap"><span class="badge green">相符</span></td></tr>
+          <tr><td class="nowrap">绿色</td><td class="nowrap">可再生能源应用</td><td class="nowrap">太阳能热水 + 光伏车棚</td><td class="nowrap">太阳能热水 + 光伏车棚</td><td class="nowrap">现场查验</td><td class="nowrap"><span class="badge green">相符</span></td></tr>
+          <tr class="q-bad"><td class="nowrap">绿色</td><td class="nowrap">充电桩预留比例</td><td class="nowrap">30%</td><td class="nowrap">18%</td><td class="nowrap">现场清点</td><td class="nowrap"><span class="badge red">不符</span></td></tr>
+          <tr><td class="nowrap">配套</td><td class="nowrap">车位配比</td><td class="nowrap">1 : 1.25</td><td class="nowrap">1 : 1.25</td><td class="nowrap">图纸核对</td><td class="nowrap"><span class="badge green">相符</span></td></tr>
+          <tr><td class="nowrap">配套</td><td class="nowrap">教育配套</td><td class="nowrap">12 班幼儿园 1 所</td><td class="nowrap">12 班幼儿园 1 所</td><td class="nowrap">现场查验</td><td class="nowrap"><span class="badge green">相符</span></td></tr>
+          <tr><td class="nowrap">配套</td><td class="nowrap">养老与健身设施</td><td class="nowrap">养老服务中心 1 处 + 健身场地 2 处</td><td class="nowrap">养老服务中心 1 处 + 健身场地 2 处</td><td class="nowrap">现场查验</td><td class="nowrap"><span class="badge green">相符</span></td></tr>
+          <tr><td class="nowrap">物业</td><td class="nowrap">物业服务企业与费用</td><td class="nowrap">彰泰物业 · 2.60 元/㎡·月</td><td class="nowrap">彰泰物业 · 2.60 元/㎡·月</td><td class="nowrap">合同核对</td><td class="nowrap"><span class="badge green">相符</span></td></tr>
+          <tr><td class="nowrap">交付</td><td class="nowrap">装修交付标准</td><td class="nowrap">精装（材料清单见附件）</td><td class="nowrap">与清单一致</td><td class="nowrap">现场抽查</td><td class="nowrap"><span class="badge green">相符</span></td></tr>
+          <tr><td class="nowrap">交付</td><td class="nowrap">约定交付日期</td><td class="nowrap">2027-12-31</td><td class="nowrap">2027-12-31</td><td class="nowrap">合同核对</td><td class="nowrap"><span class="badge green">相符</span></td></tr>
+        </tbody>
+      </table>
+
+      <div class="section-title mt-16">核验与处置轨迹</div>
+      <div class="timeline">
+        <div class="tl-item done"><div class="tl-dot"></div>
+          <div class="tl-title">企业填报品质信息</div>
+          <div class="tl-meta">2026-03-20 · 18 项全部填报 · 经办 覃海波</div>
+        </div>
+        <div class="tl-item done"><div class="tl-dot"></div>
+          <div class="tl-title">公示上线</div>
+          <div class="tl-meta">2026-03-26 · 统一服务门户新房专区 + 销售现场公示牌</div>
+        </div>
+        <div class="tl-item done"><div class="tl-dot"></div>
+          <div class="tl-title">抽查核验</div>
+          <div class="tl-meta">2026-07-18 · 抽查 12 户 · 2 项不符</div>
+        </div>
+        <div class="tl-item pending" id="tlAct"><div class="tl-dot"></div>
+          <div class="tl-title">不实处置</div>
+          <div class="tl-meta">待办理：出具整改通知 / 记入信用记录</div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+      <button type="button" class="btn" onclick="PMS.toast('已在统一服务门户新房专区打开本项目品质公示页')"><i class="fa-solid fa-tower-broadcast"></i> 查看公示页</button>
+      <button type="button" class="btn" onclick="PMS.toast('《住房品质信息核验报告》PDF 已下载')"><i class="fa-solid fa-file-pdf"></i> 导出核验报告</button>
+      <button type="button" class="btn btn-danger" data-open-modal="mdBad"><i class="fa-solid fa-gavel"></i> 认定不实并处置</button>
+    </div>
+  </div>
+
+  <!-- 品质信息填报 -->
+  <div class="drawer drawer-lg" id="dwFill">
+    <div class="drawer-head">
+      <h3>住房品质信息填报</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>项目<span class="req">*</span></label>
+          <select><option>荣和公园里（一期）</option><option>保利柳江府（二期）</option><option>阳光城翡丽湾</option></select>
+        </div>
+        <div class="form-item">
+          <label>填报人<span class="req">*</span></label>
+          <input type="text" value="覃海波">
+        </div>
+        <div class="form-item">
+          <label>填报日期<span class="req">*</span></label>
+          <input type="date" value="2026-07-31">
+        </div>
+        <div class="form-item">
+          <label>是否同步公示</label>
+          <select><option>是（提交即公示）</option><option>否（待人工发布）</option></select>
+        </div>
+      </div>
+
+      <div class="section-title mt-16">18 项公示信息</div>
+      <div class="form-grid form-align">
+        <div class="form-item"><label>结构设计使用年限<span class="req">*</span></label><input type="text" value="70 年"></div>
+        <div class="form-item"><label>户内层高（m）<span class="req">*</span></label><input type="number" value="3.00" step="0.01"></div>
+        <div class="form-item"><label>外墙保温做法<span class="req">*</span></label><input type="text" value="岩棉外保温 40mm"></div>
+        <div class="form-item"><label>楼板隔声（dB）<span class="req">*</span></label><input type="number" value="64"></div>
+        <div class="form-item"><label>门窗气密性等级<span class="req">*</span></label><select><option>6 级</option><option>5 级</option><option>4 级</option></select></div>
+        <div class="form-item"><label>电梯品牌与数量<span class="req">*</span></label><input type="text" value="通力 · 每单元 2 台"></div>
+        <div class="form-item"><label>新风系统<span class="req">*</span></label><select><option>中央新风（全户）</option><option>局部壁挂新风</option><option>未配置</option></select></div>
+        <div class="form-item"><label>净水系统<span class="req">*</span></label><select><option>全屋净水</option><option>厨房净水</option><option>未配置</option></select></div>
+        <div class="form-item"><label>智能门锁<span class="req">*</span></label><input type="text" value="指纹 + 密码"></div>
+        <div class="form-item"><label>绿色建筑等级<span class="req">*</span></label><select><option>二星级</option><option>一星级</option><option>三星级</option></select></div>
+        <div class="form-item"><label>可再生能源应用<span class="req">*</span></label><input type="text" value="太阳能热水"></div>
+        <div class="form-item"><label>充电桩预留比例（%）<span class="req">*</span></label><input type="number" value="30"></div>
+        <div class="form-item"><label>车位配比<span class="req">*</span></label><input type="text" value="1 : 1.10"></div>
+        <div class="form-item"><label>教育配套<span class="req">*</span></label><input type="text" value="9 班幼儿园 1 所"></div>
+        <div class="form-item"><label>养老与健身设施<span class="req">*</span></label><input type="text" value="健身场地 1 处"></div>
+        <div class="form-item"><label>物业服务企业与费用<span class="req">*</span></label><input type="text" value="荣和物业 · 2.20 元/㎡·月"></div>
+        <div class="form-item"><label>装修交付标准<span class="req">*</span></label><input type="text" value="毛坯交付"></div>
+        <div class="form-item"><label>约定交付日期<span class="req">*</span></label><input type="date" value="2028-06-30"></div>
+      </div>
+
+      <div class="alert alert-warning mt-16">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>填报内容公示后即作为交付验收比对基准，须与施工图设计文件、材料进场记录一致；与实际交付不符的记入企业信用记录。</div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn" onclick="PMS.toast('填报草稿已保存','success')"><i class="fa-regular fa-floppy-disk"></i> 保存草稿</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer('dwFill');PMS.toast('已提交并公示，18 项公示信息同步至门户新房专区','success')"><i class="fa-solid fa-tower-broadcast"></i> 提交并公示</button>
+    </div>
+  </div>
+
+  <!-- 认定不实并处置 -->
+  <div class="modal-mask" id="mdBad">
+    <div class="modal">
+      <div class="modal-head">认定品质信息不实并处置</div>
+      <div class="modal-body">
+        <div class="alert alert-danger">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>认定不实后：记入企业信用记录、责令整改并重新公示；若为好房子项目，同步撤销认定并终止四项政策激励。</div>
+        </div>
+        <div class="form-grid form-align mt-16">
+          <div class="form-item">
+            <label>不实项数<span class="req">*</span></label>
+            <input type="text" value="2（新风系统、充电桩预留比例）" readonly>
+          </div>
+          <div class="form-item">
+            <label>处置措施<span class="req">*</span></label>
+            <select><option>责令整改并重新公示</option><option>责令整改 + 记入信用记录</option><option>记入信用记录 + 撤销好房子认定</option></select>
+          </div>
+          <div class="form-item">
+            <label>依据文号<span class="req">*</span></label>
+            <input type="text" value="柳建信〔2026〕029 号">
+          </div>
+          <div class="form-item">
+            <label>整改期限<span class="req">*</span></label>
+            <input type="date" value="2026-08-31">
+          </div>
+          <div class="form-item">
+            <label>是否撤销好房子认定</label>
+            <select><option>否（本项目非好房子）</option><option>是</option></select>
+          </div>
+          <div class="form-item">
+            <label>经办人<span class="req">*</span></label>
+            <input type="text" value="韦国强">
+          </div>
+          <div class="form-item col-full">
+            <label>不实认定说明<span class="req">*</span></label>
+            <textarea>抽查 12 户核实：公示「中央新风（全户）」实为局部壁挂新风；公示「充电桩预留比例 30%」现场清点为 18%。两项与公示内容不符，认定为品质信息不实。</textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-close-modal>取消</button>
+        <button type="button" class="btn btn-danger-solid" onclick="submitBad()"><i class="fa-solid fa-gavel"></i> 确认认定并处置</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  var table = document.getElementById('tblQl');
+  document.getElementById('stTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var name = tab.getAttribute('data-tab');
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.style.display = (name === 'all' || tr.getAttribute('data-st') === name) ? '' : 'none';
+    });
+  });
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 142,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+
+/* 相符项目隐藏两条不符样例行，疑似不实项目标红显示 */
+function openView(pj, kind) {
+  document.getElementById('vPj').textContent = pj;
+  var box = document.getElementById('vAlert'), txt = document.getElementById('vAlertTxt');
+  var bad = document.querySelectorAll('#tblCmp .q-bad');
+  if (kind === 'bad') {
+    box.className = 'alert alert-danger';
+    txt.innerHTML = '抽查核验发现 <b>2 项与公示内容不符</b>（新风系统、充电桩预留比例），已列入疑似不实，待出具处置结论。';
+    bad.forEach(function (tr) { tr.classList.remove('hidden'); tr.classList.add('cmp-bad'); });
+  } else if (kind === 'wait') {
+    box.className = 'alert alert-warning';
+    txt.innerHTML = '本项目尚未完成抽查核验，公示项缺 2 项，已向企业发出催报；核验结果以现场抽查与第三方检测为准。';
+    bad.forEach(function (tr) { tr.classList.add('hidden'); });
+  } else {
+    box.className = 'alert alert-success';
+    txt.innerHTML = '18 项公示信息全部填报并核验<b>相符</b>，可作为交付验收与交付评价的比对基准。';
+    bad.forEach(function (tr) { tr.classList.add('hidden'); });
+  }
+  PMS.openDrawer('dwView');
+}
+
+function submitBad() {
+  PMS.closeModal('mdBad');
+  var el = document.getElementById('tlAct');
+  el.className = 'tl-item done';
+  el.querySelector('.tl-title').textContent = '不实处置办结';
+  el.querySelector('.tl-meta').textContent = '2026-07-31 · 柳建信〔2026〕029 号 · 责令整改并记入信用记录 · 整改期限 2026-08-31';
+  PMS.toast('已认定不实并记入企业信用记录', 'success');
+}
+</script>
+</body>
+</html>

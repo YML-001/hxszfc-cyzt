@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能算法模型库 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="pt" data-active="model-library">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>模型底座</span>
+      <span class="sep">/</span><span class="cur">智能算法模型库</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-microchip"></i>模型管理 wsai-02</span>
+    <a class="active" href="model-library.html?role=pt">算法模型库</a>
+    <a href="model-deploy.html?role=pt">本地化部署</a>
+    <a href="model-version.html?role=pt">版本管理</a>
+    <a href="model-eval.html?role=pt">效果评估</a>
+    <a href="compute-resource.html?role=pt">算力纳管</a>
+    <a href="agent-orchestrate.html?role=pt">智能体编排</a>
+    <a href="upstream-model.html?role=pt">上级模型复用</a>
+    <a href="corpus-manage.html?role=pt">行业语料</a>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon ai"><i class="fa-solid fa-microchip"></i></div>
+      <div><div class="s-label">模型总数</div><div class="s-value" id="kAll">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">已发布 / 灰度中</div><div class="s-value" id="kOn">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-bullseye"></i></div>
+      <div><div class="s-label">平均准确率</div><div class="s-value" id="kAcc">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><div class="s-label">平均误报率</div><div class="s-value" id="kFpr">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-flask"></i></div>
+      <div><div class="s-label">待调优样本</div><div class="s-value" id="kSamp">—</div>
+        <div class="s-trend text-2">来自人工修正与驳回</div></div>
+    </div>
+  </div>
+
+  <div class="card list-card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>模型类型</label>
+        <select id="fLx" data-dict="mxlx" onchange="AI.paint('tModel')"></select>
+      </div>
+      <div class="filter-item">
+        <label>模型状态</label>
+        <select id="fZt" data-dict="mxzt" onchange="AI.paint('tModel')"></select>
+      </div>
+      <div class="filter-item">
+        <label>模型来源</label>
+        <select id="fLy" data-dict="mxly" onchange="AI.paint('tModel')"></select>
+      </div>
+      <div class="filter-item">
+        <label>模型名称</label>
+        <input type="text" id="fKw" placeholder="输入模型名称关键词" oninput="AI.paint('tModel')">
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-primary" onclick="AI.paint('tModel')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button class="btn" onclick="resetFilter()"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tModel" data-static>
+        <thead><tr>
+          <th>模型名称</th><th>类型</th><th>当前版本</th><th>状态</th><th>来源</th>
+          <th class="num">调用量</th><th>准确率</th><th class="num">误报率</th>
+          <th class="num">待调优</th><th>启用</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<div class="drawer-mask" data-close-drawer></div>
+<div class="drawer" id="dModel">
+  <div class="drawer-head"><h3>模型详情</h3><span class="sub text-3" id="dName"></span>
+    <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span></div>
+  <div class="drawer-body" id="dBody"></div>
+  <div class="drawer-foot"><button class="btn" data-close-drawer>关闭</button></div>
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var q = '?role=' + AI.role();
+
+  function paintKpi() {
+    var all = AI.get('models');
+    var on = all.filter(function (m) { return m.mxzt === '3' || m.mxzt === '2'; });
+    var acc = on.filter(function (m) { return m.acc > 0; });
+    document.getElementById('kAll').textContent = all.length;
+    document.getElementById('kOn').textContent = on.length + ' / ' + all.length;
+    document.getElementById('kAcc').textContent = acc.length
+      ? (Math.round(acc.reduce(function (s, m) { return s + m.acc; }, 0) / acc.length * 10) / 10) + '%' : '—';
+    document.getElementById('kFpr').textContent = acc.length
+      ? (Math.round(acc.reduce(function (s, m) { return s + m.fpr; }, 0) / acc.length * 10) / 10) + '%' : '—';
+    document.getElementById('kSamp').textContent = AI.stat('samples');
+  }
+
+  window.resetFilter = function () {
+    ['fLx', 'fZt', 'fLy'].forEach(function (id) { document.getElementById(id).value = ''; });
+    document.getElementById('fKw').value = '';
+    AI.paint('tModel');
+  };
+
+  AI.table({
+    id: 'tModel', pageSize: 20,
+    rows: function () {
+      var lx = document.getElementById('fLx').value;
+      var zt = document.getElementById('fZt').value;
+      var ly = document.getElementById('fLy').value;
+      var kw = (document.getElementById('fKw').value || '').trim();
+      return AI.where('models', function (m) {
+        if (lx && m.mxlx !== lx) return false;
+        if (zt && m.mxzt !== zt) return false;
+        if (ly && m.mxly !== ly) return false;
+        if (kw && m.mc.indexOf(kw) < 0) return false;
+        return true;
+      });
+    },
+    cells: function (m) {
+      var usedBy = AI.where('agents', function (a) {
+        return a.modelId === m.id && (a.ztzt === '1' || a.ztzt === '2');
+      }).length;
+      return [
+        '<td><a class="link" onclick="openModel(\'' + m.id + '\')">' + AI.esc(m.mc) + '</a>' +
+          (m.suggestOff ? ' <span class="badge orange">建议下线</span>' : '') +
+          (usedBy ? '<div class="text-3 text-sm">' + usedBy + ' 个智能体在用</div>' : '') + '</td>',
+        '<td>' + AI.dict('mxlx', m.mxlx) + '</td>',
+        '<td>' + AI.esc(m.ver) + (m.mxzt === '2' ? '<div class="text-3 text-sm">灰度 ' + m.grayPct + '%</div>' : '') + '</td>',
+        '<td>' + AI.mxBadge(m.mxzt) + '</td>',
+        '<td>' + AI.dict('mxly', m.mxly) + '</td>',
+        '<td class="num">' + AI.num(m.calls) + '</td>',
+        '<td>' + (m.acc ? AI.confidence(m.acc) : '<span class="text-3">—</span>') + '</td>',
+        '<td class="num">' + (m.fpr ? m.fpr + '%' : '—') + '</td>',
+        '<td class="num">' + (m.samples ? '<span class="text-danger fw-600">' + m.samples + '</span>' : '0') + '</td>',
+        '<td>' + (m.mxzt === '3' || m.mxzt === '2'
+          ? (m.enabled ? '<span class="badge green">已启用</span>' : '<span class="badge gray">已停用</span>')
+          : '<span class="text-3">—</span>') + '</td>',
+        '<td class="col-ops">' +
+          (m.mxzt === '0' || m.mxzt === '1'
+            ? '<button class="btn btn-primary btn-sm" onclick="AI.act.deployModel(\'' + m.id + '\')">' +
+              '<i class="fa-solid fa-rocket"></i> ' + (m.mxzt === '0' ? '部署' : '完成发布') + '</button> '
+            : '') +
+          (m.mxzt === '3' || m.mxzt === '2'
+            ? '<button class="btn btn-sm" onclick="AI.act.toggleModel(\'' + m.id + '\')">' +
+              (m.enabled ? '<i class="fa-solid fa-pause"></i> 停用' : '<i class="fa-solid fa-play"></i> 启用') + '</button> '
+            : '') +
+          (m.samples
+            ? '<button class="btn btn-success btn-sm" onclick="AI.act.retrain(\'' + m.id + '\')"><i class="fa-solid fa-flask"></i> 重训</button> '
+            : '') +
+          '<a class="btn btn-sm" href="model-version.html' + q + '&model=' + m.id + '"><i class="fa-solid fa-code-branch"></i> 版本</a>' +
+        '</td>'
+      ];
+    },
+    empty: '没有符合条件的模型'
+  });
+
+  window.openModel = function (id) {
+    var m = AI.byId('models', id);
+    if (!m) return;
+    var vers = AI.where('versions', function (v) { return v.modelId === id; })
+      .sort(function (a, b) { return b.releaseAt - a.releaseAt; });
+    var agents = AI.where('agents', function (a) { return a.modelId === id; });
+    document.getElementById('dName').textContent = m.mc;
+    document.getElementById('dBody').innerHTML =
+      '<div class="grp-card"><div class="grp-head"><span class="gi"><i class="fa-solid fa-microchip"></i></span>基本信息 ' +
+        AI.mxBadge(m.mxzt) + '</div>' +
+        '<dl class="desc-list">' +
+          '<div class="desc-item"><dt>模型名称</dt><dd>' + AI.esc(m.mc) + '</dd></div>' +
+          '<div class="desc-item"><dt>模型类型</dt><dd>' + AI.dict('mxlx', m.mxlx) + '</dd></div>' +
+          '<div class="desc-item"><dt>当前版本</dt><dd>' + AI.esc(m.ver) + '</dd></div>' +
+          '<div class="desc-item"><dt>模型来源</dt><dd>' + AI.dict('mxly', m.mxly) + '</dd></div>' +
+          '<div class="desc-item"><dt>累计调用</dt><dd>' + AI.num(m.calls) + ' 次</dd></div>' +
+          '<div class="desc-item"><dt>准确率</dt><dd>' + (m.acc || '—') + '%</dd></div>' +
+          '<div class="desc-item"><dt>误报率</dt><dd>' + (m.fpr || '—') + '%</dd></div>' +
+          '<div class="desc-item"><dt>待调优样本</dt><dd>' + m.samples + ' 条</dd></div>' +
+          '<div class="desc-item full"><dt>部署说明</dt><dd>' + AI.esc(m.note) + '</dd></div>' +
+        '</dl></div>' +
+      '<div class="grp-card"><div class="grp-head"><span class="gi"><i class="fa-solid fa-code-branch"></i></span>版本流水</div>' +
+        (vers.length
+          ? '<table class="data-table compact" data-static><thead><tr><th>版本</th><th>状态</th><th>准确率</th><th>说明</th><th>操作人</th><th>时间</th></tr></thead><tbody>' +
+            vers.map(function (v) {
+              return '<tr><td>' + AI.esc(v.ver) + (v.ver === m.ver ? ' <span class="badge blue">当前</span>' : '') + '</td>' +
+                '<td>' + AI.mxBadge(v.mxzt) + '</td><td>' + v.acc + '%</td>' +
+                '<td>' + AI.esc(v.note) + (v.rollbackFrom ? '（自 ' + AI.esc(v.rollbackFrom) + '）' : '') + '</td>' +
+                '<td>' + AI.esc(v.operator) + '</td><td>' + AI.fmt.date(v.releaseAt) + '</td></tr>';
+            }).join('') + '</tbody></table>'
+          : '<div class="empty"><i class="fa-regular fa-folder-open"></i><div>暂无版本记录</div></div>') +
+      '</div>' +
+      '<div class="grp-card"><div class="grp-head"><span class="gi"><i class="fa-solid fa-diagram-project"></i></span>调用该模型的智能体</div>' +
+        (agents.length
+          ? '<div class="flex gap-8" style="flex-wrap:wrap">' + agents.map(function (a) {
+              return '<a class="file-chip" href="agent-orchestrate.html' + q + '"><i class="fa-solid fa-robot"></i>' +
+                AI.esc(a.mc) + ' ' + AI.ztBadge(a.ztzt) + '</a>';
+            }).join('') + '</div>'
+          : '<div class="text-3">暂无智能体调用该模型</div>') +
+      '</div>' +
+      '<div class="ai-tip"><i class="fa-solid fa-circle-info"></i><span>模型必须处于「已发布」或「灰度中」且为启用状态，才能被智能体编排选用；' +
+        '被已上架智能体占用的模型不允许停用。待调优样本来自各智能场景的人工修正与驳回。</span></div>';
+    PMS.openDrawer('dModel');
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () { paintKpi(); AI.repaintAll(); });
+  });
+})();
+</script>
+</body>
+</html>

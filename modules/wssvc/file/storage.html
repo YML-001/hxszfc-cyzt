@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文件存储管理 · 统一应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../../assets/css/app.css">
+<link rel="stylesheet" href="../../../assets/css/wssvc.css">
+</head>
+<body data-role="admin" data-active="wssvc-14">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 统一应用服务平台
+        <span class="sep">/</span> 统一文件服务 <span class="sep">/</span> <span class="cur">文件存储管理</span>
+      </div>
+      <div class="page-title">文件存储管理</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="preview-auth.html"><i class="fa-solid fa-eye"></i> 预览与鉴权</a>
+      <button class="btn" onclick="PMS.confirm({title:'发起哈希全量巡检',message:'对主桶 4,286 万个文件做哈希比对？',detail:'全量巡检约需 6 小时，走低峰时段错峰执行，不影响在线业务。发现不一致的会自动从副本或灾备恢复并告警。',okText:'发起',onOk:function(){PMS.toast('已排入今晚 23:00 的巡检队列','success')}})"><i class="fa-solid fa-fingerprint"></i> 哈希巡检</button>
+      <button class="btn" onclick="PMS.openDrawer('tierDrawer')"><i class="fa-solid fa-snowflake"></i> 冷热分层预演</button>
+      <button class="btn btn-primary" onclick="SVC.exportAsync('文件存储台账')"><i class="fa-solid fa-download"></i> 导出台账</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-shield-halved"></i>
+    <div><b>这一层的核心不是「存得下」，是「取得回、改不了、说得清」</b>。
+      房产档案是不动产权属的最终凭据，一份受理材料影像可能在十年后的行政诉讼里当证据用。
+      所以每个文件落盘时算 SM3 哈希、多副本存储、任何覆盖都留版本，
+      调阅记录同步写审计——<b>这三条是不能为了性能让步的</b>。</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-file"></i></div>
+      <div><div class="s-label">在存文件</div><div class="s-value">4,286<span class="text-sm"> 万</span></div><div class="s-trend">占用 68.4 TB</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-clock-rotate-left"></i></div>
+      <div><div class="s-label">多版本文件</div><div class="s-value">86,420</div><div class="s-trend">平均 2.3 个版本</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-fingerprint"></i></div>
+      <div><div class="s-label">哈希巡检覆盖</div><div class="s-value">100%</div><div class="s-trend text-success">本月 3 次，零异常</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-snowflake"></i></div>
+      <div><div class="s-label">可转冷存储</div><div class="s-value">6.2<span class="text-sm"> TB</span></div><div class="s-trend text-warning">三年以上未调阅</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-trash-can"></i></div>
+      <div><div class="s-label">待销毁（超保管期）</div><div class="s-value">0</div><div class="s-trend">房产档案多为永久保管</div></div>
+    </div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="list">文件台账</div>
+      <div class="tab" data-tab="ver">版本与覆盖记录</div>
+      <div class="tab" data-tab="hash">哈希巡检</div>
+      <div class="tab" data-tab="bucket">存储桶与分层</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="list">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>关键词</label><input type="text" placeholder="文件名 / 文件 ID / 业务号 / 不动产单元号"></div>
+          <div class="filter-item"><label>业务类型</label><select><option value="">全部</option><option>登记受理材料</option><option>交易合同</option><option>测绘成果</option><option>证书证明</option><option>缴款凭证</option><option>档案影像</option></select></div>
+          <div class="filter-item"><label>来源应用</label><select><option value="">全部</option><option>不动产登记业务系统</option><option>存量房交易系统</option><option>档案管理系统</option><option>网上服务大厅</option><option>测绘成果管理</option></select></div>
+          <div class="filter-item"><label>存储层</label><select><option value="">全部</option><option>热存储（主桶）</option><option>冷存储（归档）</option><option>取回中</option></select></div>
+          <div class="filter-item"><label>上传时间</label><select><option>今日</option><option>近 7 日</option><option>近 30 日</option><option>全部</option></select></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已检索文件台账','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="PMS.toast('已重置为默认条件')">重置</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>文件名</th><th>业务类型</th><th>关联业务</th><th>来源应用</th><th class="num">大小</th><th>格式</th><th class="num">版本</th><th>存储层</th><th>上传时间</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr class="clickable" onclick="PMS.openDrawer('fileDrawer')">
+                <td class="cell-lg">不动产登记申请书_扫描件.pdf</td><td>登记受理材料</td><td class="nowrap">DJ2026080100862</td><td class="nowrap">不动产登记业务系统</td>
+                <td class="num">2.4 MB</td><td>PDF</td><td class="num">1</td><td><span class="badge blue">热</span></td><td class="nowrap">今日 21:42</td>
+                <td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('fileDrawer')">
+                <td class="cell-lg">存量房买卖合同_签署版.pdf</td><td>交易合同</td><td class="nowrap">JY2026080100486</td><td class="nowrap">存量房交易系统</td>
+                <td class="num">1.8 MB</td><td>PDF</td><td class="num">3</td><td><span class="badge blue">热</span></td><td class="nowrap">今日 21:36</td>
+                <td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('fileDrawer')">
+                <td class="cell-lg">锦绣江南3-1-1102_分层分户图.dwg</td><td>测绘成果</td><td class="nowrap">CH2026070200128</td><td class="nowrap">测绘成果管理</td>
+                <td class="num">18.6 MB</td><td>DWG</td><td class="num">2</td><td><span class="badge blue">热</span></td><td class="nowrap">今日 20:18</td>
+                <td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('fileDrawer')">
+                <td class="cell-lg">不动产权证书_45010020260008642.pdf</td><td>证书证明</td><td class="nowrap">DJ2026073100642</td><td class="nowrap">不动产登记业务系统</td>
+                <td class="num">862 KB</td><td>PDF</td><td class="num">1</td><td><span class="badge blue">热</span></td><td class="nowrap">今日 18:04</td>
+                <td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('fileDrawer')">
+                <td class="cell-lg">身份证正反面_合并.jpg</td><td>登记受理材料</td><td class="nowrap">DJ2026080100858</td><td class="nowrap">网上服务大厅</td>
+                <td class="num">4.2 MB</td><td>JPG</td><td class="num">1</td><td><span class="badge blue">热</span></td><td class="nowrap">今日 17:26</td>
+                <td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('fileDrawer')">
+                <td class="cell-lg">契税完税证明.ofd</td><td>缴款凭证</td><td class="nowrap">JY2026080100482</td><td class="nowrap">存量房交易系统</td>
+                <td class="num">386 KB</td><td>OFD</td><td class="num">1</td><td><span class="badge blue">热</span></td><td class="nowrap">今日 16:42</td>
+                <td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('fileDrawer')">
+                <td class="cell-lg">1998年房改房档案_柳南区_第0086卷.tif</td><td>档案影像</td><td class="nowrap">DA1998LN000086</td><td class="nowrap">档案管理系统</td>
+                <td class="num">62.4 MB</td><td>TIF</td><td class="num">1</td><td><span class="badge gray">冷</span></td><td class="nowrap">2024-03-18</td>
+                <td><span class="link" onclick="event.stopPropagation();PMS.toast('已发起取回，预计 3-5 分钟可下载','success')">取回</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('fileDrawer')">
+                <td class="cell-lg">抵押合同_柳州银行.pdf</td><td>交易合同</td><td class="nowrap">DY2026080100086</td><td class="nowrap">不动产登记业务系统</td>
+                <td class="num">1.2 MB</td><td>PDF</td><td class="num">1</td><td><span class="badge blue">热</span></td><td class="nowrap">今日 15:58</td>
+                <td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('fileDrawer')">
+                <td class="cell-lg">房屋平面图_现场核实照片.zip</td><td>登记受理材料</td><td class="nowrap">DJ2026080100846</td><td class="nowrap">不动产登记业务系统</td>
+                <td class="num">28.6 MB</td><td>ZIP</td><td class="num">1</td><td><span class="badge blue">热</span></td><td class="nowrap">今日 15:12</td>
+                <td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('fileDrawer')">
+                <td class="cell-lg">2003年产权登记卷_城中区_第1428卷.tif</td><td>档案影像</td><td class="nowrap">DA2003CZ001428</td><td class="nowrap">档案管理系统</td>
+                <td class="num">86.2 MB</td><td>TIF</td><td class="num">1</td><td><span class="badge orange">取回中</span></td><td class="nowrap">2024-05-06</td>
+                <td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('fileDrawer')">
+                <td class="cell-lg">委托公证书_扫描件.pdf</td><td>登记受理材料</td><td class="nowrap">DJ2026080100842</td><td class="nowrap">中介机构端</td>
+                <td class="num">1.6 MB</td><td>PDF</td><td class="num">2</td><td><span class="badge blue">热</span></td><td class="nowrap">今日 14:36</td>
+                <td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('fileDrawer')">
+                <td class="cell-lg">预售许可证_柳房预售第2026008号.pdf</td><td>证书证明</td><td class="nowrap">YS2026000008</td><td class="nowrap">商品房预售管理</td>
+                <td class="num">642 KB</td><td>PDF</td><td class="num">1</td><td><span class="badge blue">热</span></td><td class="nowrap">今日 11:24</td>
+                <td><span class="link">详情</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="ver">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-clock-rotate-left"></i>
+          <div><b>文件不做物理覆盖，同名重传一律生成新版本</b>。
+            这条规矩在合同签署场景特别重要——草签版、双方签署版、加盖电子印章版是三个版本，
+            出了争议要能拿出「当时到底签的是哪一版」。
+            版本保留份数在<a class="link" href="param.html">文件参数配置</a>里按业务类型分设。</div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>文件名</th><th>关联业务</th><th class="num">版本</th><th>变更原因</th><th>操作人</th><th>时间</th><th class="num">大小变化</th><th>哈希</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr class="clickable" onclick="PMS.openDrawer('fileDrawer')">
+                <td class="cell-lg">存量房买卖合同_签署版.pdf</td><td class="nowrap">JY2026080100486</td><td class="num">v3</td>
+                <td class="cell-lg">加盖房管电子印章后回写</td><td class="nowrap">系统 · 签约服务</td><td class="nowrap">今日 21:36</td>
+                <td class="num">1.8 MB（+206 KB）</td><td class="nowrap">a7f3…9c2e</td><td><span class="link">比对</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('fileDrawer')">
+                <td class="cell-lg">存量房买卖合同_签署版.pdf</td><td class="nowrap">JY2026080100486</td><td class="num">v2</td>
+                <td class="cell-lg">买卖双方签署完成</td><td class="nowrap">系统 · 签约服务</td><td class="nowrap">今日 16:42</td>
+                <td class="num">1.6 MB（+142 KB）</td><td class="nowrap">3d81…7b40</td><td><span class="link">比对</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('fileDrawer')">
+                <td class="cell-lg">存量房买卖合同_签署版.pdf</td><td class="nowrap">JY2026080100486</td><td class="num">v1</td>
+                <td class="cell-lg">按合同模板生成待签版</td><td class="nowrap">系统 · 交易系统</td><td class="nowrap">今日 14:08</td>
+                <td class="num">1.4 MB</td><td class="nowrap">8e26…14af</td><td><span class="link">比对</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('fileDrawer')">
+                <td class="cell-lg">锦绣江南3-1-1102_分层分户图.dwg</td><td class="nowrap">CH2026070200128</td><td class="num">v2</td>
+                <td class="cell-lg">测绘单位修正阳台面积后重传</td><td class="nowrap">XXXX市勘测院 蒙工</td><td class="nowrap">今日 20:18</td>
+                <td class="num">18.6 MB（+1.2 MB）</td><td class="nowrap">c942…6d18</td><td><span class="link">比对</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('fileDrawer')">
+                <td class="cell-lg">委托公证书_扫描件.pdf</td><td class="nowrap">DJ2026080100842</td><td class="num">v2</td>
+                <td class="cell-lg">首次上传缺第 2 页，中介补传完整件</td><td class="nowrap">链家柳州 韦经理</td><td class="nowrap">今日 14:36</td>
+                <td class="num">1.6 MB（+820 KB）</td><td class="nowrap">5b17…2e90</td><td><span class="link">比对</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('fileDrawer')">
+                <td class="cell-lg">房屋所有权证_历史扫描.tif</td><td class="nowrap">DA2008YF000642</td><td class="num">v2</td>
+                <td class="cell-lg">原件模糊，档案室重新高清扫描</td><td class="nowrap">档案科 陆丽华</td><td class="nowrap">2026-07-28</td>
+                <td class="num">42.8 MB（+18.4 MB）</td><td class="nowrap">f018…8c36</td><td><span class="link">比对</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="hash">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-fingerprint"></i>
+          <div>每个文件落盘时算一次 <b>SM3 哈希</b>存进元数据库，之后定期回读比对。
+            比对不一致意味着<b>存储介质损坏或有人绕过平台直接改了对象存储</b>，
+            两种情况都要立刻从副本恢复并追责。目前主桶三副本，任一副本异常都能自愈。</div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>巡检批次</th><th>范围</th><th>开始时间</th><th class="num">耗时</th><th class="num">校验文件数</th><th class="num">不一致</th><th class="num">自愈成功</th><th>结论</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr class="clickable" onclick="PMS.openDrawer('hashDrawer')">
+                <td class="nowrap">HC-2026-0728-FULL</td><td class="cell-lg">主桶全量</td><td class="nowrap">2026-07-28 23:00</td><td class="num">5 h 42 m</td>
+                <td class="num">42,864,206</td><td class="num text-success">0</td><td class="num">—</td><td><span class="badge green">全部一致</span></td><td><span class="link">报告</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('hashDrawer')">
+                <td class="nowrap">HC-2026-0721-FULL</td><td class="cell-lg">主桶全量</td><td class="nowrap">2026-07-21 23:00</td><td class="num">5 h 28 m</td>
+                <td class="num">42,186,842</td><td class="num text-success">0</td><td class="num">—</td><td><span class="badge green">全部一致</span></td><td><span class="link">报告</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('hashDrawer')">
+                <td class="nowrap">HC-2026-0714-FULL</td><td class="cell-lg">主桶全量</td><td class="nowrap">2026-07-14 23:00</td><td class="num">5 h 36 m</td>
+                <td class="num">41,642,286</td><td class="num text-warning">2</td><td class="num text-success">2</td><td><span class="badge blue">已自愈</span></td><td><span class="link">报告</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('hashDrawer')">
+                <td class="nowrap">HC-2026-0708-ARCH</td><td class="cell-lg">归档桶抽检 5%</td><td class="nowrap">2026-07-08 22:00</td><td class="num">2 h 18 m</td>
+                <td class="num">862,420</td><td class="num text-success">0</td><td class="num">—</td><td><span class="badge green">全部一致</span></td><td><span class="link">报告</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('hashDrawer')">
+                <td class="nowrap">HC-2026-0630-FULL</td><td class="cell-lg">主桶全量</td><td class="nowrap">2026-06-30 23:00</td><td class="num">5 h 12 m</td>
+                <td class="num">40,862,148</td><td class="num text-success">0</td><td class="num">—</td><td><span class="badge green">全部一致</span></td><td><span class="link">报告</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="hint mt-16"><i class="fa-solid fa-circle-info"></i>
+          7 月 14 日那批 2 个不一致，定位到是<b>一块磁盘的坏道</b>，
+          从第二副本恢复后校验通过，同时把那块盘换掉了。
+          这就是为什么归档桶只有 2 副本也还是要定期抽检——<b>介质会老化，不检就等于不知道</b>。</p>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="bucket">
+      <div class="card-body">
+        <div class="svc-tbl">
+          <table class="data-table compact">
+            <thead>
+              <tr><th>存储桶</th><th>用途</th><th>介质</th><th class="num">容量</th><th class="num">已用</th><th class="num">水位</th><th class="num">副本</th><th>取回时延</th><th>状态</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="nowrap">lz-fangchan-main</td><td class="cell-lg">在办业务与近三年档案</td><td>SSD + SATA 混合</td>
+                <td class="num">48 TB</td><td class="num">39.6 TB</td><td class="num text-danger">82.4%</td><td class="num">3</td><td>即时</td>
+                <td><span class="badge orange">水位偏高</span></td><td><span class="link" onclick="PMS.openDrawer('tierDrawer')">分层</span></td></tr>
+              <tr><td class="nowrap">lz-fangchan-archive</td><td class="cell-lg">三年以上归档影像</td><td>大容量 SATA（冷）</td>
+                <td class="num">120 TB</td><td class="num">34.3 TB</td><td class="num">28.6%</td><td class="num">2</td><td>3-5 分钟</td>
+                <td><span class="badge green">正常</span></td><td><span class="link">详情</span></td></tr>
+              <tr><td class="nowrap">lz-fangchan-cert</td><td class="cell-lg">证书证明 PDF 与电子证照</td><td>SSD</td>
+                <td class="num">8 TB</td><td class="num">3.4 TB</td><td class="num">42.8%</td><td class="num">3</td><td>即时</td>
+                <td><span class="badge green">正常</span></td><td><span class="link">详情</span></td></tr>
+              <tr><td class="nowrap">lz-fangchan-temp</td><td class="cell-lg">上传中转与预览转换缓存</td><td>SSD</td>
+                <td class="num">4 TB</td><td class="num">1.4 TB</td><td class="num">36.2%</td><td class="num">1</td><td>即时</td>
+                <td><span class="badge green">正常</span></td><td><span class="link">清理</span></td></tr>
+              <tr><td class="nowrap">lz-fangchan-dr（南宁）</td><td class="cell-lg">主桶异地异步复制</td><td>SATA</td>
+                <td class="num">64 TB</td><td class="num">39.6 TB</td><td class="num">61.8%</td><td class="num">1</td><td>灾备切换后即时</td>
+                <td><span class="badge blue">延迟 6 分钟</span></td><td><span class="link">演练记录</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="grid-2 mt-16">
+          <div class="card">
+            <div class="card-head"><h3><i class="fa-solid fa-chart-area"></i> 近 12 个月存储增长</h3><span class="sub">单位 TB</span></div>
+            <div class="card-body">
+              <div class="svc-chart" data-chart="area" data-series='{"x":["8月","9月","10月","11月","12月","1月","2月","3月","4月","5月","6月","7月"],"v":[52.4,54.2,56.0,57.8,59.4,60.6,61.8,63.2,64.6,66.0,67.2,68.4]}'></div>
+              <p class="hint"><i class="fa-solid fa-circle-info"></i>
+                月均增 1.4 TB，其中<b>存量档案数字化贡献了大头</b>。
+                数字化工程 2027 年完成后增速会回落到日常业务的 0.6 TB 左右。</p>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3><i class="fa-solid fa-temperature-half"></i> 文件访问热度分布</h3><span class="sub">按最后一次调阅距今</span></div>
+            <div class="card-body">
+              <div class="svc-chart" data-chart="hbar" data-series='{"unit":"TB","max":40,"items":[{"n":"30 天内","v":8.6},{"n":"30-180 天","v":12.4},{"n":"180 天-1 年","v":9.8},{"n":"1-3 年","v":31.4},{"n":"3 年以上","v":6.2}]}'></div>
+              <p class="hint"><i class="fa-solid fa-lightbulb"></i>
+                三年以上的 6.2 TB 一年下来调阅不到 4,000 次，
+                <b>转冷存储后每次多等 3-5 分钟，换来主桶 13 个百分点的水位</b>，这笔账划算。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="drawer-mask" onclick="PMS.closeDrawer('fileDrawer')"></div>
+  <div class="drawer drawer-lg" id="fileDrawer">
+    <div class="drawer-head">
+      <h3>文件详情 · 存量房买卖合同_签署版.pdf</h3>
+      <span class="close" onclick="PMS.closeDrawer('fileDrawer')"><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <dl class="svc-kv">
+        <dt>文件 ID</dt><dd>F-2026-0801-00486213</dd>
+        <dt>存储路径</dt><dd>lz-fangchan-main / trade / 2026 / 08 / JY2026080100486 / contract_v3.pdf</dd>
+        <dt>业务类型</dt><dd>交易合同　·　关联业务 JY2026080100486（锦绣江南 3-1-1102 存量房买卖）</dd>
+        <dt>大小与格式</dt><dd>1.8 MB　PDF 1.7　共 8 页</dd>
+        <dt>SM3 哈希</dt><dd>a7f3e2c98b414d6e90125cb7d842f0169e3a7b25c8140d6f92e5b7a3c9018e2e</dd>
+        <dt>副本分布</dt><dd>主节点 node-03 · 副本 node-07 · 副本 node-12　·　异地灾备已同步</dd>
+        <dt>当前版本</dt><dd>v3（加盖房管电子印章）　·　历史版本 2 个</dd>
+        <dt>保管期限</dt><dd>永久　·　不允许销毁</dd>
+        <dt>上传应用</dt><dd>存量房交易系统　·　操作人 系统自动</dd>
+      </dl>
+      <div class="section-title mt-16">访问记录（近 10 次）</div>
+      <div class="svc-tbl">
+        <table class="data-table compact">
+          <thead><tr><th>时间</th><th>动作</th><th>访问者</th><th>来源</th><th>结果</th></tr></thead>
+          <tbody>
+            <tr><td class="nowrap">今日 21:38</td><td>在线预览</td><td class="nowrap">窗口 覃志强</td><td class="cell-lg">存量房交易系统 · 内网</td><td><span class="badge green">允许</span></td></tr>
+            <tr><td class="nowrap">今日 21:36</td><td>版本覆盖（v3）</td><td class="nowrap">系统 · 签约服务</td><td class="cell-lg">统一签约服务落章回写</td><td><span class="badge green">允许</span></td></tr>
+            <tr><td class="nowrap">今日 20:12</td><td>外链下载</td><td class="nowrap">购房人 韦**</td><td class="cell-lg">网上服务大厅 · 短信外链</td><td><span class="badge green">允许</span></td></tr>
+            <tr><td class="nowrap">今日 19:46</td><td>外链下载</td><td class="nowrap">未知</td><td class="cell-lg">外链已过期（超 24 小时）</td><td><span class="badge red">拒绝</span></td></tr>
+            <tr><td class="nowrap">今日 17:24</td><td>在线预览</td><td class="nowrap">中介 韦经理</td><td class="cell-lg">中介机构端 · 互联网</td><td><span class="badge green">允许</span></td></tr>
+            <tr><td class="nowrap">今日 16:42</td><td>版本覆盖（v2）</td><td class="nowrap">系统 · 签约服务</td><td class="cell-lg">双方签署完成回写</td><td><span class="badge green">允许</span></td></tr>
+            <tr><td class="nowrap">今日 14:08</td><td>创建（v1）</td><td class="nowrap">系统 · 交易系统</td><td class="cell-lg">按合同模板生成</td><td><span class="badge green">允许</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="alert alert-info mt-16">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>19:46 那次拒绝是<b>外链过期</b>，不是攻击——购房人把短信里的链接转给了家人，
+          家人隔天才点。这类情况每天几十起，处置办法是让群众到网上服务大厅登录后重新获取，
+          而不是延长外链有效期。</div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn" onclick="PMS.closeDrawer('fileDrawer')">关闭</button>
+      <button class="btn" onclick="PMS.toast('SM3 哈希实时校验通过，与元数据库一致','success')"><i class="fa-solid fa-fingerprint"></i> 校验哈希</button>
+      <button class="btn" onclick="PMS.toast('已生成 24 小时有效的预览外链并复制到剪贴板','success')"><i class="fa-solid fa-link"></i> 生成外链</button>
+      <a class="btn btn-primary" href="preview-auth.html"><i class="fa-solid fa-eye"></i> 在线预览</a>
+    </div>
+  </div>
+
+  <div class="drawer-mask" onclick="PMS.closeDrawer('hashDrawer')"></div>
+  <div class="drawer" id="hashDrawer">
+    <div class="drawer-head">
+      <h3>巡检报告 · HC-2026-0714-FULL</h3>
+      <span class="close" onclick="PMS.closeDrawer('hashDrawer')"><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="svc-resp warn">
+        <span><i class="fa-solid fa-triangle-exclamation"></i> <b>发现 2 个不一致，已自愈</b></span>
+        <span>校验 <b>41,642,286</b></span>
+        <span>耗时 <b>5 h 36 m</b></span>
+      </div>
+      <dl class="svc-kv">
+        <dt>巡检范围</dt><dd>lz-fangchan-main 全量对象，逐个回读并重算 SM3</dd>
+        <dt>执行时段</dt><dd>2026-07-14 23:00 至 07-15 04:36，限速 200 MB/s 避免影响在线业务</dd>
+        <dt>不一致对象</dt><dd class="text-danger">2 个，均位于 node-09 的同一块物理盘</dd>
+        <dt>恢复方式</dt><dd>从 node-04 副本回填，恢复后重算哈希与元数据库一致</dd>
+        <dt>后续处置</dt><dd>node-09 的 sdf 盘报修更换，已于 07-16 完成，运维工单 OPS-2026-0716-018</dd>
+      </dl>
+      <div class="section-title mt-16">不一致对象明细</div>
+      <div class="svc-tbl">
+        <table class="data-table compact">
+          <thead><tr><th>文件</th><th>业务</th><th>元数据哈希</th><th>实读哈希</th><th>处置</th></tr></thead>
+          <tbody>
+            <tr><td class="cell-lg">2016年抵押登记卷_第0862卷.tif</td><td class="nowrap">DA2016DY000862</td><td class="nowrap">3d81…7b40</td><td class="nowrap text-danger">3d81…0000</td><td><span class="badge green">副本恢复成功</span></td></tr>
+            <tr><td class="cell-lg">2017年转移登记卷_第1284卷.tif</td><td class="nowrap">DA2017ZY001284</td><td class="nowrap">8e26…14af</td><td class="nowrap text-danger">读取失败</td><td><span class="badge green">副本恢复成功</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="alert alert-warning mt-16">
+        <i class="fa-solid fa-lightbulb"></i>
+        <div>两个文件都是<b>2016-2017 年的存量档案，多年没被调阅过</b>。
+          如果不做定期巡检，等到十年后有人来查档才发现文件坏了，
+          那时候副本可能也过了保留期——<b>这就是巡检的意义：在还能救的时候发现</b>。</div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn" onclick="PMS.closeDrawer('hashDrawer')">关闭</button>
+      <button class="btn btn-primary" onclick="SVC.exportAsync('巡检报告 HC-2026-0714-FULL')"><i class="fa-solid fa-download"></i> 导出报告</button>
+    </div>
+  </div>
+
+  <div class="drawer-mask" onclick="PMS.closeDrawer('tierDrawer')"></div>
+  <div class="drawer drawer-lg" id="tierDrawer">
+    <div class="drawer-head">
+      <h3>冷热分层预演 · 主桶降水位</h3>
+      <span class="close" onclick="PMS.closeDrawer('tierDrawer')"><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-warning">
+        <i class="fa-solid fa-snowflake"></i>
+        <div>按「<b>三年以上未被调阅且业务已办结</b>」的条件筛，可转 6.2 TB 到归档桶，
+          主桶水位从 82.4% 降到 69.5%。转冷之后再调阅需要 3-5 分钟取回，
+          <b>档案调阅与行政诉讼取证这两个场景要提前跟业务科室打招呼</b>。</div>
+      </div>
+      <div class="svc-pr">
+        <div class="pr-n">筛选条件 · 最后调阅距今<span class="pr-d">越长越安全，但可转的量也越少</span></div>
+        <div class="pr-v"><input type="number" value="3"><span class="pr-u">年</span></div>
+        <div class="pr-s"><span class="badge blue">可转 6.2 TB</span></div>
+      </div>
+      <div class="svc-pr">
+        <div class="pr-n">业务状态<span class="pr-d">在办业务的材料一律不转，避免办件过程中卡在取回上</span></div>
+        <div class="pr-v"><select><option>仅已办结</option><option>不限</option></select></div>
+        <div class="pr-s"></div>
+      </div>
+      <div class="svc-pr">
+        <div class="pr-n">排除业务类型<span class="pr-d">证书证明与在办合同要随时能取，不进冷存储</span></div>
+        <div class="pr-v"><span class="svc-chips">
+          <span class="cp on">证书证明</span><span class="cp on">交易合同</span><span class="cp">测绘成果</span><span class="cp">缴款凭证</span>
+        </span></div>
+        <div class="pr-s"></div>
+      </div>
+      <div class="svc-pr">
+        <div class="pr-n">执行时段<span class="pr-d">转储会占用带宽，安排在夜间</span></div>
+        <div class="pr-v"><input type="text" value="每日 23:00 - 06:00，分 5 晚完成"></div>
+        <div class="pr-s"></div>
+      </div>
+      <div class="section-title mt-16">预演结果</div>
+      <div class="svc-tbl">
+        <table class="data-table compact">
+          <thead><tr><th>业务类型</th><th class="num">文件数</th><th class="num">容量</th><th class="num">年调阅次数</th><th>建议</th></tr></thead>
+          <tbody>
+            <tr><td class="cell-lg">档案影像（2015 年及以前）</td><td class="num">862,420</td><td class="num">4.8 TB</td><td class="num">2,860</td><td><span class="badge green">建议转冷</span></td></tr>
+            <tr><td class="cell-lg">登记受理材料（已办结 3 年以上）</td><td class="num">486,286</td><td class="num">1.2 TB</td><td class="num">1,042</td><td><span class="badge green">建议转冷</span></td></tr>
+            <tr><td class="cell-lg">测绘成果（3 年以上）</td><td class="num">28,642</td><td class="num">0.2 TB</td><td class="num">386</td><td><span class="badge blue">可转</span></td></tr>
+            <tr><td class="cell-lg">交易合同（3 年以上）</td><td class="num">124,862</td><td class="num">0.6 TB</td><td class="num">8,642</td><td><span class="badge orange">不建议，调阅频繁</span></td></tr>
+            <tr><td class="cell-lg">证书证明 PDF</td><td class="num">386,420</td><td class="num">0.4 TB</td><td class="num">42,860</td><td><span class="badge red">不转，需秒级</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="hint mt-16"><i class="fa-solid fa-circle-info"></i>
+        交易合同三年以上的还有年均 8,642 次调阅，<b>大多是二次交易时要看上一手的合同</b>，
+        柳州的存量房换手率决定了这个数字降不下来，所以这一类留在热存储。</p>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn" onclick="PMS.closeDrawer('tierDrawer')">取消</button>
+      <button class="btn" onclick="SVC.exportAsync('冷热分层预演清单')"><i class="fa-solid fa-download"></i> 导出清单</button>
+      <button class="btn btn-primary" onclick="PMS.confirm({title:'执行分层',message:'把筛出的 6.2 TB 转到归档桶？',detail:'分 5 晚执行，转储期间原文件保持可读，转完后主桶副本删除、归档桶保留 2 副本。可随时中止，已转的不回退。',okText:'开始执行',onOk:function(){PMS.toast('分层任务已创建，今晚 23:00 开始','success');PMS.closeDrawer('tierDrawer')}})"><i class="fa-solid fa-play"></i> 执行分层</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../../assets/js/app.js"></script>
+<script src="../../../assets/js/wssvc.js"></script>
+</body>
+</html>

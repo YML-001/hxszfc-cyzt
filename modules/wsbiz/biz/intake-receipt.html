@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>回执与出件文书 · 统一工作门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="biz" data-active="intake-register">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 收件受理
+        <span class="sep">/</span> <a class="link" href="intake-register.html?role=biz">收件登记</a>
+        <span class="sep">/</span> <span class="cur">回执与出件文书</span>
+      </div>
+      <div class="page-title">回执与出件文书</div>
+    </div>
+    <div class="page-actions" id="pageOps"></div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <span>出件类型共 12 种（章内 ZD8）。收件回执含<b>唯一收件编号与查询码</b>，申请人可凭查询码在统一服务门户与移动端查询办理进度；推送短信后回执同步到申请人手机。</span>
+  </div>
+
+  <div id="root"></div>
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/flow-data.js"></script>
+<script src="../assets/js/flow.js"></script>
+<script>
+(function () {
+  var cid = null, docId = null;
+
+  function render() {
+    var c = FLOW.byId('cases', cid);
+    var root = document.getElementById('root');
+    if (!c) {
+      root.innerHTML = '<div class="card"><div class="card-body"><div class="empty">' +
+        '<i class="fa-regular fa-file-lines"></i><div>未指定办件</div>' +
+        '<div class="mt-16"><a class="btn btn-primary" href="intake-register.html?role=biz">去收件登记选择</a></div>' +
+        '</div></div></div>';
+      document.getElementById('pageOps').innerHTML = '';
+      return;
+    }
+    var docs = FLOW.where('docs', function (d) { return d.bjzj === c.id; });
+    var cur = docId ? FLOW.byId('docs', docId) : docs[0];
+    var it = FLOW.itemOf(c) || {};
+
+    document.getElementById('pageOps').innerHTML =
+      (c.receiptAt ? '' : '<button class="btn btn-primary" onclick="issueReceipt()"><i class="fa-solid fa-file-circle-plus"></i> 出具收件回执</button>') +
+      '<a class="btn" href="case-detail.html?role=biz&id=' + c.id + '"><i class="fa-solid fa-list"></i> 办件详情</a>';
+
+    var html = '<div class="grid-2">';
+
+    /* 左：文书列表 */
+    html += '<div><div class="card"><div class="card-head"><h3>本办件出件文书</h3>' +
+      '<span class="sub">共 ' + docs.length + ' 份</span></div><div class="card-body" style="padding-top:6px">' +
+      (docs.length ? '<div class="home-todo">' + docs.map(function (d) {
+        return '<a class="todo-row" href="javascript:void(0)" onclick="pick(\'' + d.id + '\')"' +
+          (cur && cur.id === d.id ? ' style="background:var(--primary-light)"' : '') + '>' +
+          FLOW.badge(FLOW.dict('cjlx', d.cjlx), d.cjlx === '0' ? 'green' : (d.cjlx === '4' || d.cjlx === '2' ? 'red' : 'blue')) +
+          '<span class="todo-text">' + FLOW.esc(d.cjmc) + '</span>' +
+          '<span class="todo-time">' + (d.printed ? '已打印' : '待打印') + '</span></a>';
+      }).join('') + '</div>'
+        : '<div class="empty"><i class="fa-regular fa-file-lines"></i><div>还没有出件文书，先出具收件回执</div></div>') +
+      '</div></div>';
+
+    html += '<div class="card"><div class="card-head"><h3>回执与推送</h3></div><div class="card-body">' +
+      '<dl class="desc-list" style="grid-template-columns:1fr">' +
+        row('收件编号', c.sjbh) + row('查询码', c.cxm) +
+        row('回执出具时间', c.receiptAt ? FLOW.fmt.time(c.receiptAt) : '尚未出具') +
+        row('短信推送时间', c.smsAt ? FLOW.fmt.time(c.smsAt) : '尚未推送') +
+        row('申请人手机', c.sqrdh) +
+      '</dl>' +
+      '<div class="btn-row mt-16">' +
+        (c.receiptAt
+          ? '<button class="btn btn-primary" onclick="pushSms()"><i class="fa-solid fa-comment-sms"></i> ' + (c.smsAt ? '重新推送短信' : '推送到申请人手机') + '</button>'
+          : '<button class="btn btn-primary" onclick="issueReceipt()"><i class="fa-solid fa-file-circle-plus"></i> 出具收件回执</button>') +
+        (cur ? '<button class="btn" onclick="doPrint()"><i class="fa-solid fa-print"></i> 打印当前文书</button>' : '') +
+      '</div></div></div></div>';
+
+    /* 右：A4 版式预览 */
+    html += '<div><div class="card"><div class="card-head"><h3>文书预览</h3>' +
+      '<span class="sub">' + (cur ? FLOW.esc(cur.cjmc) : '暂无可预览文书') + '</span></div>' +
+      '<div class="card-body" style="background:var(--bg-soft)">';
+
+    if (!cur) {
+      html += '<div class="empty"><i class="fa-regular fa-file"></i><div>请先出具收件回执或其他文书</div></div>';
+    } else {
+      html += '<div style="background:var(--bg-card);border:1px solid var(--border-strong);box-shadow:var(--shadow-sm);' +
+        'padding:36px 40px;max-width:640px;margin:0 auto;min-height:520px">' +
+        '<div style="text-align:center;border-bottom:2px solid var(--primary);padding-bottom:16px">' +
+          '<div class="text-3 text-sm">华信房产交易中心</div>' +
+          '<div style="font-size:22px;font-weight:700;letter-spacing:4px;margin-top:8px">' + FLOW.esc(cur.cjmc) + '</div>' +
+          '<div class="text-3 text-sm" style="margin-top:8px">编号：' + FLOW.esc(c.sjbh) + '</div>' +
+        '</div>' +
+        '<dl class="desc-list" style="grid-template-columns:1fr;border:none;padding:18px 0">' +
+          row('申请人', c.sqr) + row('办理事项', c.sxmc) +
+          row('房屋坐落', c.fw) + row('合同编号', c.htbh) +
+          row('收件时间', FLOW.fmt.time(c.sjsj)) +
+          row('承诺办结时间', FLOW.fmt.time(c.cnwcsj)) +
+          row('承办科室', c.dept) +
+          row('收费情况', c.sfje ? (FLOW.fmt.money(c.sfje) + ' 元（' + FLOW.dict('sflx', it.sflx) + '）') : '免收') +
+        '</dl>' +
+        bodyText(cur, c) +
+        '<div class="flex justify-between items-center" style="margin-top:36px">' +
+          '<div>' +
+            '<div class="text-3 text-sm">查询码</div>' +
+            '<div class="fw-700" style="font-size:20px;letter-spacing:3px;color:var(--primary)">' + FLOW.esc(c.cxm) + '</div>' +
+            '<div class="text-3 text-sm" style="margin-top:4px">可在统一服务门户或微信小程序查询进度</div>' +
+          '</div>' +
+          '<div style="text-align:center">' +
+            '<div style="width:96px;height:96px;border:2px solid var(--danger);border-radius:50%;' +
+                 'display:flex;align-items:center;justify-content:center;color:var(--danger);' +
+                 'font-size:12px;line-height:1.3;transform:rotate(-12deg);opacity:.85">华信房产<br>交易中心<br>业务专用章</div>' +
+            '<div class="text-3 text-sm" style="margin-top:8px">' + FLOW.fmt.date(cur.czsj) + '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }
+    html += '</div></div></div></div>';
+    root.innerHTML = html;
+  }
+
+  /* 不同文书的正文口径 */
+  function bodyText(d, c) {
+    var t = {
+      '0': '经审核，上述申请符合备案条件，现予备案。本证明是房屋交易合同备案的凭证，请妥善保管。',
+      '1': '您提交的申请材料齐全、符合法定形式，本机构决定予以受理，将在承诺时限内办结。',
+      '2': '您提交的申请不符合受理条件，本机构决定不予受理。依据：' + (d.reason || '相关规定') +
+           '。如不服本决定，可在六十日内申请行政复议或六个月内提起行政诉讼。',
+      '3': '您提交的申请需要补正以下材料，请在补正期限内一次性补齐。逾期未补正的，按规定终止办理或退件。',
+      '4': '经审核，您的申请因下列原因予以退件：' + (d.reason || '材料不符合法定形式') + '。补齐后可重新申请。'
+    }[String(d.cjlx)] || '本文书由华信数智房产交易一体化平台统一出具。';
+    return '<div style="border-top:1px dashed var(--border-strong);padding-top:16px;font-size:14px;line-height:2;color:var(--text-1);text-indent:2em">' +
+      FLOW.esc(t) + '</div>';
+  }
+  function row(label, value) {
+    return '<div class="desc-item"><dt>' + label + '</dt><dd>' + FLOW.esc(value == null || value === '' ? '—' : value) + '</dd></div>';
+  }
+
+  window.pick = function (id) { docId = id; render(); };
+  window.issueReceipt = function () {
+    if (FLOW.act.issueReceipt(cid)) {
+      var ds = FLOW.where('docs', function (d) { return d.bjzj === cid && d.cjlx === '1'; });
+      if (ds.length) docId = ds[ds.length - 1].id;
+      render();
+    }
+  };
+  window.pushSms = function () { FLOW.act.pushSms(cid); };
+  window.doPrint = function () {
+    if (!docId) {
+      var ds = FLOW.where('docs', function (d) { return d.bjzj === cid; });
+      if (ds.length) docId = ds[0].id;
+    }
+    if (docId) FLOW.act.printDoc(docId);
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    cid = FLOW.param('id');
+    docId = FLOW.param('doc');
+    if (!cid) {
+      var c = FLOW.where('cases', function (x) { return x.blzt === '2'; })[0] || FLOW.get('cases')[0];
+      if (c) cid = c.id;
+    }
+    FLOW.on(render);
+  });
+})();
+</script>
+</body>
+</html>

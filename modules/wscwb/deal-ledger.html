@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>成交信息台账 · 存量房交易网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：固化标记 */
+  .lock-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-3); }
+  .lock-tag i { font-size: 11px; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wscwb-06">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 存量房交易网签备案管理系统
+        <span class="sep">/</span> 成交信息管理
+        <span class="sep">/</span> <span class="cur">成交信息台账</span>
+      </div>
+      <div class="page-title">成交信息台账</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="price-abnormal.html"><i class="fa-solid fa-magnifying-glass-dollar"></i> 异常成交价核查</a>
+      <a class="btn" href="deal-publish.html"><i class="fa-solid fa-tower-broadcast"></i> 统计与发布</a>
+      <a class="btn" href="appraisal.html"><i class="fa-solid fa-scale-balanced"></i> 价格评估管理</a>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《成交信息台账》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-house-circle-check"></i></div>
+      <div><div class="s-label">本月成交套数</div><div class="s-value">386</div><div class="s-trend text-success">↑ 环比 12.4%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-chart-area"></i></div>
+      <div><div class="s-label">本月成交面积</div><div class="s-value">3.92 万㎡</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-sack-dollar"></i></div>
+      <div><div class="s-label">本月成交金额</div><div class="s-value">4.16 亿元</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-rotate-left"></i></div>
+      <div><div class="s-label">本月冲销记录</div><div class="s-value">4</div><div class="s-trend">备案注销触发，原记录不删除</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-lock"></i>
+    <div>
+      成交台账是统计发布与价格监测的<b>固化底表</b>：备案完成即写入并锁定，任何情况都不得直接修改或删除。
+      备案发生变更或注销的，通过<b>冲销机制</b>追加一条负向记录并写明原因，原记录与冲销记录同时保留，保证口径可追溯、总量可校验。
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>成交记录号</label>
+        <input type="text" placeholder="如 CJ450200202600318">
+      </div>
+      <div class="filter-item">
+        <label>备案编号</label>
+        <input type="text" placeholder="BA450200…">
+      </div>
+      <div class="filter-item">
+        <label>坐落 / 小区</label>
+        <input type="text" placeholder="支持模糊查询">
+      </div>
+      <div class="filter-item">
+        <label>行政区</label>
+        <select>
+          <option value="">全部</option>
+          <option>城中区</option><option>柳南区</option><option>鱼峰区</option>
+          <option>柳北区</option><option>柳江区</option><option>柳城县</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>房屋用途</label>
+        <select><option value="">全部</option><option>成套住宅</option><option>办公</option><option>商业</option><option>车位</option></select>
+      </div>
+      <div class="filter-item">
+        <label>记录类型</label>
+        <select><option value="">全部</option><option>正向成交</option><option>冲销记录</option></select>
+      </div>
+      <div class="filter-item">
+        <label>单价区间（元/㎡）</label>
+        <input type="text" placeholder="如 8000-15000">
+      </div>
+      <div class="filter-item">
+        <label>成交月份</label>
+        <input type="month" value="2026-07">
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 386 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="normal">正向成交 <span class="badge green">382</span></div>
+      <div class="tab" data-tab="offset">冲销记录 <span class="badge orange">4</span></div>
+      <div class="tab" data-tab="warn">价格预警 <span class="badge red">9</span></div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblDeal" data-static>
+        <thead>
+          <tr>
+            <th>成交记录号</th>
+            <th>备案编号</th>
+            <th>房屋坐落</th>
+            <th>用途</th>
+            <th class="num">面积(㎡)</th>
+            <th class="num">成交价(万元)</th>
+            <th class="num">单价(元/㎡)</th>
+            <th>偏离中位价</th>
+            <th>成交时间</th>
+            <th>记录状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="normal" class="clickable" onclick="location.href='filing-detail.html'">
+            <td class="nowrap fw-600">CJ450200202600318</td>
+            <td class="nowrap">BA450200202600318</td>
+            <td class="cell-lg">彰泰滨江学府 12-2-1802</td>
+            <td class="nowrap">成套住宅</td>
+            <td class="num">118.65</td>
+            <td class="num">148.60</td>
+            <td class="num">12,524</td>
+            <td class="nowrap"><span class="badge orange">+15.96%</span></td>
+            <td class="nowrap">2026-07-31 11:27</td>
+            <td class="nowrap"><span class="lock-tag"><i class="fa-solid fa-lock"></i> 已固化</span></td>
+            <td class="col-ops">
+              <a class="link" href="filing-detail.html">溯源</a>
+              <span class="link" onclick="event.stopPropagation();openOffset('CJ450200202600318')">冲销</span>
+            </td>
+          </tr>
+          <tr data-st="normal" class="clickable" onclick="location.href='filing-detail.html'">
+            <td class="nowrap fw-600">CJ450200202600317</td>
+            <td class="nowrap">BA450200202600317</td>
+            <td class="cell-lg">桂景湾 3-1-602</td>
+            <td class="nowrap">成套住宅</td>
+            <td class="num">76.30</td>
+            <td class="num">82.50</td>
+            <td class="num">10,812</td>
+            <td class="nowrap"><span class="badge green">+0.11%</span></td>
+            <td class="nowrap">2026-07-31 09:52</td>
+            <td class="nowrap"><span class="lock-tag"><i class="fa-solid fa-lock"></i> 已固化</span></td>
+            <td class="col-ops">
+              <a class="link" href="filing-detail.html">溯源</a>
+              <span class="link" onclick="event.stopPropagation();openOffset('CJ450200202600317')">冲销</span>
+            </td>
+          </tr>
+          <tr data-st="warn" class="clickable" onclick="location.href='price-abnormal.html'">
+            <td class="nowrap fw-600">CJ450200202600309</td>
+            <td class="nowrap">BA450200202600309</td>
+            <td class="cell-lg">阳光 100 城市广场 A 座 1608</td>
+            <td class="nowrap">成套住宅</td>
+            <td class="num">52.16</td>
+            <td class="num">31.20</td>
+            <td class="num">5,981</td>
+            <td class="nowrap"><span class="badge red">-23.40%</span></td>
+            <td class="nowrap">2026-07-30 10:16</td>
+            <td class="nowrap"><span class="lock-tag"><i class="fa-solid fa-lock"></i> 已固化</span> <span class="badge red">核查中</span></td>
+            <td class="col-ops">
+              <a class="link" href="price-abnormal.html">去核查</a>
+              <a class="link" href="filing-detail.html">溯源</a>
+            </td>
+          </tr>
+          <tr data-st="normal" class="clickable" onclick="location.href='filing-detail.html'">
+            <td class="nowrap fw-600">CJ450200202600316</td>
+            <td class="nowrap">BA450200202600316</td>
+            <td class="cell-lg">保利大江郡 9-2-2201</td>
+            <td class="nowrap">成套住宅</td>
+            <td class="num">126.77</td>
+            <td class="num">168.00</td>
+            <td class="num">13,253</td>
+            <td class="nowrap"><span class="badge green">+4.12%</span></td>
+            <td class="nowrap">2026-07-30 16:35</td>
+            <td class="nowrap"><span class="lock-tag"><i class="fa-solid fa-lock"></i> 已固化</span></td>
+            <td class="col-ops">
+              <a class="link" href="filing-detail.html">溯源</a>
+              <span class="link" onclick="event.stopPropagation();openOffset('CJ450200202600316')">冲销</span>
+            </td>
+          </tr>
+          <tr data-st="offset">
+            <td class="nowrap fw-600">CJ450200202600288-C</td>
+            <td class="nowrap">BA450200202600288</td>
+            <td class="cell-lg">金龙湾 6-2-1201</td>
+            <td class="nowrap">成套住宅</td>
+            <td class="num text-danger">-84.90</td>
+            <td class="num text-danger">-88.00</td>
+            <td class="num">10,365</td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="nowrap">2026-07-22 10:03</td>
+            <td class="nowrap"><span class="badge orange">冲销记录</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.toast('冲销原因：买卖双方协商解除合同，备案已注销')">冲销原因</span>
+              <span class="link" onclick="PMS.toast('原记录 CJ450200202600288 已定位')">看原记录</span>
+            </td>
+          </tr>
+          <tr data-st="normal" class="clickable" onclick="location.href='filing-detail.html'">
+            <td class="nowrap fw-600">CJ450200202600288</td>
+            <td class="nowrap">BA450200202600288</td>
+            <td class="cell-lg">金龙湾 6-2-1201</td>
+            <td class="nowrap">成套住宅</td>
+            <td class="num">84.90</td>
+            <td class="num">88.00</td>
+            <td class="num">10,365</td>
+            <td class="nowrap"><span class="badge green">-4.03%</span></td>
+            <td class="nowrap">2026-07-18 15:20</td>
+            <td class="nowrap"><span class="lock-tag"><i class="fa-solid fa-lock"></i> 已固化</span> <span class="badge gray">已冲销</span></td>
+            <td class="col-ops">
+              <a class="link" href="filing-detail.html">溯源</a>
+              <span class="link" onclick="event.stopPropagation();PMS.toast('已定位冲销记录 CJ450200202600288-C')">看冲销</span>
+            </td>
+          </tr>
+          <tr data-st="normal" class="clickable" onclick="location.href='filing-detail.html'">
+            <td class="nowrap fw-600">CJ450200202600314</td>
+            <td class="nowrap">BA450200202600314</td>
+            <td class="cell-lg">雅居乐花园 12-3-706</td>
+            <td class="nowrap">成套住宅</td>
+            <td class="num">92.13</td>
+            <td class="num">94.20</td>
+            <td class="num">10,224</td>
+            <td class="nowrap"><span class="badge green">-2.15%</span></td>
+            <td class="nowrap">2026-07-29 15:18</td>
+            <td class="nowrap"><span class="lock-tag"><i class="fa-solid fa-lock"></i> 已固化</span></td>
+            <td class="col-ops">
+              <a class="link" href="filing-detail.html">溯源</a>
+              <span class="link" onclick="event.stopPropagation();openOffset('CJ450200202600314')">冲销</span>
+            </td>
+          </tr>
+          <tr data-st="warn" class="clickable" onclick="location.href='price-abnormal.html'">
+            <td class="nowrap fw-600">CJ450200202600301</td>
+            <td class="nowrap">BA450200202600301</td>
+            <td class="cell-lg">中航郡府 8-1-3301</td>
+            <td class="nowrap">成套住宅</td>
+            <td class="num">188.42</td>
+            <td class="num">396.00</td>
+            <td class="num">21,017</td>
+            <td class="nowrap"><span class="badge red">+42.60%</span></td>
+            <td class="nowrap">2026-07-27 11:08</td>
+            <td class="nowrap"><span class="lock-tag"><i class="fa-solid fa-lock"></i> 已固化</span> <span class="badge red">核查中</span></td>
+            <td class="col-ops">
+              <a class="link" href="price-abnormal.html">去核查</a>
+              <a class="link" href="filing-detail.html">溯源</a>
+            </td>
+          </tr>
+          <tr data-st="normal" class="clickable" onclick="location.href='filing-detail.html'">
+            <td class="nowrap fw-600">CJ450200202600311</td>
+            <td class="nowrap">BA450200202600311</td>
+            <td class="cell-lg">万科城 21-1-1503</td>
+            <td class="nowrap">成套住宅</td>
+            <td class="num">98.42</td>
+            <td class="num">115.80</td>
+            <td class="num">11,766</td>
+            <td class="nowrap"><span class="badge green">+2.31%</span></td>
+            <td class="nowrap">2026-07-28 14:07</td>
+            <td class="nowrap"><span class="lock-tag"><i class="fa-solid fa-lock"></i> 已固化</span></td>
+            <td class="col-ops">
+              <a class="link" href="filing-detail.html">溯源</a>
+              <span class="link" onclick="event.stopPropagation();openOffset('CJ450200202600311')">冲销</span>
+            </td>
+          </tr>
+          <tr data-st="offset">
+            <td class="nowrap fw-600">CJ450200202600298-C</td>
+            <td class="nowrap">BA450200202600298</td>
+            <td class="cell-lg">龙光玖誉府 5-2-1503</td>
+            <td class="nowrap">成套住宅</td>
+            <td class="num text-danger">-136.58</td>
+            <td class="num text-danger">-138.00</td>
+            <td class="num">10,104</td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="nowrap">2026-07-26 10:41</td>
+            <td class="nowrap"><span class="badge orange">冲销记录</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.toast('冲销原因：备案价格变更，由 138 万元调整为 132 万元')">冲销原因</span>
+              <span class="link" onclick="PMS.toast('新记录 CJ450200202600298-2 已定位')">看新记录</span>
+            </td>
+          </tr>
+          <tr data-st="normal" class="clickable" onclick="location.href='filing-detail.html'">
+            <td class="nowrap fw-600">CJ450200202600298-2</td>
+            <td class="nowrap">BA450200202600298</td>
+            <td class="cell-lg">龙光玖誉府 5-2-1503</td>
+            <td class="nowrap">成套住宅</td>
+            <td class="num">136.58</td>
+            <td class="num">132.00</td>
+            <td class="num">9,665</td>
+            <td class="nowrap"><span class="badge green">-8.05%</span></td>
+            <td class="nowrap">2026-07-26 10:41</td>
+            <td class="nowrap"><span class="lock-tag"><i class="fa-solid fa-lock"></i> 已固化</span> <span class="badge purple">变更后</span></td>
+            <td class="col-ops">
+              <a class="link" href="filing-detail.html">溯源</a>
+              <span class="link" onclick="event.stopPropagation();PMS.toast('已定位冲销记录 CJ450200202600298-C')">看冲销</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 成交记录冲销 -->
+  <div class="modal-mask" id="mdOffset">
+    <div class="modal modal-sm">
+      <div class="modal-head">成交记录冲销</div>
+      <div class="modal-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>冲销不会删除或修改原记录，而是追加一条金额与面积为负的冲销记录，原记录标记为「已冲销」。统计口径按正负记录求和自动扣减。</div>
+        </div>
+        <div class="form-grid">
+          <div class="form-item col-full">
+            <label>待冲销记录</label>
+            <input type="text" id="offNo" readonly style="background:var(--bg-soft)">
+          </div>
+          <div class="form-item col-full">
+            <label>冲销原因<span class="req">*</span></label>
+            <select id="offReason">
+              <option>备案注销：买卖双方协商解除合同</option>
+              <option>备案变更：成交价格调整</option>
+              <option>备案变更：交易主体调整</option>
+              <option>数据勘误：录入有误经核实更正</option>
+              <option>司法裁定：合同被判决撤销或无效</option>
+            </select>
+          </div>
+          <div class="form-item col-full">
+            <label>情况说明<span class="req">*</span></label>
+            <textarea placeholder="说明冲销的具体事由与依据文号">买卖双方于 2026-07-22 签署解除协议，备案已注销，注销回执号 ZX20260722011。</textarea>
+          </div>
+          <div class="form-item col-full">
+            <label>依据材料</label>
+            <div class="file-up">
+              <input type="hidden" class="file-up-val" value="解除协议_签章版.pdf,备案注销回执.pdf">
+              <div class="file-up-grid">
+                <div class="file-up-tile file-up-add" title="添加文件（可多选）">
+                  <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png">
+                  <i class="fa-solid fa-plus"></i><span>上传</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-close-modal>取消</button>
+        <button type="button" class="btn btn-primary" onclick="doOffset()">确认冲销</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  var table = document.getElementById('tblDeal');
+  document.getElementById('stTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var name = tab.getAttribute('data-tab');
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.style.display = (name === 'all' || tr.getAttribute('data-st') === name) ? '' : 'none';
+    });
+  });
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 386,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+
+function openOffset(no) {
+  document.getElementById('offNo').value = no;
+  PMS.openModal('mdOffset');
+}
+
+function doOffset() {
+  var no = document.getElementById('offNo').value;
+  var reason = document.getElementById('offReason').value;
+  PMS.closeModal();
+  PMS.toast('已生成冲销记录 ' + no + '-C（' + reason.split('：')[0] + '），原记录保留', 'success');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>交易税费试算 · 统一服务门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  /* 本页专属布局 */
+  .tool-body { padding: 0 0 40px; }
+  .tax-two { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; align-items: start; }
+  .side-col { display: grid; grid-template-columns: 1fr 320px; gap: 18px; align-items: start; }
+
+  .pay-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden; }
+  .pay-card .pc-h {
+    padding: 13px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 9px;
+    font-size: 15.5px; font-weight: 700;
+  }
+  .pay-card.buy .pc-h { background: linear-gradient(90deg, var(--primary-light), #fff); color: var(--primary); }
+  .pay-card.sell .pc-h { background: linear-gradient(90deg, var(--accent-soft), #fff); color: var(--accent); }
+  .pay-card .pc-h .pc-t { margin-left: auto; font-size: 19px; font-family: "DIN Alternate", var(--font); }
+  .pay-card .pc-b { padding: 6px 18px 16px; }
+
+  .tax-i { padding: 13px 0; border-bottom: 1px dashed var(--row-line); }
+  .tax-i:last-child { border-bottom: 0; }
+  .tax-i .ti-h { display: flex; align-items: center; gap: 8px; }
+  .tax-i .ti-n { font-size: 14.5px; font-weight: 700; color: var(--text-1); }
+  .tax-i .ti-v { margin-left: auto; font-size: 17px; font-weight: 700; color: var(--accent); font-family: "DIN Alternate", var(--font); }
+  .tax-i .ti-v.free { color: var(--success); font-size: 15px; }
+  .tax-i .ti-f {
+    font-size: 12.5px; color: var(--text-2); margin-top: 7px; background: var(--bg-soft);
+    padding: 7px 10px; border-radius: 4px; line-height: 1.8;
+  }
+  .tax-i .ti-f b { color: var(--primary); }
+  .tax-i .ti-y { font-size: 12px; color: var(--text-3); margin-top: 6px; line-height: 1.7; }
+  .tax-i .ti-y i { color: var(--text-3); margin-right: 4px; }
+
+  .warn-box {
+    background: var(--warning-light); border: 1px solid #f5dab0; border-left: 4px solid var(--warning);
+    border-radius: var(--radius); padding: 14px 18px; font-size: 13.5px; color: #b45309; line-height: 1.9;
+  }
+  .warn-box b { color: #92400e; }
+  .go-box a { display: flex; align-items: center; gap: 10px; padding: 11px 13px; border: 1px solid var(--border);
+    border-radius: var(--radius); color: inherit; margin-bottom: 10px; background: #fff; }
+  .go-box a:last-child { margin-bottom: 0; }
+  .go-box a:hover { border-color: var(--primary); background: var(--primary-light-2); color: var(--primary); }
+  .go-box a i { font-size: 17px; color: var(--primary); width: 22px; text-align: center; }
+  .go-box a .gt { display: block; font-size: 14px; font-weight: 700; }
+  .go-box a .gd { display: block; font-size: 12px; color: var(--text-3); margin-top: 2px; line-height: 1.6; }
+  .go-box a:hover .gd { color: var(--primary); }
+</style>
+</head>
+<body data-nav="home">
+
+<div class="wrap">
+  <div class="crumb"><a href="home.html">首页</a><i class="fa-solid fa-angle-right"></i>便民工具<i class="fa-solid fa-angle-right"></i>交易税费试算</div>
+</div>
+
+<div class="wrap tool-body">
+  <div class="col-head">
+    <h2>交易税费试算</h2><span class="ch-en">Tax Calculator</span>
+    <span class="ch-more" style="cursor:default">按房屋性质、建筑面积、购房套次与持有年限分别试算买卖双方税费</span>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <span>本工具按<b>现行普遍适用</b>的契税、增值税及附加、个人所得税、印花税与登记费口径试算，
+      每一项都标注计算公式与政策依据。<b>税费最终以税务机关核定为准</b>，
+      涉及赠与、继承、离婚析产、法拍房、房改房、动迁安置房等特殊情形的，请以窗口答复为准。</span>
+  </div>
+
+  <div class="side-col">
+    <!-- ============ 左：表单与试算结果 ============ -->
+    <div>
+      <div class="card">
+        <div class="card-head"><h3><i class="fa-solid fa-receipt text-primary"></i> 交易信息</h3>
+          <span class="sub">带 <span class="text-accent">*</span> 为必填</span></div>
+        <div class="card-body">
+          <div class="form-grid c3">
+            <div class="form-item"><label><span class="req">*</span>交易类型</label>
+              <select class="select" id="tx-type">
+                <option value="new">新建商品房</option>
+                <option value="second" selected>存量房（二手房）</option>
+              </select></div>
+            <div class="form-item"><label><span class="req">*</span>房屋性质</label>
+              <select class="select" id="tx-kind">
+                <option value="pt">普通住宅</option>
+                <option value="fpt">非普通住宅</option>
+                <option value="fzz">非住宅（商业 / 办公 / 车位）</option>
+              </select></div>
+            <div class="form-item"><label><span class="req">*</span>建筑面积（㎡）</label>
+              <input class="input" id="tx-mj" value="118" inputmode="decimal"></div>
+            <div class="form-item"><label><span class="req">*</span>成交总价（万元）</label>
+              <input class="input" id="tx-zj" value="102" inputmode="decimal"></div>
+            <div class="form-item"><label><span class="req">*</span>购房套次</label>
+              <select class="select" id="tx-tc">
+                <option value="1">首套</option>
+                <option value="2">二套</option>
+                <option value="3">三套及以上</option>
+              </select>
+              <div class="tip">按家庭在本市范围内的住房套数认定，非住宅不区分套次</div></div>
+            <div class="form-item" id="wrap-nx"><label><span class="req">*</span>卖方持有年限</label>
+              <select class="select" id="tx-nx">
+                <option value="5">满 5 年</option>
+                <option value="2">满 2 年不满 5 年</option>
+                <option value="0">不满 2 年</option>
+              </select>
+              <div class="tip">以不动产权证登记日期或契税完税凭证日期孰先为准</div></div>
+            <div class="form-item" id="wrap-wy"><label><span class="req">*</span>卖方是否家庭唯一住房</label>
+              <div class="radio-row">
+                <label><input type="radio" name="tx-wy" value="1" checked data-fp="wsmh-33-03"> 是</label>
+                <label><input type="radio" name="tx-wy" value="0" data-fp="wsmh-33-03"> 否</label>
+              </div></div>
+            <div class="form-item"><label>房屋原值（万元，选填）</label>
+              <input class="input" id="tx-yz" placeholder="卖方购入时的成交价，用于差额计税" inputmode="decimal">
+              <div class="tip">填写原值按差额计税，不填按核定征收率试算</div></div>
+          </div>
+
+          <div class="flex gap-8 mt-20">
+            <button class="btn btn-primary btn-lg" id="btn-calc" data-fp="wsmh-33-03">
+              <i class="fa-solid fa-calculator"></i> 试算</button>
+            <button class="btn btn-lg" id="btn-reset" data-fp="wsmh-33-03">
+              <i class="fa-solid fa-rotate-left"></i> 恢复默认值</button>
+            <a class="btn btn-lg ml-auto" href="policy.html" data-fp="wsmh-33-03">
+              <i class="fa-solid fa-scroll"></i> 查看税费政策指引</a>
+          </div>
+        </div>
+      </div>
+
+      <div id="res-box" class="mt-16"></div>
+    </div>
+
+    <!-- ============ 右：税率速查与入口 ============ -->
+    <div>
+      <div class="card mb-16">
+        <div class="card-head"><h3><i class="fa-solid fa-percent text-primary"></i> 契税税率速查</h3></div>
+        <div class="card-body np">
+          <table class="pub-table">
+            <thead><tr><th>情形</th><th style="width:78px">面积</th><th style="width:66px">税率</th></tr></thead>
+            <tbody>
+              <tr><td class="strong">首套住房</td><td>≤ 90㎡</td><td class="num">1%</td></tr>
+              <tr><td class="strong">首套住房</td><td>&gt; 90㎡</td><td class="num">1.5%</td></tr>
+              <tr><td class="strong">第二套住房</td><td>≤ 90㎡</td><td class="num">1%</td></tr>
+              <tr><td class="strong">第二套住房</td><td>&gt; 90㎡</td><td class="num">2%</td></tr>
+              <tr><td class="strong">三套及以上</td><td>不限</td><td class="num">3%</td></tr>
+              <tr><td class="strong">非住宅</td><td>不限</td><td class="num">3%</td></tr>
+            </tbody>
+          </table>
+          <div class="table-note"><i class="fa-solid fa-circle-info"></i>
+            依据《财政部 税务总局 住房城乡建设部关于促进房地产市场平稳健康发展有关税收政策的公告》（2024 年第 16 号）。</div>
+        </div>
+      </div>
+
+      <div class="card mb-16">
+        <div class="card-head"><h3><i class="fa-solid fa-gavel text-primary"></i> 主要政策依据</h3></div>
+        <div class="card-body" style="font-size:12.5px;line-height:2;color:var(--text-2)" id="law-list"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3><i class="fa-solid fa-arrow-right-arrow-left text-primary"></i> 相关入口</h3></div>
+        <div class="card-body go-box">
+          <a href="tool-loan.html" data-fp="wsmh-33-03"><i class="fa-solid fa-calculator"></i>
+            <span><span class="gt">房贷计算器</span><span class="gd">商贷 / 公积金 / 组合贷款月供</span></span></a>
+          <a href="tool-fund.html" data-fp="wsmh-33-03"><i class="fa-solid fa-piggy-bank"></i>
+            <span><span class="gt">公积金可贷额度测算</span><span class="gd">按缴存基数与账户余额测算</span></span></a>
+          <a href="second-hand-apply.html" data-fp="wsmh-33-03"><i class="fa-solid fa-house-circle-check"></i>
+            <span><span class="gt">二手房自助办理</span><span class="gd">网签备案 · 资金监管 · 纳税过户</span></span></a>
+          <a href="policy.html" data-fp="wsmh-33-03"><i class="fa-solid fa-scroll"></i>
+            <span><span class="gt">政策解读专栏</span><span class="gd">税费政策指引与解读</span></span></a>
+          <a href="chat.html?ctx=存量房买卖合同网签备案" data-fp="wsmh-33-03"><i class="fa-solid fa-headset"></i>
+            <span><span class="gt">咨询智能客服</span><span class="gd">带二手房交易上下文进入会话</span></span></a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="warn-box mt-20">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <b>试算结果仅供参考，实际以税务机关核定为准。政策依据以最新文件为准。</b>
+    计税依据一般按合同成交价与税务机关评估价孰高认定；套次以家庭为单位在本市范围内认定；
+    满 2 年、满 5 年以不动产权证登记日期与契税完税凭证日期孰先计算。
+    赠与、继承、离婚析产、法拍房、房改房、拆迁安置房以及涉及企业主体的交易另有规定，请以窗口答复为准。
+    本站不代办纳税、不收取任何费用。
+  </div>
+
+  <div id="src-note"></div>
+</div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+var LAWS = [
+  ['契税', '《中华人民共和国契税法》；《财政部 税务总局 住房城乡建设部关于促进房地产市场平稳健康发展有关税收政策的公告》（2024 年第 16 号）'],
+  ['增值税及附加', '《营业税改征增值税试点过渡政策的规定》（财税〔2016〕36 号附件 3）；财政部 税务总局公告 2024 年第 16 号'],
+  ['个人所得税', '《关于个人所得税若干政策问题的通知》（财税字〔1999〕278 号）；《关于个人住房转让所得征收个人所得税有关问题的通知》（国税发〔2006〕108 号）'],
+  ['印花税', '《中华人民共和国印花税法》；《关于调整房地产交易环节税收政策的通知》（财税〔2008〕137 号）'],
+  ['土地增值税', '《中华人民共和国土地增值税暂行条例》及实施细则；财税〔2008〕137 号（个人销售住房暂免征收土地增值税）'],
+  ['登记费', '《关于不动产登记收费有关政策问题的通知》（发改价格〔2016〕2559 号）'],
+  ['维修资金', '《住宅专项维修资金管理办法》（建设部 财政部令第 165 号）及柳州市实施细则']
+];
+var DEF = { 'tx-mj': '118', 'tx-zj': '102', 'tx-yz': '' };
+
+function pageInit() {
+  document.getElementById('law-list').innerHTML = LAWS.map(function (l) {
+    return '<div style="padding:5px 0;border-bottom:1px dashed var(--row-line)">'
+      + '<b class="text-1">' + l[0] + '</b><br>' + UI.esc(l[1]) + '</div>';
+  }).join('');
+
+  document.getElementById('tx-type').onchange = toggleFields;
+  document.getElementById('tx-kind').onchange = toggleFields;
+  toggleFields();
+
+  document.getElementById('btn-calc').onclick = function () { doCalc(1); };
+  document.getElementById('btn-reset').onclick = function () {
+    for (var k in DEF) { document.getElementById(k).value = DEF[k]; }
+    document.getElementById('tx-type').value = 'second';
+    document.getElementById('tx-kind').value = 'pt';
+    document.getElementById('tx-tc').value = '1';
+    document.getElementById('tx-nx').value = '5';
+    document.querySelector('input[name="tx-wy"][value="1"]').checked = true;
+    toggleFields();
+    doCalc(0);
+    UI.toast('已恢复默认交易条件并重新试算', 'info');
+  };
+
+  doCalc(0);
+  document.getElementById('src-note').innerHTML = UI.sourceNote(
+    '税费试算为纯本地计算工具，不采集也不上传您填写的交易信息；税率口径依据现行公开政策文件整理，'
+    + '政策调整后以最新文件与税务机关核定为准。');
+}
+
+function toggleFields() {
+  var second = document.getElementById('tx-type').value === 'second';
+  document.getElementById('wrap-nx').style.display = second ? '' : 'none';
+  document.getElementById('wrap-wy').style.display = second ? '' : 'none';
+}
+
+function num(id) { return Number(document.getElementById(id).value || 0); }
+function yuan(v) { return UI.money(v, 2); }
+
+/* ---------------- 试算（wsmh-33-03） ---------------- */
+function doCalc(showToast) {
+  var type = document.getElementById('tx-type').value;
+  var kind = document.getElementById('tx-kind').value;
+  var mj = num('tx-mj'), zjWan = num('tx-zj'), tc = document.getElementById('tx-tc').value;
+  var nx = document.getElementById('tx-nx').value;
+  var wyEl = document.querySelector('input[name="tx-wy"]:checked');
+  var wy = wyEl ? wyEl.value : '1';
+  var yzWan = num('tx-yz');
+
+  if (!(mj > 0)) { UI.toast('请填写大于 0 的建筑面积（㎡）', 'warning'); return; }
+  if (mj > 5000) { UI.toast('建筑面积超出常规范围，请核对后重新填写', 'warning'); return; }
+  if (!(zjWan > 0)) { UI.toast('请填写大于 0 的成交总价（万元）', 'warning'); return; }
+  if (zjWan > 20000) { UI.toast('成交总价请按万元填写（例如 102 表示 102 万元）', 'warning'); return; }
+  if (yzWan && yzWan > zjWan) { UI.toast('房屋原值大于成交总价，增值额按 0 计算', 'info'); }
+
+  var zj = zjWan * 10000, yz = yzWan * 10000;
+  var zz = kind !== 'fzz';                 /* 是否住宅 */
+  var second = type === 'second';
+  var man2 = nx === '2' || nx === '5';
+  var man5 = nx === '5';
+  var buy = [], sell = [], buyTotal = 0, sellTotal = 0;
+
+  /* ---------- 买方：契税 ---------- */
+  var qsRate, qsWhy;
+  if (!zz) { qsRate = 3; qsWhy = '非住宅统一适用 3% 税率，不区分套次与面积'; }
+  else if (tc === '3') { qsRate = 3; qsWhy = '家庭第三套及以上住房适用 3% 税率'; }
+  else if (tc === '1') {
+    qsRate = mj <= 90 ? 1 : 1.5;
+    qsWhy = '首套住房，建筑面积 ' + mj + '㎡ ' + (mj <= 90 ? '不超过 90㎡，适用 1%' : '超过 90㎡，适用 1.5%');
+  } else {
+    qsRate = mj <= 90 ? 1 : 2;
+    qsWhy = '第二套住房，建筑面积 ' + mj + '㎡ ' + (mj <= 90 ? '不超过 90㎡，适用 1%' : '超过 90㎡，适用 2%');
+  }
+  var qs = zj * qsRate / 100;
+  buy.push(item('契税', qs, '成交总价 ' + UI.money(zj, 0) + ' 元 × <b>' + qsRate + '%</b> = ' + yuan(qs) + ' 元',
+    qsWhy + '。依据：《契税法》、财政部 税务总局 住房城乡建设部公告 2024 年第 16 号。'));
+
+  /* ---------- 买方：印花税 ---------- */
+  if (zz) {
+    buy.push(item('印花税', 0, '住宅交易<b>免征</b>印花税',
+      '个人销售或购买住房暂免征收印花税。依据：财税〔2008〕137 号、《印花税法》。', 1));
+  } else {
+    var yh = zj * 0.05 / 100;
+    buy.push(item('印花税', yh, '成交总价 ' + UI.money(zj, 0) + ' 元 × <b>0.05%</b>（产权转移书据万分之五） = ' + yuan(yh) + ' 元',
+      '非住宅按产权转移书据税目由买卖双方各自贴花。依据：《中华人民共和国印花税法》。'));
+    buyTotal += yh;
+  }
+
+  /* ---------- 买方：登记费 ---------- */
+  var djf = zz ? 80 : 550;
+  buy.push(item('不动产登记费', djf, '住宅 <b>80 元/件</b>，非住宅 <b>550 元/件</b>，本次按 ' + djf + ' 元/件计',
+    '依据：《关于不动产登记收费有关政策问题的通知》（发改价格〔2016〕2559 号）。'));
+
+  /* ---------- 买方：维修资金（仅新房） ---------- */
+  var wxzj = 0;
+  if (!second) {
+    wxzj = mj * 66;
+    buy.push(item('住宅专项维修资金', wxzj, '建筑面积 ' + mj + '㎡ × <b>66 元/㎡</b> = ' + yuan(wxzj) + ' 元',
+      '新建商品房首次办理产权登记前应缴存住宅专项维修资金，按柳州市现行标准 66 元/㎡ 试算，'
+      + '实际按房屋结构与所在县区公布标准执行。依据：建设部 财政部令第 165 号。'));
+  } else {
+    buy.push(item('住宅专项维修资金', 0, '存量房交易<b>不再重复缴存</b>，由原业主账户随房屋一并过户',
+      '维修资金在新建商品房首次登记时已缴存，二手房交易时办理账户过户手续，不重复缴存。', 1));
+  }
+  buyTotal += qs + djf + wxzj;
+
+  /* ---------- 卖方 ---------- */
+  var sellNote = '';
+  if (!second) {
+    sellNote = '<div class="alert alert-info" style="margin:12px 0 0"><i class="fa-solid fa-circle-info"></i>'
+      + '<span>新建商品房的出让方为<b>房地产开发企业</b>，其增值税、土地增值税、企业所得税与印花税由开发企业依法自行申报缴纳，'
+      + '<b>购房人不承担卖方税费</b>。购房款须缴入项目预售资金监管账户，'
+      + '缴款前请在<a href="public-fund.html" data-fp="wsmh-33-03">监管账户公示</a>核对账号。</span></div>';
+  } else {
+    /* 增值税及附加 */
+    if (zz && man2) {
+      sell.push(item('增值税及附加', 0, '住宅持有<b>满 2 年</b>，对外销售<b>免征</b>增值税及附加',
+        '个人将购买 2 年以上（含 2 年）的住房对外销售的，免征增值税。依据：财税〔2016〕36 号附件 3、财政部 税务总局公告 2024 年第 16 号。', 1));
+    } else {
+      var zzsBase = zz ? zj : (yz > 0 ? Math.max(0, zj - yz) : zj);
+      var zzs = zzsBase * 5.3 / 100;
+      var zzsWhat = zz ? '成交总价 ' + UI.money(zzsBase, 0) + ' 元'
+        : (yz > 0 ? '（成交总价 − 原值）＝ ' + UI.money(zzsBase, 0) + ' 元'
+          : '成交总价 ' + UI.money(zzsBase, 0) + ' 元（未提供原值凭证，按全额）');
+      sell.push(item('增值税及附加', zzs,
+        zzsWhat + ' × <b>5.3%</b>（增值税 5% + 城建税及教育费附加）= ' + yuan(zzs) + ' 元',
+        zz ? '住宅持有不满 2 年的，按 5% 征收率全额缴纳增值税，另按增值税额附征城建税与教育费附加，合计约 5.3%。'
+          : '非住宅按差额（成交价 − 原值）适用 5% 征收率，未提供原值凭证的按全额核定。依据：财税〔2016〕36 号。'));
+      sellTotal += zzs;
+    }
+
+    /* 个人所得税 */
+    if (zz && man5 && wy === '1') {
+      sell.push(item('个人所得税', 0, '<b>满 5 年且为家庭唯一住房</b>，免征个人所得税',
+        '个人转让自用达 5 年以上并且是家庭唯一生活用房取得的所得，免征个人所得税。依据：财税字〔1999〕278 号。', 1));
+    } else {
+      var gs, gsF;
+      if (yz > 0) {
+        var addv = Math.max(0, zj - yz);
+        gs = addv * 20 / 100;
+        gsF = '（成交总价 − 原值）＝ ' + UI.money(addv, 0) + ' 元 × <b>20%</b> = ' + yuan(gs) + ' 元（差额计征）';
+      } else {
+        gs = zj * 1 / 100;
+        gsF = '成交总价 ' + UI.money(zj, 0) + ' 元 × <b>1%</b> = ' + yuan(gs) + ' 元（未提供原值凭证，按核定征收率计征）';
+      }
+      sell.push(item('个人所得税', gs, gsF,
+        (zz ? (man5 ? '虽满 5 年，但非家庭唯一住房，不适用免征。' : '未满 5 年，不适用满五唯一免征。') : '非住宅不适用满五唯一免征政策。')
+        + '能提供原值及合理费用凭证的按差额 20% 计征，不能提供的按成交价 1% 核定征收。依据：国税发〔2006〕108 号。'));
+      sellTotal += gs;
+    }
+
+    /* 土地增值税：仅非住宅 */
+    if (!zz) {
+      var tz, tzF;
+      if (yz > 0) {
+        var addv2 = Math.max(0, zj - yz);
+        tz = addv2 * 30 / 100;
+        tzF = '（成交总价 − 原值）＝ ' + UI.money(addv2, 0) + ' 元 × <b>30%</b>（四级超率累进最低档）= ' + yuan(tz) + ' 元';
+      } else {
+        tz = zj * 5 / 100;
+        tzF = '成交总价 ' + UI.money(zj, 0) + ' 元 × <b>5%</b>（未提供原值凭证，按核定征收率）= ' + yuan(tz) + ' 元';
+      }
+      sell.push(item('土地增值税', tz, tzF,
+        '非住宅转让按增值额适用四级超率累进税率（30%、40%、50%、60%），此处按最低档简化试算，'
+        + '实际由税务机关按增值额与扣除项目金额之比核定。个人销售住房暂免征收土地增值税。依据：《土地增值税暂行条例》、财税〔2008〕137 号。'));
+      sellTotal += tz;
+    } else {
+      sell.push(item('土地增值税', 0, '个人销售<b>住房</b>暂免征收土地增值税',
+        '依据：《关于调整房地产交易环节税收政策的通知》（财税〔2008〕137 号）。', 1));
+    }
+
+    /* 卖方印花税 */
+    if (!zz) {
+      var yh2 = zj * 0.05 / 100;
+      sell.push(item('印花税', yh2, '成交总价 ' + UI.money(zj, 0) + ' 元 × <b>0.05%</b> = ' + yuan(yh2) + ' 元',
+        '非住宅产权转移书据由买卖双方各自贴花。依据：《中华人民共和国印花税法》。'));
+      sellTotal += yh2;
+    } else {
+      sell.push(item('印花税', 0, '住宅交易<b>免征</b>印花税',
+        '个人销售或购买住房暂免征收印花税。依据：财税〔2008〕137 号。', 1));
+    }
+  }
+
+  var total = buyTotal + sellTotal;
+  var kindName = kind === 'pt' ? '普通住宅' : kind === 'fpt' ? '非普通住宅' : '非住宅';
+  var tcName = tc === '1' ? '首套' : tc === '2' ? '二套' : '三套及以上';
+
+  /* ---------- 渲染 ---------- */
+  var h = '<div class="stat-grid">'
+    + statCard('fa-user', 'blue', UI.money(buyTotal, 0), '元', '买方税费合计')
+    + statCard('fa-user-tie', 'red', second ? UI.money(sellTotal, 0) : '0', '元', second ? '卖方税费合计' : '卖方税费（开发企业申报）')
+    + statCard('fa-coins', 'orange', UI.money(total, 0), '元', '交易税费总额')
+    + statCard('fa-percent', 'cyan', (total / zj * 100).toFixed(2), '%', '税费占成交价比例')
+    + '</div>';
+
+  h += '<div class="alert alert-info mt-16"><i class="fa-solid fa-circle-info"></i>'
+    + '<span>试算条件：<b>' + (second ? '存量房' : '新建商品房') + '</b> · <b>' + kindName + '</b> · 建筑面积 <b>' + mj
+    + '㎡</b> · 成交总价 <b>' + UI.money(zjWan, 2) + ' 万元</b>（单价 ' + UI.money(zj / mj, 0) + ' 元/㎡） · 购房套次 <b>' + tcName + '</b>'
+    + (second ? ' · 卖方持有 <b>' + (nx === '5' ? '满 5 年' : nx === '2' ? '满 2 年不满 5 年' : '不满 2 年') + '</b>'
+      + ' · ' + (wy === '1' ? '为家庭唯一住房' : '非家庭唯一住房') : '')
+    + (yzWan ? ' · 原值 <b>' + UI.money(yzWan, 2) + ' 万元</b>' : ' · 未填写原值，卖方税费按核定征收率试算') + '</span></div>';
+
+  h += '<div class="tax-two mt-16">'
+    + '<div class="pay-card buy"><div class="pc-h"><i class="fa-solid fa-user"></i> 买方应缴税费'
+    + '<span class="pc-t">' + UI.money(buyTotal, 2) + ' 元</span></div>'
+    + '<div class="pc-b">' + buy.join('') + '</div></div>'
+    + '<div class="pay-card sell"><div class="pc-h"><i class="fa-solid fa-user-tie"></i> 卖方应缴税费'
+    + '<span class="pc-t">' + (second ? UI.money(sellTotal, 2) + ' 元' : '不适用') + '</span></div>'
+    + '<div class="pc-b">' + (second ? sell.join('') : sellNote) + '</div></div>'
+    + '</div>';
+
+  h += '<div class="card mt-16"><div class="card-head"><h3><i class="fa-solid fa-file-invoice-dollar text-primary"></i> '
+    + '税费合计与结算参考</h3><span class="sub">买卖双方可另行约定税费承担方式</span></div>'
+    + '<div class="card-body np"><table class="pub-table"><thead><tr>'
+    + '<th>项目</th><th style="width:170px">金额（元）</th><th style="width:150px">占成交价比例</th><th>说明</th>'
+    + '</tr></thead><tbody>'
+    + '<tr><td class="strong">买方税费合计</td><td class="num strong">' + UI.money(buyTotal, 2) + '</td>'
+    + '<td class="num">' + (buyTotal / zj * 100).toFixed(2) + '%</td>'
+    + '<td>含契税、登记费' + (zz ? '' : '、印花税') + (second ? '' : '与维修资金') + '</td></tr>'
+    + '<tr><td class="strong">卖方税费合计</td><td class="num strong">' + (second ? UI.money(sellTotal, 2) : '—') + '</td>'
+    + '<td class="num">' + (second ? (sellTotal / zj * 100).toFixed(2) + '%' : '—') + '</td>'
+    + '<td>' + (second ? '含增值税及附加、个人所得税' + (zz ? '' : '、土地增值税、印花税') : '新建商品房由开发企业依法自行申报缴纳') + '</td></tr>'
+    + '<tr style="background:var(--primary-light-2)"><td class="strong">交易税费总额</td>'
+    + '<td class="num strong" style="color:var(--accent)">' + UI.money(total, 2) + '</td>'
+    + '<td class="num strong">' + (total / zj * 100).toFixed(2) + '%</td>'
+    + '<td>成交总价 ' + UI.money(zj, 0) + ' 元，含税总支出约 ' + UI.money(zj + buyTotal, 0) + ' 元（买方口径）</td></tr>'
+    + '</tbody></table>'
+    + '<div class="table-note"><i class="fa-solid fa-triangle-exclamation text-warning"></i> '
+    + '实务中买卖双方可自行约定税费承担方式，但纳税义务人由税法确定，不因约定而改变；'
+    + '经纪服务费、评估费、公证费等中介与第三方费用不在本表范围内。'
+    + '<b>试算结果仅供参考，实际以税务机关核定为准。</b></div>'
+    + '</div></div>';
+
+  document.getElementById('res-box').innerHTML = h;
+  if (showToast) {
+    UI.toast('试算完成：买方税费 ' + UI.money(buyTotal, 0) + ' 元'
+      + (second ? '，卖方税费 ' + UI.money(sellTotal, 0) + ' 元' : '（新建商品房卖方税费由开发企业申报）')
+      + '，合计约占成交价 ' + (total / zj * 100).toFixed(2) + '%', 'success');
+  }
+}
+
+function item(name, v, formula, law, free) {
+  return '<div class="tax-i"><div class="ti-h"><span class="ti-n">' + name + '</span>'
+    + (free ? '<span class="badge green">免征 / 不适用</span>' : '')
+    + '<span class="ti-v' + (free ? ' free' : '') + '">' + (free ? '0.00 元' : yuan(v) + ' 元') + '</span></div>'
+    + '<div class="ti-f"><i class="fa-solid fa-square-root-variable"></i> ' + formula + '</div>'
+    + '<div class="ti-y"><i class="fa-solid fa-book"></i>' + UI.esc(law) + '</div></div>';
+}
+
+function statCard(ico, color, v, unit, label) {
+  return '<div class="stat-card"><span class="s-ico ' + color + '"><i class="fa-solid ' + ico + '"></i></span>'
+    + '<div><div class="s-value">' + v + '<em>' + unit + '</em></div>'
+    + '<div class="s-label">' + label + '</div></div></div>';
+}
+</script>
+</body>
+</html>

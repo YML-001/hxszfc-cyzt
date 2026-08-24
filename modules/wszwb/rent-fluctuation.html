@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>租金波动监测 · 房屋租赁网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：租金热力图、指数折线、Top 榜、异常规则卡 */
+  .heat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .heat-cell {
+    border-radius: 8px; padding: 12px 14px; cursor: pointer; color: #fff;
+    border: 2px solid transparent; transition: transform .12s, box-shadow .12s;
+  }
+  .heat-cell:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(28,58,120,.18); }
+  .heat-cell.active { border-color: #1b2a4a; }
+  .heat-cell.over { border-color: var(--warning); }
+  .heat-cell .hc-n { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .heat-cell .hc-p { font-size: 20px; font-weight: 700; font-family: Consolas, monospace; margin-top: 4px; }
+  .heat-cell .hc-u { font-size: 12px; opacity: .88; }
+  .heat-cell .hc-d { font-size: 12.5px; margin-top: 6px; display: flex; align-items: center; gap: 6px; }
+  .heat-legend { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-3); margin-top: 10px; }
+  .heat-legend .hl-bar {
+    width: 220px; height: 10px; border-radius: 5px;
+    background: linear-gradient(90deg, #dbe6f8, #9dbaea, #5b8bdc, #2656bb, #1b3c85);
+  }
+
+  .line-chart { position: relative; height: 210px; padding: 10px 0 26px; }
+  .line-chart .lc-grid { position: absolute; left: 0; right: 0; top: 10px; bottom: 26px; }
+  .line-chart .lc-grid span {
+    position: absolute; left: 0; right: 0; border-top: 1px dashed var(--row-line);
+    font-size: 11.5px; color: var(--text-3); padding-left: 2px;
+  }
+  .line-chart .lc-cols { position: absolute; left: 34px; right: 6px; top: 10px; bottom: 26px; display: flex; align-items: flex-end; }
+  .line-chart .lc-col { flex: 1; height: 100%; position: relative; display: flex; align-items: flex-end; justify-content: center; }
+  .line-chart .lc-dot {
+    width: 9px; height: 9px; border-radius: 50%; background: #fff; border: 2px solid var(--primary);
+    position: absolute; z-index: 2; cursor: pointer;
+  }
+  .line-chart .lc-dot:hover { background: var(--primary); }
+  .line-chart .lc-bar { width: 60%; max-width: 26px; background: #eef3fc; border-radius: 4px 4px 0 0; }
+  .line-chart .lc-x { position: absolute; bottom: -22px; font-size: 11.5px; color: var(--text-3); white-space: nowrap; }
+
+  .top-item {
+    display: flex; align-items: center; gap: 10px; padding: 9px 0; font-size: 13px;
+    border-bottom: 1px dashed var(--row-line);
+  }
+  .top-item:last-child { border-bottom: none; }
+  .top-item .ti-no {
+    width: 20px; height: 20px; border-radius: 5px; flex-shrink: 0; font-size: 11.5px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; background: #eef1f6; color: var(--text-2);
+  }
+  .top-item.hot .ti-no { background: var(--warning); color: #fff; }
+  .top-item.cold .ti-no { background: var(--success); color: #fff; }
+  .top-item .ti-n { flex: 1; }
+  .top-item .ti-s { flex: 0 0 68px; text-align: right; color: var(--text-3); font-size: 12.5px; }
+  .top-item .ti-v { flex: 0 0 62px; text-align: right; font-weight: 600; font-family: Consolas, monospace; }
+  .top-item.over-th { background: #fff8ed; }
+
+  .rule-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 13px 14px; background: #fff; }
+  .rule-card .rc-t { font-size: 13.5px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .rule-card .rc-t .rc-hit { margin-left: auto; }
+  .rule-card .rc-d { font-size: 12.5px; color: var(--text-3); margin-top: 6px; line-height: 1.7; }
+  .rule-card .rc-ops { display: flex; gap: 14px; margin-top: 10px; }
+
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media (max-width: 1400px) { .grid-4 { grid-template-columns: repeat(2, 1fr); } }
+
+  .up { color: #d97706; font-weight: 600; }
+  .down { color: #16a34a; font-weight: 600; }
+  .data-table tbody tr.is-warn > td { background: #fff8ed; }
+  .data-table tbody tr.is-warn:hover > td { background: #fdf0d9; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wszwb-05">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋租赁网签备案管理系统
+        <span class="sep">/</span> 租赁主体监管
+        <span class="sep">/</span> <span class="cur">租金波动监测</span>
+      </div>
+      <div class="page-title">租金波动监测</div>
+    </div>
+    <div class="page-actions">
+      <div class="filter-item" style="margin:0">
+        <label>统计周期</label>
+        <select onchange="PMS.toast('已切换统计周期：' + this.value)">
+          <option>2026 年 7 月（月度）</option>
+          <option>2026 年第 2 季度</option>
+          <option>2026 年上半年</option>
+          <option>近 12 个月</option>
+        </select>
+      </div>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《柳州市租金波动监测报表》Excel','success')"><i class="fa-solid fa-download"></i> 导出</button>
+      <button type="button" class="btn btn-primary" onclick="makeTask()"><i class="fa-solid fa-list-check"></i> 生成核查任务</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-chart-line"></i></div>
+      <div><div class="s-label">全市租金指数</div><div class="s-value">102.8</div><div class="s-trend up">同比 +2.6%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-money-bill-trend-up"></i></div>
+      <div><div class="s-label">平均租金单价</div><div class="s-value">24.6</div><div class="s-trend up">元/㎡·月 · 环比 +0.7%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><div class="s-label">异常涨幅分组</div><div class="s-value">14</div><div class="s-trend text-3">个</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-house-circle-exclamation"></i></div>
+      <div><div class="s-label">超指导价保租房分组</div><div class="s-value">3</div><div class="s-trend text-danger">已推送整改</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      涨幅阈值按一城一策参数配置，默认环比 ±5%、同比 ±10%。备案租金显著低于市场水平的分组纳入涉税异常线索，按归口移送税务部门。
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head">
+        <span><i class="fa-solid fa-map"></i> 租金热力分布 · 2026 年 7 月</span>
+        <span class="text-3 text-sm">点击城区下钻至片区与楼盘明细</span>
+      </div>
+      <div class="card-body">
+        <div class="heat-grid">
+          <div class="heat-cell over" style="background:#1b3c85" onclick="drill(this, '城中区', 32.6, '+5.8%')">
+            <div class="hc-n">城中区 <i class="fa-solid fa-triangle-exclamation" style="font-size:11px"></i></div>
+            <div class="hc-p">32.6</div>
+            <div class="hc-u">元/㎡·月</div>
+            <div class="hc-d"><i class="fa-solid fa-arrow-up"></i> 环比 +5.8%</div>
+          </div>
+          <div class="heat-cell" style="background:#2656bb" onclick="drill(this, '鱼峰区', 27.4, '+1.2%')">
+            <div class="hc-n">鱼峰区</div>
+            <div class="hc-p">27.4</div>
+            <div class="hc-u">元/㎡·月</div>
+            <div class="hc-d"><i class="fa-solid fa-arrow-up"></i> 环比 +1.2%</div>
+          </div>
+          <div class="heat-cell" style="background:#5b8bdc" onclick="drill(this, '柳南区', 22.8, '+0.4%')">
+            <div class="hc-n">柳南区</div>
+            <div class="hc-p">22.8</div>
+            <div class="hc-u">元/㎡·月</div>
+            <div class="hc-d"><i class="fa-solid fa-arrow-up"></i> 环比 +0.4%</div>
+          </div>
+          <div class="heat-cell" style="background:#5b8bdc" onclick="drill(this, '柳北区', 21.9, '-0.6%')">
+            <div class="hc-n">柳北区</div>
+            <div class="hc-p">21.9</div>
+            <div class="hc-u">元/㎡·月</div>
+            <div class="hc-d"><i class="fa-solid fa-arrow-down"></i> 环比 -0.6%</div>
+          </div>
+          <div class="heat-cell over" style="background:#9dbaea" onclick="drill(this, '柳东新区', 19.6, '+6.4%')">
+            <div class="hc-n">柳东新区 <i class="fa-solid fa-triangle-exclamation" style="font-size:11px"></i></div>
+            <div class="hc-p">19.6</div>
+            <div class="hc-u">元/㎡·月</div>
+            <div class="hc-d"><i class="fa-solid fa-arrow-up"></i> 环比 +6.4%</div>
+          </div>
+          <div class="heat-cell" style="background:#9dbaea" onclick="drill(this, '阳和工业新区', 17.2, '+2.1%')">
+            <div class="hc-n">阳和工业新区</div>
+            <div class="hc-p">17.2</div>
+            <div class="hc-u">元/㎡·月</div>
+            <div class="hc-d"><i class="fa-solid fa-arrow-up"></i> 环比 +2.1%</div>
+          </div>
+          <div class="heat-cell" style="background:#dbe6f8;color:#1b2a4a" onclick="drill(this, '柳江区', 15.8, '+0.9%')">
+            <div class="hc-n">柳江区</div>
+            <div class="hc-p">15.8</div>
+            <div class="hc-u">元/㎡·月</div>
+            <div class="hc-d"><i class="fa-solid fa-arrow-up"></i> 环比 +0.9%</div>
+          </div>
+          <div class="heat-cell" style="background:#dbe6f8;color:#1b2a4a" onclick="drill(this, '鹿寨县', 12.4, '-1.4%')">
+            <div class="hc-n">鹿寨县</div>
+            <div class="hc-p">12.4</div>
+            <div class="hc-u">元/㎡·月</div>
+            <div class="hc-d"><i class="fa-solid fa-arrow-down"></i> 环比 -1.4%</div>
+          </div>
+        </div>
+        <div class="heat-legend">
+          <span>低</span><span class="hl-bar"></span><span>高</span>
+          <span style="margin-left:auto"><i class="fa-solid fa-triangle-exclamation" style="color:var(--warning)"></i> 橙色描边为环比涨幅超阈值城区</span>
+        </div>
+
+        <div class="section-title mt-16" id="drillTitle">城中区 · 片区与楼盘明细</div>
+        <div class="table-wrap">
+          <table class="data-table" data-static>
+            <thead>
+              <tr><th>片区 / 楼盘</th><th class="num">平均单价(元/㎡·月)</th><th class="num">样本量</th><th class="num">环比</th><th class="num">同比</th></tr>
+            </thead>
+            <tbody id="drillBody">
+              <tr><td>解放片区 · 天湖国际</td><td class="num">38.4</td><td class="num">126</td><td class="num up">+7.2%</td><td class="num up">+12.6%</td></tr>
+              <tr><td>文昌片区 · 阳光 100 城市广场</td><td class="num">35.2</td><td class="num">208</td><td class="num up">+6.1%</td><td class="num up">+10.4%</td></tr>
+              <tr><td>东堤片区 · 江与城</td><td class="num">33.6</td><td class="num">164</td><td class="num up">+4.8%</td><td class="num up">+9.2%</td></tr>
+              <tr><td>中山片区 · 荣和中央公园</td><td class="num">30.8</td><td class="num">142</td><td class="num up">+3.2%</td><td class="num up">+6.8%</td></tr>
+              <tr><td>河东片区 · 保利大江郡</td><td class="num">28.6</td><td class="num">186</td><td class="num up">+2.4%</td><td class="num up">+5.1%</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <span><i class="fa-solid fa-chart-column"></i> 近 12 个月租金指数走势</span>
+        <span class="text-3 text-sm">基期 2025 年 8 月 = 100</span>
+      </div>
+      <div class="card-body">
+        <div class="line-chart">
+          <div class="lc-grid">
+            <span style="top:0">104</span>
+            <span style="top:33%">102</span>
+            <span style="top:66%">100</span>
+            <span style="top:100%">98</span>
+          </div>
+          <div class="lc-cols">
+            <div class="lc-col"><div class="lc-dot" style="bottom:20%" onclick="PMS.toast('2025-08 指数 100.0 · 环比 —')"></div><div class="lc-bar" style="height:20%"></div><div class="lc-x">08</div></div>
+            <div class="lc-col"><div class="lc-dot" style="bottom:26%" onclick="PMS.toast('2025-09 指数 100.4 · 环比 +0.4%')"></div><div class="lc-bar" style="height:26%"></div><div class="lc-x">09</div></div>
+            <div class="lc-col"><div class="lc-dot" style="bottom:31%" onclick="PMS.toast('2025-10 指数 100.7 · 环比 +0.3%')"></div><div class="lc-bar" style="height:31%"></div><div class="lc-x">10</div></div>
+            <div class="lc-col"><div class="lc-dot" style="bottom:29%" onclick="PMS.toast('2025-11 指数 100.6 · 环比 -0.1%')"></div><div class="lc-bar" style="height:29%"></div><div class="lc-x">11</div></div>
+            <div class="lc-col"><div class="lc-dot" style="bottom:34%" onclick="PMS.toast('2025-12 指数 100.9 · 环比 +0.3%')"></div><div class="lc-bar" style="height:34%"></div><div class="lc-x">12</div></div>
+            <div class="lc-col"><div class="lc-dot" style="bottom:40%" onclick="PMS.toast('2026-01 指数 101.2 · 环比 +0.3%')"></div><div class="lc-bar" style="height:40%"></div><div class="lc-x">01</div></div>
+            <div class="lc-col"><div class="lc-dot" style="bottom:37%" onclick="PMS.toast('2026-02 指数 101.0 · 环比 -0.2%')"></div><div class="lc-bar" style="height:37%"></div><div class="lc-x">02</div></div>
+            <div class="lc-col"><div class="lc-dot" style="bottom:46%" onclick="PMS.toast('2026-03 指数 101.6 · 环比 +0.6%')"></div><div class="lc-bar" style="height:46%"></div><div class="lc-x">03</div></div>
+            <div class="lc-col"><div class="lc-dot" style="bottom:54%" onclick="PMS.toast('2026-04 指数 102.0 · 环比 +0.4%')"></div><div class="lc-bar" style="height:54%"></div><div class="lc-x">04</div></div>
+            <div class="lc-col"><div class="lc-dot" style="bottom:60%" onclick="PMS.toast('2026-05 指数 102.3 · 环比 +0.3%')"></div><div class="lc-bar" style="height:60%"></div><div class="lc-x">05</div></div>
+            <div class="lc-col"><div class="lc-dot" style="bottom:68%" onclick="PMS.toast('2026-06 指数 102.6 · 环比 +0.3%')"></div><div class="lc-bar" style="height:68%"></div><div class="lc-x">06</div></div>
+            <div class="lc-col"><div class="lc-dot" style="bottom:76%" onclick="PMS.toast('2026-07 指数 102.8 · 环比 +0.2% · 同比 +2.6%')"></div><div class="lc-bar" style="height:76%"></div><div class="lc-x">07</div></div>
+          </div>
+        </div>
+        <div class="flex items-center gap-16 text-sm text-3" style="margin-top:26px">
+          <span>2026 年 7 月指数 <b class="text-2">102.8</b></span>
+          <span>环比 <span class="up">+0.2%</span></span>
+          <span>同比 <span class="up">+2.6%</span></span>
+          <span>累计样本 <b class="text-2">18,642</b> 份备案合同</span>
+        </div>
+
+        <div class="grid-2 mt-16">
+          <div>
+            <div class="section-title">涨幅 Top 10 分组</div>
+            <div class="top-item hot over-th"><span class="ti-no">1</span><span class="ti-n">城中区解放片区 · 天湖国际 · 两房</span><span class="ti-s">126 份</span><span class="ti-v up">+7.2%</span></div>
+            <div class="top-item hot over-th"><span class="ti-no">2</span><span class="ti-n">柳东新区官塘片区 · 万科城 · 三房</span><span class="ti-s">88 份</span><span class="ti-v up">+6.8%</span></div>
+            <div class="top-item hot over-th"><span class="ti-no">3</span><span class="ti-n">城中区文昌片区 · 阳光 100 · 两房</span><span class="ti-s">208 份</span><span class="ti-v up">+6.1%</span></div>
+            <div class="top-item over-th"><span class="ti-no">4</span><span class="ti-n">柳东新区雒容片区 · 恒大城 · 一房</span><span class="ti-s">64 份</span><span class="ti-v up">+5.6%</span></div>
+            <div class="top-item over-th"><span class="ti-no">5</span><span class="ti-n">城中区东堤片区 · 江与城 · 三房</span><span class="ti-s">164 份</span><span class="ti-v up">+5.2%</span></div>
+            <div class="top-item"><span class="ti-no">6</span><span class="ti-n">鱼峰区屏山片区 · 奥园誉峰 · 两房</span><span class="ti-s">142 份</span><span class="ti-v up">+4.6%</span></div>
+            <div class="top-item"><span class="ti-no">7</span><span class="ti-n">柳南区航鹰片区 · 龙城华府 · 两房</span><span class="ti-s">118 份</span><span class="ti-v up">+3.8%</span></div>
+            <div class="top-item"><span class="ti-no">8</span><span class="ti-n">鱼峰区静兰片区 · 荣和公园里 · 三房</span><span class="ti-s">96 份</span><span class="ti-v up">+3.4%</span></div>
+            <div class="top-item"><span class="ti-no">9</span><span class="ti-n">阳和新区阳和片区 · 保利紫薇里 · 一房</span><span class="ti-s">72 份</span><span class="ti-v up">+2.9%</span></div>
+            <div class="top-item"><span class="ti-no">10</span><span class="ti-n">柳江区拉堡片区 · 万达华府 · 两房</span><span class="ti-s">58 份</span><span class="ti-v up">+2.4%</span></div>
+          </div>
+          <div>
+            <div class="section-title">跌幅 Top 10 分组</div>
+            <div class="top-item cold"><span class="ti-no">1</span><span class="ti-n">鹿寨县城关片区 · 建设新村 · 三房</span><span class="ti-s">42 份</span><span class="ti-v down">-4.8%</span></div>
+            <div class="top-item cold"><span class="ti-no">2</span><span class="ti-n">柳北区跃进片区 · 钢城家园 · 三房</span><span class="ti-s">86 份</span><span class="ti-v down">-3.6%</span></div>
+            <div class="top-item cold"><span class="ti-no">3</span><span class="ti-n">融安县长安片区 · 江滨小区 · 两房</span><span class="ti-s">36 份</span><span class="ti-v down">-3.2%</span></div>
+            <div class="top-item"><span class="ti-no">4</span><span class="ti-n">柳北区白露片区 · 白露佳园 · 两房</span><span class="ti-s">64 份</span><span class="ti-v down">-2.8%</span></div>
+            <div class="top-item"><span class="ti-no">5</span><span class="ti-n">柳南区柳石片区 · 柳石花园 · 一房</span><span class="ti-s">78 份</span><span class="ti-v down">-2.4%</span></div>
+            <div class="top-item"><span class="ti-no">6</span><span class="ti-n">三江县古宜片区 · 侗乡家园 · 两房</span><span class="ti-s">28 份</span><span class="ti-v down">-2.1%</span></div>
+            <div class="top-item"><span class="ti-no">7</span><span class="ti-n">柳城县大埔片区 · 凤山新苑 · 三房</span><span class="ti-s">32 份</span><span class="ti-v down">-1.8%</span></div>
+            <div class="top-item"><span class="ti-no">8</span><span class="ti-n">柳北区雅儒片区 · 雅儒新村 · 一房</span><span class="ti-s">54 份</span><span class="ti-v down">-1.5%</span></div>
+            <div class="top-item"><span class="ti-no">9</span><span class="ti-n">融水县融水片区 · 苗都家园 · 两房</span><span class="ti-s">26 份</span><span class="ti-v down">-1.2%</span></div>
+            <div class="top-item"><span class="ti-no">10</span><span class="ti-n">柳江区基隆片区 · 基隆开发区宿舍 · 一房</span><span class="ti-s">44 份</span><span class="ti-v down">-0.9%</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <span><i class="fa-solid fa-shield-halved"></i> 异常识别规则</span>
+      <span class="link" onclick="PMS.toast('已打开阈值配置，按一城一策参数管理')">阈值配置</span>
+    </div>
+    <div class="card-body">
+      <div class="grid-4">
+        <div class="rule-card">
+          <div class="rc-t"><i class="fa-solid fa-arrow-trend-up" style="color:var(--warning)"></i> 环比涨幅超阈值 <span class="rc-hit badge orange">命中 8</span></div>
+          <div class="rc-d">当前阈值：环比 &gt; 5%。以片区 + 楼盘 + 户型 + 面积区间为分组单元，样本量不足 20 份的分组不参与判定。</div>
+          <div class="rc-ops">
+            <span class="link" onclick="PMS.toast('已筛选环比涨幅超阈值的 8 个分组')">查看命中清单</span>
+            <span class="link" onclick="dispatch('环比涨幅超阈值', 8)">派发核查任务</span>
+          </div>
+        </div>
+        <div class="rule-card">
+          <div class="rc-t"><i class="fa-solid fa-chart-line" style="color:var(--danger)"></i> 同比涨幅超阈值 <span class="rc-hit badge red">命中 4</span></div>
+          <div class="rc-d">当前阈值：同比 &gt; 10%。命中分组纳入重点监测名单，连续两个月命中的推送市场调控建议。</div>
+          <div class="rc-ops">
+            <span class="link" onclick="PMS.toast('已筛选同比涨幅超阈值的 4 个分组')">查看命中清单</span>
+            <span class="link" onclick="dispatch('同比涨幅超阈值', 4)">派发核查任务</span>
+          </div>
+        </div>
+        <div class="rule-card">
+          <div class="rc-t"><i class="fa-solid fa-building-circle-exclamation" style="color:var(--warning)"></i> 楼盘偏离片区均值 <span class="rc-hit badge orange">命中 6</span></div>
+          <div class="rc-d">当前阈值：偏离片区均值 &gt; 20%。用于识别个别楼盘租金异常抬高或压低，核查是否存在串通操纵。</div>
+          <div class="rc-ops">
+            <span class="link" onclick="PMS.toast('已筛选偏离片区均值的 6 个分组')">查看命中清单</span>
+            <span class="link" onclick="dispatch('楼盘偏离片区均值', 6)">派发核查任务</span>
+          </div>
+        </div>
+        <div class="rule-card">
+          <div class="rc-t"><i class="fa-solid fa-file-invoice-dollar" style="color:var(--danger)"></i> 备案租金显著偏低 <span class="rc-hit badge red">命中 12</span></div>
+          <div class="rc-d">当前阈值：低于市场水平 30%。疑似阴阳租约，纳入涉税异常线索并按归口移送税务部门。</div>
+          <div class="rc-ops">
+            <span class="link" onclick="PMS.toast('已筛选备案租金显著偏低的 12 个分组')">查看命中清单</span>
+            <span class="link" onclick="dispatch('备案租金显著偏低', 12)">派发核查任务</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <span><i class="fa-solid fa-table-list"></i> 异常分组明细</span>
+      <a class="link" href="rent-level-publish.html">前往租金水平发布</a>
+    </div>
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>区划</label>
+        <select><option value="">全部</option><option>城中区</option><option>鱼峰区</option><option>柳南区</option><option>柳北区</option><option>柳东新区</option><option>阳和工业新区</option><option>柳江区</option></select>
+      </div>
+      <div class="filter-item">
+        <label>户型</label>
+        <select><option value="">全部</option><option>一房</option><option>两房</option><option>三房</option><option>四房及以上</option><option>单间</option></select>
+      </div>
+      <div class="filter-item">
+        <label>命中规则</label>
+        <select><option value="">全部</option><option>环比涨幅超阈值</option><option>同比涨幅超阈值</option><option>楼盘偏离片区均值</option><option>备案租金显著偏低</option></select>
+      </div>
+      <div class="filter-item">
+        <label>是否超指导价</label>
+        <select><option value="">全部</option><option>是</option><option>否</option><option>不适用</option></select>
+      </div>
+      <div class="filter-item">
+        <label>核查状态</label>
+        <select><option value="">全部</option><option>待核查</option><option>核查中</option><option>已核查</option><option>已移送</option></select>
+      </div>
+      <div class="filter-item">
+        <label>最小样本量</label>
+        <input type="text" value="20">
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 30 个异常分组')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tblYc" data-static>
+        <thead>
+          <tr>
+            <th>分组标识</th>
+            <th class="num">样本量</th>
+            <th class="num">平均租金(元/月)</th>
+            <th class="num">平均单价(元/㎡·月)</th>
+            <th class="num">环比</th>
+            <th class="num">同比</th>
+            <th>命中规则</th>
+            <th class="num">指导租金标准</th>
+            <th>是否超指导价</th>
+            <th>核查状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="is-warn">
+            <td class="cell-lg">城中区 · 解放片区 · 天湖国际 · 两房 · 60-80㎡</td>
+            <td class="num">126</td>
+            <td class="num">2,742.00</td>
+            <td class="num">38.4</td>
+            <td class="num up">+7.2%</td>
+            <td class="num up">+12.6%</td>
+            <td class="nowrap"><span class="badge orange">环比超阈值</span> <span class="badge red">同比超阈值</span></td>
+            <td class="num"><span class="text-3">不适用</span></td>
+            <td class="nowrap"><span class="badge gray">不适用</span></td>
+            <td class="nowrap"><span class="badge orange">待核查</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="viewGroup('城中区 · 解放片区 · 天湖国际 · 两房')">明细下钻</span>
+              <span class="link" onclick="dispatch('该分组', 1)">派发核查</span>
+            </td>
+          </tr>
+          <tr class="is-warn">
+            <td class="cell-lg">柳东新区 · 官塘片区 · 万科城 · 三房 · 90-120㎡</td>
+            <td class="num">88</td>
+            <td class="num">2,584.00</td>
+            <td class="num">24.6</td>
+            <td class="num up">+6.8%</td>
+            <td class="num up">+11.2%</td>
+            <td class="nowrap"><span class="badge orange">环比超阈值</span> <span class="badge red">同比超阈值</span></td>
+            <td class="num"><span class="text-3">不适用</span></td>
+            <td class="nowrap"><span class="badge gray">不适用</span></td>
+            <td class="nowrap"><span class="badge blue">核查中</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="viewGroup('柳东新区 · 官塘片区 · 万科城 · 三房')">明细下钻</span>
+              <a class="link" href="behavior-supervise.html">关联行为</a>
+            </td>
+          </tr>
+          <tr class="is-warn">
+            <td class="cell-lg">柳东新区 · 官塘片区 · 龙城人才公寓 · 一房 · 40-60㎡（保租房）</td>
+            <td class="num">96</td>
+            <td class="num">1,486.00</td>
+            <td class="num">29.7</td>
+            <td class="num up">+5.4%</td>
+            <td class="num up">+8.6%</td>
+            <td class="nowrap"><span class="badge orange">环比超阈值</span></td>
+            <td class="num">1,320.00</td>
+            <td class="nowrap"><span class="badge red">超指导价 12.6%</span></td>
+            <td class="nowrap"><span class="badge orange">待核查</span></td>
+            <td class="col-ops">
+              <a class="link" href="affordable-housing.html">保租房档案</a>
+              <span class="link" onclick="dispatch('该保租房分组', 1)">责令整改</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="cell-lg">城中区 · 文昌片区 · 阳光 100 城市广场 · 两房 · 60-80㎡</td>
+            <td class="num">208</td>
+            <td class="num">2,464.00</td>
+            <td class="num">35.2</td>
+            <td class="num up">+6.1%</td>
+            <td class="num up">+10.4%</td>
+            <td class="nowrap"><span class="badge orange">环比超阈值</span> <span class="badge red">同比超阈值</span></td>
+            <td class="num"><span class="text-3">不适用</span></td>
+            <td class="nowrap"><span class="badge gray">不适用</span></td>
+            <td class="nowrap"><span class="badge blue">核查中</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="viewGroup('城中区 · 文昌片区 · 阳光 100 · 两房')">明细下钻</span>
+              <a class="link" href="rent-level-publish.html">租金水平</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="cell-lg">鱼峰区 · 屏山片区 · 奥园誉峰 · 两房 · 60-80㎡</td>
+            <td class="num">142</td>
+            <td class="num">1,892.00</td>
+            <td class="num">27.0</td>
+            <td class="num up">+4.6%</td>
+            <td class="num up">+7.8%</td>
+            <td class="nowrap"><span class="badge orange">偏离片区均值 21.4%</span></td>
+            <td class="num"><span class="text-3">不适用</span></td>
+            <td class="nowrap"><span class="badge gray">不适用</span></td>
+            <td class="nowrap"><span class="badge green">已核查</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="viewGroup('鱼峰区 · 屏山片区 · 奥园誉峰 · 两房')">明细下钻</span>
+              <span class="link" onclick="PMS.toast('核查结论：新装修房源集中入市，属正常波动')">核查结论</span>
+            </td>
+          </tr>
+          <tr class="is-warn">
+            <td class="cell-lg">柳北区 · 跃进片区 · 钢城家园 · 三房 · 90-120㎡</td>
+            <td class="num">86</td>
+            <td class="num">986.00</td>
+            <td class="num">9.4</td>
+            <td class="num down">-3.6%</td>
+            <td class="num down">-6.2%</td>
+            <td class="nowrap"><span class="badge red">备案租金显著偏低 32.8%</span></td>
+            <td class="num"><span class="text-3">不适用</span></td>
+            <td class="nowrap"><span class="badge gray">不适用</span></td>
+            <td class="nowrap"><span class="badge purple">已移送税务</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="viewGroup('柳北区 · 跃进片区 · 钢城家园 · 三房')">明细下钻</span>
+              <a class="link" href="data-share.html">移送记录</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="cell-lg">柳南区 · 航鹰片区 · 龙城华府 · 两房 · 60-80㎡</td>
+            <td class="num">118</td>
+            <td class="num">1,764.00</td>
+            <td class="num">25.2</td>
+            <td class="num up">+3.8%</td>
+            <td class="num up">+6.4%</td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="num"><span class="text-3">不适用</span></td>
+            <td class="nowrap"><span class="badge gray">不适用</span></td>
+            <td class="nowrap"><span class="badge green">已核查</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="viewGroup('柳南区 · 航鹰片区 · 龙城华府 · 两房')">明细下钻</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+var DRILL = {
+  '城中区': [
+    ['解放片区 · 天湖国际', '38.4', 126, '+7.2%', '+12.6%'],
+    ['文昌片区 · 阳光 100 城市广场', '35.2', 208, '+6.1%', '+10.4%'],
+    ['东堤片区 · 江与城', '33.6', 164, '+4.8%', '+9.2%'],
+    ['中山片区 · 荣和中央公园', '30.8', 142, '+3.2%', '+6.8%'],
+    ['河东片区 · 保利大江郡', '28.6', 186, '+2.4%', '+5.1%']
+  ],
+  '鱼峰区': [
+    ['屏山片区 · 奥园誉峰', '27.0', 142, '+4.6%', '+7.8%'],
+    ['静兰片区 · 荣和公园里', '26.2', 96, '+3.4%', '+5.6%'],
+    ['箭盘片区 · 箭盘山小区', '22.4', 78, '+0.8%', '+2.2%'],
+    ['天马片区 · 天马山庄', '21.6', 64, '-0.4%', '+1.4%']
+  ],
+  '柳南区': [
+    ['航鹰片区 · 龙城华府', '25.2', 118, '+3.8%', '+6.4%'],
+    ['柳石片区 · 柳石花园', '20.4', 78, '-2.4%', '-1.8%'],
+    ['潭中片区 · 潭中花园', '22.6', 92, '+1.2%', '+2.6%']
+  ],
+  '柳北区': [
+    ['跃进片区 · 钢城家园', '9.4', 86, '-3.6%', '-6.2%'],
+    ['白露片区 · 白露佳园', '19.8', 64, '-2.8%', '-3.4%'],
+    ['雅儒片区 · 雅儒新村', '18.6', 54, '-1.5%', '-2.2%']
+  ],
+  '柳东新区': [
+    ['官塘片区 · 万科城', '24.6', 88, '+6.8%', '+11.2%'],
+    ['官塘片区 · 龙城人才公寓（保租房）', '29.7', 96, '+5.4%', '+8.6%'],
+    ['雒容片区 · 恒大城', '17.2', 64, '+5.6%', '+8.2%']
+  ],
+  '阳和工业新区': [
+    ['阳和片区 · 保利紫薇里', '18.4', 72, '+2.9%', '+4.6%'],
+    ['阳和片区 · 阳和新苑', '16.2', 48, '+1.4%', '+2.8%']
+  ],
+  '柳江区': [
+    ['拉堡片区 · 万达华府', '16.8', 58, '+2.4%', '+3.6%'],
+    ['基隆片区 · 基隆开发区宿舍', '13.2', 44, '-0.9%', '+0.6%']
+  ],
+  '鹿寨县': [
+    ['城关片区 · 建设新村', '12.4', 42, '-4.8%', '-5.6%'],
+    ['城关片区 · 鹿鸣花园', '13.6', 36, '-1.2%', '-2.4%']
+  ]
+};
+
+function drill(el, area, price, mom) {
+  document.querySelectorAll('.heat-cell').forEach(function (c) { c.classList.remove('active'); });
+  el.classList.add('active');
+  document.getElementById('drillTitle').textContent = area + ' · 片区与楼盘明细（平均 ' + price + ' 元/㎡·月 · 环比 ' + mom + '）';
+  var rows = DRILL[area] || [];
+  document.getElementById('drillBody').innerHTML = rows.map(function (r) {
+    var mc = r[3].indexOf('-') === 0 ? 'down' : 'up';
+    var yc = r[4].indexOf('-') === 0 ? 'down' : 'up';
+    return '<tr><td>' + r[0] + '</td><td class="num">' + r[1] + '</td><td class="num">' + r[2] +
+      '</td><td class="num ' + mc + '">' + r[3] + '</td><td class="num ' + yc + '">' + r[4] + '</td></tr>';
+  }).join('');
+  PMS.toast('已下钻至 ' + area);
+}
+
+function viewGroup(name) {
+  PMS.toast('已打开「' + name + '」的备案合同样本明细（演示）');
+}
+
+function dispatch(rule, n) {
+  PMS.confirm({
+    title: '派发核查任务',
+    message: '就「' + rule + '」派发 ' + n + ' 个分组的核查任务？',
+    detail: '任务按房屋所在区划分派至属地住建部门，核查期限 10 个工作日；涉税异常线索同步移送税务部门。',
+    type: 'info',
+    okText: '确认派发',
+    onOk: function () { PMS.toast('已派发 ' + n + ' 个核查任务并短信通知承办人', 'success'); }
+  });
+}
+
+function makeTask() {
+  PMS.confirm({
+    title: '生成核查任务',
+    message: '就本期全部 14 个异常涨幅分组生成核查任务？',
+    detail: '生成后在「异常分组明细」中核查状态置为「核查中」，超期未反馈的推送催办预警。',
+    type: 'info',
+    okText: '生成任务',
+    onOk: function () { PMS.toast('已生成 14 个核查任务，其中 3 个保租房分组同步责令整改', 'success'); }
+  });
+}
+
+(function () {
+  PMS.renderPager(document.getElementById('tblYc'), {
+    pageNum: 1, pageSize: 20, total: 30,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+</script>
+</body>
+</html>

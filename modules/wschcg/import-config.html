@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>导入模板与质检规则配置 · 房屋交易面积信息管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：规则等级色条、开关按钮、致命规则锁定态、字段配置弹窗 */
+  .amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .data-table tbody td.desc { max-width: 300px; white-space: normal; line-height: 1.55; font-size: 12.5px; color: var(--text-2); }
+  .rc { display: inline-block; width: 26px; text-align: center; font-weight: 800; color: var(--primary); font-variant-numeric: tabular-nums; }
+
+  /* 开关 */
+  .sw { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; user-select: none; }
+  .sw .track { width: 36px; height: 20px; border-radius: 10px; background: #cbd5e1; position: relative; transition: background .15s; flex-shrink: 0; }
+  .sw .track::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+    background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .2); transition: transform .15s;
+  }
+  .sw.on .track { background: var(--success); }
+  .sw.on .track::after { transform: translateX(16px); }
+  .sw .tx { font-size: 12.5px; color: var(--text-2); }
+  .sw.lock { cursor: not-allowed; opacity: .55; }
+  .sw.lock .track { background: #e2e8f0; }
+
+  tr.fatal td { background: #fef7f7; }
+  tr.fatal:hover td { background: #fee2e2; }
+  .lockmsg { font-size: 11.5px; color: var(--danger); display: block; margin-top: 2px; }
+
+  /* 字段配置弹窗中的字段行 */
+  .fx { font-family: "Consolas", "Courier New", monospace; font-size: 12.5px; color: #b45309; background: var(--bg-soft); padding: 1px 5px; border-radius: 3px; }
+  .lvsel { width: 108px !important; height: 28px; font-size: 12.5px; }
+  input.err { width: 96px !important; height: 28px; font-size: 12.5px; text-align: right; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wschcg-11">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易面积信息管理系统
+        <span class="sep">/</span> 测绘成果接入
+        <span class="sep">/</span> <span class="cur">导入模板与质检规则配置</span>
+      </div>
+      <div class="page-title">导入模板与质检规则配置</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="location.href='result-import.html'"><i class="fa-solid fa-file-import"></i> 成果接入与批量导入</button>
+      <button type="button" class="btn" onclick="location.href='result-check.html'"><i class="fa-solid fa-clipboard-check"></i> 成果质检与整改</button>
+      <button type="button" class="btn btn-primary" onclick="saveAll()"><i class="fa-solid fa-floppy-disk"></i> 保存配置</button>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>规则阈值调整<b>仅对调整后新报送的成果生效</b>，已完成质检的成果不重算。<b>致命等级规则不允许人工放行</b>，等级调整为「致命」时放行开关自动关闭并锁定。所有配置变更均记录操作人与时间。</div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="tpl"><i class="fa-solid fa-table-list"></i> 导入模板管理</div>
+    <div class="tab" data-tab="rule"><i class="fa-solid fa-shield-halved"></i> 质检规则配置</div>
+  </div>
+
+  <!-- Tab 1 导入模板管理 -->
+  <div class="tab-panel active" data-panel="tpl">
+    <div class="card">
+      <div class="card-head">
+        <h3>导入模板</h3><span class="sub">幢表 / 层表 / 户表三类模板，字段与校验规则可配置</span>
+        <div class="head-actions">
+          <button type="button" class="btn btn-sm" onclick="PMS.toast('三类模板已打包为 测绘成果导入模板.zip，正在下载','success')"><i class="fa-solid fa-download"></i> 打包下载全部模板</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="table-wrap">
+          <table class="data-table" data-static>
+            <thead>
+              <tr><th>模板名称</th><th>适用成果类型</th><th>模板版本</th><th class="text-right">字段数</th><th class="text-right">必填字段数</th><th>启用状态</th><th>更新时间</th><th>更新人</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="fw-600 nowrap"><i class="fa-solid fa-building" style="color:var(--primary)"></i> 幢表模板 ZT-2026</td>
+                <td class="nowrap">预测成果 / 实测成果 / 变更成果 / 更正成果</td>
+                <td class="nowrap">V2.6</td>
+                <td class="text-right amt">28</td><td class="text-right amt">18</td>
+                <td class="nowrap"><span class="sw on" data-on="已启用" data-off="已停用" onclick="tglSw(this)"><span class="track"></span><span class="tx">已启用</span></span></td>
+                <td class="nowrap">2026-06-18 10:24</td><td class="nowrap">韦国强</td>
+                <td class="col-ops">
+                  <span class="link" onclick="PMS.toast('幢表模板 ZT-2026 V2.6.xlsx 正在下载','success')">下载模板</span>
+                  <span class="link" onclick="openFields('幢表模板 ZT-2026')">编辑字段</span>
+                  <span class="link danger" onclick="stopTpl('幢表模板 ZT-2026')">停用</span>
+                </td>
+              </tr>
+              <tr>
+                <td class="fw-600 nowrap"><i class="fa-solid fa-layer-group" style="color:var(--primary)"></i> 层表模板 CT-2026</td>
+                <td class="nowrap">预测成果 / 实测成果 / 变更成果 / 更正成果</td>
+                <td class="nowrap">V2.6</td>
+                <td class="text-right amt">22</td><td class="text-right amt">14</td>
+                <td class="nowrap"><span class="sw on" data-on="已启用" data-off="已停用" onclick="tglSw(this)"><span class="track"></span><span class="tx">已启用</span></span></td>
+                <td class="nowrap">2026-06-18 10:24</td><td class="nowrap">韦国强</td>
+                <td class="col-ops">
+                  <span class="link" onclick="PMS.toast('层表模板 CT-2026 V2.6.xlsx 正在下载','success')">下载模板</span>
+                  <span class="link" onclick="openFields('层表模板 CT-2026')">编辑字段</span>
+                  <span class="link danger" onclick="stopTpl('层表模板 CT-2026')">停用</span>
+                </td>
+              </tr>
+              <tr>
+                <td class="fw-600 nowrap"><i class="fa-solid fa-door-open" style="color:var(--primary)"></i> 户表模板 HT-2026</td>
+                <td class="nowrap">预测成果 / 实测成果 / 变更成果 / 更正成果</td>
+                <td class="nowrap">V2.6</td>
+                <td class="text-right amt">42</td><td class="text-right amt">26</td>
+                <td class="nowrap"><span class="sw on" data-on="已启用" data-off="已停用" onclick="tglSw(this)"><span class="track"></span><span class="tx">已启用</span></span></td>
+                <td class="nowrap">2026-07-02 15:38</td><td class="nowrap">李建华</td>
+                <td class="col-ops">
+                  <span class="link" onclick="PMS.toast('户表模板 HT-2026 V2.6.xlsx 正在下载','success')">下载模板</span>
+                  <span class="link" onclick="openFields('户表模板 HT-2026')">编辑字段</span>
+                  <span class="link danger" onclick="stopTpl('户表模板 HT-2026')">停用</span>
+                </td>
+              </tr>
+              <tr>
+                <td class="fw-600 nowrap"><i class="fa-solid fa-door-open" style="color:var(--text-3)"></i> 户表模板 HT-2024（旧版）</td>
+                <td class="nowrap">预测成果 / 实测成果</td>
+                <td class="nowrap">V1.8</td>
+                <td class="text-right amt">36</td><td class="text-right amt">22</td>
+                <td class="nowrap"><span class="sw" data-on="已启用" data-off="已停用" onclick="tglSw(this)"><span class="track"></span><span class="tx">已停用</span></span></td>
+                <td class="nowrap">2024-11-06 09:12</td><td class="nowrap">系统管理员</td>
+                <td class="col-ops">
+                  <span class="link" onclick="PMS.toast('户表模板 HT-2024 V1.8.xlsx 正在下载','success')">下载模板</span>
+                  <span class="link" onclick="openFields('户表模板 HT-2024')">编辑字段</span>
+                  <span class="link" onclick="PMS.toast('旧版模板已停用，如需恢复请切换启用开关','warning')">停用</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 2 质检规则配置 -->
+  <div class="tab-panel" data-panel="rule">
+    <div class="card">
+      <div class="card-head">
+        <h3>12 项自动质检规则</h3><span class="sub">允许误差与问题等级可配，致命规则不允许人工放行</span>
+        <div class="head-actions">
+          <button type="button" class="btn btn-sm" onclick="PMS.toast('已恢复为柳州市默认规则集（12 项），请确认后保存','warning')"><i class="fa-solid fa-rotate-left"></i> 恢复默认规则集</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="table-wrap">
+          <table class="data-table" data-static>
+            <thead>
+              <tr>
+                <th>规则代码</th><th>质检项名称</th><th>校验内容</th><th class="text-right">允许误差</th>
+                <th>问题等级</th><th>是否启用</th><th>允许人工放行</th><th>适用成果类型</th><th>更新时间</th><th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-code="01">
+                <td class="nowrap"><span class="rc">01</span></td>
+                <td class="nowrap fw-600">幢面积平衡</td>
+                <td class="desc">幢建筑面积 = 各层建筑面积之和</td>
+                <td class="text-right"><input type="text" class="err" value="0.01"> <span class="text-3">㎡</span></td>
+                <td><select class="lvsel" onchange="onLevel(this)"><option>提示</option><option>一般</option><option selected>严重</option><option>致命</option></select></td>
+                <td><span class="sw on" onclick="tglSw(this)"><span class="track"></span><span class="tx">启用</span></span></td>
+                <td><span class="sw on pass" onclick="tglPass(this)"><span class="track"></span><span class="tx">允许</span></span></td>
+                <td class="nowrap">全部</td><td class="nowrap">2026-06-18 10:24</td>
+                <td class="col-ops"><span class="link" onclick="editRule('01','幢面积平衡')">编辑</span><span class="link danger" onclick="stopRule('01')">停用</span></td>
+              </tr>
+              <tr data-code="02">
+                <td class="nowrap"><span class="rc">02</span></td>
+                <td class="nowrap fw-600">层面积平衡</td>
+                <td class="desc">层建筑面积 = 层套内面积 + 层共有面积</td>
+                <td class="text-right"><input type="text" class="err" value="0.01"> <span class="text-3">㎡</span></td>
+                <td><select class="lvsel" onchange="onLevel(this)"><option>提示</option><option>一般</option><option selected>严重</option><option>致命</option></select></td>
+                <td><span class="sw on" onclick="tglSw(this)"><span class="track"></span><span class="tx">启用</span></span></td>
+                <td><span class="sw on pass" onclick="tglPass(this)"><span class="track"></span><span class="tx">允许</span></span></td>
+                <td class="nowrap">全部</td><td class="nowrap">2026-06-18 10:24</td>
+                <td class="col-ops"><span class="link" onclick="editRule('02','层面积平衡')">编辑</span><span class="link danger" onclick="stopRule('02')">停用</span></td>
+              </tr>
+              <tr data-code="03">
+                <td class="nowrap"><span class="rc">03</span></td>
+                <td class="nowrap fw-600">户面积平衡</td>
+                <td class="desc">户建筑面积 = 套内建筑面积 + 分摊面积</td>
+                <td class="text-right"><input type="text" class="err" value="0.01"> <span class="text-3">㎡</span></td>
+                <td><select class="lvsel" onchange="onLevel(this)"><option>提示</option><option>一般</option><option selected>严重</option><option>致命</option></select></td>
+                <td><span class="sw on" onclick="tglSw(this)"><span class="track"></span><span class="tx">启用</span></span></td>
+                <td><span class="sw on pass" onclick="tglPass(this)"><span class="track"></span><span class="tx">允许</span></span></td>
+                <td class="nowrap">全部</td><td class="nowrap">2026-07-02 15:38</td>
+                <td class="col-ops"><span class="link" onclick="editRule('03','户面积平衡')">编辑</span><span class="link danger" onclick="stopRule('03')">停用</span></td>
+              </tr>
+              <tr data-code="04">
+                <td class="nowrap"><span class="rc">04</span></td>
+                <td class="nowrap fw-600">分摊系数校验</td>
+                <td class="desc">分摊系数 = 共有面积 ÷ 参与分摊套内面积</td>
+                <td class="text-right"><input type="text" class="err" value="0.0001"> <span class="text-3">系数</span></td>
+                <td><select class="lvsel" onchange="onLevel(this)"><option>提示</option><option>一般</option><option selected>严重</option><option>致命</option></select></td>
+                <td><span class="sw on" onclick="tglSw(this)"><span class="track"></span><span class="tx">启用</span></span></td>
+                <td><span class="sw on pass" onclick="tglPass(this)"><span class="track"></span><span class="tx">允许</span></span></td>
+                <td class="nowrap">全部</td><td class="nowrap">2026-06-18 10:24</td>
+                <td class="col-ops"><span class="link" onclick="editRule('04','分摊系数校验')">编辑</span><span class="link danger" onclick="stopRule('04')">停用</span></td>
+              </tr>
+              <tr class="fatal" data-code="05">
+                <td class="nowrap"><span class="rc">05</span></td>
+                <td class="nowrap fw-600">房号唯一性</td>
+                <td class="desc">同幢同单元同层房号不重复</td>
+                <td class="text-right"><input type="text" class="err" value="0" readonly> <span class="text-3">不允许</span></td>
+                <td><select class="lvsel" onchange="onLevel(this)"><option>提示</option><option>一般</option><option>严重</option><option selected>致命</option></select></td>
+                <td><span class="sw on" onclick="tglSw(this)"><span class="track"></span><span class="tx">启用</span></span></td>
+                <td>
+                  <span class="sw lock pass" onclick="lockTip()"><span class="track"></span><span class="tx">不允许</span></span>
+                  <span class="lockmsg">致命问题不允许人工放行</span>
+                </td>
+                <td class="nowrap">全部</td><td class="nowrap">2026-06-18 10:24</td>
+                <td class="col-ops"><span class="link" onclick="editRule('05','房号唯一性')">编辑</span><span class="link danger" onclick="stopRule('05')">停用</span></td>
+              </tr>
+              <tr data-code="06">
+                <td class="nowrap"><span class="rc">06</span></td>
+                <td class="nowrap fw-600">层户对应完整性</td>
+                <td class="desc">每层户数与户表记录数一致</td>
+                <td class="text-right"><input type="text" class="err" value="0"> <span class="text-3">户</span></td>
+                <td><select class="lvsel" onchange="onLevel(this)"><option>提示</option><option>一般</option><option selected>严重</option><option>致命</option></select></td>
+                <td><span class="sw on" onclick="tglSw(this)"><span class="track"></span><span class="tx">启用</span></span></td>
+                <td><span class="sw on pass" onclick="tglPass(this)"><span class="track"></span><span class="tx">允许</span></span></td>
+                <td class="nowrap">全部</td><td class="nowrap">2026-06-18 10:24</td>
+                <td class="col-ops"><span class="link" onclick="editRule('06','层户对应完整性')">编辑</span><span class="link danger" onclick="stopRule('06')">停用</span></td>
+              </tr>
+              <tr class="fatal" data-code="07">
+                <td class="nowrap"><span class="rc">07</span></td>
+                <td class="nowrap fw-600">不动产单元号规范性</td>
+                <td class="desc">编码位数与规则符合《不动产单元设定与代码编制规则》</td>
+                <td class="text-right"><input type="text" class="err" value="0" readonly> <span class="text-3">不允许</span></td>
+                <td><select class="lvsel" onchange="onLevel(this)"><option>提示</option><option>一般</option><option>严重</option><option selected>致命</option></select></td>
+                <td><span class="sw on" onclick="tglSw(this)"><span class="track"></span><span class="tx">启用</span></span></td>
+                <td>
+                  <span class="sw lock pass" onclick="lockTip()"><span class="track"></span><span class="tx">不允许</span></span>
+                  <span class="lockmsg">致命问题不允许人工放行</span>
+                </td>
+                <td class="nowrap">全部</td><td class="nowrap">2026-06-18 10:24</td>
+                <td class="col-ops"><span class="link" onclick="editRule('07','不动产单元号规范性')">编辑</span><span class="link danger" onclick="stopRule('07')">停用</span></td>
+              </tr>
+              <tr data-code="08">
+                <td class="nowrap"><span class="rc">08</span></td>
+                <td class="nowrap fw-600">与预测成果一致性</td>
+                <td class="desc">幢层户结构与预测成果可对应</td>
+                <td class="text-right"><input type="text" class="err" value="0"> <span class="text-3">户</span></td>
+                <td><select class="lvsel" onchange="onLevel(this)"><option>提示</option><option selected>一般</option><option>严重</option><option>致命</option></select></td>
+                <td><span class="sw on" onclick="tglSw(this)"><span class="track"></span><span class="tx">启用</span></span></td>
+                <td><span class="sw on pass" onclick="tglPass(this)"><span class="track"></span><span class="tx">允许</span></span></td>
+                <td class="nowrap">实测 / 变更 / 更正成果</td><td class="nowrap">2026-06-18 10:24</td>
+                <td class="col-ops"><span class="link" onclick="editRule('08','与预测成果一致性')">编辑</span><span class="link danger" onclick="stopRule('08')">停用</span></td>
+              </tr>
+              <tr data-code="09">
+                <td class="nowrap"><span class="rc">09</span></td>
+                <td class="nowrap fw-600">与规划许可一致性</td>
+                <td class="desc">总建筑面积与规划许可面积偏差在允许范围内</td>
+                <td class="text-right"><input type="text" class="err" value="1.00"> <span class="text-3">%</span></td>
+                <td><select class="lvsel" onchange="onLevel(this)"><option>提示</option><option selected>一般</option><option>严重</option><option>致命</option></select></td>
+                <td><span class="sw on" onclick="tglSw(this)"><span class="track"></span><span class="tx">启用</span></span></td>
+                <td><span class="sw on pass" onclick="tglPass(this)"><span class="track"></span><span class="tx">允许</span></span></td>
+                <td class="nowrap">实测 / 变更成果</td><td class="nowrap">2026-07-02 15:38</td>
+                <td class="col-ops"><span class="link" onclick="editRule('09','与规划许可一致性')">编辑</span><span class="link danger" onclick="stopRule('09')">停用</span></td>
+              </tr>
+              <tr data-code="10">
+                <td class="nowrap"><span class="rc">10</span></td>
+                <td class="nowrap fw-600">图形文件完整性</td>
+                <td class="desc">分层图、分户图、总平面图等必要图形文件齐全且可打开</td>
+                <td class="text-right"><input type="text" class="err" value="0"> <span class="text-3">份</span></td>
+                <td><select class="lvsel" onchange="onLevel(this)"><option>提示</option><option selected>一般</option><option>严重</option><option>致命</option></select></td>
+                <td><span class="sw on" onclick="tglSw(this)"><span class="track"></span><span class="tx">启用</span></span></td>
+                <td><span class="sw on pass" onclick="tglPass(this)"><span class="track"></span><span class="tx">允许</span></span></td>
+                <td class="nowrap">全部</td><td class="nowrap">2026-06-18 10:24</td>
+                <td class="col-ops"><span class="link" onclick="editRule('10','图形文件完整性')">编辑</span><span class="link danger" onclick="stopRule('10')">停用</span></td>
+              </tr>
+              <tr data-code="11">
+                <td class="nowrap"><span class="rc">11</span></td>
+                <td class="nowrap fw-600">坐标系统规范性</td>
+                <td class="desc">坐标系统符合本市统一要求（2000 国家大地坐标系）</td>
+                <td class="text-right"><input type="text" class="err" value="0"> <span class="text-3">项</span></td>
+                <td><select class="lvsel" onchange="onLevel(this)"><option selected>提示</option><option>一般</option><option>严重</option><option>致命</option></select></td>
+                <td><span class="sw on" onclick="tglSw(this)"><span class="track"></span><span class="tx">启用</span></span></td>
+                <td><span class="sw on pass" onclick="tglPass(this)"><span class="track"></span><span class="tx">允许</span></span></td>
+                <td class="nowrap">全部</td><td class="nowrap">2026-06-18 10:24</td>
+                <td class="col-ops"><span class="link" onclick="editRule('11','坐标系统规范性')">编辑</span><span class="link danger" onclick="stopRule('11')">停用</span></td>
+              </tr>
+              <tr data-code="12">
+                <td class="nowrap"><span class="rc">12</span></td>
+                <td class="nowrap fw-600">用途编码规范性</td>
+                <td class="desc">房屋用途取值在字典范围内</td>
+                <td class="text-right"><input type="text" class="err" value="0"> <span class="text-3">条</span></td>
+                <td><select class="lvsel" onchange="onLevel(this)"><option>提示</option><option selected>一般</option><option>严重</option><option>致命</option></select></td>
+                <td><span class="sw on" onclick="tglSw(this)"><span class="track"></span><span class="tx">启用</span></span></td>
+                <td><span class="sw on pass" onclick="tglPass(this)"><span class="track"></span><span class="tx">允许</span></span></td>
+                <td class="nowrap">全部</td><td class="nowrap">2026-06-18 10:24</td>
+                <td class="col-ops"><span class="link" onclick="editRule('12','用途编码规范性')">编辑</span><span class="link danger" onclick="stopRule('12')">停用</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- 字段配置弹窗 -->
+<div class="modal-mask" id="mdField">
+  <div class="modal">
+    <div class="modal-head" id="fTitle">字段配置 · 户表模板 HT-2026</div>
+    <div class="modal-body">
+    <div class="alert alert-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div>字段配置决定导入时的<b>逐条校验规则</b>：必填字段缺失、数据类型不符、取值超出范围的行会在导入向导第 3 步被拦截并列入失败明细。</div>
+    </div>
+    <div class="table-wrap" style="max-height:420px">
+      <table class="data-table compact" data-static>
+        <thead>
+          <tr><th>字段名</th><th>中文含义</th><th>数据类型</th><th>必填</th><th>取值范围 / 字典</th><th>量纲单位</th><th>示例值</th><th>校验规则表达式</th><th class="text-right">排序</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="nowrap fw-600">fh</td><td class="nowrap">房号</td><td class="nowrap">字符 (20)</td>
+            <td class="nowrap"><span class="badge red">必填</span></td><td class="nowrap">同幢同单元同层唯一</td><td class="nowrap text-3">—</td>
+            <td class="nowrap">1502</td><td class="nowrap"><span class="fx">^[0-9A-Za-z-]{1,20}$</span></td><td class="text-right amt">1</td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('字段 fh 配置已打开（演示）')">编辑</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">bdcdyh</td><td class="nowrap">不动产单元号</td><td class="nowrap">字符 (28)</td>
+            <td class="nowrap"><span class="badge red">必填</span></td><td class="nowrap">28 位标准编码</td><td class="nowrap text-3">—</td>
+            <td class="nowrap">450202001008GB00080F00150002</td><td class="nowrap"><span class="fx">len = 28</span></td><td class="text-right amt">2</td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('字段 bdcdyh 配置已打开（演示）')">编辑</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">jzmj</td><td class="nowrap">建筑面积</td><td class="nowrap">数值 (12,2)</td>
+            <td class="nowrap"><span class="badge red">必填</span></td><td class="nowrap">0.01 ~ 99999.99</td><td class="nowrap">㎡</td>
+            <td class="nowrap">131.98</td><td class="nowrap"><span class="fx">jzmj = tnmj + ftmj</span></td><td class="text-right amt">3</td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('字段 jzmj 配置已打开（演示）')">编辑</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">tnmj</td><td class="nowrap">套内建筑面积</td><td class="nowrap">数值 (12,2)</td>
+            <td class="nowrap"><span class="badge red">必填</span></td><td class="nowrap">0.01 ~ 99999.99</td><td class="nowrap">㎡</td>
+            <td class="nowrap">107.86</td><td class="nowrap"><span class="fx">tnmj &lt; jzmj</span></td><td class="text-right amt">4</td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('字段 tnmj 配置已打开（演示）')">编辑</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">ftmj</td><td class="nowrap">分摊面积</td><td class="nowrap">数值 (12,2)</td>
+            <td class="nowrap"><span class="badge red">必填</span></td><td class="nowrap">0.00 ~ 99999.99</td><td class="nowrap">㎡</td>
+            <td class="nowrap">24.12</td><td class="nowrap"><span class="fx">ftmj = jzmj − tnmj</span></td><td class="text-right amt">5</td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('字段 ftmj 配置已打开（演示）')">编辑</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">ftxs</td><td class="nowrap">分摊系数</td><td class="nowrap">数值 (8,4)</td>
+            <td class="nowrap"><span class="badge red">必填</span></td><td class="nowrap">0.0000 ~ 0.9999</td><td class="nowrap text-3">—</td>
+            <td class="nowrap">0.2236</td><td class="nowrap"><span class="fx">ftxs = ftmj / tnmj</span></td><td class="text-right amt">6</td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('字段 ftxs 配置已打开（演示）')">编辑</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">ytdm</td><td class="nowrap">房屋用途编码</td><td class="nowrap">字符 (4)</td>
+            <td class="nowrap"><span class="badge red">必填</span></td><td class="nowrap">字典 FWYT（成套住宅 / 商业服务 / 办公 / 车位 …）</td><td class="nowrap text-3">—</td>
+            <td class="nowrap">1010</td><td class="nowrap"><span class="fx">in dict(FWYT)</span></td><td class="text-right amt">7</td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('字段 ytdm 配置已打开（演示）')">编辑</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">ytmj</td><td class="nowrap">阳台面积</td><td class="nowrap">数值 (10,2)</td>
+            <td class="nowrap"><span class="badge">选填</span></td><td class="nowrap">0.00 ~ 999.99</td><td class="nowrap">㎡</td>
+            <td class="nowrap">6.86</td><td class="nowrap"><span class="fx">封闭全计 / 未封闭半计</span></td><td class="text-right amt">8</td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('字段 ytmj 配置已打开（演示）')">编辑</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">cx</td><td class="nowrap">朝向</td><td class="nowrap">字符 (10)</td>
+            <td class="nowrap"><span class="badge">选填</span></td><td class="nowrap">字典 CX（东 / 南 / 西 / 北 / 东南 …）</td><td class="nowrap text-3">—</td>
+            <td class="nowrap">南</td><td class="nowrap"><span class="fx">in dict(CX)</span></td><td class="text-right amt">9</td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('字段 cx 配置已打开（演示）')">编辑</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+      <div class="text-sm text-3 mt-8">共 42 个字段，其中必填 26 个；此处展示核心 9 个字段，完整字段清单可导出。</div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" data-close-modal>关闭</button>
+      <button type="button" class="btn" onclick="PMS.toast('字段清单 Excel 已生成，正在下载','success')"><i class="fa-solid fa-file-excel"></i> 导出字段清单</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeModal('mdField');PMS.toast('字段配置已保存，新配置对之后报送的成果生效','success')"><i class="fa-solid fa-check"></i> 保存字段配置</button>
+    </div>
+  </div>
+</div>
+
+<!-- 规则编辑弹窗 -->
+<div class="modal-mask" id="mdRule">
+  <div class="modal modal-sm">
+    <div class="modal-head" id="rTitle">规则编辑 · 03 户面积平衡</div>
+    <div class="modal-body">
+    <div class="form-grid form-align">
+      <div class="form-item"><label>规则代码</label><input type="text" id="rCode" value="03" readonly></div>
+      <div class="form-item"><label>质检项名称</label><input type="text" id="rName" value="户面积平衡" readonly></div>
+      <div class="form-item">
+        <label>允许误差<span class="req">*</span></label>
+        <input type="text" value="0.01">
+        <div class="hint">数值输入，单位 ㎡；比对差值绝对值超过该值即判定为问题</div>
+      </div>
+      <div class="form-item">
+        <label>问题等级<span class="req">*</span></label>
+        <select id="rLv" onchange="onModalLevel()"><option>提示</option><option>一般</option><option selected>严重</option><option>致命</option></select>
+      </div>
+      <div class="form-item">
+        <label>是否启用</label>
+        <div class="radio-line">
+          <label><input type="radio" name="ren" checked> 启用</label>
+          <label><input type="radio" name="ren"> 停用</label>
+        </div>
+      </div>
+      <div class="form-item">
+        <label>是否允许人工放行</label>
+        <div class="radio-line" id="rPass">
+          <label><input type="radio" name="rps" checked> 允许</label>
+          <label><input type="radio" name="rps"> 不允许</label>
+        </div>
+        <div class="hint" id="rPassHint">一般 / 提示等级问题可由质检人写明理由后放行</div>
+      </div>
+      <div class="form-item col-full">
+        <label>规则说明</label>
+        <textarea rows="2">逐户校验建筑面积是否等于套内建筑面积与分摊面积之和，差值绝对值超过允许误差即生成问题项，并定位到具体房号。</textarea>
+      </div>
+      <div class="form-item col-full">
+        <label>技术依据</label>
+        <textarea rows="2">《房产测量规范 第1单元：房产测量规定》GB/T 17986.1-2000 第 8.1 条；《广西壮族自治区房产测绘管理办法》第 12 条。</textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" data-close-modal>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeModal('mdRule');PMS.toast('规则已保存，仅对之后报送的成果生效','success')"><i class="fa-solid fa-check"></i> 保存规则</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+function tglSw(el) {
+  var on = el.classList.toggle('on');
+  var tx = el.querySelector('.tx');
+  tx.textContent = on ? (el.dataset.on || '启用') : (el.dataset.off || '停用');
+  PMS.toast(on ? '已启用' : '已停用，停用后该项不参与质检', on ? 'success' : 'warning');
+}
+
+function tglPass(el) {
+  if (el.classList.contains('lock')) { lockTip(); return; }
+  var on = el.classList.toggle('on');
+  el.querySelector('.tx').textContent = on ? '允许' : '不允许';
+  PMS.toast(on ? '该项问题允许质检人写明理由后放行' : '该项问题不允许人工放行，必须整改后重报', on ? 'success' : 'warning');
+}
+
+function lockTip() {
+  PMS.toast('致命问题不允许人工放行，如需放行请先调整问题等级', 'warning');
+}
+
+function onLevel(sel) {
+  var tr = sel.closest('tr'), pass = tr.querySelector('.sw.pass'), msg = tr.querySelector('.lockmsg');
+  var fatal = sel.value === '致命';
+  tr.classList.toggle('fatal', fatal);
+  if (fatal) {
+    pass.classList.remove('on');
+    pass.classList.add('lock');
+    pass.querySelector('.tx').textContent = '不允许';
+    if (!msg) {
+      msg = document.createElement('span');
+      msg.className = 'lockmsg';
+      msg.textContent = '致命问题不允许人工放行';
+      pass.parentNode.appendChild(msg);
+    }
+    PMS.toast('等级已调整为致命，人工放行开关已自动关闭并锁定', 'warning');
+  } else {
+    pass.classList.remove('lock');
+    if (msg) msg.remove();
+    PMS.toast('问题等级已调整为「' + sel.value + '」，保存后对新报送成果生效');
+  }
+}
+
+function onModalLevel() {
+  var fatal = document.getElementById('rLv').value === '致命';
+  var box = document.getElementById('rPass');
+  box.querySelectorAll('input').forEach(function (i, k) { i.disabled = fatal; i.checked = fatal ? k === 1 : k === 0; });
+  document.getElementById('rPassHint').textContent = fatal
+    ? '致命问题不允许人工放行，整包退回后必须整改重报'
+    : '一般 / 提示等级问题可由质检人写明理由后放行';
+  box.style.opacity = fatal ? '.6' : '';
+}
+
+function editRule(code, name) {
+  var tr = document.querySelector('tr[data-code="' + code + '"]');
+  document.getElementById('rTitle').textContent = '规则编辑 · ' + code + ' ' + name;
+  document.getElementById('rCode').value = code;
+  document.getElementById('rName').value = name;
+  document.getElementById('rLv').value = tr.querySelector('.lvsel').value;
+  onModalLevel();
+  PMS.openModal('mdRule');
+}
+
+function stopRule(code) {
+  PMS.confirm({
+    title: '停用质检规则',
+    message: '确认停用规则 ' + code + '？',
+    detail: '停用后该项不再参与自动质检，可能导致同类问题无法被系统发现。建议仅在规则暂不适用时停用，并在规则说明中写明原因。',
+    type: 'warning', okText: '确认停用',
+    onOk: function () {
+      var tr = document.querySelector('tr[data-code="' + code + '"]');
+      var sw = tr.querySelector('.sw');
+      sw.classList.remove('on');
+      sw.querySelector('.tx').textContent = '停用';
+      PMS.toast('规则 ' + code + ' 已停用', 'success');
+    }
+  });
+}
+
+function stopTpl(name) {
+  PMS.confirm({
+    title: '停用导入模板',
+    message: '确认停用「' + name + '」？',
+    detail: '停用后测绘机构无法使用该模板报送成果，已报送的历史数据不受影响。请确认已发布替代版本模板。',
+    type: 'warning', okText: '确认停用',
+    onOk: function () { PMS.toast(name + ' 已停用', 'success'); }
+  });
+}
+
+function openFields(name) {
+  document.getElementById('fTitle').textContent = '字段配置 · ' + name;
+  PMS.openModal('mdField');
+}
+
+function saveAll() {
+  PMS.confirm({
+    title: '保存配置',
+    message: '确认保存导入模板与质检规则配置？',
+    detail: '规则阈值调整仅对调整后新报送的成果生效，已完成质检的成果不重算。配置变更将记录操作人 韦国强 与操作时间 2026-08-01。',
+    type: 'info', okText: '确认保存',
+    onOk: function () { PMS.toast('配置已保存，对之后报送的成果生效', 'success'); }
+  });
+}
+</script>
+</body>
+</html>

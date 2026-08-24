@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>预售方案备案 · 新建商品房网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：监管额度联动卡与幢勾选汇总 */
+  .reg-card {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;
+    padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius);
+    background: linear-gradient(135deg, var(--primary-light) 0%, #fff 55%);
+  }
+  .reg-card .rg-item .rg-l { font-size: 12.5px; color: var(--text-3); margin-bottom: 4px; }
+  .reg-card .rg-item .rg-v { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--primary); }
+  .reg-card .rg-item .rg-s { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+  .sum-bar {
+    display: flex; gap: 26px; flex-wrap: wrap; padding: 12px 16px; background: var(--bg-soft);
+    border-radius: var(--radius); font-size: 13.5px;
+  }
+  .sum-bar b { font-size: 17px; color: var(--primary); font-variant-numeric: tabular-nums; }
+  .foot-bar {
+    position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 14px 18px; margin-top: 16px; background: #fff; border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: 0 -4px 16px rgba(15, 23, 42, .06);
+  }
+  .foot-bar .fb-tip { font-size: 13px; color: var(--text-3); margin-right: auto; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsswb-08">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房网签备案管理系统
+        <span class="sep">/</span> 预售管理
+        <span class="sep">/</span> <a class="link" href="presale-list.html">预售许可</a>
+        <span class="sep">/</span> <span class="cur">预售方案备案</span>
+      </div>
+      <div class="page-title">预售方案备案</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="PMS.toast('预售方案草稿已保存','success')"><i class="fa-regular fa-floppy-disk"></i> 保存草稿</button>
+      <button type="button" class="btn btn-primary" onclick="submitPlan()"><i class="fa-solid fa-paper-plane"></i> 提交备案</button>
+      <button type="button" class="btn" onclick="location.href='presale-list.html'"><i class="fa-solid fa-arrow-left"></i> 返回预售许可台账</button>
+    </div>
+  </div>
+
+  <div class="alert">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>预售方案房源范围不得超出许可申请范围；监管额度与预售资金监管系统联动，按选定房源预售总价 × 监管比例自动测算，提交后推送监管系统开立/更新额度。</div>
+  </div>
+
+  <!-- 项目与许可范围 -->
+  <div class="card">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-building"></i> 项目与许可范围</h3>
+      <span class="sub">方案须挂接已受理或已发证的预售许可</span>
+    </div>
+    <div class="card-body">
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>项目<span class="req">*</span></label>
+          <select id="fPj" onchange="syncScope()">
+            <option value="zt">彰泰江湾城（三期）</option>
+            <option value="hr">华润置地柳州万象天地</option>
+            <option value="bl">保利柳江府（二期）</option>
+            <option value="wk">柳州万科城（五期）</option>
+            <option value="zn">中南春风南岸（二期）</option>
+            <option value="rh">荣和公园里（一期）</option>
+            <option value="lg">龙光玖誉城（四期）</option>
+            <option value="yg">阳光城柳州樾府</option>
+          </select>
+        </div>
+        <div class="form-item">
+          <label>关联许可申请 / 证号<span class="req">*</span></label>
+          <select id="fLic" onchange="syncScope()">
+            <option value="a">YSSQ20260731016 · 申请中（11# 12#，418 套）</option>
+            <option value="b">柳房预售证第〔2026〕0087 号（8# 9#，610 套）</option>
+            <option value="c">柳房预售证第〔2026〕0072 号（10#，232 套）</option>
+          </select>
+        </div>
+        <div class="form-item">
+          <label>方案编号</label>
+          <input type="text" value="YSFA20260731008" readonly>
+        </div>
+        <div class="form-item">
+          <label>开发企业</label>
+          <input type="text" id="fCorp" value="柳州彰泰置业有限公司" readonly>
+        </div>
+        <div class="form-item">
+          <label>许可申请范围</label>
+          <input type="text" id="fScope" value="11#、12# 幢 · 418 套 · 46,286.40 ㎡" readonly>
+        </div>
+        <div class="form-item">
+          <label>备案日期<span class="req">*</span></label>
+          <input type="date" value="2026-07-31">
+        </div>
+      </div>
+      <div class="btn-row mt-16">
+        <a class="link" href="presale-apply.html"><i class="fa-solid fa-file-circle-plus"></i> 查看预售许可申请</a>
+        <a class="link" href="presale-license.html"><i class="fa-solid fa-id-card"></i> 查看预售许可证</a>
+        <a class="link" href="building-table.html"><i class="fa-solid fa-table-cells"></i> 楼盘表</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 房源范围 -->
+  <div class="card">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-list-check"></i> 房源范围（可勾选幢）</h3>
+      <span class="sub">勾选范围不得超过许可申请范围；未勾选幢不纳入本方案销售计划</span>
+    </div>
+    <div class="card-body">
+      <div class="sum-bar mb-16">
+        <div>已选幢数 <b id="smBld">2</b></div>
+        <div>已选套数 <b id="smUnit">418</b></div>
+        <div>建筑面积（㎡） <b id="smArea">46,286.40</b></div>
+        <div>预估预售总价（万元） <b id="smAmt">60,186</b></div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="tblBld" data-static>
+          <thead>
+            <tr>
+              <th style="width:42px"><input type="checkbox" id="ckAll" checked onchange="toggleAll(this)"></th>
+              <th>幢号</th>
+              <th class="num">单元数</th>
+              <th class="num">层数</th>
+              <th class="num">套数</th>
+              <th class="num">建筑面积（㎡）</th>
+              <th class="num">预估总价（万元）</th>
+              <th>是否在许可范围</th>
+              <th>楼盘表状态</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-units="210" data-area="23280.60" data-amt="30240">
+              <td><input type="checkbox" class="ck-b" checked onchange="recalc()"></td>
+              <td class="nowrap fw-600">11#</td>
+              <td class="num nowrap">2</td>
+              <td class="num nowrap">28</td>
+              <td class="num nowrap">210</td>
+              <td class="num nowrap">23,280.60</td>
+              <td class="num nowrap">30,240</td>
+              <td class="nowrap"><span class="badge green">是</span></td>
+              <td class="nowrap"><span class="badge green">已核对</span></td>
+            </tr>
+            <tr data-units="208" data-area="23005.80" data-amt="29946">
+              <td><input type="checkbox" class="ck-b" checked onchange="recalc()"></td>
+              <td class="nowrap fw-600">12#</td>
+              <td class="num nowrap">2</td>
+              <td class="num nowrap">28</td>
+              <td class="num nowrap">208</td>
+              <td class="num nowrap">23,005.80</td>
+              <td class="num nowrap">29,946</td>
+              <td class="nowrap"><span class="badge green">是</span></td>
+              <td class="nowrap"><span class="badge green">已核对</span></td>
+            </tr>
+            <tr data-units="232" data-area="25860.40" data-amt="32180" class="text-3">
+              <td><input type="checkbox" class="ck-b" disabled title="不在本许可申请范围"></td>
+              <td class="nowrap fw-600">10#</td>
+              <td class="num nowrap">2</td>
+              <td class="num nowrap">26</td>
+              <td class="num nowrap">232</td>
+              <td class="num nowrap">25,860.40</td>
+              <td class="num nowrap">32,180</td>
+              <td class="nowrap"><span class="badge gray">否（另证）</span></td>
+              <td class="nowrap"><span class="badge green">已核对</span></td>
+            </tr>
+            <tr data-units="186" data-area="20640.20" data-amt="26820" class="text-3">
+              <td><input type="checkbox" class="ck-b" disabled title="不在本许可申请范围"></td>
+              <td class="nowrap fw-600">13#</td>
+              <td class="num nowrap">2</td>
+              <td class="num nowrap">26</td>
+              <td class="num nowrap">186</td>
+              <td class="num nowrap">20,640.20</td>
+              <td class="num nowrap">26,820</td>
+              <td class="nowrap"><span class="badge red">否</span></td>
+              <td class="nowrap"><span class="badge orange">待导入</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 监管额度联动 -->
+  <div class="card">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-vault"></i> 监管额度联动</h3>
+      <span class="sub">与预售资金监管系统（wsszjjg）实时联动</span>
+    </div>
+    <div class="card-body">
+      <div class="form-grid form-align mb-16">
+        <div class="form-item">
+          <label>监管比例（%）<span class="req">*</span></label>
+          <input type="number" id="fRate" value="30" min="10" max="100" step="1" oninput="recalc()">
+          <div class="text-3 text-sm mt-4">好房子项目可适用下调后的留存比例；默认取一城一策参数</div>
+        </div>
+        <div class="form-item">
+          <label>监管银行</label>
+          <select>
+            <option>中国建设银行柳州分行</option>
+            <option>中国银行柳州分行</option>
+            <option>中国工商银行柳州分行</option>
+            <option>中国农业银行柳州分行</option>
+          </select>
+        </div>
+        <div class="form-item">
+          <label>监管账号</label>
+          <input type="text" value="4500×××1276" readonly>
+        </div>
+        <div class="form-item">
+          <label>联动状态</label>
+          <input type="text" value="已连通 · 最近同步 2026-07-31 09:12" readonly>
+        </div>
+      </div>
+      <div class="reg-card">
+        <div class="rg-item">
+          <div class="rg-l">预估预售总价</div>
+          <div class="rg-v" id="rgAmt">60,186</div>
+          <div class="rg-s">万元</div>
+        </div>
+        <div class="rg-item">
+          <div class="rg-l">监管比例</div>
+          <div class="rg-v"><span id="rgRate">30</span>%</div>
+          <div class="rg-s">一城一策 / 好房子放宽组</div>
+        </div>
+        <div class="rg-item">
+          <div class="rg-l">监管额度（自动计算）</div>
+          <div class="rg-v" id="rgCap">18,056</div>
+          <div class="rg-s">万元 = 总价 × 比例</div>
+        </div>
+        <div class="rg-item">
+          <div class="rg-l">监管系统回写额度</div>
+          <div class="rg-v" style="font-size:16px">待推送</div>
+          <div class="rg-s">提交备案后回写</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 销售计划 -->
+  <div class="card">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-calendar-days"></i> 销售计划</h3>
+      <span class="sub">开盘节奏与均价用于门户公示与监管预警</span>
+    </div>
+    <div class="card-body">
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>计划开盘日期<span class="req">*</span></label>
+          <input type="date" value="2026-08-16">
+        </div>
+        <div class="form-item">
+          <label>计划销售起止<span class="req">*</span></label>
+          <div class="flex gap-8">
+            <input type="date" value="2026-08-16" style="flex:1">
+            <span class="text-3" style="line-height:32px">至</span>
+            <input type="date" value="2027-08-15" style="flex:1">
+          </div>
+        </div>
+        <div class="form-item">
+          <label>计划销售套数<span class="req">*</span></label>
+          <input type="text" id="fPlanN" value="418">
+        </div>
+        <div class="form-item">
+          <label>计划均价（元/㎡）<span class="req">*</span></label>
+          <input type="text" value="12,986">
+        </div>
+        <div class="form-item">
+          <label>首期推售套数<span class="req">*</span></label>
+          <input type="text" value="186">
+        </div>
+        <div class="form-item">
+          <label>销售方式<span class="req">*</span></label>
+          <select><option>预售</option><option>现售</option></select>
+        </div>
+        <div class="form-item col-full">
+          <label>销售节奏说明<span class="req">*</span></label>
+          <textarea>首期 8 月推售 11# 南侧 186 套；9—10 月视认购去化情况加推 12#；车位与住宅分开销售，不得搭售。</textarea>
+        </div>
+        <div class="form-item col-full">
+          <label>风险防控措施</label>
+          <textarea>严格执行一房一价公示；认购前完成价格备案；预售资金全额进入监管账户；工抵房单独标记不进入公开销售池。</textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 附件 -->
+  <div class="card">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-paperclip"></i> 附件上传</h3>
+      <span class="sub">预售方案说明书、销售进度安排表、监管协议扫描件等</span>
+    </div>
+    <div class="card-body">
+      <div class="form-grid form-align">
+        <div class="form-item col-full">
+          <label>预售方案说明书<span class="req">*</span></label>
+          <div class="file-up">
+            <input type="hidden" class="file-up-val" value="彰泰江湾城三期-预售方案说明书.pdf">
+            <div class="file-up-grid">
+              <div class="file-up-tile file-up-add"><input type="file"><i class="fa-solid fa-plus"></i><span>上传</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="form-item col-full">
+          <label>销售进度安排表<span class="req">*</span></label>
+          <div class="file-up">
+            <input type="hidden" class="file-up-val" value="销售进度安排表.xlsx">
+            <div class="file-up-grid">
+              <div class="file-up-tile file-up-add"><input type="file"><i class="fa-solid fa-plus"></i><span>上传</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="form-item col-full">
+          <label>预售资金监管协议</label>
+          <div class="file-up">
+            <input type="hidden" class="file-up-val" value="预售资金监管协议-建行.pdf">
+            <div class="file-up-grid">
+              <div class="file-up-tile file-up-add"><input type="file"><i class="fa-solid fa-plus"></i><span>上传</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot-bar">
+    <div class="fb-tip"><i class="fa-solid fa-shield-halved"></i> 提交后方案进入备案审核；通过后监管额度推送资金监管系统，房源范围锁定至许可证号。</div>
+    <button type="button" class="btn" onclick="PMS.toast('预售方案草稿已保存','success')"><i class="fa-regular fa-floppy-disk"></i> 保存草稿</button>
+    <button type="button" class="btn btn-primary" onclick="submitPlan()"><i class="fa-solid fa-paper-plane"></i> 提交备案</button>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function fmt(n) {
+  return Math.round(n).toLocaleString('zh-CN');
+}
+
+function toggleAll(el) {
+  document.querySelectorAll('.ck-b:not(:disabled)').forEach(function (c) { c.checked = el.checked; });
+  recalc();
+}
+
+function recalc() {
+  var bld = 0, units = 0, area = 0, amt = 0;
+  document.querySelectorAll('#tblBld tbody tr').forEach(function (r) {
+    var ck = r.querySelector('.ck-b');
+    if (!ck || !ck.checked) return;
+    bld++;
+    units += parseFloat(r.getAttribute('data-units')) || 0;
+    area += parseFloat(r.getAttribute('data-area')) || 0;
+    amt += parseFloat(r.getAttribute('data-amt')) || 0;
+  });
+  document.getElementById('smBld').textContent = bld;
+  document.getElementById('smUnit').textContent = fmt(units);
+  document.getElementById('smArea').textContent = area.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  document.getElementById('smAmt').textContent = fmt(amt);
+  document.getElementById('fPlanN').value = String(units);
+  document.getElementById('rgAmt').textContent = fmt(amt);
+
+  var rate = parseFloat(document.getElementById('fRate').value) || 0;
+  document.getElementById('rgRate').textContent = rate;
+  document.getElementById('rgCap').textContent = fmt(amt * rate / 100);
+
+  var all = document.querySelectorAll('.ck-b:not(:disabled)');
+  var on = document.querySelectorAll('.ck-b:not(:disabled):checked');
+  document.getElementById('ckAll').checked = all.length > 0 && on.length === all.length;
+}
+
+function syncScope() {
+  var pj = document.getElementById('fPj');
+  var name = pj.options[pj.selectedIndex].text;
+  document.getElementById('fCorp').value = name.indexOf('华润') >= 0
+    ? '柳州华润置地房地产开发有限公司'
+    : name.indexOf('保利') >= 0
+      ? '柳州保利房地产开发有限公司'
+      : name.indexOf('万科') >= 0
+        ? '柳州万科房地产开发有限公司'
+        : '柳州彰泰置业有限公司';
+  var lic = document.getElementById('fLic').value;
+  if (lic === 'a') document.getElementById('fScope').value = '11#、12# 幢 · 418 套 · 46,286.40 ㎡';
+  if (lic === 'b') document.getElementById('fScope').value = '8#、9# 幢 · 610 套 · 68,420.00 ㎡';
+  if (lic === 'c') document.getElementById('fScope').value = '10# 幢 · 232 套 · 25,860.40 ㎡';
+  PMS.toast('已切换至「' + name + '」许可范围，请重新勾选房源幢', 'success');
+}
+
+function submitPlan() {
+  var n = document.querySelectorAll('.ck-b:checked').length;
+  if (!n) {
+    PMS.toast('请至少勾选一幢纳入预售方案房源范围', 'error');
+    return;
+  }
+  var units = document.getElementById('smUnit').textContent;
+  var cap = document.getElementById('rgCap').textContent;
+  PMS.confirm({
+    title: '提交预售方案备案',
+    message: '确认提交本预售方案（已选 ' + n + ' 幢 / ' + units + ' 套）？',
+    detail: '提交后进入备案审核；通过后监管额度 ' + cap + ' 万元将推送预售资金监管系统，房源范围锁定且不得超出许可申请范围。',
+    okText: '确认提交',
+    onOk: function () {
+      PMS.toast('预售方案已提交备案，监管额度待审核通过后推送', 'success');
+    }
+  });
+}
+
+recalc();
+</script>
+</body>
+</html>

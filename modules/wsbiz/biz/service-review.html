@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>服务评价 · 统一工作门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="biz" data-active="service-review">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 综合查询
+        <span class="sep">/</span> <span class="cur">服务评价</span>
+      </div>
+      <div class="page-title">服务评价</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-primary" onclick="openSubmit()"><i class="fa-solid fa-face-smile"></i> 模拟提交评价</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-comment-dots"></i></div><div>
+      <div class="s-label">评价总数</div><div class="s-value" id="kAll">—</div></div></div>
+    <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-face-smile"></i></div><div>
+      <div class="s-label">满意度</div><div class="s-value" id="kRate">—</div></div></div>
+    <div class="stat-card"><div class="s-icon red"><i class="fa-solid fa-face-frown"></i></div><div>
+      <div class="s-label">差评</div><div class="s-value" id="kBad">—</div></div></div>
+    <div class="stat-card"><div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div><div>
+      <div class="s-label">待核实差评</div><div class="s-value" id="kPending">—</div><div class="s-trend text-danger">3 个工作日内闭环</div></div></div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <span>评价渠道包括<b>窗口评价器、网上办与移动端</b>；只有已办结的办件可以评价。评为「不满意」或「非常不满意」时<b>自动生成核实任务</b>进入待办中心，核实整改闭环后满意度与效能指标同步更新。</span>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="list" onclick="setTab('list')">好差评台账</div>
+      <div class="tab" data-tab="bad" onclick="setTab('bad')">差评核实整改</div>
+      <div class="tab" data-tab="stat" onclick="setTab('stat')">满意度统计</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="list">
+      <div class="filter-bar">
+        <div class="filter-item"><label>收件编号 / 申请人</label><input type="text" id="fKw" placeholder="编号或申请人" oninput="repaint()"></div>
+        <div class="filter-item"><label>评价等级</label><select id="fPjdj" data-dict="pjdj" onchange="repaint()"></select></div>
+        <div class="filter-item"><label>评价渠道</label>
+          <select id="fWay" onchange="repaint()">
+            <option value="">全部</option><option value="窗口评价器">窗口评价器</option>
+            <option value="统一服务门户">统一服务门户</option><option value="移动端">移动端</option>
+            <option value="待评价">待评价</option>
+          </select></div>
+        <div class="filter-item"><label>属地</label><select id="fSaid" data-dict="said" onchange="repaint()"></select></div>
+        <button class="btn btn-primary" onclick="repaint()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button class="btn" onclick="resetFilter()">重置</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="tbReview" data-static>
+          <thead><tr><th>收件编号</th><th>办理事项</th><th>申请人</th><th>评价等级</th>
+                     <th>评价渠道</th><th>被评价人</th><th>窗口</th><th>评价时间</th><th>核实状态</th><th>操作</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="bad">
+      <div class="card-body" id="badPanel"></div>
+    </div>
+
+    <div class="tab-panel" data-panel="stat">
+      <div class="filter-bar">
+        <div class="filter-item"><label>统计维度</label>
+          <select id="statBy" onchange="renderStat()">
+            <option value="item">按事项</option><option value="window">按窗口</option>
+            <option value="person">按人员</option><option value="said">按区县</option>
+          </select></div>
+        <div class="spacer"></div>
+      </div>
+      <div class="card-body" id="statPanel"></div>
+    </div>
+  </div>
+</main>
+
+<!-- 模拟提交评价 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="submitDrawer">
+  <div class="drawer-head"><h3>模拟提交服务评价</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>
+      <span>用于演示三渠道评价采集与差评闭环：选择已办结的办件，评为不满意或非常不满意时会自动生成核实任务。</span></div>
+    <div class="form-grid">
+      <div class="form-item col-full"><label>被评价办件<span class="req">*</span></label><select id="sCase"></select></div>
+      <div class="form-item"><label>评价等级<span class="req">*</span></label><select id="sPjdj" data-dict="pjdj"></select></div>
+      <div class="form-item"><label>评价渠道<span class="req">*</span></label>
+        <select id="sWay"><option>窗口评价器</option><option>统一服务门户</option><option>移动端</option></select></div>
+      <div class="form-item col-full"><label>评价内容</label>
+        <textarea id="sContent" rows="3" placeholder="如：等待时间较长，材料要求前后不一致。"></textarea></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="doSubmit()"><i class="fa-solid fa-paper-plane"></i> 提交评价</button>
+  </div>
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/flow-data.js"></script>
+<script src="../assets/js/flow.js"></script>
+<script>
+(function () {
+  var tab = 'list';
+  function val(id) { return (document.getElementById(id).value || '').trim(); }
+  window.setTab = function (t) {
+    tab = t;
+    document.querySelectorAll('.tabs .tab').forEach(function (el) {
+      el.classList.toggle('active', el.getAttribute('data-tab') === t);
+    });
+    document.querySelectorAll('.tab-panel').forEach(function (p) {
+      p.classList.toggle('active', p.getAttribute('data-panel') === t);
+    });
+    if (t === 'bad') renderBad();
+    else if (t === 'stat') renderStat();
+    else FLOW.paint('tbReview');
+  };
+  window.resetFilter = function () {
+    ['fKw', 'fPjdj', 'fWay', 'fSaid'].forEach(function (id) { document.getElementById(id).value = ''; });
+    repaint(); PMS.toast('已重置查询条件');
+  };
+
+  function rows() {
+    var kw = val('fKw'), dj = val('fPjdj'), way = val('fWay'), said = val('fSaid');
+    return FLOW.get('reviews').slice().sort(function (a, b) { return (b.czsj || 0) - (a.czsj || 0); })
+      .filter(function (r) {
+        if (kw && r.sjbh.indexOf(kw) < 0 && r.sqr.indexOf(kw) < 0) return false;
+        if (dj && r.pjdj !== dj) return false;
+        if (way && r.way !== way) return false;
+        if (said && r.said !== said) return false;
+        return true;
+      });
+  }
+  window.repaint = function () { FLOW.paint('tbReview'); syncKpi(); };
+
+  function syncKpi() {
+    var all = FLOW.get('reviews').filter(function (r) { return r.pjdj; });
+    document.getElementById('kAll').textContent = all.length;
+    document.getElementById('kRate').textContent = FLOW.stat('satisfyRate');
+    document.getElementById('kBad').textContent = FLOW.stat('badReview');
+    document.getElementById('kPending').textContent = FLOW.stat('badPending');
+  }
+
+  /* 功能点 58 好差评采集 */
+  window.openSubmit = function () {
+    var done = FLOW.where('cases', function (c) { return c.blzt === '2'; });
+    if (!done.length) { PMS.toast('当前没有已办结的办件可评价', 'error'); return; }
+    document.getElementById('sCase').innerHTML = done.map(function (c) {
+      return '<option value="' + c.id + '">' + FLOW.esc(c.sjbh) + '　' + FLOW.esc(c.sxmc) + '　' + FLOW.esc(c.sqr) + '</option>';
+    }).join('');
+    document.getElementById('sPjdj').value = '4';
+    document.getElementById('sContent').value = '';
+    PMS.openDrawer('submitDrawer');
+  };
+  window.doSubmit = function () {
+    var ok = FLOW.act.submitReview({
+      bjzj: val('sCase'), pjdj: val('sPjdj'), way: val('sWay'), content: val('sContent')
+    });
+    if (ok) PMS.closeDrawer('submitDrawer');
+  };
+
+  /* 功能点 59 差评核实整改 */
+  window.renderBad = function () {
+    var bads = FLOW.where('reviews', function (r) { return r.pjdj >= '4'; })
+      .sort(function (a, b) { return (a.hsZt === '0' ? 0 : 1) - (b.hsZt === '0' ? 0 : 1); });
+    document.getElementById('badPanel').innerHTML =
+      '<div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation"></i>' +
+      '<span>差评自动生成核实任务，须在 3 个工作日内录入核实结果与整改措施；未闭环的差评在此高亮。</span></div>' +
+      (bads.length
+        ? '<div class="table-wrap"><table class="data-table" data-static><thead><tr>' +
+          '<th>收件编号</th><th>办理事项</th><th>评价等级</th><th>评价内容</th><th>被评价人</th>' +
+          '<th>核实状态</th><th>整改措施</th><th>操作</th></tr></thead><tbody>' +
+          bads.map(function (r) {
+            var rect = FLOW.where('rectifies', function (x) { return x.pjid === r.id; })[0];
+            return '<tr' + (r.hsZt === '0' ? ' style="background:var(--danger-light)"' : '') + '>' +
+              '<td>' + FLOW.esc(r.sjbh) + '</td>' +
+              '<td class="cell-lg">' + FLOW.esc(r.sxmc) + '</td>' +
+              '<td>' + FLOW.badge(FLOW.dict('pjdj', r.pjdj), 'red') + '</td>' +
+              '<td class="cell-lg">' + FLOW.esc(r.content || '未填写') + '</td>' +
+              '<td>' + FLOW.esc(r.jbrmc) + '</td>' +
+              '<td>' + (r.hsZt === '1' ? FLOW.badge('已闭环', 'green') : FLOW.badge('待核实', 'red')) + '</td>' +
+              '<td class="cell-lg">' + FLOW.esc(rect ? rect.measure : '—') + '</td>' +
+              '<td><a class="link" href="review-verify.html?role=biz&id=' + r.id + '">' +
+                (r.hsZt === '1' ? '查看' : '去核实') + '</a></td></tr>';
+          }).join('') + '</tbody></table></div>'
+        : '<div class="empty"><i class="fa-regular fa-face-smile"></i><div>暂无差评，可用右上角「模拟提交评价」体验闭环</div></div>');
+  };
+
+  /* 功能点 60 满意度统计 */
+  window.renderStat = function () {
+    var by = val('statBy') || 'item';
+    var list = FLOW.act.satisfaction(by);
+    var all = FLOW.get('reviews').filter(function (r) { return r.pjdj; });
+    var dist = { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 };
+    all.forEach(function (r) { dist[r.pjdj] = (dist[r.pjdj] || 0) + 1; });
+
+    document.getElementById('statPanel').innerHTML =
+      '<div class="grid-2">' +
+        '<div class="grp-card"><div class="grp-head"><span class="gi"><i class="fa-solid fa-chart-pie"></i></span>评价等级分布</div>' +
+          FLOW.donut([
+            { c: 'blue', l: '非常满意', v: dist['1'] },
+            { c: 'yellow', l: '满意', v: dist['2'] },
+            { c: 'orange', l: '基本满意', v: dist['3'] },
+            { c: 'red', l: '不满意及以下', v: dist['4'] + dist['5'] }
+          ], all.length, '条评价') +
+        '</div>' +
+        '<div class="grp-card"><div class="grp-head"><span class="gi"><i class="fa-solid fa-chart-column"></i></span>各维度评价量</div>' +
+          FLOW.barChart(list.slice(0, 6).map(function (g) {
+            return { l: g.key.length > 4 ? g.key.slice(0, 4) : g.key, v: g.total };
+          })) +
+        '</div>' +
+      '</div>' +
+      '<div class="section-title mt-16">按' + ({ item: '事项', window: '窗口', person: '人员', said: '区县' }[by]) + '统计</div>' +
+      '<div class="table-wrap"><table class="data-table" data-static><thead><tr>' +
+      '<th>' + ({ item: '办理事项', window: '窗口', person: '被评价人', said: '区县' }[by]) + '</th>' +
+      '<th class="num">评价总数</th><th class="num">好评</th><th class="num">差评</th><th>满意度</th><th>纳入效能指标</th>' +
+      '</tr></thead><tbody>' + list.map(function (g) {
+        var rate = parseFloat(g.rate);
+        return '<tr><td class="cell-lg">' + FLOW.esc(g.key) + '</td>' +
+          '<td class="num">' + g.total + '</td>' +
+          '<td class="num">' + g.good + '</td>' +
+          '<td class="num">' + (g.bad ? '<span class="text-danger fw-600">' + g.bad + '</span>' : g.bad) + '</td>' +
+          '<td><div class="flex items-center gap-8"><div class="progress ' + (rate >= 90 ? 'green' : 'orange') +
+            '" style="min-width:80px;flex:1"><span style="width:' + rate + '%"></span></div>' +
+            '<span class="fw-600 text-sm">' + g.rate + '</span></div></td>' +
+          '<td>' + (rate < 85 ? FLOW.badge('需关注', 'red') : FLOW.badge('正常', 'green')) + '</td></tr>';
+      }).join('') + '</tbody></table></div>' +
+      '<div class="alert alert-info mt-16"><i class="fa-solid fa-link"></i>' +
+      '<span>满意度结果同步到<a class="link" href="case-ledger.html?role=biz">办件台账</a>的办理效能监督指标。</span></div>';
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    FLOW.table({
+      id: 'tbReview', pageSize: 10, empty: '没有匹配的评价记录', icon: 'fa-comment-dots',
+      rows: rows,
+      cells: function (r) {
+        var color = r.pjdj >= '4' ? 'red' : (r.pjdj === '3' ? 'orange' : 'green');
+        return [
+          '<td>' + FLOW.esc(r.sjbh) + '</td>',
+          '<td class="cell-lg">' + FLOW.esc(r.sxmc) + '</td>',
+          '<td>' + FLOW.esc(r.sqr) + '</td>',
+          '<td>' + (r.pjdj ? FLOW.badge(FLOW.dict('pjdj', r.pjdj), color) : FLOW.badge('待评价', 'gray')) + '</td>',
+          '<td>' + FLOW.esc(r.way) + '</td>',
+          '<td>' + FLOW.esc(r.jbrmc) + '</td>',
+          '<td>' + FLOW.esc(r.wname) + '</td>',
+          '<td>' + (r.czsj ? FLOW.fmt.time(r.czsj) : '—') + '</td>',
+          '<td>' + (r.hsZt === '0' ? FLOW.badge('待核实', 'red')
+                    : (r.hsZt === '1' ? FLOW.badge('已闭环', 'green') : '<span class="text-3">无需核实</span>')) + '</td>',
+          '<td>' + (r.pjdj >= '4'
+            ? '<a class="link" href="review-verify.html?role=biz&id=' + r.id + '">' + (r.hsZt === '1' ? '查看核实' : '去核实') + '</a>'
+            : '<a class="link" href="case-detail.html?role=biz&id=' + r.bjzj + '">办件详情</a>') + '</td>'
+        ];
+      },
+      attrs: function (r) { return ' data-focus="' + r.id + '"'; },
+      after: syncKpi
+    });
+    FLOW.on(function () {
+      if (tab === 'list') FLOW.paint('tbReview');
+      else if (tab === 'bad') renderBad();
+      else renderStat();
+      syncKpi();
+    });
+  });
+})();
+</script>
+</body>
+</html>

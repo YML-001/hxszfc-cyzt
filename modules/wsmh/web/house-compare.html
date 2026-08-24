@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>房源与项目对比 · 统一服务门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  /* 对比页专属布局 */
+  .cmp-scroll { overflow-x: auto; }
+  .cmp-table { min-width: 720px; }
+  .cmp-table thead th { vertical-align: top; }
+  .cmp-table thead th.idx { width: 148px; min-width: 148px; }
+  .cmp-table tbody td.idx { background: var(--bg-soft); color: var(--text-3); width: 148px; white-space: nowrap; }
+  .cmp-head { width: 220px; }
+  .cmp-head img { width: 100%; max-width: 260px; height: 108px; object-fit: cover; border-radius: 4px; display: block; margin-bottom: 8px; }
+  .cmp-head .ch-t { font-size: 14.5px; font-weight: 700; color: var(--text-1); line-height: 1.5; }
+  .cmp-head .ch-a { display: flex; gap: 10px; margin-top: 8px; font-size: 12.5px; font-weight: 400; }
+  .cmp-head .ch-a a { cursor: pointer; }
+  .cmp-head .ch-a .del { color: var(--text-3); }
+  .cmp-head .ch-a .del:hover { color: var(--accent); }
+  .cmp-tip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+</style>
+</head>
+<body data-nav="house">
+
+<div class="wrap">
+  <div class="crumb"><a href="home.html">首页</a><i class="fa-solid fa-angle-right"></i><a href="house-market.html">房源超市</a><i class="fa-solid fa-angle-right"></i>房源与项目对比</div>
+</div>
+
+<div class="wrap" style="padding-bottom:40px">
+  <div class="col-head">
+    <h2>房源与项目逐指标对比</h2><span class="ch-en">Compare</span>
+    <div class="ch-more" style="cursor:default" id="cmp-sum"></div>
+  </div>
+  <div id="cmp-body"></div>
+  <div id="src-note"></div>
+</div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+var CMP_KEY = 'wsmh.compare';
+var IDS = [];
+
+function pageInit() {
+  var q = UI.param('ids');
+  IDS = q ? q.split(',') : cmpGet();
+  IDS = IDS.filter(function (id) { return !!(id && (PORTAL.house(id) || PORTAL.project(id))); });
+  cmpSet(IDS);
+  render();
+  document.getElementById('src-note').innerHTML = UI.sourceNote(
+    '对比表中的价格、面积与品质指标均来源于备案与核验数据，最优值高亮仅为客观数值比较提示，不构成购房建议。');
+}
+
+function cmpGet() { try { return JSON.parse(sessionStorage.getItem(CMP_KEY) || '[]'); } catch (e) { return []; } }
+function cmpSet(a) { try { sessionStorage.setItem(CMP_KEY, JSON.stringify(a)); } catch (e) { } }
+
+function render() {
+  var houses = [], projs = [];
+  IDS.forEach(function (id) {
+    var h = PORTAL.house(id); if (h) { houses.push(h); return; }
+    var p = PORTAL.project(id); if (p) projs.push(p);
+  });
+
+  document.getElementById('cmp-sum').innerHTML = IDS.length
+    ? '当前对比 <b class="text-accent">' + IDS.length + '</b> 个条目（房源 ' + houses.length + ' 套 / 项目 ' + projs.length + ' 个），最多 4 个'
+    : '';
+
+  var box = document.getElementById('cmp-body');
+  if (!IDS.length) {
+    box.innerHTML = '<div class="card"><div class="card-body">'
+      + UI.empty('对比栏还没有内容',
+        '在房源检索、地图找房、新房专区或好房子专区点击「加入对比」，选满 2 个即可逐指标对比',
+        '<a class="btn btn-primary" href="house-search.html" data-fp="wsmh-07-05"><i class="fa-solid fa-magnifying-glass"></i> 去房源检索</a> '
+        + '<a class="btn" href="new-house.html" data-fp="wsmh-08-01"><i class="fa-solid fa-building"></i> 去新房专区</a> '
+        + '<a class="btn" href="good-house.html" data-fp="wsmh-12-08"><i class="fa-solid fa-award"></i> 去好房子专区</a> '
+        + '<a class="btn" href="house-map.html" data-fp="wsmh-07-02"><i class="fa-solid fa-map-location-dot"></i> 去地图找房</a>')
+      + '</div></div>';
+    return;
+  }
+
+  var html = '<div class="card mb-16"><div class="card-body cmp-tip" style="padding:13px 18px">'
+    + '<i class="fa-solid fa-circle-info text-primary"></i>'
+    + '<span class="text-sm">同类指标中的最优值以 <b class="text-accent">红色加粗</b> 标注（面积、可售套数、得房率取大值，总价、单价、公摊、物业费取小值）。'
+    + '不同房源类型（如二手房与租房）价格口径不同，混合对比时不做最优值标注。</span>'
+    + '<span class="ml-auto flex gap-8">'
+    + '<a class="btn btn-sm" href="house-search.html" data-fp="wsmh-07-05"><i class="fa-solid fa-plus"></i> 加入更多</a>'
+    + '<button class="btn btn-sm" id="cmp-clear" data-fp="wsmh-07-05"><i class="fa-solid fa-trash-can"></i> 清空对比</button>'
+    + '</span></div></div>';
+
+  if (houses.length) html += table('房源逐指标对比（wsmh-07-05）', houses, houseMetrics(houses), 'house');
+  if (projs.length) html += table('项目与好房子品质对比（wsmh-12-08）', projs, projMetrics(), 'proj');
+
+  if (projs.length) {
+    html += '<div class="card mt-16"><div class="card-body flex items-center gap-12 wrapf" style="padding:14px 18px">'
+      + '<i class="fa-solid fa-comment-dots text-primary"></i>'
+      + '<span class="text-sm">对公示的品质指标有疑问？可提交品质反馈，主管部门将核查并反馈处理情况。</span>'
+      + '<button class="btn btn-sm btn-primary ml-auto" id="pj-fb" data-fp="wsmh-12-08">提交品质反馈</button>'
+      + '</div></div>';
+  }
+
+  box.innerHTML = html;
+
+  document.getElementById('cmp-clear').onclick = function () {
+    UI.confirm('清空对比', '将移除对比栏中的全部 <b>' + IDS.length + '</b> 个条目，确定清空吗？', function () {
+      IDS = []; cmpSet(IDS); render(); UI.toast('对比栏已清空', 'success');
+    }, '确定清空');
+  };
+  box.querySelectorAll('[data-del]').forEach(function (a) {
+    a.onclick = function () {
+      var id = a.getAttribute('data-del');
+      IDS = IDS.filter(function (x) { return x !== id; });
+      cmpSet(IDS); render();
+      UI.toast('已移除该条目，对比表实时更新', 'success');
+    };
+  });
+  var fb = document.getElementById('pj-fb');
+  if (fb) fb.onclick = function () { openFeedback(projs); };
+}
+
+/* ------------------------ 表格渲染 ------------------------ */
+function table(title, arr, metrics, type) {
+  var heads = arr.map(function (x) {
+    var isP = type === 'proj';
+    var href = isP ? (x.good ? 'good-house-detail.html?id=' + x.id : 'new-house-detail.html?id=' + x.id)
+      : (x.lx === '3' ? 'rent-house.html?id=' + x.id : 'second-house-detail.html?id=' + x.id);
+    return '<th class="cmp-head"><img src="' + x.img + '" alt="' + UI.esc(isP ? x.xmmc : x.bt) + '">'
+      + '<div class="ch-t">' + (isP ? x.xmmc : x.bt) + '</div>'
+      + '<div class="ch-a"><a href="' + href + '" data-fp="wsmh-07-06">查看详情</a>'
+      + (isP ? '<a href="price-table.html?id=' + x.id + '" data-fp="wsmh-08-04">一房一价</a>' : '')
+      + '<a class="del" data-del="' + x.id + '" data-fp="wsmh-07-05">移除本列</a></div></th>';
+  }).join('');
+
+  var body = metrics.map(function (m) {
+    var best = null;
+    if (m.num && m.best && arr.length > 1) {
+      var nums = arr.map(m.num).filter(function (n) { return typeof n === 'number' && !isNaN(n); });
+      if (nums.length === arr.length) {
+        best = m.best === 'max' ? Math.max.apply(null, nums) : Math.min.apply(null, nums);
+      }
+    }
+    return '<tr><td class="idx">' + m.n + '</td>' + arr.map(function (x) {
+      var v = m.v(x);
+      var hit = best !== null && m.num(x) === best;
+      return '<td>' + (hit ? '<span class="text-accent bold">' + v + '</span>' : v) + '</td>';
+    }).join('') + '</tr>';
+  }).join('');
+
+  return '<div class="card mb-16"><div class="card-head"><h3><i class="fa-solid fa-scale-balanced text-primary"></i> ' + title + '</h3>'
+    + '<span class="sub">共 ' + arr.length + ' 个条目</span></div>'
+    + '<div class="card-body np"><div class="cmp-scroll"><table class="pub-table cmp-table">'
+    + '<thead><tr><th class="idx">对比指标</th>' + heads + '</tr></thead>'
+    + '<tbody>' + body + '</tbody></table></div>'
+    + '<div class="table-note">' + (type === 'proj'
+      ? '价格为<b>备案（拟售）价格，实际成交以合同为准</b>；品质指标以认定材料与公示数据为准，未认定为好房子的项目相关指标显示「—」。'
+      : '价格为业主或受托机构自主报价，实际成交以网签备案合同为准；房号按规定截断展示，不展示权利人姓名、身份证号与联系方式。')
+    + '数据更新时间 ' + UI.today() + ' 06:00。</div></div></div>';
+}
+
+/* ------------------------ 房源指标 ------------------------ */
+function houseMetrics(arr) {
+  var sameLx = true;
+  arr.forEach(function (h) { if (h.lx !== arr[0].lx) sameLx = false; });
+  var rentAll = sameLx && arr[0].lx === '3';
+  return [
+    { n: '核验码', v: function (h) { return '<span class="tag-q g">' + h.hym + '</span>'; } },
+    { n: '核验状态', v: function (h) { return PORTAL.houseBadge(h) + ' <span class="text-xs text-3">有效期至 ' + h.hyyxq + '</span>'; } },
+    { n: '区域商圈', v: function (h) { return h.qx + ' · ' + h.sq; } },
+    { n: '所在小区', v: function (h) { return h.xqmc; } },
+    { n: '房号（脱敏）', v: function (h) { return h.fhMask; } },
+    { n: '建筑面积', v: function (h) { return h.mj + ' ㎡'; }, num: function (h) { return h.mj; }, best: 'max' },
+    { n: '户型', v: function (h) { return h.hx; } },
+    { n: '朝向', v: function (h) { return h.cx; } },
+    { n: '装修', v: function (h) { return h.zx; } },
+    { n: '楼层', v: function (h) { return h.lc + ' 层'; } },
+    { n: '建成年代', v: function (h) { return h.jcnd ? h.jcnd + ' 年' : '—'; }, num: function (h) { return h.jcnd || 0; }, best: 'max' },
+    {
+      n: rentAll ? '月租金' : '总价',
+      v: function (h) { return h.lx === '3' ? UI.money(h.zj, 0) + ' 元/月' : h.zj + ' 万元'; },
+      num: sameLx ? function (h) { return h.zj; } : null, best: 'min'
+    },
+    {
+      n: rentAll ? '区域租金参考价' : '单价',
+      v: function (h) {
+        return h.lx === '3' ? (h.ckj[0] + '-' + h.ckj[1] + ' 元/月') : (UI.money(h.dj, 0) + ' 元/㎡');
+      },
+      num: sameLx && !rentAll ? function (h) { return h.dj; } : null, best: 'min'
+    },
+    { n: '房源来源', v: function (h) { return h.lymc; } },
+    { n: '委托机构', v: function (h) { return h.wtjg ? h.wtjg + (h.wtjjr ? '（经纪人 ' + h.wtjjr + '）' : '') : '个人自主挂牌，无委托机构'; } },
+    { n: '挂牌时间', v: function (h) { return h.gpsj; } },
+    { n: '更新时间', v: function (h) { return h.gxsj; } },
+    { n: '数据来源', v: function (h) { return h.sjly; } }
+  ];
+}
+
+/* ------------------------ 项目指标（含好房子品质，wsmh-12-08） ------------------------ */
+function projMetrics() {
+  function gi(p, k) { return p.gIdx ? p.gIdx[k] : ''; }
+  function pct(s) { var n = parseFloat(s); return isNaN(n) ? null : n; }
+  return [
+    { n: '开发企业', v: function (p) { return p.kfqy; } },
+    { n: '销售状态', v: function (p) { return PORTAL.badge(p.zt, p.zt === '现售' ? 'green' : 'blue'); } },
+    { n: '预售许可证', v: function (p) { return p.yszh + '<div class="text-xs text-3">发证 ' + p.ysrq + '</div>'; } },
+    { n: '可售套数', v: function (p) { return p.ksts + ' 套 / 总 ' + p.zts + ' 套'; }, num: function (p) { return p.ksts; }, best: 'max' },
+    { n: '备案拟售均价', v: function (p) { return UI.money(p.junjia, 0) + ' 元/㎡'; }, num: function (p) { return p.junjia; }, best: 'min' },
+    { n: '价格区间', v: function (p) { return p.jgqj + ' 元/㎡'; } },
+    {
+      n: '绿建星级 / 品质标签',
+      v: function (p) {
+        return p.good ? p.gTags.map(function (t) { return '<span class="tag-q g">' + t + '</span>'; }).join(' ')
+          : '<span class="text-3">未认定为好房子</span>';
+      }
+    },
+    { n: '层高', v: function (p) { return gi(p, 'cg') ? gi(p, 'cg') + ' 米' : '—'; }, num: function (p) { return pct(gi(p, 'cg')); }, best: 'max' },
+    { n: '得房率', v: function (p) { return gi(p, 'dfl') || '—'; }, num: function (p) { return pct(gi(p, 'dfl')); }, best: 'max' },
+    { n: '公摊比例', v: function (p) { return gi(p, 'gt') || '—'; }, num: function (p) { return pct(gi(p, 'gt')); }, best: 'min' },
+    { n: '隔声性能', v: function (p) { return gi(p, 'gs') || '—'; } },
+    { n: '节能水平', v: function (p) { return gi(p, 'jn') || '—'; } },
+    { n: '日照标准', v: function (p) { return gi(p, 'rz') || '—'; } },
+    { n: '前期物业服务企业', v: function (p) { return p.wuye; } },
+    { n: '物业费标准', v: function (p) { return p.wyf + ' 元/㎡·月'; }, num: function (p) { return Number(p.wyf); }, best: 'min' },
+    { n: '维修资金缴存标准', v: function (p) { return p.wxzj + ' 元/㎡'; }, num: function (p) { return Number(p.wxzj); }, best: 'min' },
+    { n: '预售资金监管银行', v: function (p) { return p.jgyh + '<div class="text-xs text-3">监管账号 ' + p.jgzh + '</div>'; } },
+    {
+      n: '风险提示',
+      v: function (p) {
+        return p.risk ? '<span class="lv ' + (p.risk === 3 ? 'orange' : 'yellow') + '"><i></i>' + p.riskNote + '</span>'
+          : '<span class="text-success">未发现重大风险</span>';
+      }
+    }
+  ];
+}
+
+/* ------------------------ 品质反馈（wsmh-12-08） ------------------------ */
+function openFeedback(projs) {
+  if (!UI.needLogin('提交好房子品质反馈')) return;
+  UI.drawer('<i class="fa-solid fa-comment-dots text-primary"></i> 提交品质反馈',
+    '<div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>'
+    + '<span>反馈内容将转交项目属地住建部门核查，处理情况可在「个人中心 → 我的消息」查看。</span></div>'
+    + '<div class="form-grid c1">'
+    + '<div class="form-item"><label><span class="req">*</span>反馈项目</label><select class="select" id="fb-xm">'
+    + projs.map(function (p) { return '<option value="' + p.xmmc + '">' + p.xmmc + '</option>'; }).join('') + '</select></div>'
+    + '<div class="form-item"><label><span class="req">*</span>反馈类型</label><select class="select" id="fb-lx">'
+    + ['公示指标与实际不符', '品质指标表述不清', '认定结果有疑问', '其他'].map(function (t) { return '<option>' + t + '</option>'; }).join('')
+    + '</select></div>'
+    + '<div class="form-item"><label><span class="req">*</span>问题描述</label>'
+    + '<textarea class="textarea" id="fb-desc" placeholder="请具体说明涉及的品质指标与问题情况，便于核查"></textarea></div>'
+    + '</div>',
+    '<button class="btn" data-act="close-drawer">取消</button><button class="btn btn-primary" id="fb-ok">提交反馈</button>');
+  document.getElementById('fb-ok').onclick = function () {
+    var d = document.getElementById('fb-desc').value.trim();
+    if (!d) { UI.toast('请填写问题描述', 'warning'); return; }
+    var no = PORTAL.act('feedback.add', {
+      type: '好房子品质反馈 · ' + document.getElementById('fb-lx').value,
+      page: document.getElementById('fb-xm').value, desc: d, tel: ''
+    });
+    UI.closeDrawer();
+    UI.toast('品质反馈已提交，受理编号 ' + no + '，可在个人中心我的消息查看处理情况', 'success');
+  };
+}
+</script>
+</body>
+</html>

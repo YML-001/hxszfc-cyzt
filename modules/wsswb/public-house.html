@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>公有住房与房改房上市交易 · 新建商品房网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：成本价折扣核算可追溯表与联动完成卡 */
+  .calc { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .calc .cr { display: flex; font-size: 13.5px; padding: 9px 14px; border-bottom: 1px solid var(--row-line); gap: 12px; }
+  .calc .cr:last-child { border-bottom: 0; }
+  .calc .cr > span:first-child { flex: 1; color: var(--text-2); }
+  .calc .cr > span:nth-child(2) { width: 140px; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .calc .cr > span:last-child { width: 180px; text-align: right; font-size: 12px; color: var(--text-3); }
+  .calc .cr.total { background: var(--primary-light); }
+  .calc .cr.total > span:nth-child(2) { color: var(--primary); font-size: 17px; }
+  .sync-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--row-line); font-size: 13.5px; }
+  .sync-item:last-child { border-bottom: 0; }
+  .sync-item .badge { margin-left: auto; }
+  tr.row-warn td:first-child { box-shadow: inset 3px 0 0 var(--warning); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsswb-19">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房网签备案管理系统
+        <span class="sep">/</span> <a class="link" href="policy-list.html">政策性住房备案</a>
+        <span class="sep">/</span> <span class="cur">公房与房改房</span>
+      </div>
+      <div class="page-title">公有住房与房改房上市交易</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" data-open-drawer="dwHandle"><i class="fa-solid fa-plus"></i> 新增办理</button>
+      <button type="button" class="btn" onclick="switchTab('t1')">公房台账</button>
+      <button type="button" class="btn" onclick="switchTab('t3')">产权变更</button>
+      <button type="button" class="btn" onclick="location.href='policy-list.html'">政策性住房备案</button>
+      <button type="button" class="btn" onclick="location.href='filing-cert.html'">备案证明</button>
+      <button type="button" class="btn" onclick="PMS.toast('《公房与房改房办理台账》Excel 已生成','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-building"></i></div>
+      <div><div class="s-label">公房台账</div><div class="s-value">3,286</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-key"></i></div>
+      <div><div class="s-label">承租中</div><div class="s-value">2,142</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-house-chimney-user"></i></div>
+      <div><div class="s-label">已房改出售</div><div class="s-value">1,044</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-file-pen"></i></div>
+      <div><div class="s-label">本月办理</div><div class="s-value">38</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-coins"></i></div>
+      <div><div class="s-label">超标补交</div><div class="s-value">12</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-right-left"></i></div>
+      <div><div class="s-label">上市交易</div><div class="s-value">26</div></div>
+    </div>
+  </div>
+
+  <div class="alert">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>房价按成本价与折扣核算，核算过程逐项展示可追溯；超标面积单独计算并列示；共有人信息必录。承租关系不清不予受理。</div>
+  </div>
+
+  <div class="card">
+    <div class="tabs" id="phTabs">
+      <div class="tab active" data-tab="t1">公房台账与承租</div>
+      <div class="tab" data-tab="t2">房改出售办理 <span class="badge orange">8</span></div>
+      <div class="tab" data-tab="t3">产权变更</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="t1">
+      <div class="filter-bar">
+        <div class="filter-item"><label>公房编号</label><input type="text" placeholder="如 GF4502000001286"></div>
+        <div class="filter-item"><label>坐落</label><input type="text" placeholder="街道 / 小区关键词"></div>
+        <div class="filter-item"><label>产权单位</label><input type="text" placeholder="单位名称"></div>
+        <div class="filter-item"><label>承租状态</label><select><option value="">全部</option><option>承租中</option><option>承租关系不清</option><option>已房改出售</option><option>空置</option></select></div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 3,286 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="tb1" data-static>
+          <thead>
+            <tr>
+              <th>公房编号</th><th>坐落</th><th class="num">建筑面积（㎡）</th><th>产权单位</th>
+              <th>承租人</th><th>承租起始日期</th><th>承租关系状态</th><th>是否可房改</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="nowrap fw-600">GF4502000001286</td>
+              <td class="nowrap">城中区广场路 28 号 3 栋 502</td>
+              <td class="num nowrap">68.42</td>
+              <td class="nowrap">XXXX市机关事务管理局</td>
+              <td class="nowrap">韦某某</td>
+              <td class="nowrap">1998-06-18</td>
+              <td class="nowrap"><span class="badge green">承租中</span></td>
+              <td class="nowrap"><span class="badge green">可房改</span></td>
+              <td class="col-ops"><span class="link" onclick="openHandle('GF4502000001286')">发起房改出售</span><span class="link" onclick="PMS.toast('已打开公房档案')">查看</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">GF4502000001242</td>
+              <td class="nowrap">鱼峰区屏山大道 106 号 2 栋 301</td>
+              <td class="num nowrap">72.60</td>
+              <td class="nowrap">XXXX市教育局</td>
+              <td class="nowrap">覃某某</td>
+              <td class="nowrap">1996-03-12</td>
+              <td class="nowrap"><span class="badge green">承租中</span></td>
+              <td class="nowrap"><span class="badge green">可房改</span></td>
+              <td class="col-ops"><span class="link" onclick="openHandle('GF4502000001242')">发起房改出售</span><span class="link" onclick="PMS.toast('已打开公房档案')">查看</span></td>
+            </tr>
+            <tr class="row-warn">
+              <td class="nowrap fw-600">GF4502000001186</td>
+              <td class="nowrap">柳南区柳石路 88 号 5 栋 602</td>
+              <td class="num nowrap">86.20</td>
+              <td class="nowrap">XXXX市卫生健康委</td>
+              <td class="nowrap">黄某某 / 陈某某</td>
+              <td class="nowrap">1999-11-08</td>
+              <td class="nowrap"><span class="badge orange">承租关系不清</span> <span class="text-3 text-sm">不予受理</span></td>
+              <td class="nowrap"><span class="badge red">不可</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('承租关系不清，不予受理房改出售；请先完成承租人确认','error')">发起房改出售</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">GF4502000001128</td>
+              <td class="nowrap">柳北区跃进路 16 号 1 栋 402</td>
+              <td class="num nowrap">58.36</td>
+              <td class="nowrap">XXXX市财政局</td>
+              <td class="nowrap">梁某某</td>
+              <td class="nowrap">2001-08-26</td>
+              <td class="nowrap"><span class="badge green">承租中</span></td>
+              <td class="nowrap"><span class="badge green">可房改</span></td>
+              <td class="col-ops"><span class="link" onclick="openHandle('GF4502000001128')">发起房改出售</span><span class="link" onclick="PMS.toast('已打开公房档案')">查看</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">GF4502000001086</td>
+              <td class="nowrap">城中区文昌路 12 号 8 栋 1201</td>
+              <td class="num nowrap">92.48</td>
+              <td class="nowrap">XXXX市机关事务管理局</td>
+              <td class="nowrap">罗某某</td>
+              <td class="nowrap">1994-05-20</td>
+              <td class="nowrap"><span class="badge gray">已房改出售</span></td>
+              <td class="nowrap"><span class="badge gray">已出售</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已打开房改出售档案')">查看</span><a class="link" href="filing-cert.html">备案证明</a></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">GF4502000001042</td>
+              <td class="nowrap">柳江区拉堡镇建设路 6 号 3 栋 201</td>
+              <td class="num nowrap">64.80</td>
+              <td class="nowrap">柳江区机关事务服务中心</td>
+              <td class="nowrap">陈某某</td>
+              <td class="nowrap">2003-02-14</td>
+              <td class="nowrap"><span class="badge green">承租中</span></td>
+              <td class="nowrap"><span class="badge green">可房改</span></td>
+              <td class="col-ops"><span class="link" onclick="openHandle('GF4502000001042')">发起房改出售</span><span class="link" onclick="PMS.toast('已打开公房档案')">查看</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">GF4502000000986</td>
+              <td class="nowrap">鱼峰区白云路 42 号 4 栋 801</td>
+              <td class="num nowrap">76.20</td>
+              <td class="nowrap">XXXX市公安局</td>
+              <td class="nowrap">吴某某</td>
+              <td class="nowrap">1997-09-06</td>
+              <td class="nowrap"><span class="badge green">承租中</span></td>
+              <td class="nowrap"><span class="badge green">可房改</span></td>
+              <td class="col-ops"><span class="link" onclick="openHandle('GF4502000000986')">发起房改出售</span><span class="link" onclick="PMS.toast('已打开公房档案')">查看</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">GF4502000000924</td>
+              <td class="nowrap">柳南区航鸽路 8 号 2 栋 503</td>
+              <td class="num nowrap">54.16</td>
+              <td class="nowrap">XXXX市交通运输局</td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap"><span class="badge gray">空置</span></td>
+              <td class="nowrap"><span class="badge red">不可</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('空置公房须先落实承租关系')">查看</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="t2">
+      <div class="filter-bar">
+        <div class="filter-item"><label>办理编号</label><input type="text" placeholder="如 FGF20260731016"></div>
+        <div class="filter-item"><label>购房人</label><input type="text" placeholder="姓名关键词"></div>
+        <div class="filter-item"><label>办理状态</label><select><option value="">全部</option><option>核算中</option><option>待补交</option><option>已办结</option></select></div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 38 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="tb2" data-static>
+          <thead>
+            <tr>
+              <th>办理编号</th><th>公房编号</th><th>购房人</th><th class="num">建筑面积（㎡）</th>
+              <th class="num">应付房款（元）</th><th class="num">超标补交（元）</th><th>办理环节</th><th>状态</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="nowrap fw-600">FGF20260731016</td>
+              <td class="nowrap">GF4502000001286</td>
+              <td class="nowrap">韦某某</td>
+              <td class="num nowrap">68.42</td>
+              <td class="num nowrap">28,642</td>
+              <td class="num nowrap">0</td>
+              <td class="nowrap">房价核算</td>
+              <td class="nowrap"><span class="badge orange">核算中</span></td>
+              <td class="col-ops"><span class="link" onclick="openHandle('GF4502000001286')">办理</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">FGF20260731012</td>
+              <td class="nowrap">GF4502000001242</td>
+              <td class="nowrap">覃某某</td>
+              <td class="num nowrap">72.60</td>
+              <td class="num nowrap">31,286</td>
+              <td class="num nowrap">6,420</td>
+              <td class="nowrap">超标补交</td>
+              <td class="nowrap"><span class="badge orange">待补交</span></td>
+              <td class="col-ops"><span class="link" onclick="openHandle('GF4502000001242')">办理</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">FGF20260731008</td>
+              <td class="nowrap">GF4502000001128</td>
+              <td class="nowrap">梁某某</td>
+              <td class="num nowrap">58.36</td>
+              <td class="num nowrap">22,860</td>
+              <td class="num nowrap">0</td>
+              <td class="nowrap">共有人与备案</td>
+              <td class="nowrap"><span class="badge blue">待备案</span></td>
+              <td class="col-ops"><span class="link" onclick="openHandle('GF4502000001128')">办理</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">FGF20260728086</td>
+              <td class="nowrap">GF4502000001086</td>
+              <td class="nowrap">罗某某</td>
+              <td class="num nowrap">92.48</td>
+              <td class="num nowrap">42,186</td>
+              <td class="num nowrap">12,860</td>
+              <td class="nowrap">已办结</td>
+              <td class="nowrap"><span class="badge green">已办结</span></td>
+              <td class="col-ops"><span class="link" onclick="openHandle('GF4502000001086')">查看核算</span><a class="link" href="filing-cert.html">备案证明</a></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">FGF20260728072</td>
+              <td class="nowrap">GF4502000001042</td>
+              <td class="nowrap">陈某某</td>
+              <td class="num nowrap">64.80</td>
+              <td class="num nowrap">26,420</td>
+              <td class="num nowrap">0</td>
+              <td class="nowrap">已办结</td>
+              <td class="nowrap"><span class="badge green">已办结</span></td>
+              <td class="col-ops"><span class="link" onclick="openHandle('GF4502000001042')">查看核算</span><a class="link" href="policy-list.html">上市交易</a></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">FGF20260725068</td>
+              <td class="nowrap">GF4502000000986</td>
+              <td class="nowrap">吴某某</td>
+              <td class="num nowrap">76.20</td>
+              <td class="num nowrap">33,860</td>
+              <td class="num nowrap">4,280</td>
+              <td class="nowrap">房价核算</td>
+              <td class="nowrap"><span class="badge orange">核算中</span></td>
+              <td class="col-ops"><span class="link" onclick="openHandle('GF4502000000986')">办理</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">FGF20260722054</td>
+              <td class="nowrap">GF4502000000862</td>
+              <td class="nowrap">莫某某</td>
+              <td class="num nowrap">62.40</td>
+              <td class="num nowrap">24,860</td>
+              <td class="num nowrap">0</td>
+              <td class="nowrap">已办结</td>
+              <td class="nowrap"><span class="badge green">已办结</span></td>
+              <td class="col-ops"><span class="link" onclick="openHandle('GF4502000000862')">查看核算</span><a class="link" href="filing-cert.html">备案证明</a></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">FGF20260718042</td>
+              <td class="nowrap">GF4502000000748</td>
+              <td class="nowrap">蓝某某</td>
+              <td class="num nowrap">70.16</td>
+              <td class="num nowrap">29,420</td>
+              <td class="num nowrap">2,860</td>
+              <td class="nowrap">超标补交</td>
+              <td class="nowrap"><span class="badge orange">待补交</span></td>
+              <td class="col-ops"><span class="link" onclick="openHandle('GF4502000000748')">办理</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="t3">
+      <div class="table-wrap">
+        <table class="data-table" id="tb3" data-static>
+          <thead>
+            <tr>
+              <th>公房编号</th><th>变更类型</th><th>变更前产权人</th><th>变更后产权人</th>
+              <th>变更依据</th><th>变更日期</th><th>状态</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="nowrap fw-600">GF4502000001086</td>
+              <td class="nowrap">房改出售后确权</td>
+              <td class="nowrap">XXXX市机关事务管理局</td>
+              <td class="nowrap">罗某某 / 李某某（共有）</td>
+              <td class="nowrap">房改出售合同 FGF20260728086</td>
+              <td class="nowrap">2026-07-28</td>
+              <td class="nowrap"><span class="badge green">已办结</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已打开产权变更档案')">查看</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">GF4502000001042</td>
+              <td class="nowrap">房改出售后确权</td>
+              <td class="nowrap">柳江区机关事务服务中心</td>
+              <td class="nowrap">陈某某</td>
+              <td class="nowrap">房改出售合同 FGF20260728072</td>
+              <td class="nowrap">2026-07-28</td>
+              <td class="nowrap"><span class="badge green">已办结</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已打开产权变更档案')">查看</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">GF4502000000862</td>
+              <td class="nowrap">夫妻加名</td>
+              <td class="nowrap">莫某某</td>
+              <td class="nowrap">莫某某 / 何某某</td>
+              <td class="nowrap">结婚证 + 共有协议</td>
+              <td class="nowrap">2026-07-22</td>
+              <td class="nowrap"><span class="badge green">已办结</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已打开产权变更档案')">查看</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">GF4502000001286</td>
+              <td class="nowrap">房改出售后确权</td>
+              <td class="nowrap">XXXX市机关事务管理局</td>
+              <td class="nowrap">韦某某 / 李某某</td>
+              <td class="nowrap">办理中 FGF20260731016</td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap"><span class="badge orange">办理中</span></td>
+              <td class="col-ops"><span class="link" onclick="openHandle('GF4502000001286')">继续办理</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">GF4502000000686</td>
+              <td class="nowrap">继承过户</td>
+              <td class="nowrap">周某某</td>
+              <td class="nowrap">周某某（子女）</td>
+              <td class="nowrap">继承公证书</td>
+              <td class="nowrap">2026-06-18</td>
+              <td class="nowrap"><span class="badge green">已办结</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已打开产权变更档案')">查看</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">GF4502000000624</td>
+              <td class="nowrap">离婚析产</td>
+              <td class="nowrap">邓某某 / 陆某某</td>
+              <td class="nowrap">邓某某</td>
+              <td class="nowrap">离婚协议 + 法院调解书</td>
+              <td class="nowrap">2026-05-26</td>
+              <td class="nowrap"><span class="badge green">已办结</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已打开产权变更档案')">查看</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">GF4502000000586</td>
+              <td class="nowrap">上市交易过户</td>
+              <td class="nowrap">谭某某</td>
+              <td class="nowrap">秦某某</td>
+              <td class="nowrap">上市交易备案 ZC450200202600074</td>
+              <td class="nowrap">2026-04-12</td>
+              <td class="nowrap"><span class="badge green">已办结</span></td>
+              <td class="col-ops"><a class="link" href="policy-list.html">交易备案</a></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">GF4502000000528</td>
+              <td class="nowrap">房改出售后确权</td>
+              <td class="nowrap">XXXX市公安局</td>
+              <td class="nowrap">杨某某</td>
+              <td class="nowrap">房改出售合同 FGF20260408016</td>
+              <td class="nowrap">2026-04-08</td>
+              <td class="nowrap"><span class="badge green">已办结</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已打开产权变更档案')">查看</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-link"></i> 办结后同步</h3>
+      <span class="sub">办理结果同步档案与主题库</span>
+    </div>
+    <div class="card-body">
+      <div class="sync-item"><i class="fa-solid fa-folder-open text-primary"></i><div>房产档案（wsdagl）— 核算单、出售合同、共有人信息</div><span class="badge green">办结后自动同步</span></div>
+      <div class="sync-item"><i class="fa-solid fa-database text-primary"></i><div>数据主题库 — 公房权属与房改出售主题表</div><span class="badge green">办结后自动同步</span></div>
+    </div>
+  </div>
+
+  <div class="drawer-mask"></div>
+  <div class="drawer drawer-lg" id="dwHandle">
+    <div class="drawer-head">
+      <h3>房改出售办理 · <span id="hdGf">GF4502000001286</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="wizard" id="fgWz">
+        <div class="w-step active" data-step="1"><span class="w-num">1</span><span class="w-label">资格审查</span></div>
+        <div class="w-line"></div>
+        <div class="w-step" data-step="2"><span class="w-num">2</span><span class="w-label">房价核算</span></div>
+        <div class="w-line"></div>
+        <div class="w-step" data-step="3"><span class="w-num">3</span><span class="w-label">超标补交</span></div>
+        <div class="w-line"></div>
+        <div class="w-step" data-step="4"><span class="w-num">4</span><span class="w-label">共有人与备案</span></div>
+      </div>
+
+      <div class="wz-panel active" data-panel="1">
+        <div class="section-title">房屋信息</div>
+        <dl class="desc-list">
+          <div class="desc-item"><dt>公房编号</dt><dd>GF4502000001286</dd></div>
+          <div class="desc-item"><dt>坐落</dt><dd>城中区广场路 28 号 3 栋 502</dd></div>
+          <div class="desc-item"><dt>建筑面积</dt><dd>68.42 ㎡</dd></div>
+          <div class="desc-item"><dt>产权单位</dt><dd>XXXX市机关事务管理局</dd></div>
+          <div class="desc-item"><dt>承租人</dt><dd>韦某某</dd></div>
+          <div class="desc-item"><dt>承租起始</dt><dd>1998-06-18</dd></div>
+        </dl>
+        <div class="section-title mt-16">资格审查</div>
+        <div class="form-grid form-align">
+          <div class="form-item"><label>购房人身份<span class="req">*</span></label><select><option>本单位在职职工</option><option>本单位离退休职工</option><option>调离本市职工</option></select></div>
+          <div class="form-item"><label>单位职工家庭<span class="req">*</span></label>
+            <div class="radio-line">
+              <label><input type="radio" name="fam" checked> 是</label>
+              <label><input type="radio" name="fam"> 否</label>
+            </div>
+          </div>
+          <div class="form-item col-full"><label>是否已享受过房改政策<span class="req">*</span></label>
+            <div class="radio-line">
+              <label><input type="radio" name="enjoyed" checked> 未享受</label>
+              <label><input type="radio" name="enjoyed"> 已享受（不予重复出售）</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="wz-panel" data-panel="2">
+        <div class="section-title">成本价折扣核算过程（可追溯）</div>
+        <div class="calc">
+          <div class="cr"><span>建筑面积（㎡）</span><span>68.42</span><span>测绘成果</span></div>
+          <div class="cr"><span>成本价单价（元/㎡）</span><span>1,560</span><span>柳建房〔2018〕26 号</span></div>
+          <div class="cr"><span>成本价总额（元）</span><span>106,735</span><span>面积 × 单价</span></div>
+          <div class="cr"><span>工龄折扣</span><span>× 0.690</span><span>夫妻双方工龄合计 62 年 × 0.5%</span></div>
+          <div class="cr"><span>职务级别折扣</span><span>× 0.980</span><span>科级及以下 · 柳建房〔2018〕26 号附表</span></div>
+          <div class="cr"><span>成新折扣</span><span>× 0.860</span><span>房龄 28 年 · 年折旧 0.5%</span></div>
+          <div class="cr"><span>折扣合计</span><span>× 0.582</span><span>三项折扣连乘</span></div>
+          <div class="cr total"><span>应付房款（元）</span><span>28,642</span><span>成本价总额 × 折扣合计</span></div>
+        </div>
+        <p class="text-3 text-sm mt-8"><i class="fa-solid fa-circle-info"></i> 核算过程逐项留痕，可导出《房改出售房价核算单》归档。</p>
+      </div>
+
+      <div class="wz-panel" data-panel="3">
+        <div class="section-title">超标面积补交（单独列示）</div>
+        <div class="form-grid form-align">
+          <div class="form-item"><label>控制面积标准（㎡）</label><input type="text" value="70.00" readonly></div>
+          <div class="form-item"><label>建筑面积（㎡）</label><input type="text" value="68.42" readonly></div>
+          <div class="form-item"><label>超标面积（㎡）</label><input type="text" value="0.00" readonly></div>
+          <div class="form-item"><label>超标补交标准（元/㎡）</label><input type="text" value="2,860" readonly></div>
+          <div class="form-item"><label>超标补交金额（元）</label><input type="text" value="0.00" readonly></div>
+          <div class="form-item"><label>补交状态</label><input type="text" value="无需补交" readonly></div>
+        </div>
+        <div class="alert alert-info mt-16">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>本套建筑面积未超控制标准，无需超标补交。若超标，补交金额与应付房款分列，不得合并折算。</div>
+        </div>
+      </div>
+
+      <div class="wz-panel" data-panel="4">
+        <div class="section-title">共有人信息</div>
+        <div class="form-grid form-align">
+          <div class="form-item"><label>配偶姓名<span class="req">*</span></label><input type="text" value="李某某"></div>
+          <div class="form-item"><label>配偶证件号<span class="req">*</span></label><input type="text" value="4502**********2408"></div>
+          <div class="form-item"><label>产权份额（本人）<span class="req">*</span></label><input type="text" value="50%"></div>
+          <div class="form-item"><label>产权份额（配偶）<span class="req">*</span></label><input type="text" value="50%"></div>
+          <div class="form-item col-full"><label>同住成年子女</label><input type="text" placeholder="无则留空" value=""></div>
+        </div>
+        <div class="section-title mt-16">交易备案与补缴土地出让金</div>
+        <div class="form-grid form-align">
+          <div class="form-item"><label>是否上市交易</label>
+            <div class="radio-line">
+              <label><input type="radio" name="list" value="n" checked> 仅房改确权</label>
+              <label><input type="radio" name="list" value="y"> 同步办理上市</label>
+            </div>
+          </div>
+          <div class="form-item"><label>应补缴土地出让金（元）</label><input type="text" value="0（确权阶段暂不补缴）" readonly></div>
+        </div>
+        <div class="alert alert-success mt-16">
+          <i class="fa-solid fa-circle-check"></i>
+          <div>提交备案后同步 wsdagl 档案与数据主题库，并可出具备案证明。</div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn" id="fgPrev" onclick="fgStep(-1)" style="display:none"><i class="fa-solid fa-arrow-left"></i> 上一步</button>
+      <button type="button" class="btn btn-primary" id="fgNext" onclick="fgStep(1)"><i class="fa-solid fa-arrow-right"></i> 下一步</button>
+      <button type="button" class="btn btn-primary hidden" id="fgSubmit" onclick="submitFg()"><i class="fa-solid fa-stamp"></i> 提交备案</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  document.getElementById('phTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    switchTab(tab.getAttribute('data-tab'));
+  });
+  [['tb1', 3286], ['tb2', 38], ['tb3', 86]].forEach(function (it) {
+    PMS.renderPager(document.getElementById(it[0]), {
+      pageNum: 1, pageSize: 20, total: it[1],
+      onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+    });
+  });
+})();
+
+function switchTab(name) {
+  document.querySelectorAll('#phTabs .tab').forEach(function (t) {
+    t.classList.toggle('active', t.getAttribute('data-tab') === name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(function (p) {
+    p.classList.toggle('active', p.getAttribute('data-panel') === name);
+  });
+}
+
+var fgCur = 1;
+function fgStep(d) {
+  var next = fgCur + d;
+  if (next < 1 || next > 4) return;
+  fgCur = next;
+  document.querySelectorAll('#dwHandle .wz-panel').forEach(function (p) {
+    p.classList.toggle('active', p.getAttribute('data-panel') === String(fgCur));
+  });
+  document.querySelectorAll('#fgWz .w-step').forEach(function (s) {
+    var n = +s.getAttribute('data-step');
+    s.classList.toggle('active', n === fgCur);
+    s.classList.toggle('done', n < fgCur);
+  });
+  document.getElementById('fgPrev').style.display = fgCur === 1 ? 'none' : '';
+  document.getElementById('fgNext').classList.toggle('hidden', fgCur === 4);
+  document.getElementById('fgSubmit').classList.toggle('hidden', fgCur !== 4);
+}
+
+function openHandle(gf) {
+  document.getElementById('hdGf').textContent = gf;
+  fgCur = 1; fgStep(0);
+  PMS.openDrawer('dwHandle');
+}
+
+function submitFg() {
+  PMS.closeDrawer('dwHandle');
+  PMS.toast('房改出售已提交备案，核算单已同步档案与主题库，可出具备案证明', 'success');
+}
+</script>
+</body>
+</html>

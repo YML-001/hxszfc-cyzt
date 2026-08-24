@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>一房一档房屋档案全景 · 房屋交易档案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 全站统一：档案载体 / 密级 / 保管期限三套标识 */
+  .cr { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; white-space: nowrap; }
+  .cr.e { color: #2563eb; }
+  .cr.p { color: #a16207; }
+  .cr.d { color: #7c3aed; }
+  .ml { display: inline-flex; align-items: center; padding: 1px 6px; border-radius: 4px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+  .ml.m0 { background: #dcfce7; color: #15803d; }
+  .ml.m1 { background: #dbeafe; color: #1d4ed8; }
+  .ml.m2 { background: #fef3c7; color: #b45309; }
+  .ml.m3 { background: #fee2e2; color: #b91c1c; }
+  .no-code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; }
+  /* 本页特有：房屋信息卡 */
+  .hs-card {
+    display: flex; gap: 20px; flex-wrap: wrap; background: linear-gradient(135deg, #eef4ff 0%, #f8fbff 100%);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px;
+  }
+  .hs-card .hc-main { flex: 1 1 460px; min-width: 300px; }
+  .hs-card .hc-addr { font-size: 18px; font-weight: 700; line-height: 1.4; }
+  .hs-card .hc-code { font-size: 12.5px; color: var(--text-2); margin-top: 5px; line-height: 1.9; }
+  .hs-card .hc-code b { color: var(--text-1); }
+  .hs-card .hc-side { flex: 0 0 260px; padding-left: 20px; border-left: 1px dashed #c9d6ea; }
+  .own-line { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 4px 0; }
+  .own-line .yr { width: 96px; flex-shrink: 0; color: var(--text-3); font-variant-numeric: tabular-nums; }
+  .own-line.cur-own { font-weight: 700; color: var(--primary); }
+  .fig-row { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 12px; }
+  .fig-row .fg .f-v { font-size: 22px; font-weight: 700; color: var(--primary); font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .fig-row .fg .f-l { font-size: 12px; color: var(--text-3); }
+  /* 本页特有：案卷时间轴 */
+  .yr-group { display: flex; gap: 16px; }
+  .yr-tag { flex: 0 0 92px; text-align: right; padding-top: 4px; position: relative; }
+  .yr-tag .y { font-size: 28px; font-weight: 700; color: var(--primary); line-height: 1; font-variant-numeric: tabular-nums; }
+  .yr-tag .c { font-size: 12px; color: var(--text-3); }
+  .yr-line { flex: 0 0 2px; background: var(--border); position: relative; margin: 6px 0; }
+  .yr-body { flex: 1; min-width: 0; padding-bottom: 14px; }
+  .vol-card {
+    position: relative; border: 1px solid var(--border); border-radius: 10px; background: #fff;
+    padding: 12px 14px 12px 18px; margin-bottom: 10px; transition: .18s;
+  }
+  .vol-card:hover { box-shadow: var(--shadow); border-color: var(--primary-soft); }
+  .vol-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; border-radius: 10px 0 0 10px; }
+  .vol-card.t-sp::before { background: var(--primary); }
+  .vol-card.t-cf::before { background: var(--info); }
+  .vol-card.t-zl::before { background: var(--success); }
+  .vol-card.t-dy::before { background: var(--warning); }
+  .vol-card.t-dj::before { background: #7c3aed; }
+  .vol-card.t-ch::before { background: #a16207; }
+  .vol-card .vc-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .vol-card .vc-no {
+    width: 22px; height: 22px; border-radius: 50%; background: var(--bg-soft); color: var(--text-2);
+    font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .vol-card .vc-name { font-size: 14.5px; font-weight: 600; }
+  .vol-card .vc-meta { font-size: 12.5px; color: var(--text-2); margin-top: 6px; line-height: 1.9; }
+  .vol-card .vc-meta b { color: var(--text-1); }
+  .vol-card .vc-ops { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .vol-card .vc-lend {
+    position: absolute; right: 12px; top: 12px; background: #fff8ed; border: 1px solid #f4d39a;
+    color: #b45309; font-size: 11.5px; border-radius: 6px; padding: 3px 8px; line-height: 1.5;
+  }
+  .sum-bar {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 10px 14px;
+    background: var(--bg-soft); border-radius: 8px; font-size: 13px;
+  }
+  .sum-bar b { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdagl-08">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> <a class="link" href="index.html">房屋交易档案管理系统</a>
+        <span class="sep">/</span> 档案接收整理
+        <span class="sep">/</span> <span class="cur">一房一档房屋档案全景</span>
+      </div>
+      <div class="page-title">一房一档房屋档案全景</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="PMS.toast('已打开房屋档案目录打印预览（A4 纵向）')"><i class="fa-solid fa-print"></i> 打印房屋档案目录</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《一房一档目录》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+      <a class="btn" href="borrow-apply.html?fy=DAFY450202001286"><i class="fa-solid fa-hand-holding-hand"></i> 发起借阅</a>
+      <a class="btn btn-primary" href="archive-viewer.html"><i class="fa-solid fa-object-group"></i> 图文查看</a>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      本房屋档案与 wsdwb 房屋交易备案簿一一对应——<b>备案簿记录业务事项，档案保存原始材料</b>；
+      该房 9 卷案卷与备案簿 9 条记事逐条吻合，通过房源主键 <b class="no-code">FY450202001286</b> 自动聚合，新增办件案卷时总卷自动更新，无需人工维护。
+    </div>
+  </div>
+
+  <div class="hs-card">
+    <div class="hc-main">
+      <div class="hc-addr">柳州市城中区滨江东路 8 号彰泰滨江学府 12 栋 2 单元 1802</div>
+      <div class="hc-code">
+        一房一档总卷号 <b class="no-code">DAFY450202001286</b>　房源主键 <b class="no-code">FY450202001286</b><br>
+        不动产单元号 <b class="no-code">450202001005GB00123F00020017</b><br>
+        产权证号 <b>桂(2023)柳州市不动产权第 0086421 号</b>　建筑面积 <b>118.65 ㎡</b>　房屋用途 <b>成套住宅</b>
+      </div>
+      <div class="fig-row">
+        <div class="fg"><div class="f-v">9</div><div class="f-l">案卷总数（卷）</div></div>
+        <div class="fg"><div class="f-v">81</div><div class="f-l">卷内件数（件）</div></div>
+        <div class="fg"><div class="f-v">269</div><div class="f-l">总页数（页）</div></div>
+        <div class="fg"><div class="f-v">2021-2026</div><div class="f-l">年度跨度</div></div>
+      </div>
+      <div class="flex gap-8 mt-16" style="flex-wrap:wrap">
+        <span class="cr e"><i class="fa-solid fa-cloud"></i> 纯电子 5 卷</span>
+        <span class="cr d"><i class="fa-solid fa-layer-group"></i> 双套 4 卷</span>
+        <span class="cr p"><i class="fa-solid fa-folder-open"></i> 纯纸质 0 卷</span>
+        <span class="badge orange">在借 1 卷</span>
+      </div>
+    </div>
+    <div class="hc-side">
+      <div class="section-title">历任权利人</div>
+      <div class="own-line"><span class="yr">2021-2023</span><span>柳州彰泰置业有限公司</span></div>
+      <div class="own-line"><span class="yr">2023-2026</span><span>陈**</span></div>
+      <div class="own-line cur-own"><span class="yr">2026 至今</span><span>周**<span class="badge blue" style="margin-left:6px">当前权利人</span></span></div>
+      <div class="section-title mt-16">最新一卷</div>
+      <div class="text-sm">
+        <span class="badge orange">抵押登记档案</span><br>
+        <span class="no-code">DA450204202600908</span> 带押过户抵押备案<br>
+        <span class="text-3">2026-07-02 归档</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>档案类型</label>
+        <select id="fType">
+          <option value="">全部</option>
+          <option value="sp">商品房交易档案</option>
+          <option value="cf">存量房交易档案</option>
+          <option value="zl">房屋租赁档案</option>
+          <option value="dy">抵押登记档案</option>
+          <option value="dj">一房一档 / 登记归档</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>年度起</label>
+        <select id="fY1"><option value="">全部</option><option>2021</option><option>2023</option><option>2024</option><option>2026</option></select>
+      </div>
+      <div class="filter-item">
+        <label>年度止</label>
+        <select><option value="">全部</option><option>2021</option><option>2023</option><option>2024</option><option selected>2026</option></select>
+      </div>
+      <div class="filter-item">
+        <label>业务类型</label>
+        <select>
+          <option value="">全部</option><option>认购登记</option><option>网签备案</option><option>抵押登记</option>
+          <option>租赁备案</option><option>转移登记</option><option>备案注销</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>仅看有实体的</label>
+        <select id="fEnt"><option value="">全部</option><option value="1">是（纸质 / 双套）</option><option value="0">否（纯电子）</option></select>
+      </div>
+      <div class="filter-item">
+        <label>仅看已数字化的</label>
+        <select><option value="">全部</option><option>是</option><option>否</option></select>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="doFilter()"><i class="fa-solid fa-magnifying-glass"></i> 筛选</button>
+        <button type="button" class="btn" onclick="resetFilter()"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="card-body">
+      <div id="tlBody">
+        <div class="yr-group" data-year="2021">
+          <div class="yr-tag"><div class="y">2021</div><div class="c">3 卷 · 29 件</div></div>
+          <div class="yr-line"></div>
+          <div class="yr-body">
+            <div class="vol-card t-sp" data-type="sp" data-ent="0">
+              <div class="vc-top">
+                <span class="vc-no">1</span>
+                <span class="badge blue">商品房交易档案</span>
+                <span class="vc-name">商品房认购登记</span>
+                <span class="ml m1">内部</span>
+              </div>
+              <div class="vc-meta">
+                档案号 <b class="no-code">DA450202202100486</b>　业务发生 <b>2021-03-16</b>　归档 <b>2021-03-18</b><br>
+                认购人 <b>陈**</b> ← 出让方 <b>柳州彰泰置业有限公司</b>　<b>6</b> 件 / <b>18</b> 页　
+                <span class="cr e"><i class="fa-solid fa-cloud"></i> 纯电子</span>　<span class="badge blue">定期 30 年</span>　<span class="badge green">已归档在库</span>　
+                <span class="text-3">电子档案，不占库位</span>
+              </div>
+              <div class="vc-ops">
+                <a class="btn btn-sm" href="archive-detail.html"><i class="fa-solid fa-file-lines"></i> 查看详情</a>
+                <a class="btn btn-sm" href="archive-viewer.html"><i class="fa-solid fa-object-group"></i> 图文查看</a>
+                <a class="btn btn-sm" href="borrow-apply.html?da=DA450202202100486"><i class="fa-solid fa-hand-holding-hand"></i> 借阅</a>
+              </div>
+            </div>
+            <div class="vol-card t-sp" data-type="sp" data-ent="1">
+              <div class="vc-lend">
+                <i class="fa-solid fa-hand-holding-hand"></i> 在借<br>XXXX市中级人民法院<br>应还 2026-07-06
+              </div>
+              <div class="vc-top">
+                <span class="vc-no">2</span>
+                <span class="badge blue">商品房交易档案</span>
+                <span class="vc-name">商品房买卖合同网签备案</span>
+                <span class="ml m2">秘密</span>
+              </div>
+              <div class="vc-meta">
+                档案号 <b class="no-code">DA450202202100862</b>　业务发生 <b>2021-05-06</b>　归档 <b>2021-05-12</b><br>
+                买受人 <b>陈**</b> ← 出让方 <b>柳州彰泰置业有限公司</b>　<b>14</b> 件 / <b>52</b> 页　
+                <span class="cr d"><i class="fa-solid fa-layer-group"></i> 双套</span>　<span class="badge red">永久</span>　<span class="badge orange">已借出</span>　
+                <span class="no-code">KF01-J08-J2-C3-G6-H042</span>
+              </div>
+              <div class="vc-ops">
+                <a class="btn btn-sm" href="archive-detail.html"><i class="fa-solid fa-file-lines"></i> 查看详情</a>
+                <a class="btn btn-sm" href="archive-viewer.html"><i class="fa-solid fa-object-group"></i> 图文查看</a>
+                <a class="btn btn-sm" href="borrow-return.html?jc=JC20260620008"><i class="fa-solid fa-rotate-left"></i> 办理归还</a>
+              </div>
+            </div>
+            <div class="vol-card t-dy" data-type="dy" data-ent="1">
+              <div class="vc-top">
+                <span class="vc-no">3</span>
+                <span class="badge orange">抵押登记档案</span>
+                <span class="vc-name">预购商品房抵押预告登记</span>
+                <span class="ml m1">内部</span>
+              </div>
+              <div class="vc-meta">
+                档案号 <b class="no-code">DA450202202101024</b>　业务发生 <b>2021-06-02</b>　归档 <b>2021-06-08</b><br>
+                抵押权人 <b>柳州银行营业部</b> ← 抵押人 <b>陈**</b>　<b>9</b> 件 / <b>28</b> 页　
+                <span class="cr d"><i class="fa-solid fa-layer-group"></i> 双套</span>　<span class="badge blue">定期 30 年</span>　<span class="badge green">已归档在库</span>　
+                <span class="no-code">KF01-J08-J2-C3-G6-H044</span>
+              </div>
+              <div class="vc-ops">
+                <a class="btn btn-sm" href="archive-detail.html"><i class="fa-solid fa-file-lines"></i> 查看详情</a>
+                <a class="btn btn-sm" href="archive-viewer.html"><i class="fa-solid fa-object-group"></i> 图文查看</a>
+                <a class="btn btn-sm" href="borrow-apply.html?da=DA450202202101024"><i class="fa-solid fa-hand-holding-hand"></i> 借阅</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="yr-group" data-year="2023">
+          <div class="yr-tag"><div class="y">2023</div><div class="c">2 卷 · 19 件</div></div>
+          <div class="yr-line"></div>
+          <div class="yr-body">
+            <div class="vol-card t-dj" data-type="dj" data-ent="1">
+              <div class="vc-top">
+                <span class="vc-no">4</span>
+                <span class="badge purple">一房一档</span>
+                <span class="vc-name">不动产转移登记归档</span>
+                <span class="ml m1">内部</span>
+              </div>
+              <div class="vc-meta">
+                档案号 <b class="no-code">DA450202202300186</b>　业务发生 <b>2023-04-12</b>　归档 <b>2023-04-20</b><br>
+                受让方 <b>陈**</b> ← 转让方 <b>柳州彰泰置业有限公司</b>　<b>11</b> 件 / <b>36</b> 页　
+                <span class="cr d"><i class="fa-solid fa-layer-group"></i> 双套</span>　<span class="badge red">永久</span>　<span class="badge green">已归档在库</span>　
+                <span class="no-code">KF01-J10-J1-C2-G4-H128</span>
+              </div>
+              <div class="vc-meta text-3">
+                <i class="fa-solid fa-link"></i> 首次取得不动产权证书 桂(2023)柳州市不动产权第 0086421 号，本卷为登记归档联动接收
+              </div>
+              <div class="vc-ops">
+                <a class="btn btn-sm" href="archive-detail.html"><i class="fa-solid fa-file-lines"></i> 查看详情</a>
+                <a class="btn btn-sm" href="archive-viewer.html"><i class="fa-solid fa-object-group"></i> 图文查看</a>
+                <a class="btn btn-sm" href="borrow-apply.html?da=DA450202202300186"><i class="fa-solid fa-hand-holding-hand"></i> 借阅</a>
+              </div>
+            </div>
+            <div class="vol-card t-dy" data-type="dy" data-ent="0">
+              <div class="vc-top">
+                <span class="vc-no">5</span>
+                <span class="badge orange">抵押登记档案</span>
+                <span class="vc-name">抵押备案（预告转正式）</span>
+                <span class="ml m1">内部</span>
+              </div>
+              <div class="vc-meta">
+                档案号 <b class="no-code">DA450202202300242</b>　业务发生 <b>2023-04-26</b>　归档 <b>2023-04-28</b><br>
+                抵押权人 <b>柳州银行营业部</b> ← 抵押人 <b>陈**</b>　<b>8</b> 件 / <b>24</b> 页　
+                <span class="cr e"><i class="fa-solid fa-cloud"></i> 纯电子</span>　<span class="badge blue">定期 30 年</span>　<span class="badge green">已归档在库</span>　
+                <span class="text-3">电子档案，不占库位</span>
+              </div>
+              <div class="vc-ops">
+                <a class="btn btn-sm" href="archive-detail.html"><i class="fa-solid fa-file-lines"></i> 查看详情</a>
+                <a class="btn btn-sm" href="archive-viewer.html"><i class="fa-solid fa-object-group"></i> 图文查看</a>
+                <a class="btn btn-sm" href="borrow-apply.html?da=DA450202202300242"><i class="fa-solid fa-hand-holding-hand"></i> 借阅</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="yr-group" data-year="2024">
+          <div class="yr-tag"><div class="y">2024</div><div class="c">1 卷 · 7 件</div></div>
+          <div class="yr-line"></div>
+          <div class="yr-body">
+            <div class="vol-card t-zl" data-type="zl" data-ent="0">
+              <div class="vc-top">
+                <span class="vc-no">6</span>
+                <span class="badge green">房屋租赁档案</span>
+                <span class="vc-name">房屋租赁合同备案</span>
+                <span class="ml m0">公开</span>
+              </div>
+              <div class="vc-meta">
+                档案号 <b class="no-code">DA450202202400628</b>　业务发生 <b>2024-04-10</b>　归档 <b>2024-04-16</b><br>
+                承租人 <b>黄**</b> ← 出租人 <b>陈**</b>　<b>7</b> 件 / <b>21</b> 页　
+                <span class="cr e"><i class="fa-solid fa-cloud"></i> 纯电子</span>　<span class="badge cyan">定期 10 年</span>　<span class="badge green">已归档在库</span>　
+                <span class="text-3">电子档案，不占库位</span>
+              </div>
+              <div class="vc-ops">
+                <a class="btn btn-sm" href="archive-detail.html"><i class="fa-solid fa-file-lines"></i> 查看详情</a>
+                <a class="btn btn-sm" href="archive-viewer.html"><i class="fa-solid fa-object-group"></i> 图文查看</a>
+                <a class="btn btn-sm" href="borrow-apply.html?da=DA450202202400628"><i class="fa-solid fa-hand-holding-hand"></i> 借阅</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="yr-group" data-year="2026">
+          <div class="yr-tag"><div class="y">2026</div><div class="c">3 卷 · 26 件</div></div>
+          <div class="yr-line"></div>
+          <div class="yr-body">
+            <div class="vol-card t-zl" data-type="zl" data-ent="0">
+              <div class="vc-top">
+                <span class="vc-no">7</span>
+                <span class="badge green">房屋租赁档案</span>
+                <span class="vc-name">租赁备案注销</span>
+                <span class="ml m0">公开</span>
+              </div>
+              <div class="vc-meta">
+                档案号 <b class="no-code">DA450202202600186</b>　业务发生 <b>2026-02-08</b>　归档 <b>2026-02-10</b><br>
+                注销申请人 <b>陈**</b>　<b>4</b> 件 / <b>12</b> 页　
+                <span class="cr e"><i class="fa-solid fa-cloud"></i> 纯电子</span>　<span class="badge cyan">定期 10 年</span>　<span class="badge green">已归档在库</span>　
+                <span class="text-3">电子档案，不占库位</span>
+              </div>
+              <div class="vc-ops">
+                <a class="btn btn-sm" href="archive-detail.html"><i class="fa-solid fa-file-lines"></i> 查看详情</a>
+                <a class="btn btn-sm" href="archive-viewer.html"><i class="fa-solid fa-object-group"></i> 图文查看</a>
+                <a class="btn btn-sm" href="borrow-apply.html?da=DA450202202600186"><i class="fa-solid fa-hand-holding-hand"></i> 借阅</a>
+              </div>
+            </div>
+            <div class="vol-card t-cf" data-type="cf" data-ent="1">
+              <div class="vc-top">
+                <span class="vc-no">8</span>
+                <span class="badge cyan">存量房交易档案</span>
+                <span class="vc-name">存量房买卖合同网签备案</span>
+                <span class="ml m1">内部</span>
+                <span class="badge blue">本次归集新增</span>
+              </div>
+              <div class="vc-meta">
+                档案号 <b class="no-code">DA450204202600862</b>　业务发生 <b>2026-06-28</b>　归档 <b>2026-06-29</b><br>
+                受让方 <b>周**</b> ← 转让方 <b>陈**</b>　<b>12</b> 件 / <b>46</b> 页　
+                <span class="cr d"><i class="fa-solid fa-layer-group"></i> 双套</span>　<span class="badge red">永久</span>　<span class="badge green">已归档在库</span>　
+                <span class="no-code">KF01-J12-J3-C4-G2-H086</span>
+              </div>
+              <div class="vc-meta text-3">
+                <i class="fa-solid fa-bolt"></i> 由归集任务 <a class="link no-code" href="auto-collect.html?task=GJ20260628042">GJ20260628042</a> 自动组卷，缺件补齐后于 2026-07-01 完成归档
+              </div>
+              <div class="vc-ops">
+                <a class="btn btn-sm btn-primary" href="archive-detail.html"><i class="fa-solid fa-file-lines"></i> 查看详情</a>
+                <a class="btn btn-sm" href="archive-viewer.html"><i class="fa-solid fa-object-group"></i> 图文查看</a>
+                <a class="btn btn-sm" href="borrow-apply.html?da=DA450204202600862"><i class="fa-solid fa-hand-holding-hand"></i> 借阅</a>
+              </div>
+            </div>
+            <div class="vol-card t-dy" data-type="dy" data-ent="0">
+              <div class="vc-top">
+                <span class="vc-no">9</span>
+                <span class="badge orange">抵押登记档案</span>
+                <span class="vc-name">带押过户抵押备案</span>
+                <span class="ml m1">内部</span>
+              </div>
+              <div class="vc-meta">
+                档案号 <b class="no-code">DA450204202600908</b>　业务发生 <b>2026-06-30</b>　归档 <b>2026-07-02</b><br>
+                抵押权人 <b>柳州银行营业部</b> ← 抵押人 <b>周**</b>　<b>10</b> 件 / <b>32</b> 页　
+                <span class="cr e"><i class="fa-solid fa-cloud"></i> 纯电子</span>　<span class="badge red">永久</span>　<span class="badge green">已归档在库</span>　
+                <span class="text-3">电子档案，不占库位</span>
+              </div>
+              <div class="vc-ops">
+                <a class="btn btn-sm" href="archive-detail.html"><i class="fa-solid fa-file-lines"></i> 查看详情</a>
+                <a class="btn btn-sm" href="archive-viewer.html"><i class="fa-solid fa-object-group"></i> 图文查看</a>
+                <a class="btn btn-sm" href="borrow-apply.html?da=DA450204202600908"><i class="fa-solid fa-hand-holding-hand"></i> 借阅</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sum-bar">
+        <span><i class="fa-solid fa-layer-group text-primary"></i> 共 <b>9</b> 卷 <b>81</b> 件 <b>269</b> 页</span>
+        <span class="text-3">|</span>
+        <span>纯电子 <b>5</b> 卷 · 双套 <b>4</b> 卷 · 纯纸质 <b>0</b> 卷</span>
+        <span class="text-3">|</span>
+        <span>年度跨度 <b>2021 ~ 2026</b></span>
+        <span class="text-3">|</span>
+        <span>在借 <b class="text-warning">1</b> 卷</span>
+        <span style="margin-left:auto" class="text-3">按房源主键自动聚合，无需人工维护</span>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function doFilter() {
+  var t = document.getElementById('fType').value;
+  var e = document.getElementById('fEnt').value;
+  var y = document.getElementById('fY1').value;
+  var shown = 0;
+  document.querySelectorAll('.yr-group').forEach(function (g) {
+    var n = 0;
+    g.querySelectorAll('.vol-card').forEach(function (c) {
+      var ok = (!t || c.getAttribute('data-type') === t) &&
+               (!e || c.getAttribute('data-ent') === e) &&
+               (!y || g.getAttribute('data-year') >= y);
+      c.style.display = ok ? '' : 'none';
+      if (ok) n++;
+    });
+    g.style.display = n ? '' : 'none';
+    shown += n;
+  });
+  PMS.toast('筛选后显示 ' + shown + ' 卷');
+}
+function resetFilter() {
+  document.getElementById('fType').value = '';
+  document.getElementById('fEnt').value = '';
+  document.getElementById('fY1').value = '';
+  document.querySelectorAll('.yr-group, .vol-card').forEach(function (el) { el.style.display = ''; });
+  PMS.toast('已重置，显示全部 9 卷');
+}
+(function () {
+  var code = new URLSearchParams(location.search).get('code');
+  if (code) PMS.toast('已定位到「' + decodeURIComponent(code) + '」对应房屋的一房一档');
+})();
+</script>
+</body>
+</html>

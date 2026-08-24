@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>材料一致性交叉校验 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="jb" data-active="contract-review" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>智能应用</span>
+      <span class="sep">/</span><span>智能审核</span>
+      <span class="sep">/</span><span class="cur">材料一致性交叉校验</span>
+    </div>
+    <div class="page-actions">
+      <span class="node-tag"><i class="fa-solid fa-user-shield"></i>业务经办人</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-file-circle-check"></i>智能审核 wsai-06</span>
+    <a href="contract-review.html?role=jb">合同材料审核</a>
+    <a href="license-ocr.html?role=jb">证照识别回填</a>
+    <a class="active" href="cross-check.html?role=jb">材料交叉校验</a>
+    <span class="sn-label" style="margin-left:10px"><i class="fa-solid fa-magnifying-glass-chart"></i>治理</span>
+    <a href="../admin/review-feedback.html?role=pt">审核结果复核回流</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-code-compare"></i>
+    <span>跨多份材料比对姓名、面积、金额、日期等关键项。<b>差异矩阵中不一致的单元格会高亮</b>，
+      差异项可转为补正建议；结论需人工确认后才产生业务效力。</span>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>发起交叉校验</h3>
+      <span class="sub">选择办件后跨材料比对关键项</span>
+      <div class="head-actions">
+        <select id="pickCase" style="width:330px"></select>
+        <button class="btn btn-primary btn-sm" onclick="run()"><i class="fa-solid fa-play"></i> 开始交叉校验</button>
+      </div>
+    </div>
+    <div class="card-body" id="resBox">
+      <div class="empty"><i class="fa-regular fa-table-cells"></i><div>选择办件后点「开始交叉校验」</div></div>
+    </div>
+  </div>
+
+  <div id="aiPushHint" class="mt-16"></div>
+
+  <div class="card mt-16">
+    <div class="card-head"><h3>校验记录</h3><span class="sub">全部交叉校验输出留痕</span></div>
+    <div class="table-wrap">
+      <table class="data-table" id="tCross" data-static>
+        <thead><tr>
+          <th>业务标识</th><th class="cell-lg">校验结论</th><th>模型 / 版本</th>
+          <th>置信度</th><th>确认状态</th><th>确认人</th><th>校验时间</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var last = null;
+
+  function fillPicker() {
+    var sel = document.getElementById('pickCase');
+    var keep = sel.value;
+    sel.innerHTML = AI.get('cases').map(function (c) {
+      return '<option value="' + c.id + '">' + AI.esc(c.sjbh) + ' · ' + AI.esc(c.sxmc) + ' · ' + AI.esc(c.sqr) + '</option>';
+    }).join('');
+    if (keep) sel.value = keep;
+  }
+
+  window.run = function () {
+    var r = AI.act.crossCheck(document.getElementById('pickCase').value);
+    if (!r) return;
+    last = r;
+    paintRes();
+  };
+
+  function paintRes() {
+    if (!last) return;
+    var o = AI.byId('outputs', last.output.id) || last.output;
+    var box = document.getElementById('resBox');
+    box.innerHTML =
+      '<div class="mb-16 flex items-center gap-12" style="flex-wrap:wrap">' +
+        AI.aiMark(o.qrzt) + AI.aiSource(o) + '</div>' +
+      '<div class="table-wrap"><table class="data-table" data-static><thead><tr>' +
+        '<th>关键项</th>' + last.cols.map(function (c) { return '<th>' + AI.esc(c) + '</th>'; }).join('') +
+        '<th>比对结果</th></tr></thead><tbody>' +
+      last.matrix.map(function (r) {
+        return '<tr><td class="fw-600">' + AI.esc(r.item) + '</td>' +
+          r.vals.map(function (v) {
+            /* 与第一份材料不一致的单元格高亮 */
+            var diff = v !== r.vals[0];
+            return '<td' + (diff ? ' style="background:var(--danger-light);color:var(--danger);font-weight:600"' : '') + '>' +
+              AI.esc(v) + '</td>';
+          }).join('') +
+          '<td>' + (r.same
+            ? '<span class="badge green">一致</span>'
+            : '<span class="badge red">不一致</span> ' + AI.confidence(r.conf)) + '</td></tr>';
+      }).join('') + '</tbody></table></div>' +
+      (last.diff
+        ? '<div class="alert alert-danger mt-16"><i class="fa-solid fa-circle-exclamation"></i>' +
+          '<span>发现 <b>' + last.diff + ' 项</b>关键值跨材料不一致，建议转补正让申请人核对原件。</span></div>'
+        : '<div class="alert alert-success mt-16"><i class="fa-solid fa-circle-check"></i>' +
+          '<span>全部关键项跨材料一致。</span></div>') +
+      '<div class="mt-16 btn-row">' +
+        (o.qrzt === '0'
+          ? AI.actTriplet(o.id)
+          : '<span class="badge green">已' + AI.dict('qrzt', o.qrzt) + '</span>') +
+        (last.diff
+          ? '<button class="btn btn-primary" onclick="toCorrection(\'' + o.id + '\',' + last.diff + ')">' +
+            '<i class="fa-solid fa-paper-plane"></i> 差异项转补正建议</button>'
+          : '') +
+      '</div>';
+  }
+
+  window.toCorrection = function (outId, diff) {
+    var o = AI.byId('outputs', outId);
+    if (!o) return;
+    if (o.qrzt === '0') { AI.toast('校验结论未人工确认，不能转补正建议', 'error'); return; }
+    AI.pushTo('统一工作门户 · 材料补正', diff + ' 项跨材料差异',
+      '../../统一门户/biz/material-correct.html?role=biz');
+  };
+
+  AI.table({
+    id: 'tCross', pageSize: 10,
+    rows: function () {
+      return AI.where('outputs', function (o) { return o.scene === '09'; });
+    },
+    cells: function (o) {
+      return [
+        '<td>' + AI.esc(o.bizId) + '</td>',
+        '<td class="cell-lg">' + AI.esc(o.text) + '</td>',
+        '<td>' + AI.esc(o.mxmc) + '<br><span class="text-3 text-sm">' + AI.esc(o.ver) + '</span></td>',
+        '<td>' + AI.confidence(o.conf) + '</td>',
+        '<td>' + AI.qrBadge(o.qrzt) + '</td>',
+        '<td>' + AI.esc(o.hrBy || '—') + '</td>',
+        '<td>' + AI.fmt.time(o.at) + '</td>',
+        '<td class="col-ops">' + (o.qrzt === '0' ? AI.actTriplet(o.id) : '<span class="text-3">已确认</span>') + '</td>'
+      ];
+    },
+    empty: '暂无交叉校验记录'
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () { fillPicker(); if (last) paintRes(); AI.repaintAll(); });
+  });
+})();
+</script>
+</body>
+</html>

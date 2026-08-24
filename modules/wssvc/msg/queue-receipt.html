@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>发送队列与送达回执 · 统一应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../../assets/css/app.css">
+<link rel="stylesheet" href="../../../assets/css/wssvc.css">
+</head>
+<body data-role="admin" data-active="wssvc-41">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 统一应用服务平台
+        <span class="sep">/</span> 统一消息服务 <span class="sep">/</span> <span class="cur">发送队列与送达回执</span>
+      </div>
+      <div class="page-title">发送队列与送达回执</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="channel.html"><i class="fa-solid fa-tower-broadcast"></i> 通道管理</a>
+      <button class="btn" onclick="SVC.exportAsync('送达回执明细')"><i class="fa-solid fa-download"></i> 导出回执</button>
+      <button class="btn" onclick="PMS.openDrawer('flowDrawer')"><i class="fa-solid fa-gauge-high"></i> 削峰策略</button>
+      <button class="btn btn-primary" onclick="PMS.toast('已对 42 条失败消息发起重发','success')"><i class="fa-solid fa-rotate"></i> 批量重发</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-layer-group"></i>
+    <div>消息不是「调完接口就完事」。从进队列到群众手机响一声，中间还有
+      <b>排队、限流、通道投递、运营商转发、终端接收</b>五道关，
+      每道都可能掉链子。这个页面把整条链路的<b>在途量、积压、回执状态</b>摊开，
+      出问题时能一眼看出卡在哪一段，而不是笼统地说「短信没收到」。</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-paper-plane"></i></div>
+      <div><div class="s-label">今日入队</div><div class="s-value">44,286</div><div class="s-trend">短信 28,642 · 微信 12,486 · 站内 3,158</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">送达率</div><div class="s-value">98.64%</div><div class="s-trend text-success">较昨日 +0.18pt</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">当前在途</div><div class="s-value">386</div><div class="s-trend">排队 128 · 投递中 258</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-circle-xmark"></i></div>
+      <div><div class="s-label">失败待重发</div><div class="s-value">42</div><div class="s-trend text-danger">其中 6 条已达重发上限</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-clock"></i></div>
+      <div><div class="s-label">平均送达时延</div><div class="s-value">4.2 秒</div><div class="s-trend">P95 12.6 秒</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-headset"></i></div>
+      <div><div class="s-label">转人工待办</div><div class="s-value">6</div><div class="s-trend text-warning">多次失败已派单</div></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-diagram-project"></i> 今日消息漏斗</h3><span class="sub">从入队到实际打开</span></div>
+      <div class="card-body">
+        <div class="svc-chart" data-chart="hbar" data-series='{"items":[{"n":"入队","v":44286},{"n":"通过限流","v":44286},{"n":"提交通道","v":44186},{"n":"通道受理","v":44042},{"n":"运营商送达","v":43684},{"n":"用户打开","v":18642,"warn":true}],"max":44286}'></div>
+        <p class="hint"><i class="fa-solid fa-lightbulb"></i>
+          <b>真正的流失发生在最后一环</b>：送达 4.37 万条，打开只有 1.86 万，打开率 42.7%。
+          短信没法统计打开，这个数只算微信卡片与站内消息。
+          从投诉记录看，「没收到通知」里有相当一部分其实是收到了没看——
+          这也是为什么关键节点要坚持微信 + 短信双发。</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-chart-column"></i> 24 小时发送量与积压</h3><span class="sub">条</span></div>
+      <div class="card-body">
+        <div class="svc-chart" data-chart="dual" data-series='{"x":["0","2","4","6","8","9","10","11","12","14","15","16","17","18","20","22"],"bar":[86,42,28,142,3862,5286,4862,4286,1862,3286,4126,4862,5286,2862,1286,486],"line":[99.2,99.4,99.5,99.1,98.2,97.4,98.1,98.6,99.0,98.8,98.4,97.8,96.8,98.6,99.1,99.3]}'></div>
+        <p class="hint"><i class="fa-solid fa-circle-info"></i>
+          柱为发送量、线为送达率。<b>9 点与 17 点两个峰</b>——
+          早上是定时提醒批量发出，下午是窗口办结集中出证。
+          17 点那一刻送达率掉到 96.8%，正是队列排到了限流阈值上限，
+          部分消息延迟到 1 分钟后才提交通道。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="q">发送队列</div>
+      <div class="tab" data-tab="r">送达回执</div>
+      <div class="tab" data-tab="f">失败与重发</div>
+      <div class="tab" data-tab="m">转人工待办</div>
+      <div class="tab" data-tab="c">验证码防刷</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="q">
+      <div class="card-body">
+        <div class="svc-gauge">
+          <div class="gg">
+            <div class="gg-n">实时队列（高优先）</div>
+            <div class="gg-v text-success">18</div>
+            <div class="gg-x">验证码、资金到账 · 承诺 3 分钟内</div>
+            <div class="gg-t"><i class="gg-f" style="width:12%"></i></div>
+          </div>
+          <div class="gg">
+            <div class="gg-n">普通队列</div>
+            <div class="gg-v">86</div>
+            <div class="gg-x">办件节点通知 · 承诺 30 分钟内</div>
+            <div class="gg-t"><i class="gg-f" style="width:34%"></i></div>
+          </div>
+          <div class="gg">
+            <div class="gg-n">批量队列</div>
+            <div class="gg-v text-warning">24</div>
+            <div class="gg-x">回访、宣传 · 当日内发完，让路给前两个</div>
+            <div class="gg-t"><i class="gg-f warn" style="width:62%"></i></div>
+          </div>
+          <div class="gg">
+            <div class="gg-n">缓发队列（免打扰）</div>
+            <div class="gg-v">862</div>
+            <div class="gg-x">次日 08:00-08:30 摊开发出</div>
+            <div class="gg-t"><i class="gg-f" style="width:48%"></i></div>
+          </div>
+        </div>
+        <div class="filter-bar mt-16">
+          <div class="filter-item"><label>关键词</label><input type="text" placeholder="业务号 / 手机号 / 消息 ID"></div>
+          <div class="filter-item"><label>队列</label><select><option value="">全部</option><option>实时</option><option>普通</option><option>批量</option><option>缓发</option></select></div>
+          <div class="filter-item"><label>渠道</label><select><option value="">全部</option><option>短信</option><option>微信</option><option>站内</option></select></div>
+          <div class="filter-item"><label>状态</label><select><option value="">全部</option><option>排队中</option><option>投递中</option><option>限流等待</option></select></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已检索队列消息','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="PMS.toast('已重置为默认条件')">重置</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>消息 ID</th><th>入队时间</th><th>队列</th><th>渠道</th><th>模板</th><th>接收号码</th><th>关联业务</th><th>状态</th><th class="num">已等待</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr class="clickable" onclick="PMS.openDrawer('msgDrawer')">
+                <td class="nowrap">MSG20260801214628</td><td class="nowrap">21:46:28</td><td><span class="badge red">实时</span></td><td>短信</td>
+                <td class="nowrap">SMS-ZJ-008</td><td class="nowrap">138****2846</td><td class="nowrap">ZJ2026080100286</td><td><span class="badge blue">投递中</span></td><td class="num">2 秒</td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('msgDrawer')">
+                <td class="nowrap">MSG20260801214624</td><td class="nowrap">21:46:24</td><td><span class="badge red">实时</span></td><td>短信</td>
+                <td class="nowrap">SMS-COM-001</td><td class="nowrap">186****9024</td><td class="nowrap">登录验证码</td><td><span class="badge blue">投递中</span></td><td class="num">6 秒</td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('msgDrawer')">
+                <td class="nowrap">MSG20260801214612</td><td class="nowrap">21:46:12</td><td><span class="badge blue">普通</span></td><td>微信</td>
+                <td class="nowrap">WX-DJ-016</td><td class="nowrap">oq3F****9wE2</td><td class="nowrap">DJ2026073100642</td><td><span class="badge green">已提交</span></td><td class="num">18 秒</td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('msgDrawer')">
+                <td class="nowrap">MSG20260801214558</td><td class="nowrap">21:45:58</td><td><span class="badge blue">普通</span></td><td>短信</td>
+                <td class="nowrap">SMS-DJ-024</td><td class="nowrap">135****4862</td><td class="nowrap">DJ2026080100846</td><td><span class="badge orange">限流等待</span></td><td class="num">32 秒</td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('msgDrawer')">
+                <td class="nowrap">MSG20260801214532</td><td class="nowrap">21:45:32</td><td><span class="badge gray">批量</span></td><td>微信</td>
+                <td class="nowrap">WX-COM-012</td><td class="nowrap">oq3F****2kL8</td><td class="nowrap">满意度回访</td><td><span class="badge gray">排队中</span></td><td class="num">1 分 04 秒</td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('msgDrawer')">
+                <td class="nowrap">MSG20260801214218</td><td class="nowrap">21:42:18</td><td><span class="badge purple">缓发</span></td><td>微信</td>
+                <td class="nowrap">WX-COM-012</td><td class="nowrap">oq3F****7nR4</td><td class="nowrap">DJ2026073000524</td><td><span class="badge purple">待次日 08:12</span></td><td class="num">—</td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('msgDrawer')">
+                <td class="nowrap">MSG20260801214146</td><td class="nowrap">21:41:46</td><td><span class="badge blue">普通</span></td><td>站内</td>
+                <td class="nowrap">IN-NEI-006</td><td class="nowrap">覃志强（工号 0862）</td><td class="nowrap">DJ2026080100846</td><td><span class="badge green">已送达</span></td><td class="num">—</td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('msgDrawer')">
+                <td class="nowrap">MSG20260801214028</td><td class="nowrap">21:40:28</td><td><span class="badge blue">普通</span></td><td>短信</td>
+                <td class="nowrap">SMS-YY-003</td><td class="nowrap">139****6428</td><td class="nowrap">YY2026080100862</td><td><span class="badge orange">重发中 2/3</span></td><td class="num">6 分 12 秒</td><td><span class="link">详情</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="r">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-receipt"></i>
+          <div>短信回执是运营商回传的，<b>「提交成功」不等于「用户收到」</b>。
+            回执通常在 3-30 秒内回来，超过 5 分钟没回执的按未知处理并触发核查。
+            对办结取件、缴税提醒这类关键通知，<b>没拿到成功回执的会自动转微信补发一次</b>。</div>
+        </div>
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-head"><h3><i class="fa-solid fa-comment-sms"></i> 短信回执</h3></div>
+            <div class="card-body">
+              <div class="svc-chart" data-chart="donut" data-series='{"label":"今日","total":"2.86万","items":[{"n":"送达成功","v":28186,"color":"var(--success)"},{"n":"空号或停机","v":248,"color":"var(--danger)"},{"n":"用户拒收","v":86,"color":"var(--warning)"},{"n":"回执未回","v":122,"color":"var(--text-3)"}]}'></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3><i class="fa-brands fa-weixin"></i> 微信回执</h3></div>
+            <div class="card-body">
+              <div class="svc-chart" data-chart="donut" data-series='{"label":"今日","total":"1.25万","items":[{"n":"送达并打开","v":6842,"color":"var(--success)"},{"n":"送达未打开","v":5286,"color":"var(--info)"},{"n":"用户已取关","v":286,"color":"var(--warning)"},{"n":"下发失败","v":72,"color":"var(--danger)"}]}'></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3><i class="fa-solid fa-bell"></i> 站内消息</h3></div>
+            <div class="card-body">
+              <div class="svc-chart" data-chart="donut" data-series='{"label":"今日","total":"3158","items":[{"n":"已读","v":2486,"color":"var(--success)"},{"n":"未读","v":648,"color":"var(--info)"},{"n":"已过期归档","v":24,"color":"var(--text-3)"}]}'></div>
+            </div>
+          </div>
+        </div>
+        <div class="section-title mt-16">回执明细</div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>消息 ID</th><th>发送时间</th><th>渠道</th><th>通道</th><th>接收号码</th><th>回执状态</th><th>回执时间</th><th class="num">时延</th><th>运营商码</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr class="clickable" onclick="PMS.openDrawer('msgDrawer')">
+                <td class="nowrap">MSG20260801213842</td><td class="nowrap">21:38:42</td><td>短信</td><td class="nowrap">阿里云短信</td><td class="nowrap">137****2846</td>
+                <td><span class="badge green">送达成功</span></td><td class="nowrap">21:38:46</td><td class="num">4.2 秒</td><td class="nowrap">DELIVRD</td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('msgDrawer')">
+                <td class="nowrap">MSG20260801213824</td><td class="nowrap">21:38:24</td><td>短信</td><td class="nowrap">阿里云短信</td><td class="nowrap">158****9124</td>
+                <td><span class="badge red">空号</span></td><td class="nowrap">21:38:30</td><td class="num">6.1 秒</td><td class="nowrap">MSC:0010</td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('msgDrawer')">
+                <td class="nowrap">MSG20260801213806</td><td class="nowrap">21:38:06</td><td>微信</td><td class="nowrap">柳州房产公众号</td><td class="nowrap">oq3F****9wE2</td>
+                <td><span class="badge green">已打开</span></td><td class="nowrap">21:39:12</td><td class="num">1 分 06 秒</td><td class="nowrap">—</td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('msgDrawer')">
+                <td class="nowrap">MSG20260801213748</td><td class="nowrap">21:37:48</td><td>短信</td><td class="nowrap">广西移动直连</td><td class="nowrap">135****4862</td>
+                <td><span class="badge orange">回执未回</span></td><td class="nowrap">—</td><td class="num">已等 8 分</td><td class="nowrap">—</td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('msgDrawer')">
+                <td class="nowrap">MSG20260801213712</td><td class="nowrap">21:37:12</td><td>短信</td><td class="nowrap">阿里云短信</td><td class="nowrap">186****3024</td>
+                <td><span class="badge red">用户拒收</span></td><td class="nowrap">21:37:18</td><td class="num">5.8 秒</td><td class="nowrap">MSC:0007</td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('msgDrawer')">
+                <td class="nowrap">MSG20260801213642</td><td class="nowrap">21:36:42</td><td>微信</td><td class="nowrap">柳州房产公众号</td><td class="nowrap">oq3F****4mT6</td>
+                <td><span class="badge blue">送达未打开</span></td><td class="nowrap">21:36:44</td><td class="num">1.8 秒</td><td class="nowrap">—</td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('msgDrawer')">
+                <td class="nowrap">MSG20260801213618</td><td class="nowrap">21:36:18</td><td>微信</td><td class="nowrap">柳州房产公众号</td><td class="nowrap">oq3F****8kD2</td>
+                <td><span class="badge orange">用户已取关</span></td><td class="nowrap">21:36:19</td><td class="num">0.9 秒</td><td class="nowrap">43004</td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('msgDrawer')">
+                <td class="nowrap">MSG20260801213554</td><td class="nowrap">21:35:54</td><td>短信</td><td class="nowrap">阿里云短信</td><td class="nowrap">139****6428</td>
+                <td><span class="badge green">送达成功</span></td><td class="nowrap">21:35:58</td><td class="num">3.6 秒</td><td class="nowrap">DELIVRD</td><td><span class="link">详情</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="f">
+      <div class="card-body">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head"><h3><i class="fa-solid fa-chart-pie"></i> 失败原因分布</h3><span class="sub">今日 528 条</span></div>
+            <div class="card-body">
+              <div class="svc-chart" data-chart="donut" data-series='{"label":"失败","total":"528","items":[{"n":"空号或停机","v":248,"color":"var(--danger)"},{"n":"回执未回","v":122,"color":"var(--text-3)"},{"n":"用户拒收","v":86,"color":"var(--warning)"},{"n":"微信取关","v":286,"color":"var(--info)"},{"n":"通道限流","v":42,"color":"var(--lv-orange)"},{"n":"内容审核拦截","v":18,"color":"#7c5cd6"}]}'></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3><i class="fa-solid fa-rotate"></i> 重发效果</h3><span class="sub">近 7 日</span></div>
+            <div class="card-body">
+              <div class="svc-chart" data-chart="group" data-series='{"x":["7-26","7-27","7-28","7-29","7-30","7-31","8-01"],"series":[{"name":"重发次数","color":"var(--info)","v":[286,248,312,286,342,368,286]},{"name":"重发成功","color":"var(--success)","v":[186,162,208,192,228,246,192]}]}'></div>
+              <p class="hint"><i class="fa-solid fa-circle-info"></i>
+                重发成功率稳定在 <b>67% 左右</b>。剩下那三成大多是号码本身有问题——
+                空号、停机、长期关机，<b>再重发一百次也不会成功</b>。
+                所以对连续 3 次失败的号码会标记为「疑似无效」，
+                同时给经办人派单确认，避免一直往黑洞里发短信白花钱。</p>
+            </div>
+          </div>
+        </div>
+        <div class="section-title mt-16">失败待处理</div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>消息 ID</th><th>首次发送</th><th>渠道</th><th>接收号码</th><th>模板</th><th>关联业务</th><th>失败原因</th><th class="num">已重发</th><th>下次重发</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr class="clickable" onclick="PMS.openDrawer('failDrawer')">
+                <td class="nowrap">MSG20260801203842</td><td class="nowrap">20:38:42</td><td>短信</td><td class="nowrap">158****9124</td><td class="nowrap">SMS-DJ-016</td>
+                <td class="nowrap">DJ2026073100428</td><td class="text-danger">空号</td><td class="num">3/3</td><td><span class="badge red">已达上限</span></td><td><span class="link">转人工</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('failDrawer')">
+                <td class="nowrap">MSG20260801201246</td><td class="nowrap">20:12:46</td><td>短信</td><td class="nowrap">137****0086</td><td class="nowrap">SMS-DJ-024</td>
+                <td class="nowrap">DJ2026073100386</td><td class="text-danger">停机</td><td class="num">3/3</td><td><span class="badge red">已达上限</span></td><td><span class="link">转人工</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('failDrawer')">
+                <td class="nowrap">MSG20260801194024</td><td class="nowrap">19:40:24</td><td>微信</td><td class="nowrap">oq3F****8kD2</td><td class="nowrap">WX-DJ-016</td>
+                <td class="nowrap">DJ2026073100286</td><td class="text-warning">用户已取关</td><td class="num">1/1</td><td><span class="badge orange">已转短信</span></td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('failDrawer')">
+                <td class="nowrap">MSG20260801214028</td><td class="nowrap">21:40:28</td><td>短信</td><td class="nowrap">139****6428</td><td class="nowrap">SMS-YY-003</td>
+                <td class="nowrap">YY2026080100862</td><td class="text-warning">通道限流</td><td class="num">2/3</td><td class="nowrap">21:52:28</td><td><span class="link">立即重发</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('failDrawer')">
+                <td class="nowrap">MSG20260801212846</td><td class="nowrap">21:28:46</td><td>短信</td><td class="nowrap">186****3024</td><td class="nowrap">SMS-COM-012</td>
+                <td class="nowrap">满意度回访</td><td class="text-warning">用户拒收</td><td class="num">0/0</td><td><span class="badge gray">不重发</span></td><td><span class="link">加入黑名单</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('failDrawer')">
+                <td class="nowrap">MSG20260801210624</td><td class="nowrap">21:06:24</td><td>短信</td><td class="nowrap">135****4862</td><td class="nowrap">SMS-JY-008</td>
+                <td class="nowrap">JY2026080100486</td><td class="text-warning">回执未回</td><td class="num">1/3</td><td class="nowrap">21:36:24</td><td><span class="link">立即重发</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="m">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-headset"></i>
+          <div>重发到上限还是不通，就该有人打个电话了。
+            <b>转人工不是把问题丢给客服，而是把它变成一条有人负责、有截止时间的待办</b>：
+            派给业务对应的窗口，处理完回填联系结果，
+            号码有误的顺手把业务单里的联系方式改对——<b>下次就不会再错</b>。</div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>待办号</th><th>生成时间</th><th>关联业务</th><th>接收人</th><th>原号码</th><th>失败原因</th><th>派单科室</th><th>处理人</th><th>状态</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr class="clickable" onclick="PMS.openDrawer('todoDrawer')">
+                <td class="nowrap">TD20260801086</td><td class="nowrap">20:52:42</td><td class="nowrap">DJ2026073100428</td><td class="nowrap">罗**</td><td class="nowrap">158****9124</td>
+                <td class="text-danger">空号</td><td class="nowrap">登记受理科</td><td class="nowrap">—</td><td><span class="badge red">待处理</span></td><td><span class="link">处理</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('todoDrawer')">
+                <td class="nowrap">TD20260801085</td><td class="nowrap">20:26:18</td><td class="nowrap">DJ2026073100386</td><td class="nowrap">梁**</td><td class="nowrap">137****0086</td>
+                <td class="text-danger">停机</td><td class="nowrap">登记受理科</td><td class="nowrap">—</td><td><span class="badge red">待处理</span></td><td><span class="link">处理</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('todoDrawer')">
+                <td class="nowrap">TD20260801084</td><td class="nowrap">18:12:24</td><td class="nowrap">ZJ2026073100186</td><td class="nowrap">黄**</td><td class="nowrap">159****7024</td>
+                <td class="text-danger">连续 3 次无回执</td><td class="nowrap">资金监管科</td><td class="nowrap">韦丽娟</td><td><span class="badge blue">处理中</span></td><td><span class="link">处理</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('todoDrawer')">
+                <td class="nowrap">TD20260801082</td><td class="nowrap">16:42:06</td><td class="nowrap">DJ2026073000846</td><td class="nowrap">陆**</td><td class="nowrap">136****2486</td>
+                <td class="text-danger">空号</td><td class="nowrap">登记受理科</td><td class="nowrap">覃志强</td><td><span class="badge green">已联系（换号 138****4826）</span></td><td><span class="link">查看</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('todoDrawer')">
+                <td class="nowrap">TD20260801078</td><td class="nowrap">14:24:38</td><td class="nowrap">JY2026073000642</td><td class="nowrap">吴**</td><td class="nowrap">150****9862</td>
+                <td class="text-danger">停机</td><td class="nowrap">交易管理科</td><td class="nowrap">蒙志刚</td><td><span class="badge green">已联系（代办人转达）</span></td><td><span class="link">查看</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('todoDrawer')">
+                <td class="nowrap">TD20260801072</td><td class="nowrap">10:08:52</td><td class="nowrap">DJ2026073000524</td><td class="nowrap">周**</td><td class="nowrap">133****6248</td>
+                <td class="text-danger">空号</td><td class="nowrap">登记受理科</td><td class="nowrap">陆丽华</td><td><span class="badge orange">无法联系，留档</span></td><td><span class="link">查看</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="c">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-shield-halved"></i>
+          <div>验证码是最容易被薅的接口。<b>6 月底有人用脚本对着网上大厅的验证码接口刷了两个小时，
+            单日多花了 1,800 多块短信费</b>。之后加了三道限制：
+            同号码频次、同 IP 频次、以及图形验证码前置——
+            现在异常请求基本被挡在发短信之前。</div>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="s-icon blue"><i class="fa-solid fa-key"></i></div>
+            <div><div class="s-label">今日验证码</div><div class="s-value">4,286</div><div class="s-trend">占短信量 15.0%</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+            <div><div class="s-label">验证成功率</div><div class="s-value">92.4%</div><div class="s-trend">未使用 7.6%（正常范围）</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="s-icon red"><i class="fa-solid fa-ban"></i></div>
+            <div><div class="s-label">防刷拦截</div><div class="s-value">186</div><div class="s-trend text-danger">同 IP 超频 142 · 同号超频 44</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="s-icon orange"><i class="fa-solid fa-user-secret"></i></div>
+            <div><div class="s-label">可疑 IP</div><div class="s-value">3</div><div class="s-trend text-warning">已自动临时封禁 1 个</div></div>
+          </div>
+        </div>
+        <div class="grid-2 mt-16">
+          <div class="card">
+            <div class="card-head"><h3><i class="fa-solid fa-sliders"></i> 防刷阈值</h3></div>
+            <div class="card-body">
+              <div class="svc-pr">
+                <div class="pr-n">同号码频次<span class="pr-d">正常人不会一小时要 5 次验证码</span></div>
+                <div class="pr-v"><input type="number" value="5" style="max-width:60px"><span class="pr-u">条/时 ·</span><input type="number" value="10" style="max-width:60px"><span class="pr-u">条/日</span></div>
+                <div class="pr-s"></div>
+              </div>
+              <div class="svc-pr">
+                <div class="pr-n">同 IP 频次<span class="pr-d">要留余量给单位内网出口 NAT 后的正常并发</span></div>
+                <div class="pr-v"><input type="number" value="20" style="max-width:60px"><span class="pr-u">条/时 ·</span><input type="number" value="60" style="max-width:60px"><span class="pr-u">条/日</span></div>
+                <div class="pr-s"></div>
+              </div>
+              <div class="svc-pr">
+                <div class="pr-n">同号码最小间隔<span class="pr-d">避免用户狂点「重新发送」</span></div>
+                <div class="pr-v"><input type="number" value="60"><span class="pr-u">秒</span></div>
+                <div class="pr-s"></div>
+              </div>
+              <div class="svc-pr">
+                <div class="pr-n">验证码有效期<span class="pr-d">太短老人家来不及输，太长有安全风险</span></div>
+                <div class="pr-v"><input type="number" value="5"><span class="pr-u">分钟</span></div>
+                <div class="pr-s"></div>
+              </div>
+              <div class="svc-pr">
+                <div class="pr-n">图形验证码前置<span class="pr-d">同 IP 达到一半阈值后才弹，不影响正常用户体验</span></div>
+                <div class="pr-v"><span class="svc-sw on" onclick="SVC.toggle(this,'图形验证码前置')"></span><span class="pr-u">超过 10 条/时后启用</span></div>
+                <div class="pr-s"></div>
+              </div>
+              <div class="svc-pr">
+                <div class="pr-n">自动封禁<span class="pr-d">连续触发拦截的 IP 直接临时拉黑，同时给运维发告警</span></div>
+                <div class="pr-v"><span class="svc-sw on" onclick="SVC.toggle(this,'自动封禁')"></span><span class="pr-u">封禁</span><input type="number" value="30" style="max-width:60px"><span class="pr-u">分钟</span></div>
+                <div class="pr-s"></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3><i class="fa-solid fa-list-check"></i> 今日拦截记录</h3></div>
+            <div class="card-body">
+              <div class="svc-tbl">
+                <table class="data-table compact">
+                  <thead><tr><th>时间</th><th>来源 IP</th><th>号码</th><th>触发规则</th><th class="num">1 小时内</th><th>处置</th></tr></thead>
+                  <tbody>
+                    <tr><td class="nowrap">20:46</td><td class="nowrap">183.62.***.146</td><td class="nowrap">多个（38 个）</td><td class="cell-lg">同 IP 超频</td><td class="num text-danger">86</td><td><span class="badge red">封禁 30 分</span></td></tr>
+                    <tr><td class="nowrap">18:24</td><td class="nowrap">117.136.***.28</td><td class="nowrap">138****2846</td><td class="cell-lg">同号码超频</td><td class="num text-warning">6</td><td><span class="badge orange">要求图形码</span></td></tr>
+                    <tr><td class="nowrap">16:08</td><td class="nowrap">202.103.***.72</td><td class="nowrap">多个（12 个）</td><td class="cell-lg">同 IP 超频</td><td class="num text-warning">24</td><td><span class="badge orange">要求图形码</span></td></tr>
+                    <tr><td class="nowrap">14:42</td><td class="nowrap">36.63.***.18</td><td class="nowrap">159****7024</td><td class="cell-lg">最小间隔不足</td><td class="num">4</td><td><span class="badge gray">直接拒绝</span></td></tr>
+                    <tr><td class="nowrap">11:26</td><td class="nowrap">202.103.***.86</td><td class="nowrap">多个（8 个）</td><td class="cell-lg">同 IP 超频</td><td class="num">22</td><td><span class="badge blue">已核实为中介门店</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="hint mt-16"><i class="fa-solid fa-triangle-exclamation"></i>
+                最后一条是个典型的误伤：<b>某中介门店十几个人共用一条宽带，
+                出口 IP 相同，帮客户办手续时集中要验证码就被当成攻击</b>。
+                核实后把这个 IP 加了白名单。这也提醒我们，
+                <b>阈值不能只看数字，得留一条人工核实与加白的口子</b>。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="drawer-mask" onclick="PMS.closeDrawer('msgDrawer')"></div>
+  <div class="drawer drawer-lg" id="msgDrawer">
+    <div class="drawer-head">
+      <h3>消息详情 · MSG20260801213748</h3>
+      <span class="close" onclick="PMS.closeDrawer('msgDrawer')"><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="svc-resp warn">
+        <span><i class="fa-solid fa-hourglass-half"></i> <b>回执未回</b></span>
+        <span>已等待 <b>8 分 12 秒</b></span>
+        <span>通道 <b>广西移动直连</b></span>
+      </div>
+      <dl class="svc-kv">
+        <dt>消息 ID</dt><dd>MSG20260801213748</dd>
+        <dt>模板</dt><dd>SMS-DJ-024　材料补正通知　·　签名【柳州房产】</dd>
+        <dt>接收号码</dt><dd>135****4862（中国移动 · 柳州）</dd>
+        <dt>关联业务</dt><dd>DJ2026080100846　存量房转移登记</dd>
+        <dt>触发规则</dt><dd>材料补正通知（实时事件）</dd>
+        <dt>队列</dt><dd>普通队列　·　优先级 高（3 分钟内）</dd>
+        <dt>计费</dt><dd>118 字 · 1 条 · 0.035 元</dd>
+      </dl>
+      <div class="section-title mt-16">链路耗时 · 平台侧合计 536 ms</div>
+      <div class="svc-span">
+        <i class="s1" style="width:2%" title="入队 12ms"></i>
+        <i class="s2" style="width:5%" title="规则判定 28ms"></i>
+        <i class="s4" style="width:35%" title="限流等待 186ms"></i>
+        <i class="s3" style="width:45%" title="通道提交 242ms"></i>
+        <i class="s1" style="width:13%" title="通道受理 68ms"></i>
+      </div>
+      <div class="svc-lg">
+        <span><i style="background:var(--primary)"></i>入队 12 ms</span>
+        <span><i style="background:var(--info)"></i>规则判定 28 ms</span>
+        <span><i style="background:var(--lv-orange)"></i>限流等待 186 ms</span>
+        <span><i style="background:#7ea6e8"></i>通道提交 242 ms</span>
+        <span><i style="background:var(--primary)"></i>通道受理 68 ms</span>
+      </div>
+      <p class="hint">限流等待占了三分之一，因为这条正好赶上 21:37 的小高峰。
+        通道受理之后就出了平台的边界，<b>回执什么时候回来只能等</b>——
+        这条已经等了 8 分钟，远超正常的 3-30 秒。</p>
+      <div class="section-title mt-16">发送内容</div>
+      <pre class="svc-code">【柳州房产】吴**您好，您申请的<span class="s">存量房转移登记</span>（业务号
+DJ2026080100846）需补正 <span class="s">2</span> 项材料，详情请登录网上办事大厅
+或关注"柳州房产"公众号查看。请于 <span class="s">2026-08-16</span> 前补齐。
+咨询电话 0772-2812345。</pre>
+      <div class="section-title mt-16">通道交互报文</div>
+      <pre class="svc-code">POST /sms/v2/send  HTTP/1.1
+Host: sms-gx.cmcc.internal
+X-Request-Id: <span class="s">a4f2e8c6-2026-0801-2137-48ab</span>
+
+{
+  "signName": <span class="s">"柳州房产"</span>,
+  "templateCode": <span class="s">"SMS_DJ_024"</span>,
+  "phoneNumber": <span class="s">"135****4862"</span>,
+  "templateParam": { "name": "吴**", "biz": "存量房转移登记", "count": "2", "deadline": "2026-08-16" },
+  "extendCode": <span class="s">"0772"</span>
+}
+
+<span class="c">// 响应 200 OK  ·  68 ms</span>
+{ "code": <span class="s">"OK"</span>, "bizId": <span class="s">"8624861024^2026080121374800"</span>, "message": "提交成功" }
+
+<span class="c">// 回执：至今未收到（正常 3-30 秒回）</span></pre>
+      <div class="alert alert-warning mt-16">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>移动直连通道今天已有 <b>122 条回执未回</b>，集中在 21:30 之后。
+          通道本身受理正常（都返回了 bizId），怀疑是<b>回执推送链路的问题</b>，
+          已联系移动侧核查。这类情况下消息大概率是发出去了的，
+          <b>不建议盲目重发</b>——重发会造成用户收到两条一样的短信，还要多花一次钱。
+          超过 30 分钟仍无回执的，会自动走微信补发（微信有明确送达状态）。</div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn" onclick="PMS.closeDrawer('msgDrawer')">关闭</button>
+      <button class="btn" onclick="PMS.toast('已向通道发起回执主动查询')"><i class="fa-solid fa-magnifying-glass"></i> 主动查回执</button>
+      <button class="btn" onclick="PMS.toast('已改走微信补发','success')"><i class="fa-brands fa-weixin"></i> 微信补发</button>
+      <button class="btn btn-primary" onclick="PMS.toast('已重新发送')"><i class="fa-solid fa-rotate"></i> 重发</button>
+    </div>
+  </div>
+
+  <div class="drawer-mask" onclick="PMS.closeDrawer('failDrawer')"></div>
+  <div class="drawer" id="failDrawer">
+    <div class="drawer-head">
+      <h3>失败详情 · MSG20260801203842</h3>
+      <span class="close" onclick="PMS.closeDrawer('failDrawer')"><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="svc-resp bad">
+        <span><i class="fa-solid fa-circle-xmark"></i> <b>空号</b></span>
+        <span>重发 <b>3/3 已达上限</b></span>
+        <span>运营商码 <b>MSC:0010</b></span>
+      </div>
+      <dl class="svc-kv">
+        <dt>接收号码</dt><dd>158****9124</dd>
+        <dt>关联业务</dt><dd>DJ2026073100428　抵押权注销登记　·　申请人 罗**</dd>
+        <dt>模板</dt><dd>SMS-DJ-016　出证取件通知</dd>
+        <dt>号码来源</dt><dd>业务受理单填写（2026-07-31 由窗口录入）</dd>
+        <dt>历史发送</dt><dd>该号码近 30 日共 4 次发送，<b class="text-danger">全部失败</b></dd>
+      </dl>
+      <div class="section-title mt-16">重发链路</div>
+      <div class="svc-retry">
+        <span class="rt bad">20:38:42 首发 空号</span><span class="sep">→</span>
+        <span class="rt bad">20:43:46 重发1 空号</span><span class="sep">→</span>
+        <span class="rt bad">21:08:52 重发2 空号</span><span class="sep">→</span>
+        <span class="rt bad">21:38:24 重发3 空号</span><span class="sep">→</span>
+        <span class="rt">转人工 TD20260801086</span>
+      </div>
+      <div class="alert alert-warning mt-16">
+        <i class="fa-solid fa-lightbulb"></i>
+        <div><b>这个号码 4 次全失败，基本可以断定是录错了</b>。
+          常见情形是窗口录入时少一位或多一位，
+          或者群众报的是老号码。系统已把它标记为「疑似无效号码」，
+          <b>后续同一号码的非验证码消息会直接跳过发送</b>，
+          避免继续消耗短信费，直到窗口更正号码为止。</div>
+      </div>
+      <div class="section-title mt-16">建议动作</div>
+      <div class="svc-tbl">
+        <table class="data-table compact">
+          <thead><tr><th>动作</th><th>说明</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr><td class="nowrap">电话联系申请人</td><td class="cell-lg">业务单上还留了一个座机 0772-38*****，可以先打这个</td><td><span class="link">生成待办</span></td></tr>
+            <tr><td class="nowrap">联系代办人</td><td class="cell-lg">该件由中介代办，代办人手机号可达</td><td><span class="link">改发代办人</span></td></tr>
+            <tr><td class="nowrap">更正业务单号码</td><td class="cell-lg">联系上之后回填正确号码，一次改全流程受益</td><td><span class="link">去更正</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn" onclick="PMS.closeDrawer('failDrawer')">关闭</button>
+      <button class="btn" onclick="PMS.toast('已改发代办人手机号','success')"><i class="fa-solid fa-user-pen"></i> 改发代办人</button>
+      <button class="btn btn-primary" onclick="PMS.toast('已生成人工联系待办 TD20260801086','success')"><i class="fa-solid fa-headset"></i> 转人工联系</button>
+    </div>
+  </div>
+
+  <div class="drawer-mask" onclick="PMS.closeDrawer('todoDrawer')"></div>
+  <div class="drawer" id="todoDrawer">
+    <div class="drawer-head">
+      <h3>人工联系待办 · TD20260801086</h3>
+      <span class="close" onclick="PMS.closeDrawer('todoDrawer')"><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <dl class="svc-kv">
+        <dt>生成时间</dt><dd>2026-08-01 20:52:42（重发 3 次失败后自动生成）</dd>
+        <dt>关联业务</dt><dd>DJ2026073100428　抵押权注销登记</dd>
+        <dt>通知内容</dt><dd>出证取件通知 —— 证书已缮制完成，需通知权利人取件</dd>
+        <dt>接收人</dt><dd>罗**　·　身份证 4502**********0086</dd>
+        <dt>原号码</dt><dd>158****9124（空号）</dd>
+        <dt>备用联系方式</dt><dd>座机 0772-38*****　·　代办人 韦经理 136****4028</dd>
+        <dt>派单科室</dt><dd>登记受理科　·　要求 1 个工作日内处理</dd>
+      </dl>
+      <div class="section-title mt-16">处理回填</div>
+      <div class="form-grid">
+        <div class="form-item"><label>联系结果 <span class="req">*</span></label>
+          <select><option>已联系上，口头告知</option><option>已联系上，并更正号码</option><option>联系代办人转达</option><option>多次联系无人接听</option><option>无法联系，留档</option></select>
+        </div>
+        <div class="form-item"><label>正确手机号</label><input type="text" placeholder="联系上后回填，将同步更正业务单"></div>
+        <div class="form-item col-full"><label>处理说明</label><textarea rows="3" placeholder="例：拨打座机由其配偶接听，确认新号码为 138****4826，已口头告知取件事项，并现场更正业务单联系方式"></textarea></div>
+        <div class="form-item col-full"><label>后续动作</label>
+          <div class="svc-chips">
+            <span class="chip on" onclick="SVC.chip(this)">更正业务单号码</span>
+            <span class="chip on" onclick="SVC.chip(this)">用新号码重发通知</span>
+            <span class="chip" onclick="SVC.chip(this)">解除疑似无效标记</span>
+            <span class="chip" onclick="SVC.chip(this)">加入代办人抄送</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn" onclick="PMS.closeDrawer('todoDrawer')">取消</button>
+      <button class="btn" onclick="PMS.toast('已转派给其他同事')"><i class="fa-solid fa-share"></i> 转派</button>
+      <button class="btn btn-primary" onclick="PMS.toast('已办结并按新号码重发通知','success');PMS.closeDrawer('todoDrawer')"><i class="fa-solid fa-check"></i> 办结</button>
+    </div>
+  </div>
+
+  <div class="drawer-mask" onclick="PMS.closeDrawer('flowDrawer')"></div>
+  <div class="drawer" id="flowDrawer">
+    <div class="drawer-head">
+      <h3>限流与削峰策略</h3>
+      <span class="close" onclick="PMS.closeDrawer('flowDrawer')"><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-info">
+        <i class="fa-solid fa-gauge-high"></i>
+        <div>削峰的目的不是让消息发得慢，而是<b>保证重要的先发</b>。
+          17 点出证高峰时，回访问卷和办结通知抢同一条通道，
+          让问卷等半小时没人有意见，办结通知晚半小时群众可能就白跑一趟。</div>
+      </div>
+      <div class="svc-pr">
+        <div class="pr-n">全局发送速率<span class="pr-d">留一成余量，别把通道打满触发运营商侧限流</span></div>
+        <div class="pr-v"><input type="number" value="200"><span class="pr-u">条 / 秒</span></div>
+        <div class="pr-s"><span class="badge blue">通道额度 240/秒</span></div>
+      </div>
+      <div class="svc-pr">
+        <div class="pr-n">实时队列保底配额<span class="pr-d">再挤也要留给验证码和资金通知的份额</span></div>
+        <div class="pr-v"><input type="number" value="40"><span class="pr-u">% · 约 80 条/秒</span></div>
+        <div class="pr-s"></div>
+      </div>
+      <div class="svc-pr">
+        <div class="pr-n">批量队列让路时段<span class="pr-d">高峰时段把批量队列速率压到最低</span></div>
+        <div class="pr-v"><input type="text" value="09:00-10:00, 16:30-18:00"></div>
+        <div class="pr-s"><span class="badge orange">压至 10 条/秒</span></div>
+      </div>
+      <div class="svc-pr">
+        <div class="pr-n">积压告警线<span class="pr-d">超过就说明速率设低了或通道出问题了</span></div>
+        <div class="pr-v"><input type="number" value="500"><span class="pr-u">条 · 持续</span><input type="number" value="5" style="max-width:60px"><span class="pr-u">分钟</span></div>
+        <div class="pr-s"></div>
+      </div>
+      <div class="svc-pr">
+        <div class="pr-n">积压自动扩容<span class="pr-d">触发后自动把备用通道也拉起来分流</span></div>
+        <div class="pr-v"><span class="svc-sw on" onclick="SVC.toggle(this,'积压自动扩容')"></span><span class="pr-u">启用备用通道分流</span></div>
+        <div class="pr-s"></div>
+      </div>
+      <div class="svc-pr">
+        <div class="pr-n">超时丢弃<span class="pr-d">有时效性的通知过期发出去反而添乱，比如「明天的预约提醒」</span></div>
+        <div class="pr-v"><span class="svc-sw on" onclick="SVC.toggle(this,'超时丢弃')"></span><span class="pr-u">排队超</span><input type="number" value="6" style="max-width:60px"><span class="pr-u">小时的时效类消息丢弃并记录</span></div>
+        <div class="pr-s"></div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn" onclick="PMS.closeDrawer('flowDrawer')">取消</button>
+      <button class="btn btn-primary" onclick="PMS.toast('削峰策略已保存，5 秒内生效','success');PMS.closeDrawer('flowDrawer')"><i class="fa-solid fa-check"></i> 保存</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../../assets/js/app.js"></script>
+<script src="../../../assets/js/wssvc.js"></script>
+</body>
+</html>

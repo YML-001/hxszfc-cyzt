@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>红黑名单与修复 · 从业主体与信用监管系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<link rel="stylesheet" href="../../assets/css/wsztxy.css">
+</head>
+<body data-role="manager" data-active="wsztxy-13">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 从业主体与信用监管系统
+        <span class="sep">/</span> 信用管理
+        <span class="sep">/</span> <span class="cur">红黑名单与修复</span>
+      </div>
+      <div class="page-title">红黑名单与修复</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-primary" onclick="ZT.exportAsync('红黑名单与修复')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="card">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-user-shield"></i>
+          <div>
+            名单认定生效、名单撤销、修复审核、申诉审核均为 P4 双人授权操作，页面按「发起」与「审批」两步拆分。
+            <span class="link" onclick="PMS.openDrawer('spDrawer')">待我审批（3）</span>
+            <span class="muted">红名单与黑名单互斥：同时命中时黑名单优先，红名单认定被拒绝并提示冲突</span>
+          </div>
+        </div>
+
+        <div class="filter-bar">
+          <div class="filter-item"><label>数据范围（said）</label><select data-dict="said" data-selected="450200" data-ph=""></select></div>
+          <div class="filter-item"><label>名单类型</label>
+            <select id="mdType" onchange="onMdType(this)">
+              <option value="all">全部（红 / 黑 / 重点关注）</option>
+              <option value="0">红名单</option>
+              <option value="1">黑名单</option>
+              <option value="2">重点关注名单</option>
+            </select>
+          </div>
+          <div class="filter-item"><label>认定情形（ZD9 · 15 种）</label>
+            <select><option>全部</option><option>01 信用等级 A+ 且有良好信息</option><option>04 市级以上表彰</option><option>16 信用等级 D</option><option>17 严重损害群众利益且拒不整改</option><option>18 挪用监管资金经认定</option><option>21 连续两期等级下降</option><option>22 投诉量异常增高</option></select>
+          </div>
+          <div class="filter-item"><label>名单状态</label>
+            <select><option>有效</option><option>全部</option><option>已移出</option><option>已撤销</option></select>
+          </div>
+          <div class="filter-item"><label>公示状态</label>
+            <select><option>全部</option><option>公示中</option><option>公示期满（名单仍有效）</option><option>已撤除</option><option>不公示</option></select>
+          </div>
+          <button class="btn btn-primary" onclick="PMS.toast('已按所选条件检索名单台账','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button class="btn" data-open-drawer="rdDrawer"><i class="fa-solid fa-gavel"></i> 发起认定</button>
+          <button class="btn" onclick="PMS.openModal('hxModal')"><i class="fa-solid fa-lightbulb"></i> 系统建议候选（9）</button>
+        </div>
+
+        <div class="zt-scroll">
+          <div class="stat-grid" style="margin-bottom:10px">
+            <div class="stat-card"><div class="s-icon orange"><i class="fa-solid fa-award"></i></div><div>
+              <div class="s-label">红名单（家）</div><div class="s-value">36</div><div class="s-trend text-2">有效期 12 个月 · 时点数</div></div></div>
+            <div class="stat-card"><div class="s-icon red"><i class="fa-solid fa-ban"></i></div><div>
+              <div class="s-label">黑名单（家）</div><div class="s-value">14</div><div class="s-trend text-danger">有效期 24 个月 · 须文书</div></div></div>
+            <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-eye"></i></div><div>
+              <div class="s-label">重点关注（家）</div><div class="s-value">62</div><div class="s-trend text-2">有效期 6 个月 · 默认不公示</div></div></div>
+            <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-rotate-left"></i></div><div>
+              <div class="s-label">在办修复与申诉（件）</div><div class="s-value">11</div><div class="s-trend text-2">受理后 20 个工作日内办结</div></div></div>
+          </div>
+
+          <div class="zt-block">
+            <div class="zt-block-h"><i class="fa-solid fa-list"></i> 名单台账 <span class="sub">本系统只做名单台账，对外榜单排版在门户 wsmh-25</span></div>
+            <div class="zt-block-b pad0">
+              <div class="zt-tw">
+                <table class="data-table">
+                  <thead><tr>
+                    <th>主体</th><th>名单类型</th><th>认定情形</th><th>认定依据文书</th>
+                    <th>认定时间</th><th>有效期至</th><th class="num">剩余天数</th><th>公示状态</th><th>名单状态</th><th>操作</th>
+                  </tr></thead>
+                  <tbody id="mdBody">
+                    <tr data-md="1" data-name="XXXX市恒大置业有限公司" data-qfr="陆志明">
+                      <td class="cell-lg">XXXX市恒大置业有限公司 <span class="muted">J2M08T</span></td>
+                      <td><span class="badge red">黑名单</span></td>
+                      <td>18 挪用监管资金经认定</td>
+                      <td><span class="link" onclick="ZT.todo('已打开认定依据：柳住建罚〔2026〕18 号 行政处罚决定书 + 资金核查报告；关联信用信息 XY20260728-0413、关联评价 PJ2026-Y-001')">柳住建罚〔2026〕18 号</span></td>
+                      <td>2026-07-28 <span class="muted">发起 陆志明</span></td>
+                      <td>2028-07-27</td><td class="num">727</td>
+                      <td><span class="badge blue">公示中</span> <span class="muted">全市 · 至 2027-07-27</span></td>
+                      <td><span class="badge red">有效</span></td>
+                      <td>
+                        <span class="link" onclick="openSp('黑名单认定生效','陆志明')">审批认定</span>
+                        <span class="link danger" onclick="openCx(this)">发起撤销</span>
+                      </td>
+                    </tr>
+                    <tr data-md="1" data-name="XXXX市中天房地产经纪有限公司" data-qfr="李慧">
+                      <td class="cell-lg">XXXX市中天房地产经纪有限公司 <span class="muted">K9L03X</span></td>
+                      <td><span class="badge red">黑名单</span></td>
+                      <td>17 严重损害群众利益且拒不整改</td>
+                      <td><span class="link" onclick="ZT.todo('已打开认定依据：柳住建认〔2026〕07 号 认定文书；关联检查记录 JC20260512-0088、整改逾期记录 2 条')">柳住建认〔2026〕07 号</span></td>
+                      <td>2026-06-15 <span class="muted">发起 李慧</span></td>
+                      <td>2028-06-14</td><td class="num">684</td>
+                      <td><span class="badge blue">公示中</span></td>
+                      <td><span class="badge red">有效</span></td>
+                      <td>
+                        <span class="link is-off" onclick="ZT.denied('本操作需由他人审批，您是发起人（比对按证件号哈希，同一自然人的多个账号视为同一人）')">审批认定</span>
+                        <span class="link danger" onclick="openCx(this)">发起撤销</span>
+                      </td>
+                    </tr>
+                    <tr data-md="0" data-name="XXXX市荣和房地产开发有限公司" data-qfr="陆志明">
+                      <td class="cell-lg">XXXX市荣和房地产开发有限公司 <span class="muted">X8Q71D</span></td>
+                      <td><span class="badge orange">红名单</span></td>
+                      <td>04 市级以上表彰</td>
+                      <td><span class="link" onclick="ZT.todo('已打开认定依据：柳市府表〔2026〕03 号 表彰文件；关联信用信息 XY20260720-0388、关联评价 PJ2026-Y-001（A 级）')">柳市府表〔2026〕03 号</span></td>
+                      <td>2026-01-20 <span class="muted">发起 陆志明</span></td>
+                      <td>2027-01-19</td><td class="num">172</td>
+                      <td><span class="badge blue">公示中</span></td>
+                      <td><span class="badge green">有效</span></td>
+                      <td>
+                        <span class="link" onclick="ZT.todo('该认定已于 2026-01-21 由 李慧 审批生效，全过程留痕可查')">认定过程</span>
+                        <span class="link danger" onclick="openCx(this)">发起撤销</span>
+                      </td>
+                    </tr>
+                    <tr data-md="2" data-name="XXXX市信达物业服务有限公司" data-qfr="陆志明">
+                      <td class="cell-lg">XXXX市信达物业服务有限公司 <span class="muted">R7T29M</span></td>
+                      <td><span class="badge blue">重点关注</span></td>
+                      <td>22 投诉量异常增高</td>
+                      <td><span class="muted">凭系统判定，无须文书</span> <span class="link" onclick="ZT.todo('判定依据：近 12 个月投诉 23 件，同类主体均值 4.2 件，超均值 5.5 倍；认定理由已填写')">判定依据</span></td>
+                      <td>2026-07-05 <span class="muted">发起 陆志明</span></td>
+                      <td>2027-01-04</td><td class="num">157</td>
+                      <td><span class="badge gray">不公示</span></td>
+                      <td><span class="badge blue">有效</span></td>
+                      <td>
+                        <span class="link" onclick="openSp('重点关注名单认定生效','陆志明')">审批认定</span>
+                        <span class="link" onclick="ZT.todo('已同步至主体监管检查：重点关注主体检查频次为基准的 2 倍，措施代码 cslx=16')">检查联动</span>
+                      </td>
+                    </tr>
+                    <tr class="row-off" data-md="1" data-name="XXXX市宏图建筑工程有限公司">
+                      <td class="cell-lg">XXXX市宏图建筑工程有限公司 <span class="muted">T6Y41V</span></td>
+                      <td><span class="badge red">黑名单</span></td>
+                      <td>19 拒不履行生效行政处罚</td>
+                      <td><span class="link" onclick="ZT.todo('已打开认定依据与修复材料：罚款已结清、整改完成、信用承诺书已签署')">柳住建罚〔2024〕22 号</span></td>
+                      <td>2024-09-10</td>
+                      <td>2026-09-09</td><td class="num">—</td>
+                      <td><span class="badge gray">已撤除</span> <span class="muted">修复移出</span></td>
+                      <td><span class="badge gray">已移出</span> <span class="muted">修复移出 2026-05-18</span></td>
+                      <td><span class="link" onclick="ZT.todo('移出原因：信用修复生效（修复方式 3 移出名单）；移出原因字段不允许为空，修复记录带申请人与审批人，与到期移出的批次号执行方式不同')">移出记录</span></td>
+                    </tr>
+                    <tr class="row-off" data-md="2" data-name="XXXX市顺达房地产经纪有限公司">
+                      <td class="cell-lg">XXXX市顺达房地产经纪有限公司 <span class="muted">W2E85G</span></td>
+                      <td><span class="badge blue">重点关注</span></td>
+                      <td>21 连续两期等级下降</td>
+                      <td><span class="muted">凭系统判定</span></td>
+                      <td>2025-11-20</td>
+                      <td>2026-05-19</td><td class="num">—</td>
+                      <td><span class="badge gray">不公示</span></td>
+                      <td><span class="badge gray">已移出</span> <span class="muted">到期自动移出</span></td>
+                      <td><span class="link" onclick="ZT.todo('到期自动移出：批次 YC20260520-D 由日批执行，执行时间 2026-05-20 02:10，移出原因「到期自动移出」；到期移出无申请人与审批人')">移出记录</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="zt-block">
+            <div class="zt-block-h"><i class="fa-solid fa-rotate-left"></i> 修复与异议申诉 <span class="sub">修复五个条件缺一不予受理；黑名单移出另须集体审议</span></div>
+            <div class="zt-block-b pad0">
+              <div class="zt-tw">
+                <table class="data-table">
+                  <thead><tr>
+                    <th>申请编号</th><th>主体</th><th>申请类型</th><th>申请事项</th>
+                    <th>申请时间</th><th>办理时限</th><th>条件核验</th><th>审核结论</th><th>状态</th><th>操作</th>
+                  </tr></thead>
+                  <tbody>
+                    <tr data-name="XXXX市安居房地产经纪有限公司" data-qfr="韦国强">
+                      <td>XF20260720-0031</td>
+                      <td class="cell-lg">XXXX市安居房地产经纪有限公司 <span class="muted">P3R64F</span></td>
+                      <td><span class="badge blue">信用修复</span></td>
+                      <td>修复 XY20260726-0407 违规发布虚假房源</td>
+                      <td>2026-07-20</td>
+                      <td>正常 <span class="muted">限 2026-08-17</span></td>
+                      <td><span class="badge red">4 / 5 未满足</span></td>
+                      <td>—</td>
+                      <td><span class="badge blue">核实中</span></td>
+                      <td>
+                        <span class="link" onclick="PMS.openDrawer('xfDrawer')">修复受理</span>
+                        <span class="link" onclick="ZT.todo('已打开申请材料：整改说明、信用承诺书、房源下架截图')">查看材料</span>
+                      </td>
+                    </tr>
+                    <tr data-name="XXXX市恒大置业有限公司" data-qfr="陆志明">
+                      <td>XF20260726-0034</td>
+                      <td class="cell-lg">XXXX市恒大置业有限公司 <span class="muted">J2M08T</span></td>
+                      <td><span class="badge yellow">异议申诉</span></td>
+                      <td>对 2026 年度评价结果（D 级）提出异议</td>
+                      <td>2026-07-26</td>
+                      <td>正常 <span class="muted">限 2026-08-23</span></td>
+                      <td><span class="badge blue">公示期内异议</span></td>
+                      <td>—</td>
+                      <td><span class="badge blue">核实中</span></td>
+                      <td>
+                        <span class="link" onclick="ZT.todo('公示期内提出的异议：公示不撤下，但公示内容中标注「该信息已被提出异议，正在核实」；异议未处理完毕的评价结果不允许置为已生效')">异议处理</span>
+                        <span class="link" onclick="openSp('异议申诉审核','陆志明')">审批</span>
+                      </td>
+                    </tr>
+                    <tr data-name="XXXX市宏图建筑工程有限公司" data-qfr="韦国强">
+                      <td>XF20260410-0018</td>
+                      <td class="cell-lg">XXXX市宏图建筑工程有限公司 <span class="muted">T6Y41V</span></td>
+                      <td><span class="badge blue">信用修复</span></td>
+                      <td>黑名单移出（修复方式 3）</td>
+                      <td>2026-04-10</td>
+                      <td>已办结 <span class="muted">2026-05-18</span></td>
+                      <td><span class="badge green">5 / 5 满足</span></td>
+                      <td><span class="badge green">同意修复</span> <span class="muted">核实 韦国强 · 审核 李慧</span></td>
+                      <td><span class="badge gray">已办结</span></td>
+                      <td>
+                        <span class="link" onclick="ZT.todo('集体审议记录：2026-05-12 参会 5 人（科室负责人 1 名、经办 2 名、法制 1 名、分管领导 1 名），审议意见逐人记录，结论「同意移出」；仅填「同意」不满足留痕要求')">集体审议</span>
+                        <span class="link" onclick="ZT.todo('修复结果已公示 30 日（公示类型 6 修复结果公示），并向市级信用平台推送更正信息')">修复公示</span>
+                      </td>
+                    </tr>
+                    <tr data-name="XXXX市广厦房地产估价有限公司" data-qfr="陆志明">
+                      <td>XF20260602-0025</td>
+                      <td class="cell-lg">XXXX市广厦房地产估价有限公司 <span class="muted">Y8U33H</span></td>
+                      <td><span class="badge gray">信息更正</span></td>
+                      <td>更正 XY20260520-0288 认定文书号记载错误</td>
+                      <td>2026-06-02</td>
+                      <td>已办结</td>
+                      <td><span class="badge green">材料齐全</span></td>
+                      <td><span class="badge green">同意更正</span></td>
+                      <td><span class="badge gray">已办结</span></td>
+                      <td><span class="link" onclick="ZT.todo('更正为「柳住建罚〔2026〕11 号」，原值保留在变更留痕中；更正不改变影响期起止')">更正记录</span></td>
+                    </tr>
+                    <tr data-name="XXXX市新城房地产开发有限公司" data-qfr="韦国强">
+                      <td>XF20260318-0009</td>
+                      <td class="cell-lg">XXXX市新城房地产开发有限公司 <span class="muted">Z4I67J</span></td>
+                      <td><span class="badge blue">信用修复</span></td>
+                      <td>修复 XY20251102-0512 挪用监管资金</td>
+                      <td>2026-03-18</td>
+                      <td>已办结</td>
+                      <td><span class="badge red">不可修复</span></td>
+                      <td><span class="badge red">不予受理</span></td>
+                      <td><span class="badge gray">已办结</span></td>
+                      <td><span class="link" onclick="ZT.todo('不予受理原因：该信息类型标记为不可修复（挪用监管资金、法院失信被执行未结案、重大虚假宣传欺诈三类一律不可修复），已书面告知申请人')">不予受理</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <p class="hint">
+            <i class="fa-solid fa-circle-info"></i>
+            <b>公示期结束不等于名单失效</b>：公示期可短于有效期，公示期满后名单仍在有效期内继续生效并继续影响业务；<b>主体注销不移出名单</b>，名单继续有效至有效期止，防止「注销洗白」。
+          </p>
+        </div>
+      </div>
+
+    <!-- ===================== 页签六 · 奖惩措施配置 ===================== -->
+  </div>
+</main>
+
+
+<!-- ========== 抽屉九 · 待我审批（六类 P4 操作集中审批） ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="spDrawer">
+  <div class="drawer-head"><h3>待我审批 <span class="text-sm">名单认定与撤销 / 修复与申诉审核 / 惩戒豁免 / 人工调分</span></h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="zt-dual">
+      <i class="fa-solid fa-user-shield lead"></i>
+      <div>发起人不得审批自己发起的记录（按证件号哈希比对，同一自然人的多个账号视为同一人）；审批通过与驳回<b>均须填写意见</b>。</div>
+      <div class="who">当前登录人 <b id="meSp">李慧</b></div>
+    </div>
+
+    <div class="zt-tw">
+      <table class="data-table">
+        <thead><tr>
+          <th>事项</th><th>主体</th><th>操作类型</th><th>发起人 / 时间</th><th>要点</th><th>操作</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td>MD20260728-0014</td>
+            <td class="cell-lg">XXXX市恒大置业有限公司</td>
+            <td><span class="badge red">黑名单认定生效</span></td>
+            <td>陆志明 2026-07-28</td>
+            <td>情形 18 挪用监管资金经认定 · 文书 柳住建罚〔2026〕18 号 <span class="badge orange">另须科室复核</span></td>
+            <td>
+              <span class="link" onclick="ZT.dual('黑名单认定生效','陆志明')">审批</span>
+              <span class="link danger" onclick="openBh('黑名单认定生效')">驳回</span>
+            </td>
+          </tr>
+          <tr>
+            <td>XF20260726-0034</td>
+            <td class="cell-lg">XXXX市恒大置业有限公司</td>
+            <td><span class="badge yellow">异议申诉审核</span></td>
+            <td>陆志明 2026-07-27</td>
+            <td>对 2026 年度 D 级评价提出异议 · 核实人与审核人不得同一</td>
+            <td>
+              <span class="link" onclick="ZT.dual('异议申诉审核','陆志明')">审批</span>
+              <span class="link danger" onclick="openBh('异议申诉审核')">驳回</span>
+            </td>
+          </tr>
+          <tr>
+            <td>HM20260722-0006</td>
+            <td class="cell-lg">XXXX市中天房地产经纪有限公司</td>
+            <td><span class="badge blue">惩戒豁免批准</span></td>
+            <td>覃永明 2026-07-22</td>
+            <td>豁免 13 限制网签备案 · 依据 涉及民生保障 · 一次性仅对本办件有效</td>
+            <td>
+              <span class="link" onclick="ZT.dual('惩戒豁免批准','覃永明')">审批</span>
+              <span class="link danger" onclick="openBh('惩戒豁免批准')">驳回</span>
+            </td>
+          </tr>
+          <tr class="row-off">
+            <td>TZ20260705-0003</td>
+            <td class="cell-lg">XXXX市恒大置业有限公司</td>
+            <td><span class="badge purple">人工调分</span></td>
+            <td>李慧 2026-07-05</td>
+            <td>KF-03-02 由 −20 调为 −20（不调整，仅补充说明）· <b>您是发起人</b></td>
+            <td>
+              <span class="link is-off" onclick="ZT.denied('本操作需由他人审批，您是发起人（比对按证件号哈希，同一自然人的多个账号视为同一人）')">审批</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="hint">
+      <i class="fa-solid fa-circle-info"></i>
+      审批通过后：名单认定即时生效并生成公示记录与推送任务；修复审核通过按修复方式执行（信息置已修复、缩短公示期、下期调分、移出名单、解除惩戒）；豁免仅对本办件生效，不解除措施本身。
+    </p>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn" onclick="ZT.exportAsync('待我审批清单')"><i class="fa-solid fa-download"></i> 导出清单</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉十 · 名单认定（发起） ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="rdDrawer">
+  <div class="drawer-head"><h3>发起名单认定</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="zt-dual">
+      <i class="fa-solid fa-user-shield lead"></i>
+      <div>本抽屉只完成「发起」。名单<b>认定生效须双人授权</b>，由他人审批；黑名单认定另须科室负责人复核。</div>
+      <div class="who">发起人 <b id="rdWho">李慧</b></div>
+    </div>
+
+    <div class="form-grid form-align">
+      <div class="form-item"><label>主体 <span class="req">*</span></label><input type="text" placeholder="输入名称或信用代码检索已备案主体"></div>
+      <div class="form-item"><label>名单类型 <span class="req">*</span></label>
+        <select id="rdMd" onchange="onRdMd(this)">
+          <option value="1">黑名单</option>
+          <option value="0">红名单</option>
+          <option value="2">重点关注名单</option>
+        </select></div>
+      <div class="form-item col-full"><label>认定情形（ZD9） <span class="req">*</span></label>
+        <select id="rdLx" onchange="onRdLx(this)">
+          <option value="16">16 信用等级评定为 D 级</option>
+          <option value="17">17 严重损害群众利益且拒不整改</option>
+          <option value="18">18 挪用监管资金经认定</option>
+          <option value="19">19 拒不履行生效行政处罚</option>
+          <option value="20">20 提供虚假材料骗取备案</option>
+        </select></div>
+      <div class="form-item col-full">
+        <div class="alert alert-info" id="rdYj" style="margin:0">
+          <i class="fa-solid fa-scale-balanced"></i>
+          <div><b>该情形的法定依据</b>：《房地产开发企业资质管理规定》第十五条、《城市商品房预售管理办法》第十一条；挪用监管资金经认定的，列入黑名单并限制新项目预售许可。请核对文书援引条文与本条一致。</div>
+        </div>
+      </div>
+      <div class="form-item col-full"><label>认定理由 <span class="req">*</span></label>
+        <textarea rows="3" placeholder="写明事实、证据与认定过程，不少于 30 字"></textarea></div>
+      <div class="form-item"><label>认定机构 <span class="req">*</span></label><input type="text" value="XXXX市住房和城乡建设局"></div>
+      <div class="form-item"><label>认定文书号 <span class="req">*</span></label><input type="text" id="rdWsh" placeholder="黑名单认定必填"></div>
+      <div class="form-item col-full"><label>认定依据文书（材料） <span class="req">*</span></label>
+        <input type="text" data-upload="1" id="rdFile">
+        <div class="hint" id="rdFileTip">黑名单认定<b>必须</b>上传行政处罚决定书、法院判决书或认定文书之一；缺文书不得认定。重点关注名单可凭系统判定结果认定，但认定理由必填。</div></div>
+      <div class="form-item col-full"><label>关联证据 <span class="req">*</span></label>
+        <input type="text" value="信用信息 XY20260728-0413 · 评价结果 PJ2026-Y-001">
+        <div class="hint">认定须关联信用信息主键与评价主键，未关联证据的认定不予提交。</div></div>
+      <div class="form-item"><label>有效期限（月）</label><input type="text" id="rdYx" value="24" readonly>
+        <div class="hint">按名单类型与参数取值：黑名单 24、红名单 12、重点关注 6。</div></div>
+      <div class="form-item"><label>公示范围</label>
+        <select id="rdGs"><option>全市</option><option>全区</option><option>全国（信用中国）</option><option>行业内</option><option>不公示</option></select></div>
+      <div class="form-item"><label>公示期（月）</label><input type="text" value="12">
+        <div class="hint">公示期可短于有效期：公示期满后名单仍有效，页面在名单台账中区分两者。</div></div>
+      <div class="form-item"><label>推送市级信用平台</label>
+        <select><option>推送（黑名单与行政处罚默认推送）</option><option>不推送</option></select>
+        <div class="hint">修复或撤销后须同步推送更正信息，不允许只推送不更正。</div></div>
+      <div class="form-item col-full"><label>指定审批人 <span class="req">*</span></label>
+        <select id="rdSp"><option value="张伟">张伟（分管领导）</option><option value="陆志明">陆志明（经办）</option><option value="李慧">李慧（科室负责人）</option></select></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="submitRd()"><i class="fa-solid fa-paper-plane"></i> 提交认定申请</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉十一 · 名单撤销（比认定更严格） ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="cxDrawer">
+  <div class="drawer-head"><h3>发起名单撤销 · <span data-fill="name">—</span></h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-danger">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div><b>撤销比认定更严格</b>：撤销意味着此前的认定与惩戒是错误的。撤销须经科室负责人批准，并同步撤除公示、解除关联惩戒、向市级信用平台推送更正、向主体书面告知并致歉；因错误认定产生的拦截记录须标注为错误执行。</div>
+    </div>
+    <dl class="desc-list">
+      <div class="desc-item"><dt>主体</dt><dd data-fill="name">—</dd></div>
+      <div class="desc-item"><dt>名单类型</dt><dd data-fill="md">—</dd></div>
+      <div class="desc-item"><dt>认定情形</dt><dd data-fill="lx">—</dd></div>
+      <div class="desc-item"><dt>认定时间</dt><dd data-fill="sj">—</dd></div>
+      <div class="desc-item full"><dt>已产生的关联影响</dt><dd>公示 1 条（公示中）· 惩戒执行记录 3 条（已拦截 2、已提示 1）· 已推送市级信用平台 1 次</dd></div>
+    </dl>
+    <div class="form-grid form-align" style="margin-top:10px">
+      <div class="form-item col-full"><label>撤销原因 <span class="req">*</span></label>
+        <textarea rows="3" placeholder="写明认定何处有误、依据何在，不少于 30 字"></textarea></div>
+      <div class="form-item col-full"><label>依据材料 <span class="req">*</span></label><input type="text" data-upload="1"></div>
+      <div class="form-item col-full"><label>指定批准人（科室负责人） <span class="req">*</span></label>
+        <select><option>李慧（科室负责人）</option><option>张伟（分管领导）</option></select></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="PMS.confirm({title:'名单撤销申请确认',message:'确认提交名单撤销申请？',detail:'提交后进入他人审批。批准生效后将自动撤除公示、解除关联惩戒措施、向市级信用平台推送更正，并生成对主体的书面告知与致歉件。',type:'warning',okText:'提交申请',onOk:function(){PMS.closeDrawer();PMS.toast('已提交名单撤销申请，等待科室负责人批准','success');}})"><i class="fa-solid fa-paper-plane"></i> 提交撤销申请</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉十二 · 修复受理（五个条件缺一不予受理） ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="xfDrawer">
+  <div class="drawer-head"><h3>信用修复受理 · XF20260720-0031</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <p class="hint">
+      <i class="fa-solid fa-circle-info"></i>
+      修复条件须<b>全部满足</b>，缺一不予受理。条件核验由系统按接口与材料自动判定，人工不可勾选通过。
+    </p>
+    <div class="zt-check">
+      <div class="ck-item pass"><i class="fa-solid fa-circle-check"></i><div class="ck-body">
+        <div class="ck-title">一、已履行行政处罚决定</div>
+        <div class="ck-desc">罚款 3.0 万元已于 2026-06-28 结清（财政票据号 4502260628****），或属不涉及罚款情形。</div>
+      </div></div>
+      <div class="ck-item pass"><i class="fa-solid fa-circle-check"></i><div class="ck-body">
+        <div class="ck-title">二、已完成整改</div>
+        <div class="ck-desc">整改措施：下架违规房源 12 条、经纪人重新培训 6 人次；整改完成时间 2026-07-02，复查通过。</div>
+      </div></div>
+      <div class="ck-item pass"><i class="fa-solid fa-circle-check"></i><div class="ck-body">
+        <div class="ck-title">三、已作出信用承诺</div>
+        <div class="ck-desc">已上传加盖公章的信用承诺书（2026-07-18 签署）。<span class="link" onclick="ZT.todo('已打开信用承诺书扫描件')">查看</span></div>
+      </div></div>
+      <div class="ck-item block"><i class="fa-solid fa-circle-xmark"></i><div class="ck-body">
+        <div class="ck-title">四、已满最短公示期</div>
+        <div class="ck-desc">该失信信息公示起始 2026-07-18，一般失信最短公示期 <b>3 个月</b>，最早可申请日为 <b>2026-10-18</b>，当前尚差 <b>79 天</b>。</div>
+      </div></div>
+      <div class="ck-item pass"><i class="fa-solid fa-circle-check"></i><div class="ck-body">
+        <div class="ck-title">五、该信用信息标记为可修复</div>
+        <div class="ck-desc">信息类型「13 违规发布虚假房源」可修复；挪用监管资金、法院失信被执行未结案、重大虚假宣传欺诈三类一律不可修复。</div>
+      </div></div>
+    </div>
+
+    <h4 class="section-title" data-icon="fa-pen">受理结论</h4>
+    <div class="form-grid form-align">
+      <div class="form-item"><label>受理结论 <span class="req">*</span></label>
+        <select id="xfJl" onchange="onXfJl(this)">
+          <option value="no">不予受理（条件未全部满足）</option>
+          <option value="yes">予以受理并转核实</option>
+        </select></div>
+      <div class="form-item"><label>修复方式（受理后适用）</label>
+        <select disabled id="xfFs">
+          <option>0 删除信用信息（置已修复，记录保留不再计分不再公示）</option>
+          <option>1 缩短公示期</option>
+          <option>2 调整评价得分（下一期生效，不改已发布结果）</option>
+          <option>3 移出名单</option>
+          <option>4 解除惩戒措施</option>
+        </select></div>
+      <div class="form-item col-full"><label>结论说明 <span class="req">*</span></label>
+        <textarea rows="2" id="xfSm">经核验，第四项条件（已满最短公示期）尚未满足，最早可于 2026-10-18 重新申请，现不予受理并书面告知申请人。</textarea></div>
+      <div class="form-item col-full"><label>是否需集体审议</label>
+        <select><option>不需要</option><option>需要（黑名单移出必经）</option></select>
+        <div class="hint">涉及黑名单移出的必经集体审议，须记录参会人员、逐人审议意见与结论；仅填「同意」不满足留痕要求。</div></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="submitXf()"><i class="fa-solid fa-check"></i> 提交受理结论</button>
+  </div>
+</div>
+
+<!-- ========== 弹窗四 · 系统建议候选 ========== -->
+<div class="modal-mask" id="hxModal">
+  <div class="modal">
+    <div class="modal-head">系统建议名单候选 · 9 条</div>
+    <div class="modal-body">
+      <div class="alert alert-warning">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div><b>系统建议一律是候选，不自动生效</b>。每一条都须人工发起认定并经他人审批；红名单与黑名单互斥，同时命中时黑名单优先。</div>
+      </div>
+      <div class="zt-tw">
+        <table class="data-table">
+          <thead><tr><th>主体</th><th>建议名单</th><th>触发情形</th><th>判定依据</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="cell-lg">XXXX市广建工程监理有限公司</td>
+              <td><span class="badge orange">红名单候选</span></td>
+              <td>01 信用等级 A+ 且本期有良好信息</td>
+              <td>2026 年度 98.0 分 A+ · 良好信息 2 条</td>
+              <td><span class="link" onclick="PMS.closeModal();PMS.openDrawer('rdDrawer')">发起认定</span></td>
+            </tr>
+            <tr>
+              <td class="cell-lg">XXXX市××置业有限公司</td>
+              <td><span class="badge red">黑名单候选</span></td>
+              <td>16 信用等级评定为 D 级</td>
+              <td>2026 年度 58.2 分 D 级</td>
+              <td><span class="link" onclick="PMS.closeModal();PMS.openDrawer('rdDrawer')">发起认定</span></td>
+            </tr>
+            <tr>
+              <td class="cell-lg">XXXX市顺达房地产经纪有限公司</td>
+              <td><span class="badge blue">重点关注候选</span></td>
+              <td>21 连续两期等级下降</td>
+              <td>2025 年度 A → 2026 上半年 B → 2026 年度 C</td>
+              <td><span class="link" onclick="PMS.closeModal();PMS.openDrawer('rdDrawer')">发起认定</span></td>
+            </tr>
+            <tr>
+              <td class="cell-lg">XXXX市××房地产开发有限公司</td>
+              <td><span class="badge blue">重点关注候选</span></td>
+              <td>24 项目交付风险</td>
+              <td>判定输入来自房地产市场监管监测：2 个项目停工缓建、形象进度偏差 −18 个百分点</td>
+              <td><span class="link" onclick="PMS.closeModal();PMS.openDrawer('rdDrawer')">发起认定</span></td>
+            </tr>
+            <tr class="row-warn">
+              <td class="cell-lg">XXXX市中天房地产经纪有限公司</td>
+              <td><span class="badge orange">红名单候选</span> <span class="badge red">冲突</span></td>
+              <td>04 市级以上表彰</td>
+              <td>该主体同时在黑名单有效期内（2028-06-14 止）</td>
+              <td><span class="link is-off" onclick="ZT.denied('红名单与黑名单互斥：该主体在黑名单有效期内，黑名单优先，红名单认定被拒绝')">发起认定</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close-modal>关闭</button>
+      <button class="btn" onclick="ZT.exportAsync('系统建议名单候选清单')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/wsztxy.js"></script>
+<script>
+  /* ---------- 当前登录人：双人授权的比对基准 ---------- */
+  document.addEventListener('DOMContentLoaded', function () {
+    var me = ZT.me();
+    ['mePj', 'meSp', 'tfWho', 'rdWho'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.textContent = me;
+    });
+    var t = ZT.param('tab');
+    if (t) ZT.tab(t);
+  });
+  /* ================= 页签四 · 评价结果 ================= */
+  var lastName = '';
+  document.addEventListener('input', function (e) {
+    if (e.target && e.target.id === 'tfWhy') {
+    }
+  });
+
+  /* ================= 页签五 · 红黑榜与修复 ================= */
+  function onMdType(sel) {
+    var v = sel.value;
+    document.querySelectorAll('#mdBody tr').forEach(function (tr) {
+      tr.style.display = (v === 'all' || tr.getAttribute('data-md') === v) ? '' : 'none';
+    });
+    var label = { all: '全部名单', '0': '红名单', '1': '黑名单', '2': '重点关注名单' }[v];
+    PMS.toast('已切换为「' + label + '」视图');
+  }
+  function openSp(act, qfr) { ZT.dual(act, qfr); }
+  function openBh(act) {
+    PMS.confirm({
+      title: act + ' · 驳回',
+      message: '确认驳回该申请？',
+      detail: '驳回同样须填写意见（必填），意见对发起人可见并随记录留存。',
+      type: 'warning',
+      okText: '填写意见并驳回',
+      onOk: function () { PMS.toast('已驳回并记录意见', 'success'); }
+    });
+  }
+  function openCx(el) {
+    var tr = el.closest('tr'), td = tr.children;
+    PMS.fill('cxDrawer', {
+      name: tr.getAttribute('data-name') || td[0].textContent.trim(),
+      md: td[1].textContent.trim(),
+      lx: td[2].textContent.trim(),
+      sj: td[4].textContent.trim()
+    });
+    PMS.openDrawer('cxDrawer');
+  }
+  function onRdMd(sel) {
+    var v = sel.value;
+    var yx = { '0': '12', '1': '24', '2': '6' }[v];
+    document.getElementById('rdYx').value = yx;
+    var lx = document.getElementById('rdLx');
+    var opts = {
+      '1': [['16', '16 信用等级评定为 D 级'], ['17', '17 严重损害群众利益且拒不整改'], ['18', '18 挪用监管资金经认定'], ['19', '19 拒不履行生效行政处罚'], ['20', '20 提供虚假材料骗取备案']],
+      '0': [['01', '01 信用等级 A+ 且有良好信息'], ['02', '02 连续三年无失信记录'], ['03', '03 履约与服务质量突出'], ['04', '04 市级以上表彰']],
+      '2': [['21', '21 连续两期等级下降'], ['22', '22 投诉量异常增高'], ['23', '23 监管账户异动频繁'], ['24', '24 项目交付风险']]
+    }[v];
+    lx.innerHTML = opts.map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join('');
+    var tip = document.getElementById('rdFileTip');
+    document.getElementById('rdGs').value = v === '2' ? '不公示' : '全市';
+    tip.innerHTML = v === '1'
+      ? '黑名单认定<b>必须</b>上传行政处罚决定书、法院判决书或认定文书之一；缺文书不得认定。'
+      : (v === '0'
+        ? '红名单认定须有表彰文件或评价结果支撑。'
+        : '重点关注名单可凭系统判定结果认定（无须文书），但<b>认定理由必填</b>；该名单默认不公示。');
+    onRdLx(lx);
+  }
+  function onRdLx(sel) {
+    var t = sel.options[sel.selectedIndex].textContent;
+    document.getElementById('rdYj').querySelector('div').innerHTML =
+      '<b>该情形的法定依据</b>：' + ({
+        '16': '《柳州市房地产市场信用管理办法》第十九条（等级为 D 级的列入黑名单）',
+        '17': '《柳州市房地产市场信用管理办法》第二十条；拖欠工程款或农民工工资情形严重且拒不整改的适用',
+        '18': '《城市商品房预售管理办法》第十一条、《柳州市商品房预售资金监管办法》第二十六条',
+        '19': '《行政处罚法》第七十二条；拒不履行生效行政处罚决定的适用',
+        '20': '《房地产开发企业资质管理规定》第十七条（提供虚假材料骗取备案的撤销备案并列入黑名单）',
+        '01': '《柳州市房地产市场信用管理办法》第十六条（A+ 级且有良好信息的列入红名单）',
+        '04': '市级以上人民政府或行业主管部门表彰文件'
+      }[sel.value] || '请在文书中援引具体条文，并与本情形一致') +
+      '。当前情形：' + t + '。请核对文书援引条文与本条一致。';
+  }
+  function submitRd() {
+    var md = document.getElementById('rdMd').value;
+    var wsh = (document.getElementById('rdWsh').value || '').trim();
+    var file = (document.getElementById('rdFile').value || '').trim();
+    if (md === '1' && (!wsh || !file)) {
+      ZT.denied('黑名单认定必须填写认定文书号并上传认定依据文书，缺一不可');
+      return;
+    }
+    var sp = document.getElementById('rdSp').value;
+    if (sp === ZT.me()) {
+      ZT.denied('审批人不得为发起人本人：名单认定生效须两个不同自然人完成');
+      return;
+    }
+    PMS.confirm({
+      title: '名单认定申请提交确认',
+      message: '确认提交认定申请并转 ' + sp + ' 审批？',
+      detail: (md === '1' ? '黑名单认定另须科室负责人复核。' : '') +
+        '批准生效后自动生成公示记录（按公示字段白名单构造）、匹配奖惩措施并推送市级信用平台；红黑名单互斥，同时命中时黑名单优先。',
+      type: 'warning',
+      okText: '提交申请',
+      onOk: function () { PMS.closeDrawer(); PMS.toast('已提交名单认定申请，等待 ' + sp + ' 审批', 'success'); }
+    });
+  }
+  function onXfJl(sel) {
+    var yes = sel.value === 'yes';
+    document.getElementById('xfFs').disabled = !yes;
+    document.getElementById('xfSm').value = yes
+      ? '经核验，申请材料齐全，予以受理并转核实；核实完成后按所选修复方式执行。'
+      : '经核验，第四项条件（已满最短公示期）尚未满足，最早可于 2026-10-18 重新申请，现不予受理并书面告知申请人。';
+    if (yes) PMS.toast('注意：当前第四项条件未满足，予以受理将与条件核验结果不一致，须在结论说明中写明理由并经复核', 'error');
+  }
+  function submitXf() {
+    var yes = document.getElementById('xfJl').value === 'yes';
+    PMS.confirm({
+      title: '受理结论提交确认',
+      message: yes ? '确认予以受理并转核实？' : '确认不予受理？',
+      detail: yes
+        ? '受理后须在 20 个工作日内办结；审核通过须双人授权（核实人与审核人不得同一），涉及黑名单移出的另须集体审议。修复结果本身也须公示 30 日。'
+        : '不予受理须书面告知申请人理由与可重新申请的时间；记录永久保留。',
+      type: 'warning',
+      okText: '提交结论',
+      onOk: function () { PMS.closeDrawer(); PMS.toast(yes ? '已受理并转核实' : '已提交不予受理结论并生成告知件', 'success'); }
+    });
+  }
+
+</script>
+</body>
+</html>

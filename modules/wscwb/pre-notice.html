@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>转移预告登记信息交互 · 存量房交易网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：报文查看与证明文件预览 */
+  .msg-box {
+    font-family: Consolas, "Courier New", monospace; font-size: 12.5px; line-height: 1.85;
+    background: #1f2937; color: #d5dbe6; border-radius: var(--radius); padding: 16px; overflow-x: auto;
+  }
+  .msg-box .k { color: #7dd3fc; }
+  .msg-box .s { color: #a7f3d0; }
+  .msg-box .n { color: #fcd34d; }
+  .cert-view {
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-soft);
+    height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; color: var(--text-3); font-size: 12.5px;
+  }
+  .cert-view i { font-size: 32px; color: var(--primary-soft); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wscwb-18">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 存量房交易网签备案管理系统
+        <span class="sep">/</span> <a class="link" href="onething-list.html">一件事协同</a>
+        <span class="sep">/</span> <span class="cur">转移预告登记</span>
+      </div>
+      <div class="page-title">转移预告登记信息交互</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" onclick="batchPush()"><i class="fa-solid fa-paper-plane"></i> 批量推送</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《转移预告登记交互台账》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">待推送</div><div class="s-value">9</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-paper-plane"></i></div>
+      <div><div class="s-label">已推送</div><div class="s-value">128</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-reply"></i></div>
+      <div><div class="s-label">已回传</div><div class="s-value">121</div><div class="s-trend text-success">回传率 94.5%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-calendar-xmark"></i></div>
+      <div><div class="s-label">即将到期</div><div class="s-value">6</div><div class="s-trend text-danger">30 天内失效</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>预告登记结果回传后自动推送贷款银行，作为其审批放款的依据；合同解除时系统同步推送预告登记注销，避免预告登记长期挂账。</div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>关键词</label>
+        <input type="text" placeholder="合同编号 / 备案编号 / 预告登记证明号">
+      </div>
+      <div class="filter-item">
+        <label>推送状态</label>
+        <select><option value="">全部</option><option>待推送</option><option>已推送</option><option>推送失败</option><option>已注销推送</option></select>
+      </div>
+      <div class="filter-item">
+        <label>回传状态</label>
+        <select><option value="">全部</option><option>待回传</option><option>已回传</option><option>回传不予登记</option></select>
+      </div>
+      <div class="filter-item">
+        <label>贷款银行</label>
+        <select><option value="">全部</option><option>中国建设银行柳州分行</option><option>中国工商银行柳州分行</option><option>中国农业银行柳州分行</option><option>柳州银行</option><option>桂林银行柳州分行</option></select>
+      </div>
+      <div class="filter-item">
+        <label>推送时间</label>
+        <input type="date" value="2026-07-01">
+      </div>
+      <div class="filter-item">
+        <label>预告有效期止</label>
+        <input type="date" value="2026-12-31">
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 137 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="wait">待推送 <span class="badge orange">9</span></div>
+      <div class="tab" data-tab="sent">已推送待回传</div>
+      <div class="tab" data-tab="back">已回传</div>
+      <div class="tab" data-tab="near">即将到期 <span class="badge red">6</span></div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblPn" data-static>
+        <thead>
+          <tr>
+            <th style="width:38px"><input type="checkbox" id="ckAll"></th>
+            <th>推送编号</th>
+            <th>合同编号</th>
+            <th>备案编号</th>
+            <th>坐落</th>
+            <th>买受人</th>
+            <th>不动产单元号</th>
+            <th>推送时间</th>
+            <th>推送状态</th>
+            <th>预告登记证明号</th>
+            <th>登记时间</th>
+            <th>预告有效期止</th>
+            <th>贷款银行</th>
+            <th>银行放款状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="wait">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600">YG20260731009</td>
+            <td class="nowrap">CLF450200202600318</td>
+            <td class="nowrap">BA450200202600318</td>
+            <td class="cell-lg">彰泰滨江学府 12-2-1802</td>
+            <td class="nowrap">李婉婷</td>
+            <td class="nowrap">450202006012GB00318F00121802</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap"><span class="badge orange">待推送</span></td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap text-3">—</td>
+            <td class="cell-lg">柳州银行城中支行</td>
+            <td class="nowrap"><span class="badge gray">待预告</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="push(this,'YG20260731009')">推送</span>
+              <span class="link" onclick="openMsg('YG20260731009')">查看报文</span>
+            </td>
+          </tr>
+          <tr data-st="wait">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600">YG20260731008</td>
+            <td class="nowrap">CLF450200202600309</td>
+            <td class="nowrap">BA450200202600309</td>
+            <td class="cell-lg">阳光 100 城市广场 A 座 1608</td>
+            <td class="nowrap">吴晓涵</td>
+            <td class="nowrap">450203004008GB00276F00011608</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap"><span class="badge orange">待推送</span></td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap text-3">—</td>
+            <td class="cell-lg">中国工商银行柳州分行</td>
+            <td class="nowrap"><span class="badge gray">待预告</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="push(this,'YG20260731008')">推送</span>
+              <span class="link" onclick="openMsg('YG20260731008')">查看报文</span>
+            </td>
+          </tr>
+          <tr data-st="sent">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600">YG20260730007</td>
+            <td class="nowrap">CLF450200202600301</td>
+            <td class="nowrap">BA450200202600301</td>
+            <td class="cell-lg">中航郡府 8-1-3301</td>
+            <td class="nowrap">覃海波</td>
+            <td class="nowrap">450202006021GB00401F00083301</td>
+            <td class="nowrap">2026-07-30 15:06</td>
+            <td class="nowrap"><span class="badge blue">已推送</span></td>
+            <td class="nowrap text-3">待回传</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap text-3">—</td>
+            <td class="cell-lg">中国建设银行柳州分行</td>
+            <td class="nowrap"><span class="badge orange">待放款</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openMsg('YG20260730007')">查看报文</span>
+              <span class="link" onclick="repush(this,'YG20260730007')">重推</span>
+            </td>
+          </tr>
+          <tr data-st="back">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600">YG20260728006</td>
+            <td class="nowrap">CLF450200202600294</td>
+            <td class="nowrap">BA450200202600294</td>
+            <td class="cell-lg">恒大城 6-1-1802</td>
+            <td class="nowrap">周雅琴</td>
+            <td class="nowrap">450205001008GB00123F00010018</td>
+            <td class="nowrap">2026-07-28 09:41</td>
+            <td class="nowrap"><span class="badge green">已推送</span></td>
+            <td class="nowrap">桂（2026）XXXX市不动产预告第 0001286 号</td>
+            <td class="nowrap">2026-07-28 16:22</td>
+            <td class="nowrap">2027-01-27</td>
+            <td class="cell-lg">桂林银行柳州分行</td>
+            <td class="nowrap"><span class="badge green">已放款</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openBack('YG20260728006','桂（2026）XXXX市不动产预告第 0001286 号','2026-07-28 16:22','2027-01-27','桂林银行柳州分行')">回传结果</span>
+              <span class="link danger" onclick="cancelPn(this,'YG20260728006')">推送注销</span>
+            </td>
+          </tr>
+          <tr data-st="near">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600">YG20260612003</td>
+            <td class="nowrap">CLF450200202600187</td>
+            <td class="nowrap">BA450200202600187</td>
+            <td class="cell-lg">荣和千千树 5-2-1203</td>
+            <td class="nowrap">黄小雅</td>
+            <td class="nowrap">450203004011GB00087F00051203</td>
+            <td class="nowrap">2026-06-12 10:18</td>
+            <td class="nowrap"><span class="badge green">已推送</span></td>
+            <td class="nowrap">桂（2026）XXXX市不动产预告第 0000914 号</td>
+            <td class="nowrap">2026-06-12 17:03</td>
+            <td class="nowrap text-warning fw-600">2026-08-25（剩 25 天）</td>
+            <td class="cell-lg">中国农业银行柳州分行</td>
+            <td class="nowrap"><span class="badge orange">待放款</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openBack('YG20260612003','桂（2026）XXXX市不动产预告第 0000914 号','2026-06-12 17:03','2026-08-25','中国农业银行柳州分行')">回传结果</span>
+              <span class="link" onclick="PMS.toast('已向中国农业银行柳州分行推送预告登记即将到期提醒','success')">到期提醒</span>
+            </td>
+          </tr>
+          <tr data-st="near">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600">YG20260528002</td>
+            <td class="nowrap">CLF450200202600152</td>
+            <td class="nowrap">BA450200202600152</td>
+            <td class="cell-lg">万科城 8-1-1506</td>
+            <td class="nowrap">罗晓东</td>
+            <td class="nowrap">450204002009GB00332F00081506</td>
+            <td class="nowrap">2026-05-28 14:32</td>
+            <td class="nowrap"><span class="badge green">已推送</span></td>
+            <td class="nowrap">桂（2026）XXXX市不动产预告第 0000778 号</td>
+            <td class="nowrap">2026-05-28 16:55</td>
+            <td class="nowrap text-danger fw-600">2026-08-04（剩 4 天）</td>
+            <td class="cell-lg">中国工商银行柳州分行</td>
+            <td class="nowrap"><span class="badge red">放款受阻</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openBack('YG20260528002','桂（2026）XXXX市不动产预告第 0000778 号','2026-05-28 16:55','2026-08-04','中国工商银行柳州分行')">回传结果</span>
+              <span class="link" onclick="PMS.toast('已向中国工商银行柳州分行与买受人推送紧急到期提醒','error')">到期提醒</span>
+            </td>
+          </tr>
+          <tr data-st="back">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600">YG20260716005</td>
+            <td class="nowrap">CLF450200202600231</td>
+            <td class="nowrap">BA450200202600231</td>
+            <td class="cell-lg">恒大城 3-2-706</td>
+            <td class="nowrap">覃海波</td>
+            <td class="nowrap">450205001008GB00123F00030706</td>
+            <td class="nowrap">2026-07-16 11:24</td>
+            <td class="nowrap"><span class="badge gray">已注销推送</span></td>
+            <td class="nowrap">桂（2026）XXXX市不动产预告第 0001148 号</td>
+            <td class="nowrap">2026-07-16 15:40</td>
+            <td class="nowrap text-3">已注销</td>
+            <td class="cell-lg">中国建设银行柳州分行</td>
+            <td class="nowrap"><span class="badge gray">已终止</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.toast('该单合同已解除，预告登记注销申请已于 2026-07-17 推送并完成注销')">注销详情</span>
+            </td>
+          </tr>
+          <tr data-st="sent">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600">YG20260729004</td>
+            <td class="nowrap">CLF450200202600287</td>
+            <td class="nowrap">BA450200202600287</td>
+            <td class="cell-lg">彰泰春天 3-2-1502</td>
+            <td class="nowrap">黄志文</td>
+            <td class="nowrap">450202006018GB00259F00031502</td>
+            <td class="nowrap">2026-07-29 10:52</td>
+            <td class="nowrap"><span class="badge red">推送失败</span></td>
+            <td class="nowrap text-danger">不动产单元号校验不通过</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap text-3">—</td>
+            <td class="cell-lg">中国建设银行柳州分行</td>
+            <td class="nowrap"><span class="badge gray">待预告</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openMsg('YG20260729004')">查看报文</span>
+              <span class="link" onclick="repush(this,'YG20260729004')">重推</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 交互报文 -->
+  <div class="modal-mask" id="mdMsg">
+    <div class="modal">
+      <div class="modal-head" id="msgTitle">预告登记交互报文</div>
+      <div class="modal-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>报文经政务数据共享交换平台推送至XXXX市不动产登记中心，采用《不动产登记数据交换标准》格式，回执采用同步应答 + 异步回传两段式。</div>
+        </div>
+        <div class="section-title mt-16">请求报文（本系统 → 不动产登记中心）</div>
+        <div class="msg-box">{
+  <span class="k">"msgId"</span>: <span class="s">"YG20260731009"</span>,
+  <span class="k">"msgType"</span>: <span class="s">"YGDJ_TRANSFER_APPLY"</span>,
+  <span class="k">"sender"</span>: <span class="s">"LZ_WSCWB"</span>,
+  <span class="k">"receiver"</span>: <span class="s">"LZ_BDCDJ"</span>,
+  <span class="k">"sendTime"</span>: <span class="s">"2026-07-31T21:40:12+08:00"</span>,
+  <span class="k">"body"</span>: {
+    <span class="k">"contractNo"</span>: <span class="s">"CLF450200202600318"</span>,
+    <span class="k">"filingNo"</span>: <span class="s">"BA450200202600318"</span>,
+    <span class="k">"bdcUnitNo"</span>: <span class="s">"450202006012GB00318F00121802"</span>,
+    <span class="k">"address"</span>: <span class="s">"柳州市柳北区彰泰滨江学府 12 栋 2 单元 1802 号"</span>,
+    <span class="k">"buildArea"</span>: <span class="n">101.25</span>,
+    <span class="k">"dealPrice"</span>: <span class="n">1268000</span>,
+    <span class="k">"obligee"</span>: [{ <span class="k">"name"</span>: <span class="s">"李婉婷"</span>, <span class="k">"idType"</span>: <span class="s">"1"</span>, <span class="k">"idNo"</span>: <span class="s">"4502**********2246"</span> }],
+    <span class="k">"seller"</span>: [{ <span class="k">"name"</span>: <span class="s">"吴俊霖"</span>, <span class="k">"idType"</span>: <span class="s">"1"</span>, <span class="k">"idNo"</span>: <span class="s">"4502**********7412"</span> }],
+    <span class="k">"loanBank"</span>: <span class="s">"柳州银行城中支行"</span>,
+    <span class="k">"applyType"</span>: <span class="s">"转移预告登记"</span>
+  }
+}</div>
+        <div class="section-title mt-16">应答报文（不动产登记中心 → 本系统）</div>
+        <div class="msg-box">{
+  <span class="k">"msgId"</span>: <span class="s">"YG20260731009"</span>,
+  <span class="k">"code"</span>: <span class="s">"0000"</span>,
+  <span class="k">"message"</span>: <span class="s">"受理成功，已生成登记业务号 BDC202607310218"</span>,
+  <span class="k">"recvTime"</span>: <span class="s">"2026-07-31T21:40:13+08:00"</span>,
+  <span class="k">"estimatedFinish"</span>: <span class="s">"2026-08-01T17:00:00+08:00"</span>
+}</div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-close-modal>关闭</button>
+        <button type="button" class="btn" onclick="PMS.toast('报文已复制到剪贴板')"><i class="fa-regular fa-copy"></i> 复制报文</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 回传结果 -->
+  <div class="drawer-mask"></div>
+  <div class="drawer drawer-lg" id="dwBack">
+    <div class="drawer-head">
+      <h3>预告登记回传结果</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-success">
+        <i class="fa-solid fa-circle-check"></i>
+        <div>不动产登记中心已完成转移预告登记并回传结果，系统已同步推送贷款银行作为审批放款依据。</div>
+      </div>
+
+      <div class="section-title mt-16">登记结果</div>
+      <dl class="desc-list">
+        <div class="desc-item"><dt>推送编号</dt><dd id="bkNo">—</dd></div>
+        <div class="desc-item"><dt>预告登记证明号</dt><dd id="bkCert">—</dd></div>
+        <div class="desc-item"><dt>登记机构</dt><dd>XXXX市不动产登记中心</dd></div>
+        <div class="desc-item"><dt>登记时间</dt><dd id="bkTime">—</dd></div>
+        <div class="desc-item"><dt>预告有效期止</dt><dd id="bkExpire">—</dd></div>
+        <div class="desc-item"><dt>登记类型</dt><dd>转移预告登记</dd></div>
+        <div class="desc-item"><dt>预告权利人</dt><dd>李婉婷</dd></div>
+        <div class="desc-item"><dt>登记业务号</dt><dd>BDC202607280186</dd></div>
+        <div class="desc-item"><dt>回传方式</dt><dd>政务数据共享交换平台异步回传</dd></div>
+      </dl>
+
+      <div class="section-title mt-16">证明文件</div>
+      <div class="grid-2">
+        <div class="cert-view"><i class="fa-regular fa-file-pdf"></i><span>不动产登记证明（预告登记）.pdf</span></div>
+        <div class="cert-view"><i class="fa-solid fa-qrcode"></i><span>扫码验真：登记中心官网核验</span></div>
+      </div>
+
+      <div class="section-title mt-16">推送贷款银行</div>
+      <table class="data-table compact">
+        <thead><tr><th>推送对象</th><th>推送时间</th><th>推送内容</th><th>银行回执</th><th>回执时间</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="nowrap" id="bkBank">—</td>
+            <td class="nowrap">2026-07-28 16:24</td>
+            <td>预告登记证明号、有效期、权利人信息</td>
+            <td><span class="badge green">已接收</span></td>
+            <td class="nowrap">2026-07-28 16:24</td>
+          </tr>
+          <tr>
+            <td class="nowrap">XXXX市不动产登记中心</td>
+            <td class="nowrap">2026-07-28 16:22</td>
+            <td>登记结果确认回执</td>
+            <td><span class="badge green">已确认</span></td>
+            <td class="nowrap">2026-07-28 16:22</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="section-title mt-16">交互轨迹</div>
+      <div class="timeline">
+        <div class="tl-item done">
+          <div class="tl-dot"></div>
+          <div class="tl-title">备案完成，自动生成预告登记推送任务</div>
+          <div class="tl-meta">2026-07-28 09:38 · 系统</div>
+        </div>
+        <div class="tl-item done">
+          <div class="tl-dot"></div>
+          <div class="tl-title">推送转移预告登记申请</div>
+          <div class="tl-meta">2026-07-28 09:41 · 政务数据共享交换平台</div>
+          <div class="tl-desc">报文校验通过，登记中心同步应答受理成功。</div>
+        </div>
+        <div class="tl-item done">
+          <div class="tl-dot"></div>
+          <div class="tl-title">登记中心完成预告登记</div>
+          <div class="tl-meta">2026-07-28 16:22 · XXXX市不动产登记中心</div>
+          <div class="tl-desc">出具不动产登记证明，有效期 6 个月。</div>
+        </div>
+        <div class="tl-item done">
+          <div class="tl-dot"></div>
+          <div class="tl-title">结果回传并推送贷款银行</div>
+          <div class="tl-meta">2026-07-28 16:24 · 系统</div>
+          <div class="tl-desc">银行已接收并作为放款审批依据。</div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+      <button type="button" class="btn" onclick="PMS.toast('不动产登记证明（预告登记）已下载')"><i class="fa-solid fa-download"></i> 下载证明</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.toast('已重新推送贷款银行','success')"><i class="fa-solid fa-paper-plane"></i> 重推银行</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  var table = document.getElementById('tblPn');
+  document.getElementById('stTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var name = tab.getAttribute('data-tab');
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.style.display = (name === 'all' || tr.getAttribute('data-st') === name) ? '' : 'none';
+    });
+  });
+  document.getElementById('ckAll').addEventListener('change', function () {
+    var on = this.checked;
+    table.querySelectorAll('tbody .ck').forEach(function (c) {
+      if (c.closest('tr').style.display !== 'none') c.checked = on;
+    });
+  });
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 137,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+
+function markSent(tr, no) {
+  tr.setAttribute('data-st', 'sent');
+  tr.children[7].className = 'nowrap';
+  tr.children[7].textContent = '2026-07-31 21:40';
+  tr.children[8].innerHTML = '<span class="badge blue">已推送</span>';
+  tr.children[9].className = 'nowrap text-3';
+  tr.children[9].textContent = '待回传';
+  tr.children[13].innerHTML = '<span class="badge orange">待放款</span>';
+  tr.querySelector('.col-ops').innerHTML =
+    '<span class="link" onclick="openMsg(\'' + no + '\')">查看报文</span>' +
+    '<span class="link" onclick="repush(this,\'' + no + '\')">重推</span>';
+}
+
+function push(el, no) {
+  var tr = el.closest('tr');
+  PMS.confirm({
+    title: '推送转移预告登记',
+    message: '确认向不动产登记中心推送 ' + no + '？',
+    detail: '推送后登记中心同步应答受理结果，预告登记办结后异步回传证明号，并自动转推贷款银行。',
+    okText: '确认推送',
+    onOk: function () {
+      markSent(tr, no);
+      PMS.toast(no + ' 已推送，登记中心应答受理成功', 'success');
+    }
+  });
+}
+
+function repush(el, no) {
+  var tr = el.closest('tr');
+  markSent(tr, no);
+  PMS.toast(no + ' 已重新推送，报文校验通过', 'success');
+}
+
+function batchPush() {
+  var rows = [].slice.call(document.querySelectorAll('#tblPn tbody .ck:checked'));
+  if (!rows.length) { PMS.toast('请先勾选需推送的记录', 'error'); return; }
+  PMS.confirm({
+    title: '批量推送',
+    message: '已勾选 ' + rows.length + ' 条，确认批量推送转移预告登记？',
+    okText: '确认推送',
+    onOk: function () {
+      rows.forEach(function (c) {
+        var tr = c.closest('tr');
+        c.checked = false;
+        markSent(tr, tr.children[1].textContent.trim());
+      });
+      document.getElementById('ckAll').checked = false;
+      PMS.toast('已批量推送 ' + rows.length + ' 条预告登记申请', 'success');
+    }
+  });
+}
+
+function cancelPn(el, no) {
+  var tr = el.closest('tr');
+  PMS.confirm({
+    title: '推送预告登记注销',
+    message: '确认推送 ' + no + ' 的预告登记注销申请？',
+    detail: '合同解除或备案注销后须同步注销预告登记，避免预告登记长期挂账影响房源再交易。',
+    type: 'danger',
+    okText: '确认推送',
+    onOk: function () {
+      tr.children[8].innerHTML = '<span class="badge gray">已注销推送</span>';
+      tr.children[11].className = 'nowrap text-3';
+      tr.children[11].textContent = '已注销';
+      tr.children[13].innerHTML = '<span class="badge gray">已终止</span>';
+      tr.querySelector('.col-ops').innerHTML =
+        '<span class="link" onclick="PMS.toast(\'注销申请已推送，登记中心受理成功\')">注销详情</span>';
+      PMS.toast(no + ' 的预告登记注销申请已推送', 'success');
+    }
+  });
+}
+
+function openMsg(no) {
+  document.getElementById('msgTitle').textContent = '预告登记交互报文 · ' + no;
+  PMS.openModal('mdMsg');
+}
+
+function openBack(no, cert, time, expire, bank) {
+  document.getElementById('bkNo').textContent = no;
+  document.getElementById('bkCert').textContent = cert;
+  document.getElementById('bkTime').textContent = time;
+  document.getElementById('bkExpire').textContent = expire;
+  document.getElementById('bkBank').textContent = bank;
+  PMS.openDrawer('dwBack');
+}
+</script>
+</body>
+</html>

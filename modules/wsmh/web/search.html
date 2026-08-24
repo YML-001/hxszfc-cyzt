@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>全站搜索 · 统一服务门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  .sr-body { padding: 0 0 40px; }
+  .sr-sum { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card); padding: 14px 18px; margin-bottom: 16px; }
+  .sr-sum b { color: var(--accent); font-family: "DIN Alternate", var(--font); font-size: 16px; }
+  .sr-item {
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card);
+    padding: 15px 18px; margin-bottom: 12px; transition: .16s;
+  }
+  .sr-item:hover { border-color: var(--primary-soft); box-shadow: var(--shadow-sm); }
+  .sr-item .si-t { font-size: 16px; font-weight: 700; }
+  .sr-item .si-t a { color: var(--text-1); }
+  .sr-item .si-t a:hover { color: var(--primary); }
+  .sr-item .si-d { font-size: 13px; color: var(--text-2); margin-top: 6px; line-height: 1.8; }
+  .sr-item .si-m { font-size: 12.5px; color: var(--text-3); margin-top: 8px; display: flex; gap: 14px; flex-wrap: wrap; }
+  .sr-item em { font-style: normal; color: var(--accent); font-weight: 700; }
+</style>
+</head>
+<body data-nav="home">
+
+<div class="wrap">
+  <div class="crumb"><a href="home.html">首页</a><i class="fa-solid fa-angle-right"></i>全站搜索</div>
+</div>
+
+<div class="wrap sr-body">
+  <div class="sr-sum" id="sr-sum"></div>
+  <div class="tabs" data-tabs data-scope="sr-box" id="sr-tabs"></div>
+  <div id="sr-box"></div>
+  <div id="src-note"></div>
+</div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+function pageInit() {
+  var kw = UI.param('kw'), scope = UI.param('scope') || 'all';
+  document.getElementById('ss-kw').value = kw;
+  if (document.getElementById('ss-scope')) document.getElementById('ss-scope').value = scope;
+
+  var r = PORTAL.search(kw, scope);
+  var GROUPS = [
+    ['project', '项目楼盘', 'fa-building', r.project],
+    ['house', '在售在租房源', 'fa-house', r.house],
+    ['community', '小区', 'fa-city', r.community],
+    ['item', '办事事项与指南', 'fa-file-signature', r.item],
+    ['article', '政策文件', 'fa-book', r.article],
+    ['notice', '公示与资讯', 'fa-bullhorn', r.notice]
+  ].filter(function (g) { return g[3] && g[3].length; });
+
+  var total = 0; GROUPS.forEach(function (g) { total += g[3].length; });
+
+  document.getElementById('sr-sum').innerHTML = kw
+    ? '搜索「<b>' + UI.esc(kw) + '</b>」，在 ' + (scope === 'all' ? '全站' : ({ project: '项目楼盘', community: '小区', item: '办事事项', article: '政策文件', notice: '公示信息' })[scope])
+      + '范围内找到 <b>' + total + '</b> 条结果，覆盖 ' + GROUPS.length + ' 个类别。搜索支持项目名、小区名、事项名、政策标题与公示关键字。'
+    : '请输入搜索关键词。全站搜索覆盖项目楼盘、小区、办事事项、办事指南、政策文件与公示信息，支持拼音与近义词检索。';
+
+  /* 无结果：给相近事项推荐与人工客服引导（wsmh-02-04） */
+  if (!total) {
+    document.getElementById('sr-tabs').innerHTML = '';
+    var sug = PORTAL.suggest(kw);
+    document.getElementById('sr-box').innerHTML =
+      '<div class="card"><div class="card-body">'
+      + UI.empty('没有找到与「' + UI.esc(kw) + '」相关的内容',
+        '可以试试下面的高频事项，或直接问智能客服')
+      + '</div></div>'
+      + '<div class="card mt-16"><div class="card-head"><h3><i class="fa-solid fa-lightbulb text-warning"></i> 您可能要找这些事项</h3>'
+      + '<span class="sub">按办件量排序的高频事项</span></div><div class="card-body">'
+      + '<div class="grid-2" style="gap:10px">' + sug.map(function (i) {
+        return '<a class="pub-i" href="item-detail.html?code=' + i.code + '">'
+          + '<span class="pi-ico"><i class="fa-solid fa-file-signature"></i></span>'
+          + '<span><span class="pi-t">' + i.name + '</span>'
+          + '<span class="pi-d" style="display:block">' + i.dept + ' · 承诺 ' + i.nsrq + ' 个工作日 · ' + (i.wb ? '全程网办' : '需到窗口') + '</span></span></a>';
+      }).join('') + '</div>'
+      + '<div class="flex gap-8 mt-16"><button class="btn btn-primary" data-act="chat"><i class="fa-solid fa-headset"></i> 问智能客服</button>'
+      + '<a class="btn" href="scene-guide.html"><i class="fa-solid fa-compass"></i> 按办事情形找</a>'
+      + '<a class="btn" href="complaint.html"><i class="fa-solid fa-phone"></i> 转人工咨询</a></div>'
+      + '</div></div>';
+    document.getElementById('src-note').innerHTML = UI.sourceNote();
+    return;
+  }
+
+  document.getElementById('sr-tabs').innerHTML = '<a class="on" data-tab="sr-all">全部 ' + total + '</a>'
+    + GROUPS.map(function (g) { return '<a data-tab="sr-' + g[0] + '">' + g[1] + ' ' + g[3].length + '</a>'; }).join('');
+
+  var html = '<div class="tab-pane on" id="sr-all">'
+    + GROUPS.map(function (g) {
+      return '<div class="col-head" style="margin:16px 0 12px"><h2 style="font-size:17px"><i class="fa-solid ' + g[2] + '"></i> ' + g[1] + '</h2>'
+        + '<span class="ch-en">' + g[3].length + ' 条</span></div>'
+        + g[3].slice(0, 3).map(function (x) { return row(g[0], x, kw); }).join('')
+        + (g[3].length > 3 ? '<div class="center mb-16"><a class="btn btn-sm" data-tab="sr-' + g[0] + '">查看全部 ' + g[3].length + ' 条 ' + g[1] + ' <i class="fa-solid fa-angle-right"></i></a></div>' : '');
+    }).join('') + '</div>';
+
+  html += GROUPS.map(function (g) {
+    return '<div class="tab-pane" id="sr-' + g[0] + '">'
+      + g[3].map(function (x) { return row(g[0], x, kw); }).join('') + '</div>';
+  }).join('');
+
+  document.getElementById('sr-box').innerHTML = html;
+  document.getElementById('src-note').innerHTML = UI.sourceNote();
+}
+
+function hl(s, kw) {
+  if (!kw) return UI.esc(s);
+  return UI.esc(s).split(UI.esc(kw)).join('<em>' + UI.esc(kw) + '</em>');
+}
+
+function row(type, x, kw) {
+  if (type === 'project') {
+    return item('new-house-detail.html?id=' + x.id, hl(x.xmmc, kw),
+      '开发企业 ' + hl(x.kfqy, kw) + '，坐落 ' + x.dz + '。' + x.zt + '项目，可售 ' + x.ksts + ' 套，备案拟售均价 ' + UI.money(x.junjia, 0) + ' 元/㎡。',
+      ['项目楼盘', x.qx + ' · ' + x.sq, '预售证 ' + x.yszh, '更新 ' + x.ysrq], x.good ? '好房子' : '');
+  }
+  if (type === 'house') {
+    return item((x.lx === '3' ? 'rent-house.html?id=' : 'second-house-detail.html?id=') + x.id, hl(x.bt, kw),
+      x.qx + ' ' + hl(x.xqmc, kw) + ' ' + x.fhMask + '，' + x.mj + '㎡ ' + x.hx + ' ' + x.cx + ' ' + x.zx
+      + '，' + (x.lx === '3' ? UI.money(x.zj, 0) + ' 元/月' : x.zj + ' 万元') + '。',
+      [x.lxmc, '核验码 ' + x.hym, x.lymc, '更新 ' + x.gxsj.slice(0, 10)], '已核验');
+  }
+  if (type === 'community') {
+    return item('house-map.html?xq=' + encodeURIComponent(x.mc), hl(x.mc, kw),
+      x.qx + ' ' + x.sq + '，建成年代 ' + x.jcnd + ' 年，共 ' + x.zts + ' 套。当前在售 ' + x.zsts + ' 套、在租 ' + x.zzts + ' 套，挂牌均价 ' + UI.money(x.gpj, 0) + ' 元/㎡。',
+      ['小区', x.qx, '物业 ' + x.wuye, '近月成交 ' + x.yjcj + ' 套'], '');
+  }
+  if (type === 'item') {
+    return item('item-detail.html?code=' + x.code, hl(x.name, kw),
+      '办理条件：' + x.tj + ' 承诺办结 ' + x.nsrq + ' 个工作日，需提交 ' + x.clnum + ' 份材料，办理地点 ' + x.dd + '。',
+      ['办事事项 ' + x.code, x.dept, x.wb ? '全程网办' : '需到窗口', '收费 ' + x.sf], x.hot ? '热门' : '');
+  }
+  return item('article-detail.html?id=' + x.id, hl(x.bt, kw), hl(x.zy, kw),
+    [{ notice: '通知公告', news: '工作动态', policy: '政策法规', open: '政务公开', risk: '风险提示', train: '培训材料', refund: '退房公示', survey: '测绘公示' }[x.lm] || '公示信息',
+      x.ly, '发布 ' + x.fbsj, '浏览 ' + x.llcs], x.yxq ? '公示期至 ' + x.yxq : '');
+}
+
+function item(href, title, desc, metas, tag) {
+  return '<div class="sr-item"><div class="si-t"><a href="' + href + '" data-fp="wsmh-02-04">' + title + '</a>'
+    + (tag ? ' <span class="badge red" style="vertical-align:2px">' + tag + '</span>' : '') + '</div>'
+    + '<div class="si-d">' + desc + '</div>'
+    + '<div class="si-m">' + metas.map(function (m) { return '<span><i class="fa-solid fa-tag" style="font-size:10px"></i> ' + m + '</span>'; }).join('') + '</div></div>';
+}
+</script>
+</body>
+</html>

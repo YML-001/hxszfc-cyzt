@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 输出留痕台账 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="pt" data-active="ai-audit-log">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>我的工作台</span>
+      <span class="sep">/</span><span class="cur">AI 输出留痕台账</span>
+    </div>
+  </div>
+
+  <!-- 模块内子导航：wsai-03 AI 输出治理的五个功能点 -->
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-shield-halved"></i>AI 输出治理 wsai-03</span>
+    <a class="active" href="ai-audit-log.html?role=pt">AI 输出留痕</a>
+    <a href="../admin/prompt-template.html?role=pt">提示词模板</a>
+    <a href="../admin/content-filter.html?role=pt">内容合规过滤</a>
+    <a href="../admin/hallucination-guard.html?role=pt">幻觉防控审核</a>
+    <a href="../admin/human-feedback.html?role=pt">人工修正回流</a>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon ai"><i class="fa-solid fa-clipboard-list"></i></div>
+      <div><div class="s-label">输出总数</div><div class="s-value" id="kAll">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">待人工确认</div><div class="s-value" id="kPend">—</div>
+        <div class="s-trend text-danger">未确认不产生业务效力</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-thumbs-up"></i></div>
+      <div><div class="s-label">采纳率</div><div class="s-value" id="kAdopt">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-pen"></i></div>
+      <div><div class="s-label">人工修正率</div><div class="s-value" id="kFix">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-ban"></i></div>
+      <div><div class="s-label">幻觉防控拦截</div><div class="s-value" id="kBlock">—</div>
+        <div class="s-trend text-2" id="kGuard">—</div></div>
+    </div>
+  </div>
+
+  <div class="card list-card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>应用场景</label>
+        <select id="fScene" data-dict="scene" onchange="AI.paint('tLog')"></select>
+      </div>
+      <div class="filter-item">
+        <label>确认状态</label>
+        <select id="fQr" data-dict="qrzt" onchange="AI.paint('tLog')"></select>
+      </div>
+      <div class="filter-item">
+        <label>模型</label>
+        <select id="fModel" onchange="AI.paint('tLog')"><option value="">全部</option></select>
+      </div>
+      <div class="filter-item">
+        <label>置信度</label>
+        <select id="fConf" onchange="AI.paint('tLog')">
+          <option value="">全部</option>
+          <option value="h">高（≥90%）</option>
+          <option value="m">中（70~89%）</option>
+          <option value="l">低（&lt;70%）</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>业务标识 / 结论关键词</label>
+        <input type="text" id="fKw" placeholder="输入业务编号或关键词" oninput="AI.paint('tLog')">
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-primary" onclick="AI.paint('tLog')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button class="btn" onclick="resetFilter()"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        <button class="btn btn-success" onclick="batchAdopt()"><i class="fa-solid fa-check-double"></i> 批量采纳</button>
+        <button class="btn" onclick="submitBiz()"><i class="fa-solid fa-paper-plane"></i> 提交业务系统</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tLog" data-static>
+        <thead><tr>
+          <th style="width:38px"><input type="checkbox" onclick="AI.pickAll(this,'tLog')"></th>
+          <th>应用场景</th><th>业务标识</th><th class="cell-lg">AI 结论</th>
+          <th>模型 / 版本</th><th>置信度</th><th>溯源</th>
+          <th>确认状态</th><th>确认人</th><th>产生时间</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- 输出详情抽屉：完整展示溯源三件套与三联动作 -->
+<div class="drawer-mask" data-close-drawer></div>
+<div class="drawer" id="dOut">
+  <div class="drawer-head">
+    <h3>AI 输出详情</h3>
+    <span class="sub text-3" id="dScene"></span>
+    <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+  </div>
+  <div class="drawer-body" id="dBody"></div>
+  <div class="drawer-foot" id="dFoot"></div>
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var q = '?role=' + AI.role();
+
+  function paintKpi() {
+    document.getElementById('kAll').textContent = AI.stat('outputs');
+    document.getElementById('kPend').textContent = AI.stat('pendingOutputs');
+    document.getElementById('kAdopt').textContent = AI.stat('adoptRate') + '%';
+    document.getElementById('kFix').textContent = AI.stat('correctRate') + '%';
+    document.getElementById('kBlock').textContent = AI.stat('blocked');
+    var g = AI.db().guard;
+    document.getElementById('kGuard').textContent = '阈值 ' + g.confMin + '%';
+  }
+
+  /* 模型下拉：按留痕里实际出现过的模型生成 */
+  function fillModels() {
+    var sel = document.getElementById('fModel');
+    if (sel.options.length > 1) return;
+    var seen = {};
+    AI.get('outputs').forEach(function (o) { seen[o.mxmc] = 1; });
+    Object.keys(seen).forEach(function (k) {
+      var op = document.createElement('option');
+      op.value = k; op.textContent = k;
+      sel.appendChild(op);
+    });
+  }
+
+  window.resetFilter = function () {
+    ['fScene', 'fQr', 'fModel', 'fConf'].forEach(function (id) { document.getElementById(id).value = ''; });
+    document.getElementById('fKw').value = '';
+    AI.paint('tLog');
+  };
+
+  AI.table({
+    id: 'tLog', pageSize: 12,
+    rows: function () {
+      var sc = document.getElementById('fScene').value;
+      var qr = document.getElementById('fQr').value;
+      var mo = document.getElementById('fModel').value;
+      var cf = document.getElementById('fConf').value;
+      var kw = (document.getElementById('fKw').value || '').trim();
+      return AI.where('outputs', function (o) {
+        if (sc && o.scene !== sc) return false;
+        if (qr && o.qrzt !== qr) return false;
+        if (mo && o.mxmc !== mo) return false;
+        if (cf === 'h' && !(o.conf >= 90)) return false;
+        if (cf === 'm' && !(o.conf >= 70 && o.conf < 90)) return false;
+        if (cf === 'l' && !(o.conf < 70)) return false;
+        if (kw && (o.bizId || '').indexOf(kw) < 0 && (o.text || '').indexOf(kw) < 0) return false;
+        return true;
+      });
+    },
+    cells: function (o) {
+      var page = AI.scenePage[o.scene];
+      return [
+        '<td><input type="checkbox" data-pick="' + o.id + '"></td>',
+        '<td>' + (page
+          ? '<a class="link" href="' + page + q + '">' + AI.dict('scene', o.scene) + '</a>'
+          : AI.dict('scene', o.scene)) + '</td>',
+        '<td>' + AI.esc(o.bizId) + '</td>',
+        '<td class="cell-lg">' + AI.esc(o.text) +
+          (o.blocked ? ' <span class="badge red">已拦截</span>' : '') +
+          (o.fixText ? '<div class="text-3 text-sm">修正为：' + AI.esc(o.fixText) + '</div>' : '') + '</td>',
+        '<td>' + AI.esc(o.mxmc) + '<br><span class="text-3 text-sm">' + AI.esc(o.ver) + '</span></td>',
+        '<td>' + AI.confidence(o.conf) + '</td>',
+        '<td>' + AI.citeChips(o.cites) + '</td>',
+        '<td>' + AI.qrBadge(o.qrzt) + '</td>',
+        '<td>' + AI.esc(o.hrBy || '—') + '<br><span class="text-3 text-sm">' + (o.hrAt ? AI.fmt.time(o.hrAt) : '') + '</span></td>',
+        '<td>' + AI.fmt.time(o.at) + '</td>',
+        '<td class="col-ops">' +
+          '<button class="btn btn-sm" onclick="openOut(\'' + o.id + '\')"><i class="fa-solid fa-eye"></i> 详情</button>' +
+          (o.qrzt === '0' ? ' ' + AI.actTriplet(o.id) : '') +
+          (o.qrzt !== '0' && !o.reviewed
+            ? ' <button class="btn btn-sm" onclick="AI.act.markSample(\'' + o.id + '\',true)" title="智能审核治理 wsai-08">复核</button>'
+            : '') +
+        '</td>'
+      ];
+    },
+    empty: '没有符合条件的 AI 输出记录'
+  });
+
+  /* 详情抽屉 */
+  window.openOut = function (id) {
+    var o = AI.byId('outputs', id);
+    if (!o) return;
+    document.getElementById('dScene').textContent = AI.dict('scene', o.scene) + ' · ' + o.bizId;
+    document.getElementById('dBody').innerHTML =
+      '<div class="grp-card">' +
+        '<div class="grp-head"><span class="gi"><i class="fa-solid fa-robot"></i></span>AI 结论 ' + AI.aiMark(o.qrzt) + '</div>' +
+        '<div style="font-size:14.5px;line-height:1.8;color:var(--text-1)">' + AI.esc(o.text) + '</div>' +
+        (o.fixText ? '<div class="alert alert-info mt-16"><i class="fa-solid fa-pen"></i><span>人工修正为：' +
+          AI.esc(o.fixText) + '</span></div>' : '') +
+        '<div class="mt-16">' + AI.aiSource(o) + '</div>' +
+      '</div>' +
+      '<div class="grp-card">' +
+        '<div class="grp-head"><span class="gi"><i class="fa-solid fa-circle-info"></i></span>留痕信息</div>' +
+        '<dl class="desc-list">' +
+          '<div class="desc-item"><dt>应用场景</dt><dd>' + AI.dict('scene', o.scene) + '</dd></div>' +
+          '<div class="desc-item"><dt>业务标识</dt><dd>' + AI.esc(o.bizId) + '</dd></div>' +
+          '<div class="desc-item"><dt>调用模型</dt><dd>' + AI.esc(o.mxmc) + '</dd></div>' +
+          '<div class="desc-item"><dt>模型版本</dt><dd>' + AI.esc(o.ver) + '</dd></div>' +
+          '<div class="desc-item"><dt>置信度</dt><dd>' + o.conf + '%</dd></div>' +
+          '<div class="desc-item"><dt>是否被拦截</dt><dd>' + (o.blocked ? '<span class="miss">是（幻觉防控）</span>' : '否') + '</dd></div>' +
+          '<div class="desc-item"><dt>确认状态</dt><dd>' + AI.qrBadge(o.qrzt) + '</dd></div>' +
+          '<div class="desc-item"><dt>确认人</dt><dd>' + AI.esc(o.hrBy || '—') + '</dd></div>' +
+          '<div class="desc-item"><dt>确认时间</dt><dd>' + (o.hrAt ? AI.fmt.time(o.hrAt) : '—') + '</dd></div>' +
+          '<div class="desc-item"><dt>产生时间</dt><dd>' + AI.fmt.time(o.at) + '</dd></div>' +
+          '<div class="desc-item"><dt>调用人</dt><dd>' + AI.esc(o.czr) + '</dd></div>' +
+          '<div class="desc-item"><dt>知识溯源</dt><dd>' + AI.citeChips(o.cites) + '</dd></div>' +
+        '</dl>' +
+      '</div>' +
+      '<div class="ai-tip"><i class="fa-solid fa-circle-info"></i><span>' +
+        (o.qrzt === '0'
+          ? '本条结论尚未人工确认，按 AI 输出治理要求<b>不产生业务效力</b>，也不能提交到业务系统。'
+          : '本条结论已' + AI.dict('qrzt', o.qrzt) + '，已回流为模型训练样本，可在「人工修正回流」页查看回流台账。') +
+      '</span></div>';
+    document.getElementById('dFoot').innerHTML =
+      (o.qrzt === '0'
+        ? '<button class="btn btn-success" onclick="AI.act.adopt(\'' + o.id + '\')"><i class="fa-solid fa-check"></i> 采纳</button>' +
+          '<button class="btn btn-primary" onclick="AI.act.fix(\'' + o.id + '\')"><i class="fa-solid fa-pen"></i> 修正</button>' +
+          '<button class="btn btn-danger" onclick="AI.act.reject(\'' + o.id + '\')"><i class="fa-solid fa-xmark"></i> 驳回</button>'
+        : '') +
+      '<button class="btn" data-close-drawer>关闭</button>';
+    PMS.openDrawer('dOut');
+  };
+
+  window.batchAdopt = function () { AI.act.adoptBatch(AI.checked('tLog')); };
+  window.submitBiz = function () {
+    var ids = AI.checked('tLog');
+    if (!ids.length) { AI.toast('请先勾选要提交的 AI 输出', 'error'); return; }
+    AI.act.submitToBiz(ids, '统一工作门户');
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    fillModels();
+    AI.on(function () { paintKpi(); AI.repaintAll(); });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>影像电子归集 · 房屋交易档案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  .no-code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; }
+  /* 本页特有：左采集区 + 右卷内列表 */
+  .sc-layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 12px; align-items: start; }
+  @media (max-width: 1200px) { .sc-layout { grid-template-columns: 1fr; } }
+  /* 本页特有：纯 CSS 文档示意图占位 */
+  .doc-sheet {
+    position: relative; width: 100%; max-width: 420px; margin: 0 auto; aspect-ratio: 210 / 297;
+    background: #fff; border: 1px solid #d8e0ec; border-radius: 4px;
+    box-shadow: 0 6px 18px rgba(20, 40, 90, .1); padding: 26px 24px; overflow: hidden;
+  }
+  .doc-sheet .d-title { height: 12px; width: 62%; margin: 0 auto 6px; background: #33415560; border-radius: 3px; }
+  .doc-sheet .d-sub { height: 7px; width: 40%; margin: 0 auto 16px; background: #94a3b880; border-radius: 3px; }
+  .doc-sheet .d-p { height: 5px; background: #cbd5e1; border-radius: 3px; margin-bottom: 7px; }
+  .doc-sheet .d-p.w9 { width: 96%; }
+  .doc-sheet .d-p.w7 { width: 74%; }
+  .doc-sheet .d-p.w5 { width: 52%; }
+  .doc-sheet .d-grid { margin: 14px 0; border: 1px solid #dbe3ee; }
+  .doc-sheet .d-grid > div { display: flex; border-bottom: 1px solid #dbe3ee; }
+  .doc-sheet .d-grid > div:last-child { border-bottom: 0; }
+  .doc-sheet .d-grid span { flex: 1; height: 18px; border-right: 1px solid #dbe3ee; }
+  .doc-sheet .d-grid span:last-child { border-right: 0; }
+  .doc-sheet .d-stamp {
+    position: absolute; right: 30px; bottom: 54px; width: 74px; height: 74px; border-radius: 50%;
+    border: 2.5px solid #dc262699; color: #dc2626aa; font-size: 10px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; text-align: center; transform: rotate(-12deg);
+    line-height: 1.3;
+  }
+  .doc-sheet .d-sign { position: absolute; left: 26px; bottom: 34px; width: 96px; height: 8px; background: #33415555; border-radius: 3px; }
+  .doc-sheet .d-page { position: absolute; right: 10px; bottom: 8px; font-size: 10px; color: var(--text-3); }
+  .doc-sheet.hl-ocr .d-p.w7 { background: #fde68a; }
+  .sheet-wrap { background: #f2f5fa; border: 1px solid var(--border); border-radius: 10px; padding: 18px 12px; }
+  /* 本页特有：卷内文件列表 */
+  .jn-item {
+    display: flex; gap: 10px; align-items: flex-start; padding: 9px 10px; border: 1px solid var(--border);
+    border-radius: 8px; margin-bottom: 8px; background: #fff; cursor: grab;
+  }
+  .jn-item:hover { border-color: var(--primary-soft); background: var(--primary-light-2, var(--primary-light)); }
+  .jn-item.on { border-color: var(--primary); background: var(--primary-light); }
+  .jn-item .jn-no {
+    width: 22px; height: 22px; border-radius: 5px; background: var(--primary-light); color: var(--primary);
+    font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .jn-item .jn-thumb {
+    width: 34px; height: 44px; border: 1px solid #dbe3ee; border-radius: 3px; background: #fff; flex-shrink: 0;
+    background-image: repeating-linear-gradient(180deg, #cbd5e1 0 2px, transparent 2px 6px);
+    background-size: 22px 6px; background-position: 6px 8px; background-repeat: repeat-y;
+  }
+  .jn-item .jn-b { flex: 1; min-width: 0; }
+  .jn-item .jn-n { font-size: 13px; font-weight: 600; line-height: 1.4; }
+  .jn-item .jn-m { font-size: 11.5px; color: var(--text-3); margin-top: 3px; }
+  .jn-item .jn-g { color: var(--text-3); font-size: 12px; }
+  /* 本页特有：OCR 面板 */
+  .ocr-box { background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+  .ocr-text { font-size: 12.5px; line-height: 1.9; color: var(--text-2); max-height: 120px; overflow: auto; }
+  .ocr-kw { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .ocr-kw .k { background: var(--primary-light); color: var(--primary); border-radius: 5px; padding: 2px 7px; font-size: 12px; }
+  .sum-bar {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 10px 14px;
+    background: var(--bg-soft); border-radius: 8px; font-size: 13px;
+  }
+  .cap-cnt { font-size: 13px; color: var(--text-2); }
+  .cap-cnt b { font-size: 18px; color: var(--primary); font-variant-numeric: tabular-nums; }
+  .modal-head { display: flex; align-items: center; gap: 10px; }
+  .modal-head h3 { font-size: 16px; font-weight: 700; }
+  .modal-head .close { margin-left: auto; cursor: pointer; color: var(--text-3); font-size: 18px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: none; border: 0; }
+  .modal-head .close:hover { background: var(--bg-soft); color: var(--text-1); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdagl-05">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> <a class="link" href="index.html">房屋交易档案管理系统</a>
+        <span class="sep">/</span> 档案接收整理
+        <span class="sep">/</span> <span class="cur">影像电子归集</span>
+      </div>
+      <div class="page-title">影像电子归集</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="archive-detail.html"><i class="fa-solid fa-file-lines"></i> 案卷详情</a>
+      <a class="btn" href="catalog-entry.html"><i class="fa-solid fa-pen-to-square"></i> 去著录</a>
+      <a class="btn btn-primary" href="archive-viewer.html"><i class="fa-solid fa-object-group"></i> 图文查看</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body tight">
+      <div class="flex items-center gap-12" style="flex-wrap:wrap">
+        <div class="filter-item" style="margin:0;min-width:300px">
+          <label>目标案卷</label>
+          <input type="text" value="DA450204202600862" class="no-code" placeholder="输入档案号检索">
+        </div>
+        <button type="button" class="btn btn-sm" onclick="PMS.toast('已加载案卷 DA450204202600862')"><i class="fa-solid fa-magnifying-glass"></i> 检索</button>
+        <span class="text-3">|</span>
+        <span class="badge cyan">存量房交易档案</span>
+        <span>彰泰滨江学府12栋2单元1802存量房买卖合同网签备案</span>
+        <span class="text-3">双套载体 · 12 件 / 46 页 · 已归档在库</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="sc-layout">
+    <div class="card">
+      <div class="card-head">
+        <h3>采集操作台</h3>
+        <span class="sub">扫描分辨率不低于 300 DPI，重要材料建议 600 DPI</span>
+      </div>
+      <div class="card-body">
+        <div class="tabs" id="mTabs">
+          <div class="tab active" data-tab="gp">高拍仪采集</div>
+          <div class="tab" data-tab="pb">平板扫描仪</div>
+          <div class="tab" data-tab="kz">批量馈纸扫描</div>
+          <div class="tab" data-tab="sj">手机拍照上传</div>
+          <div class="tab" data-tab="dz">电子材料挂接</div>
+        </div>
+
+        <div class="form-grid form-align mt-16">
+          <div class="form-item">
+            <label>扫描分辨率<span class="req">*</span></label>
+            <select><option>200 DPI</option><option selected>300 DPI</option><option>600 DPI</option></select>
+            <span class="hint">重要材料（合同、权属证明）建议 600 DPI</span>
+          </div>
+          <div class="form-item">
+            <label>色彩模式<span class="req">*</span></label>
+            <select><option>黑白</option><option selected>灰度</option><option>彩色</option></select>
+            <span class="hint">含红色印章、手写签字的建议选彩色</span>
+          </div>
+          <div class="form-item">
+            <label>存储格式<span class="req">*</span></label>
+            <select><option selected>PDF</option><option>TIFF</option><option>JPG</option></select>
+          </div>
+          <div class="form-item col-full">
+            <label>处理选项</label>
+            <div class="radio-line">
+              <label><input type="checkbox" checked> 自动纠偏</label>
+              <label><input type="checkbox" checked> 自动去黑边</label>
+              <label><input type="checkbox" checked id="ckOcr"> 自动 OCR 识别</label>
+              <label><input type="checkbox" checked> 计算文件 MD5（去重与完整性校验）</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="sheet-wrap mt-16">
+          <div class="doc-sheet" id="sheet">
+            <div class="d-title"></div>
+            <div class="d-sub"></div>
+            <div class="d-p w9"></div>
+            <div class="d-p w9"></div>
+            <div class="d-p w7"></div>
+            <div class="d-grid">
+              <div><span></span><span></span><span></span></div>
+              <div><span></span><span></span><span></span></div>
+              <div><span></span><span></span><span></span></div>
+              <div><span></span><span></span><span></span></div>
+            </div>
+            <div class="d-p w9"></div>
+            <div class="d-p w7"></div>
+            <div class="d-p w5"></div>
+            <div class="d-stamp">XXXX市房产<br>交易所</div>
+            <div class="d-sign"></div>
+            <div class="d-page">第 <span id="pgNo">8</span> 页</div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-12 mt-16" style="flex-wrap:wrap">
+          <button type="button" class="btn btn-primary" onclick="doCapture()"><i class="fa-solid fa-camera"></i> 采集</button>
+          <button type="button" class="btn" onclick="PMS.toast('已重拍当前页，覆盖上一次采集结果')"><i class="fa-solid fa-rotate"></i> 重拍</button>
+          <button type="button" class="btn" onclick="PMS.openModal('mdSave')"><i class="fa-solid fa-floppy-disk"></i> 保存到卷内</button>
+          <span class="cap-cnt" style="margin-left:auto">本次已采集 <b id="capN">8</b> 页</span>
+        </div>
+
+        <div class="ocr-box mt-16" id="ocrBox">
+          <div class="flex items-center gap-8 mb-8" style="flex-wrap:wrap">
+            <b><i class="fa-solid fa-font text-primary"></i> OCR 识别结果</b>
+            <span class="badge green">识别准确率估计 96.8%</span>
+            <span class="text-3 text-sm">识别文本写入 ocrnr 字段，支撑全文检索</span>
+          </div>
+          <div class="ocr-text">
+            存量房买卖合同（柳州市）合同编号：CFBA450200202600512。出让方（甲方）：陈**，身份证号 450***********0016；
+            受让方（乙方）：周**，身份证号 450***********0028。第一条 房屋基本情况：坐落柳州市城中区滨江东路 8 号彰泰滨江学府 12 栋 2 单元 1802 号，
+            不动产单元号 450202001005GB00123F00020017，建筑面积 118.65 平方米，房屋用途成套住宅。第二条 成交价格：人民币壹佰肆拾捌万陆仟元整
+            （¥1,486,000.00）。第三条 付款方式：首付款 486,000.00 元，贷款 1,000,000.00 元，交易资金纳入监管账户……
+          </div>
+          <div class="ocr-kw">
+            <span class="k">CFBA450200202600512</span>
+            <span class="k">陈**</span>
+            <span class="k">周**</span>
+            <span class="k">彰泰滨江学府</span>
+            <span class="k">118.65 ㎡</span>
+            <span class="k">1,486,000.00 元</span>
+            <span class="k">资金监管</span>
+          </div>
+          <div class="btn-row mt-16">
+            <button type="button" class="btn btn-sm btn-primary" onclick="PMS.toast('识别文本与关键词已写入卷内文件','success')"><i class="fa-solid fa-check"></i> 确认写入</button>
+            <button type="button" class="btn btn-sm" onclick="PMS.toast('已重新识别，准确率 97.2%')"><i class="fa-solid fa-rotate"></i> 重新识别</button>
+            <button type="button" class="btn btn-sm" onclick="document.getElementById('sheet').classList.toggle('hl-ocr')"><i class="fa-solid fa-highlighter"></i> 在影像上高亮命中</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-head">
+          <h3>卷内文件</h3>
+          <span class="sub">共 12 件 46 页</span>
+          <div class="head-actions">
+            <button type="button" class="btn btn-sm" onclick="PMS.toast('已按当前顺序重编卷内序号与页号','success')"><i class="fa-solid fa-arrow-down-1-9"></i> 重编序号</button>
+          </div>
+        </div>
+        <div class="card-body tight" style="max-height:520px;overflow:auto">
+          <div class="jn-item on">
+            <span class="jn-no">1</span><span class="jn-thumb"></span>
+            <div class="jn-b">
+              <div class="jn-n">存量房买卖合同网签备案申请表</div>
+              <div class="jn-m">01 申请表 · 2 页 · 第 1-2 页 · PDF</div>
+            </div>
+            <span class="jn-g"><i class="fa-solid fa-grip-vertical"></i></span>
+          </div>
+          <div class="jn-item">
+            <span class="jn-no">2</span><span class="jn-thumb"></span>
+            <div class="jn-b">
+              <div class="jn-n">转让方身份证明</div>
+              <div class="jn-m">02 身份证明材料 · 2 页 · 第 3-4 页 · PDF</div>
+            </div>
+            <span class="jn-g"><i class="fa-solid fa-grip-vertical"></i></span>
+          </div>
+          <div class="jn-item">
+            <span class="jn-no">3</span><span class="jn-thumb"></span>
+            <div class="jn-b">
+              <div class="jn-n">受让方身份证明</div>
+              <div class="jn-m">02 身份证明材料 · 2 页 · 第 5-6 页 · PDF</div>
+            </div>
+            <span class="jn-g"><i class="fa-solid fa-grip-vertical"></i></span>
+          </div>
+          <div class="jn-item">
+            <span class="jn-no">4</span><span class="jn-thumb"></span>
+            <div class="jn-b">
+              <div class="jn-n">不动产权证书</div>
+              <div class="jn-m">05 权属证明 · 3 页 · 第 7-9 页 · PDF</div>
+            </div>
+            <span class="jn-g"><i class="fa-solid fa-grip-vertical"></i></span>
+          </div>
+          <div class="jn-item">
+            <span class="jn-no">5</span><span class="jn-thumb"></span>
+            <div class="jn-b">
+              <div class="jn-n">存量房买卖合同</div>
+              <div class="jn-m">04 合同协议 · 12 页 · 第 10-21 页 · PDF</div>
+            </div>
+            <span class="jn-g"><i class="fa-solid fa-grip-vertical"></i></span>
+          </div>
+          <div class="jn-item">
+            <span class="jn-no">6</span><span class="jn-thumb"></span>
+            <div class="jn-b">
+              <div class="jn-n">房源核验单</div>
+              <div class="jn-m">07 审批表与审批文书 · 2 页 · 第 22-23 页 · PDF</div>
+            </div>
+            <span class="jn-g"><i class="fa-solid fa-grip-vertical"></i></span>
+          </div>
+          <div class="jn-item">
+            <span class="jn-no">7</span><span class="jn-thumb"></span>
+            <div class="jn-b">
+              <div class="jn-n">交易限制校验结果单</div>
+              <div class="jn-m">07 审批表与审批文书 · 1 页 · 第 24 页 · PDF</div>
+            </div>
+            <span class="jn-g"><i class="fa-solid fa-grip-vertical"></i></span>
+          </div>
+          <div class="jn-item">
+            <span class="jn-no">8</span><span class="jn-thumb"></span>
+            <div class="jn-b">
+              <div class="jn-n">资金监管协议</div>
+              <div class="jn-m">04 合同协议 · 4 页 · 第 25-28 页 · PDF</div>
+            </div>
+            <span class="jn-g"><i class="fa-solid fa-grip-vertical"></i></span>
+          </div>
+          <div class="jn-item">
+            <span class="jn-no">9</span><span class="jn-thumb"></span>
+            <div class="jn-b">
+              <div class="jn-n">购房款支付凭证 <span class="badge blue">补充采集</span></div>
+              <div class="jn-m">08 缴费凭证 · 3 页 · 第 29-31 页 · PDF</div>
+            </div>
+            <span class="jn-g"><i class="fa-solid fa-grip-vertical"></i></span>
+          </div>
+          <div class="jn-item">
+            <span class="jn-no">10</span><span class="jn-thumb"></span>
+            <div class="jn-b">
+              <div class="jn-n">网签备案证明</div>
+              <div class="jn-m">09 发证证书与证明 · 1 页 · 第 32 页 · PDF</div>
+            </div>
+            <span class="jn-g"><i class="fa-solid fa-grip-vertical"></i></span>
+          </div>
+          <div class="jn-item">
+            <span class="jn-no">11</span><span class="jn-thumb"></span>
+            <div class="jn-b">
+              <div class="jn-n">契税完税凭证</div>
+              <div class="jn-m">08 缴费凭证 · 1 页 · 第 33 页 · PDF</div>
+            </div>
+            <span class="jn-g"><i class="fa-solid fa-grip-vertical"></i></span>
+          </div>
+          <div class="jn-item">
+            <span class="jn-no">12</span><span class="jn-thumb"></span>
+            <div class="jn-b">
+              <div class="jn-n">房地产经纪服务合同</div>
+              <div class="jn-m">04 合同协议 · 13 页 · 第 34-46 页 · PDF</div>
+            </div>
+            <span class="jn-g"><i class="fa-solid fa-grip-vertical"></i></span>
+          </div>
+        </div>
+        <div class="card-body">
+          <p class="text-3 text-sm">
+            <i class="fa-solid fa-grip-vertical"></i> 拖拽调整顺序后自动重编卷内序号与页号；每件独立登记起止页号，卷内序号连续。
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>采集规范</h3></div>
+        <div class="card-body">
+          <dl class="desc-list" style="grid-template-columns:1fr">
+            <div class="desc-item"><dt>分辨率</dt><dd>不低于 300 DPI，重要材料 600 DPI</dd></div>
+            <div class="desc-item"><dt>色彩模式</dt><dd>按材料性质选黑白 / 灰度 / 彩色</dd></div>
+            <div class="desc-item"><dt>存储格式</dt><dd>TIFF 或 PDF</dd></div>
+            <div class="desc-item"><dt>去重校验</dt><dd>按文件 MD5 判重，重复的提示已存在</dd></div>
+            <div class="desc-item"><dt>已签章材料</dt><dd>标记签章状态，不需再扫描纸质件</dd></div>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <div class="sum-bar">
+        <span><i class="fa-solid fa-layer-group text-primary"></i> 本卷共 <b>12</b> 件 <b>46</b> 页</span>
+        <span class="text-3">|</span>
+        <span class="text-success fw-600" id="pgCheck"><i class="fa-solid fa-circle-check"></i> 起止页号连续性校验：连续</span>
+        <span class="text-3">|</span>
+        <span>已 OCR <b>12</b> 件 · 已挂接 wssvc 文件主键 <b>12</b> 个</span>
+        <button type="button" class="btn btn-sm" style="margin-left:auto" onclick="breakCheck()"><i class="fa-solid fa-vial"></i> 演示缺页校验</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="mdSave">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>新增卷内文件</h3>
+        <button type="button" class="close" onclick="PMS.closeModal('mdSave')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid form-align">
+          <div class="form-item col-full">
+            <label>文件名称<span class="req">*</span></label>
+            <input type="text" value="购房款支付凭证（柳州银行转账回单）">
+          </div>
+          <div class="form-item">
+            <label>文件类型<span class="req">*</span></label>
+            <select>
+              <option>01 申请表</option><option>02 身份证明材料</option><option>03 委托授权材料</option>
+              <option>04 合同协议</option><option>05 权属证明</option><option>06 测绘成果</option>
+              <option>07 审批表与审批文书</option><option selected>08 缴费凭证</option><option>09 发证证书与证明</option>
+              <option>10 公告公示材料</option><option>11 会议纪要</option><option>12 司法文书</option>
+              <option>13 照片影像</option><option>14 图纸图件</option><option>15 电子签章记录</option><option>99 其他材料</option>
+            </select>
+          </div>
+          <div class="form-item">
+            <label>材料类型代码<span class="req">*</span></label>
+            <input type="text" class="no-code" value="M009">
+          </div>
+          <div class="form-item">
+            <label>文号</label>
+            <input type="text" placeholder="无文号的留空">
+          </div>
+          <div class="form-item">
+            <label>责任者<span class="req">*</span></label>
+            <input type="text" value="柳州银行营业部">
+          </div>
+          <div class="form-item">
+            <label>成文日期<span class="req">*</span></label>
+            <input type="date" value="2026-06-29">
+          </div>
+          <div class="form-item">
+            <label>页数<span class="req">*</span></label>
+            <input type="number" value="3">
+          </div>
+          <div class="form-item">
+            <label>是否原件<span class="req">*</span></label>
+            <select><option>原件</option><option selected>扫描件</option><option>复印件</option></select>
+          </div>
+          <div class="form-item">
+            <label>密级<span class="req">*</span></label>
+            <select><option selected>内部</option><option>公开</option><option>秘密</option><option>机密</option></select>
+          </div>
+          <div class="form-item col-full">
+            <label>关键词</label>
+            <input type="text" value="付款凭证；转账回单；486000.00">
+          </div>
+        </div>
+        <p class="text-3 text-sm mt-8">
+          <i class="fa-solid fa-circle-info"></i>
+          保存后系统自动分配卷内序号与起止页号，文件存入 wssvc 并返回文件主键，档案侧只登记指针。
+        </p>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="PMS.closeModal('mdSave')">取消</button>
+        <button type="button" class="btn btn-primary" onclick="PMS.closeModal('mdSave');PMS.toast('已保存到卷内，卷内序号 9，起止页号 29-31','success')">保存</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function doCapture() {
+  var n = parseInt(document.getElementById('capN').textContent, 10) + 1;
+  document.getElementById('capN').textContent = n;
+  document.getElementById('pgNo').textContent = n;
+  PMS.toast('已采集第 ' + n + ' 页，300 DPI 灰度 PDF，已自动纠偏去黑边', 'success');
+}
+function breakCheck() {
+  var el = document.getElementById('pgCheck');
+  if (el.classList.contains('text-danger')) {
+    el.className = 'text-success fw-600';
+    el.innerHTML = '<i class="fa-solid fa-circle-check"></i> 起止页号连续性校验：连续';
+    PMS.toast('页号连续性已恢复正常');
+    return;
+  }
+  el.className = 'text-danger fw-600';
+  el.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> 第 7 件终止页 28 与第 8 件起始页 30 之间缺 1 页';
+  PMS.toast('校验发现页号断档，请补采缺失页', 'warning');
+}
+document.querySelectorAll('.jn-item').forEach(function (it) {
+  it.addEventListener('click', function () {
+    document.querySelectorAll('.jn-item').forEach(function (x) { x.classList.remove('on'); });
+    it.classList.add('on');
+    PMS.toast('已加载「' + it.querySelector('.jn-n').textContent.trim() + '」影像');
+  });
+});
+</script>
+</body>
+</html>

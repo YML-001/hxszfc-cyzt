@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>面积异常核查 · 房屋交易面积信息管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：七类异常分类卡、实际值/参照值/偏差三联列、核查结论下拉 */
+  .amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .cls7 { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+  .cls7 .c {
+    border: 1px solid var(--border); border-radius: var(--radius); background: #fff; padding: 9px 11px;
+    cursor: pointer; transition: all .15s;
+  }
+  .cls7 .c:hover { border-color: var(--primary); box-shadow: var(--shadow-sm); }
+  .cls7 .c.on { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(37, 99, 235, .16); }
+  .cls7 .c .l { font-size: 12px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cls7 .c .v { font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums; margin-top: 1px; }
+  .cls7 .c.warn { background: #fffbeb; border-color: #fde68a; } .cls7 .c.warn .v { color: #b45309; }
+  .cls7 .c.zero .v { color: var(--text-3); }
+  .dev { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .dev.up { color: var(--danger); } .dev.dn { color: var(--primary); }
+  .data-table tbody td.msg { max-width: 230px; white-space: normal; line-height: 1.55; font-size: 12.5px; color: var(--text-2); }
+  select.cc { width: 132px !important; height: 28px; font-size: 12.5px; }
+  input.note { width: 190px !important; height: 28px; font-size: 12.5px; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wschcg-20">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易面积信息管理系统
+        <span class="sep">/</span> 面积核验管理
+        <span class="sep">/</span> <span class="cur">面积异常核查</span>
+      </div>
+      <div class="page-title">面积异常核查</div>
+    </div>
+    <div class="page-actions">
+      <select style="width:250px" onchange="PMS.toast('已切换核查对象：' + this.value)">
+        <option>CG450200202600186 · 荣和公园大道二期 8 栋 V2.0</option>
+        <option>CG450200202600180 · 万科城 5 栋 V2.0</option>
+      </select>
+      <button type="button" class="btn" onclick="reCheck()"><i class="fa-solid fa-rotate"></i> 重新核查</button>
+      <button type="button" class="btn" onclick="location.href='coefficient.html'"><i class="fa-solid fa-percent"></i> 分摊系数管理</button>
+      <button type="button" class="btn" onclick="PMS.toast('《面积异常核查单》Excel 已生成，正在下载','success')"><i class="fa-solid fa-download"></i> 导出核查单</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-house-circle-check"></i></div>
+      <div><div class="s-label">本次核查</div><div class="s-value">96 户</div><div class="s-trend text-3">7 类校验项全量核查</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><div class="s-label">发现异常</div><div class="s-value">12 条</div><div class="s-trend text-3">涉及 11 户</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">已核实</div><div class="s-value">7 条</div><div class="s-trend text-success">其中合理可接受 5 条</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-clock"></i></div>
+      <div><div class="s-label">待核实</div><div class="s-value" id="leftN">5 条</div><div class="s-trend text-danger">建议 3 日内完成</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-percent"></i></div>
+      <div><div class="s-label">本幢平均分摊系数</div><div class="s-value">0.2205</div><div class="s-trend text-3">住宅合理区间 0.10 ~ 0.25</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>异常项<b>自动标记并生成核查单，不直接判定为错误</b>，须人工核实。部分异常有合理解释（如顶层带阁楼、底层带院子、跃层带屋顶花园），核查结论选「合理可接受」并填写说明后放行；结论「需重测」的将退回测绘机构。核查结论全程留痕。</div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3>七类异常分类</h3><span class="sub">点击卡片按类型筛选下方清单</span></div>
+    <div class="card-body">
+      <div class="cls7">
+        <div class="c warn" onclick="pickType(this,'1')"><div class="l">套内分摊比例异常</div><div class="v">4</div></div>
+        <div class="c warn" onclick="pickType(this,'2')"><div class="l">同层同户型不一致</div><div class="v">3</div></div>
+        <div class="c zero" onclick="pickType(this,'3')"><div class="l">总分合计关系</div><div class="v">0</div></div>
+        <div class="c warn" onclick="pickType(this,'4')"><div class="l">分摊系数异常</div><div class="v">2</div></div>
+        <div class="c warn" onclick="pickType(this,'5')"><div class="l">套内墙体占比异常</div><div class="v">1</div></div>
+        <div class="c warn" onclick="pickType(this,'6')"><div class="l">阳台面积计算异常</div><div class="v">2</div></div>
+        <div class="c zero" onclick="pickType(this,'7')"><div class="l">面积精度异常</div><div class="v">0</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card list-card">
+    <div class="filter-bar">
+      <div class="filter-item"><label>异常编号</label><input type="text" placeholder="如 MJ450200202600186-01"></div>
+      <div class="filter-item"><label>成果编号</label><input type="text" placeholder="如 CG450200202600186"></div>
+      <div class="filter-item"><label>房号</label><input type="text" id="fRoom" placeholder="如 8-1-2601"></div>
+      <div class="filter-item">
+        <label>异常类型</label>
+        <select id="fType" onchange="applyFilter()">
+          <option value="">全部</option>
+          <option value="1">套内分摊比例异常</option><option value="2">同层同户型面积不一致</option><option value="3">总分合计关系</option>
+          <option value="4">分摊系数异常</option><option value="5">套内墙体面积占比异常</option><option value="6">阳台面积计算异常</option><option value="7">面积精度异常</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>异常等级</label>
+        <select id="fLv" onchange="applyFilter()"><option value="">全部</option><option value="1">提示</option><option value="2">一般</option><option value="3">严重</option></select>
+      </div>
+      <div class="filter-item">
+        <label>核查状态</label>
+        <select id="fSt" onchange="applyFilter()"><option value="">全部</option><option value="0">待核实</option><option value="2">已核实</option></select>
+      </div>
+      <div class="filter-item">
+        <label>核查人</label>
+        <select><option value="">全部</option><option>韦国强</option><option>李建华</option></select>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="applyFilter()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn" onclick="resetFilter()"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        <button type="button" class="btn" onclick="batchOk()"><i class="fa-solid fa-check-double"></i> 批量标记合理</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tbYc" data-static>
+        <thead>
+          <tr>
+            <th>异常编号</th><th>成果编号</th><th>房号</th><th>异常类型</th><th>异常描述</th>
+            <th class="text-right">实际值</th><th class="text-right">参照值</th><th class="text-right">偏差</th>
+            <th>异常等级</th><th>发现时间</th><th>核查结论</th><th>核查说明</th><th>核查人</th><th>核查状态</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr id="e1" data-t="4" data-lv="2" data-st="0">
+            <td class="nowrap fw-600">MJ450200202600186-01</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600186</span></td>
+            <td class="nowrap fw-600">8-1-2601</td>
+            <td class="nowrap"><span class="badge orange">分摊系数异常</span></td>
+            <td class="msg">分摊系数高于本幢平均值，超出 ±20% 允许偏离范围</td>
+            <td class="text-right amt">0.2814</td><td class="text-right amt">0.2205</td>
+            <td class="text-right"><span class="dev up">+27.6%</span></td>
+            <td class="nowrap"><span class="badge orange">一般</span></td>
+            <td class="nowrap">2026-08-01 09:20</td>
+            <td><select class="cc"><option>请选择</option><option selected>合理可接受</option><option>确认异常</option><option>需重测</option></select></td>
+            <td><input type="text" class="note" value="顶层跃层带屋顶花园，分摊含屋顶设备平台"></td>
+            <td class="text-3">—</td>
+            <td class="nowrap"><span class="badge red">待核实</span></td>
+            <td class="col-ops"><span class="link" onclick="doCheck('e1')">核查</span><span class="link" onclick="detail('8-1-2601')">详情</span></td>
+          </tr>
+          <tr id="e2" data-t="4" data-lv="2" data-st="0">
+            <td class="nowrap fw-600">MJ450200202600186-02</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600186</span></td>
+            <td class="nowrap fw-600">8-1-2602</td>
+            <td class="nowrap"><span class="badge orange">分摊系数异常</span></td>
+            <td class="msg">分摊系数高于本幢平均值，超出 ±20% 允许偏离范围</td>
+            <td class="text-right amt">0.2798</td><td class="text-right amt">0.2205</td>
+            <td class="text-right"><span class="dev up">+26.9%</span></td>
+            <td class="nowrap"><span class="badge orange">一般</span></td>
+            <td class="nowrap">2026-08-01 09:20</td>
+            <td><select class="cc"><option>请选择</option><option selected>合理可接受</option><option>确认异常</option><option>需重测</option></select></td>
+            <td><input type="text" class="note" value="顶层跃层带屋顶花园，与 2601 情形一致"></td>
+            <td class="text-3">—</td>
+            <td class="nowrap"><span class="badge red">待核实</span></td>
+            <td class="col-ops"><span class="link" onclick="doCheck('e2')">核查</span><span class="link" onclick="detail('8-1-2602')">详情</span></td>
+          </tr>
+          <tr id="e3" data-t="1" data-lv="2" data-st="0">
+            <td class="nowrap fw-600">MJ450200202600186-03</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600186</span></td>
+            <td class="nowrap fw-600">8-2-1806</td>
+            <td class="nowrap"><span class="badge orange">套内分摊比例异常</span></td>
+            <td class="msg">套内建筑面积占建筑面积比例低于本幢平均水平</td>
+            <td class="text-right amt">78.30%</td><td class="text-right amt">82.14%</td>
+            <td class="text-right"><span class="dev dn">−4.67%</span></td>
+            <td class="nowrap"><span class="badge orange">一般</span></td>
+            <td class="nowrap">2026-08-01 09:20</td>
+            <td><select class="cc"><option selected>请选择</option><option>合理可接受</option><option>确认异常</option><option>需重测</option></select></td>
+            <td><input type="text" class="note" placeholder="须填写核查说明"></td>
+            <td class="text-3">—</td>
+            <td class="nowrap"><span class="badge red">待核实</span></td>
+            <td class="col-ops"><span class="link" onclick="doCheck('e3')">核查</span><span class="link" onclick="detail('8-2-1806')">详情</span></td>
+          </tr>
+          <tr id="e4" data-t="2" data-lv="1" data-st="0">
+            <td class="nowrap fw-600">MJ450200202600186-04</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600186</span></td>
+            <td class="nowrap fw-600">8-1-0102</td>
+            <td class="nowrap"><span class="badge orange">同层同户型不一致</span></td>
+            <td class="msg">与同户型 8-2-0102 建筑面积差异 0.66 ㎡，超出 0.5 ㎡ 允许差</td>
+            <td class="text-right amt">96.86</td><td class="text-right amt">96.20</td>
+            <td class="text-right"><span class="dev up">+0.66 ㎡</span></td>
+            <td class="nowrap"><span class="badge">提示</span></td>
+            <td class="nowrap">2026-08-01 09:20</td>
+            <td><select class="cc"><option selected>请选择</option><option>合理可接受</option><option>确认异常</option><option>需重测</option></select></td>
+            <td><input type="text" class="note" placeholder="须填写核查说明"></td>
+            <td class="text-3">—</td>
+            <td class="nowrap"><span class="badge red">待核实</span></td>
+            <td class="col-ops"><span class="link" onclick="doCheck('e4')">核查</span><span class="link" onclick="detail('8-1-0102')">详情</span></td>
+          </tr>
+          <tr id="e5" data-t="6" data-lv="3" data-st="0">
+            <td class="nowrap fw-600">MJ450200202600186-05</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600186</span></td>
+            <td class="nowrap fw-600">8-3-0902</td>
+            <td class="nowrap"><span class="badge red">阳台面积计算异常</span></td>
+            <td class="msg">阳台面积疑似<b>全计</b>，该阳台为未封闭挑阳台，按规范应<b>半计</b></td>
+            <td class="text-right amt">12.40</td><td class="text-right amt">6.20</td>
+            <td class="text-right"><span class="dev up">+100%</span></td>
+            <td class="nowrap"><span class="badge red">严重</span></td>
+            <td class="nowrap">2026-08-01 09:20</td>
+            <td><select class="cc"><option>请选择</option><option>合理可接受</option><option>确认异常</option><option selected>需重测</option></select></td>
+            <td><input type="text" class="note" value="核对分户图为未封闭挑阳台，应半计，退回更正"></td>
+            <td class="text-3">—</td>
+            <td class="nowrap"><span class="badge red">待核实</span></td>
+            <td class="col-ops"><span class="link" onclick="doCheck('e5')">核查</span><span class="link" onclick="detail('8-3-0902')">详情</span></td>
+          </tr>
+          <tr id="e6" data-t="5" data-lv="1" data-st="2">
+            <td class="nowrap fw-600">MJ450200202600186-06</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600186</span></td>
+            <td class="nowrap fw-600">8-2-0606</td>
+            <td class="nowrap"><span class="badge orange">套内墙体占比异常</span></td>
+            <td class="msg">套内墙体面积占套内建筑面积比例偏高</td>
+            <td class="text-right amt">13.86%</td><td class="text-right amt">9.20%</td>
+            <td class="text-right"><span class="dev up">+50.7%</span></td>
+            <td class="nowrap"><span class="badge">提示</span></td>
+            <td class="nowrap">2026-08-01 09:20</td>
+            <td class="nowrap">合理可接受</td>
+            <td class="msg">该户为剪力墙结构端头户，承重墙体较多，符合结构设计</td>
+            <td>韦国强</td>
+            <td class="nowrap"><span class="badge green">已核实</span></td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('核查留痕：韦国强 2026-08-01 10:26 结论「合理可接受」')">详情</span></td>
+          </tr>
+          <tr id="e7" data-t="1" data-lv="1" data-st="2">
+            <td class="nowrap fw-600">MJ450200202600186-07</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600186</span></td>
+            <td class="nowrap fw-600">8-1-0101</td>
+            <td class="nowrap"><span class="badge orange">套内分摊比例异常</span></td>
+            <td class="msg">底层住宅套内占比高于本幢平均水平</td>
+            <td class="text-right amt">86.42%</td><td class="text-right amt">82.14%</td>
+            <td class="text-right"><span class="dev up">+5.21%</span></td>
+            <td class="nowrap"><span class="badge">提示</span></td>
+            <td class="nowrap">2026-08-01 09:20</td>
+            <td class="nowrap">合理可接受</td>
+            <td class="msg">底层带独立院子，不参与上部共有部位分摊，符合分摊方案</td>
+            <td>韦国强</td>
+            <td class="nowrap"><span class="badge green">已核实</span></td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('核查留痕：韦国强 2026-08-01 10:30 结论「合理可接受」')">详情</span></td>
+          </tr>
+          <tr id="e8" data-t="6" data-lv="2" data-st="2">
+            <td class="nowrap fw-600">MJ450200202600186-08</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600186</span></td>
+            <td class="nowrap fw-600">8-3-1502</td>
+            <td class="nowrap"><span class="badge orange">阳台面积计算异常</span></td>
+            <td class="msg">阳台按半计但该阳台已封闭，疑似应全计</td>
+            <td class="text-right amt">4.60</td><td class="text-right amt">9.20</td>
+            <td class="text-right"><span class="dev dn">−50%</span></td>
+            <td class="nowrap"><span class="badge orange">一般</span></td>
+            <td class="nowrap">2026-08-01 09:20</td>
+            <td class="nowrap">合理可接受</td>
+            <td class="msg">竣工时为未封闭阳台，业主自行封闭不改变测绘计量口径</td>
+            <td>韦国强</td>
+            <td class="nowrap"><span class="badge green">已核实</span></td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('核查留痕：韦国强 2026-08-01 10:34 结论「合理可接受」')">详情</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- 单户面积详情抽屉 -->
+<div class="drawer-mask"></div>
+<div class="drawer drawer-lg" id="drOne">
+  <div class="drawer-head">
+    <h3 style="margin:0;font-size:16px">面积构成详情 · <span id="oRoom">8-1-2601</span></h3>
+    <button type="button" class="btn btn-ghost" style="margin-left:auto" data-close-drawer><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="drawer-body">
+    <div class="section-title">面积构成</div>
+    <table class="data-table compact" data-static>
+      <thead><tr><th>面积项</th><th class="text-right">本户</th><th class="text-right">本幢平均</th><th class="text-right">偏差</th></tr></thead>
+      <tbody>
+        <tr><td>建筑面积（㎡）</td><td class="text-right amt">168.42</td><td class="text-right amt">120.24</td><td class="text-right amt">+40.1%</td></tr>
+        <tr><td>套内建筑面积（㎡）</td><td class="text-right amt">121.06</td><td class="text-right amt">98.78</td><td class="text-right amt">+22.6%</td></tr>
+        <tr><td>套内墙体面积（㎡）</td><td class="text-right amt">11.24</td><td class="text-right amt">9.08</td><td class="text-right amt">+23.8%</td></tr>
+        <tr><td>阳台面积（㎡）</td><td class="text-right amt">8.60</td><td class="text-right amt">4.62</td><td class="text-right amt">+86.1%</td></tr>
+        <tr><td>分摊面积（㎡）</td><td class="text-right amt">47.36</td><td class="text-right amt">26.52</td><td class="text-right amt">+78.6%</td></tr>
+        <tr><td>分摊系数</td><td class="text-right amt fw-700 text-danger">0.2814</td><td class="text-right amt">0.2205</td><td class="text-right amt text-danger">+27.6%</td></tr>
+        <tr><td>屋顶花园面积（㎡）</td><td class="text-right amt">36.80</td><td class="text-right amt text-3">—</td><td class="text-right amt text-3">—</td></tr>
+      </tbody>
+    </table>
+
+    <div class="section-title mt-16" style="margin-top:20px">异常判定依据</div>
+    <div class="alert alert-warning">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div>规则「分摊比例明显偏离本幢平均值」允许偏离 ±20%，本户分摊系数 0.2814 相对本幢平均 0.2205 偏离 <b>+27.6%</b>，超出阈值触发核查。</div>
+    </div>
+    <div class="alert alert-info mt-16">
+      <i class="fa-solid fa-circle-info"></i>
+      <div>合理性提示：该户为<b>顶层跃层</b>户型，分摊范围包含屋顶设备平台与顶层电梯机房，分摊面积高于标准层属正常情形，可选「合理可接受」并填写说明后放行。</div>
+    </div>
+
+    <div class="section-title mt-16" style="margin-top:20px">核查结论</div>
+    <div class="form-grid form-align">
+      <div class="form-item">
+        <label>核查结论<span class="req">*</span></label>
+        <select><option>合理可接受</option><option>确认异常</option><option>需重测</option></select>
+      </div>
+      <div class="form-item"><label>核查人</label><input type="text" value="韦国强" readonly></div>
+      <div class="form-item col-full">
+        <label>核查说明<span class="req">*</span></label>
+        <textarea rows="3">经核对分户图与分摊方案，8-1-2601 为顶层跃层户型，分摊范围包含屋顶设备平台与电梯机房，分摊系数高于本幢平均值属合理情形，不判定为错误，予以放行。</textarea>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button type="button" class="btn" data-close-drawer>关闭</button>
+    <button type="button" class="btn" onclick="location.href='drawing-viewer.html'"><i class="fa-solid fa-image"></i> 查看分户图</button>
+    <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer('drOne');PMS.toast('核查结论已提交并留痕','success')"><i class="fa-solid fa-check"></i> 提交核查结论</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+var left = 5;
+
+function pickType(el, t) {
+  var on = el.classList.contains('on');
+  document.querySelectorAll('.cls7 .c').forEach(function (c) { c.classList.remove('on'); });
+  if (!on) el.classList.add('on');
+  document.getElementById('fType').value = on ? '' : t;
+  applyFilter();
+}
+
+function applyFilter() {
+  var r = document.getElementById('fRoom').value.trim(),
+      t = document.getElementById('fType').value,
+      lv = document.getElementById('fLv').value,
+      st = document.getElementById('fSt').value, n = 0;
+  document.querySelectorAll('#tbYc tbody tr').forEach(function (tr) {
+    var ok = (!t || tr.dataset.t === t) && (!lv || tr.dataset.lv === lv) && (!st || tr.dataset.st === st)
+      && (!r || tr.textContent.indexOf(r) > -1);
+    tr.style.display = ok ? '' : 'none';
+    if (ok) n++;
+  });
+  PMS.toast('已按条件筛选：' + n + ' 条异常');
+}
+
+function resetFilter() {
+  document.getElementById('fRoom').value = '';
+  ['fType', 'fLv', 'fSt'].forEach(function (id) { document.getElementById(id).value = ''; });
+  document.querySelectorAll('.cls7 .c').forEach(function (c) { c.classList.remove('on'); });
+  document.querySelectorAll('#tbYc tbody tr').forEach(function (tr) { tr.style.display = ''; });
+  PMS.toast('筛选条件已重置');
+}
+
+function markRow(tr) {
+  var sel = tr.querySelector('select.cc'), inp = tr.querySelector('input.note');
+  if (!sel) return false;
+  var concl = sel.value;
+  if (concl === '请选择') { PMS.toast('请先选择核查结论：' + tr.querySelector('td.fw-600').textContent, 'warning'); return false; }
+  if (!inp.value.trim()) { PMS.toast('核查说明必填，请补充后再提交', 'warning'); return false; }
+  var c = tr.cells, n = c.length;
+  c[n - 5].textContent = concl; c[n - 5].className = 'nowrap';
+  c[n - 4].textContent = inp.value; c[n - 4].className = 'msg';
+  c[n - 3].textContent = '韦国强';
+  c[n - 2].innerHTML = '<span class="badge green">已核实</span>'; c[n - 2].className = 'nowrap';
+  c[n - 1].innerHTML = '<span class="link" onclick="PMS.toast(\'核查留痕：韦国强 2026-08-01 19:06 结论「' + concl + '」\')">详情</span>';
+  tr.dataset.st = '2';
+  left--;
+  document.getElementById('leftN').textContent = left + ' 条';
+  return true;
+}
+
+function doCheck(id) {
+  var tr = document.getElementById(id);
+  var concl = tr.querySelector('select.cc') ? tr.querySelector('select.cc').value : '';
+  if (concl === '需重测') {
+    PMS.confirm({
+      title: '结论：需重测',
+      message: '确认该异常需退回测绘机构重测？',
+      detail: '结论为「需重测」的将生成整改通知退回XXXX市测绘院，成果状态置为质检不通过待整改，重测成果按更正成果版本报送。',
+      type: 'warning', okText: '确认退回重测',
+      onOk: function () { if (markRow(tr)) PMS.toast('已提交核查结论「需重测」，整改通知已下发', 'success'); }
+    });
+    return;
+  }
+  if (markRow(tr)) PMS.toast('核查结论已提交并留痕（核查人 韦国强）', 'success');
+}
+
+function batchOk() {
+  PMS.confirm({
+    title: '批量标记合理',
+    message: '将已选结论为「合理可接受」且填写说明的待核实异常批量提交？',
+    detail: '仅处理结论与说明均已填写的记录；未填写的将跳过并提示。批量操作同样留痕。',
+    type: 'info', okText: '批量提交',
+    onOk: function () {
+      var n = 0;
+      document.querySelectorAll('#tbYc tbody tr').forEach(function (tr) {
+        if (tr.dataset.st !== '0') return;
+        var sel = tr.querySelector('select.cc'), inp = tr.querySelector('input.note');
+        if (sel && sel.value === '合理可接受' && inp.value.trim()) { if (markRow(tr)) n++; }
+      });
+      PMS.toast(n > 0 ? n + ' 条异常已标记为合理可接受并留痕' : '没有可批量提交的记录，请先选择结论并填写说明', n > 0 ? 'success' : 'warning');
+    }
+  });
+}
+
+function detail(room) {
+  document.getElementById('oRoom').textContent = room;
+  PMS.openDrawer('drOne');
+}
+
+function reCheck() {
+  PMS.toast('正在对 96 户执行 7 类面积异常核查…');
+  setTimeout(function () { PMS.toast('核查完成：发现异常 12 条（严重 1 / 一般 6 / 提示 5），已核实 7 条', 'success'); }, 900);
+}
+</script>
+</body>
+</html>

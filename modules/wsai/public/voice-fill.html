@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>语音交互式填报 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="jb" data-active="assist-fill" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>智能应用</span>
+      <span class="sep">/</span><span>智能办事助手</span>
+      <span class="sep">/</span><span class="cur">语音交互式填报</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-wand-magic-sparkles"></i>智能办事助手 wsai-05</span>
+    <a href="../handler/assist-fill.html?role=jb">AI 辅助填报</a>
+    <a href="../handler/fill-validate.html?role=jb">智能填报校验</a>
+    <a href="chat.html?role=jb">智能客服问答</a>
+    <a href="guide-bot.html?role=jb">智能导办</a>
+    <a class="active" href="voice-fill.html?role=jb">语音交互式填报</a>
+    <a href="kiosk-avatar.html?role=jb">数字人导办</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-microphone-lines"></i>
+    <span>群众用语音描述办事需求，助手<b>逐项引导填报</b>并生成申报表单。
+      <b>提交前必须通过缺项检查</b>，并按业务情形给出还需携带的材料提示。演示环境用文字模拟语音识别结果。</span>
+  </div>
+
+  <div class="grid-2">
+    <!-- 语音交互区 -->
+    <div class="card" style="display:flex;flex-direction:column;height:600px">
+      <div class="card-head">
+        <h3>语音填报</h3>
+        <span class="sub" id="stepSub">—</span>
+        <div class="head-actions">
+          <button class="btn btn-sm" onclick="restart()"><i class="fa-solid fa-rotate-left"></i> 重新开始</button>
+        </div>
+      </div>
+      <div class="chat-wrap" style="flex:1 1 auto;min-height:0">
+        <div class="chat-body" id="vBody"></div>
+        <div class="chat-foot" style="align-items:center">
+          <div class="voice-wave off" id="wave">
+            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          </div>
+          <input type="text" id="vin" placeholder="模拟语音识别结果，输入后回车"
+                 onkeydown="if(event.key==='Enter')say()" style="flex:1">
+          <button class="btn btn-primary" id="micBtn" onclick="say()">
+            <i class="fa-solid fa-microphone"></i> 说话
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 表单与缺项 -->
+    <div class="card">
+      <div class="card-head">
+        <h3>生成的申报表单</h3>
+        <span class="sub" id="formSub">—</span>
+        <div class="head-actions">
+          <button class="btn btn-primary btn-sm" onclick="submit()"><i class="fa-solid fa-paper-plane"></i> 提交申报</button>
+        </div>
+      </div>
+      <div class="card-body" id="formBox"></div>
+    </div>
+  </div>
+
+  <div id="aiPushHint" class="mt-16"></div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var STEPS = AI.act.voiceSteps();
+  var idx = 0;
+  var form = {};
+  var log = [];
+
+  var SAMPLE = {
+    kind: '我要办二手房过户网签备案',
+    sqr: '黄启明',
+    fw: '翰林苑 3 栋 2 单元 0901',
+    htje: '96.8',
+    lxdh: '13877654321'
+  };
+
+  function paintChat() {
+    var box = document.getElementById('vBody');
+    var html = log.map(function (t) {
+      if (t.me) {
+        return '<div class="chat-turn me"><div class="chat-avatar"><i class="fa-solid fa-microphone"></i></div>' +
+          '<div class="chat-bubble">' + AI.esc(t.text) +
+          (t.conf ? '<div class="cb-foot"><div class="ai-source" style="color:rgba(255,255,255,.85)">' +
+            '<span>语音识别置信度 ' + t.conf + '%</span></div></div>' : '') + '</div></div>';
+      }
+      return '<div class="chat-turn"><div class="chat-avatar"><i class="fa-solid fa-robot"></i></div>' +
+        '<div class="chat-bubble">' + AI.esc(t.text) +
+        (t.tip ? '<div class="chat-cite"><div class="cc-t">提示</div>' + AI.esc(t.tip) + '</div>' : '') +
+        '</div></div>';
+    }).join('');
+    box.innerHTML = html || '';
+    box.scrollTop = box.scrollHeight;
+
+    var s = STEPS[idx];
+    document.getElementById('stepSub').textContent = s
+      ? ('第 ' + (idx + 1) + ' / ' + STEPS.length + ' 项：' + s.ask)
+      : '全部项目已采集，可提交申报';
+    document.getElementById('vin').placeholder = s
+      ? ('模拟语音回答：' + (SAMPLE[s.k] || ''))
+      : '已采集完成';
+  }
+
+  function askNext() {
+    var s = STEPS[idx];
+    if (s) log.push({ text: s.ask, tip: s.tip || '' });
+    else log.push({ text: '信息已采集完整，请核对右侧申报表单后提交。' });
+    paintChat();
+  }
+
+  window.say = function () {
+    var el = document.getElementById('vin');
+    var v = (el.value || '').trim() || (STEPS[idx] ? SAMPLE[STEPS[idx].k] : '');
+    if (!v) { AI.toast('未识别到语音内容，请再说一次', 'error'); return; }
+    var s = STEPS[idx];
+    if (!s) { AI.toast('全部项目已采集，请直接提交', 'error'); return; }
+
+    /* 波形动一下模拟收音 */
+    var wave = document.getElementById('wave');
+    wave.classList.remove('off');
+    setTimeout(function () { wave.classList.add('off'); }, 700);
+
+    var r = AI.act.voiceTurn(idx, v);
+    if (!r) return;
+    log.push({ me: 1, text: v, conf: r.conf });
+    form[s.k] = v;
+    el.value = '';
+    idx++;
+    paintForm();
+    setTimeout(askNext, 400);
+  };
+
+  function paintForm() {
+    var r = AI.act.checkMissing(form);
+    document.getElementById('formSub').textContent = r.miss.length
+      ? (r.miss.length + ' 项待采集')
+      : '信息完整，可提交';
+    document.getElementById('formBox').innerHTML =
+      '<div class="form-grid form-align">' +
+      STEPS.map(function (s) {
+        var v = form[s.k];
+        return '<div class="form-item' + (s.k === 'fw' ? ' col-full' : '') + '">' +
+          '<label>' + AI.esc(s.ask.replace(/^请(说出|问您要办理什么业务？)?/, '').replace(/。$/, '') || s.k) +
+            (v ? ' <span class="prefill-tag"><i class="fa-solid fa-microphone"></i>语音采集</span>' : '') + '</label>' +
+          '<input type="text" value="' + AI.esc(v || '') + '"' + (v ? ' class="prefilled"' : '') + ' readonly>' +
+          (v ? '' : '<div class="fv-err"><i class="fa-solid fa-circle-exclamation"></i>尚未采集</div>') +
+          '</div>';
+      }).join('') + '</div>' +
+      (r.tips.length
+        ? '<div class="alert alert-info mt-16"><i class="fa-solid fa-folder-open"></i><span>' +
+          r.tips.map(function (t) { return AI.esc(t); }).join('<br>') + '</span></div>'
+        : '') +
+      (r.miss.length
+        ? '<div class="alert alert-warning mt-16"><i class="fa-solid fa-triangle-exclamation"></i>' +
+          '<span>还有 <b>' + r.miss.length + ' 项</b>未采集，提交会被拦截：' +
+          r.miss.map(function (m) { return AI.esc(m); }).join('、') + '</span></div>'
+        : '<div class="alert alert-success mt-16"><i class="fa-solid fa-circle-check"></i>' +
+          '<span>全部项目已采集，可提交申报。</span></div>');
+  }
+
+  window.submit = function () {
+    var o = AI.act.voiceSubmit(form);
+    if (o) {
+      log.push({ text: '申报表单已生成并提交，等待窗口人员确认后正式受理。' });
+      paintChat();
+    }
+  };
+
+  window.restart = function () {
+    idx = 0; form = {}; log = [];
+    paintForm();
+    askNext();
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () {});
+    paintForm();
+    askNext();
+  });
+})();
+</script>
+</body>
+</html>

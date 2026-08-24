@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>租赁业务台账统计 · 房屋租赁网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：指标卡、备案结构双图、双折线趋势、月报预览 */
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media (max-width: 1400px) { .grid-4 { grid-template-columns: repeat(2, 1fr); } }
+
+  .kpi {
+    border: 1px solid var(--border); border-radius: var(--radius); background: #fff; padding: 13px 14px; cursor: pointer;
+    transition: border-color .12s, box-shadow .12s;
+  }
+  .kpi:hover { border-color: var(--primary); box-shadow: 0 4px 12px rgba(28,58,120,.10); }
+  .kpi.active { border-color: var(--primary); background: var(--primary-light); }
+  .kpi .k-l { font-size: 12.5px; color: var(--text-3); display: flex; align-items: center; gap: 6px; }
+  .kpi .k-v { font-size: 23px; font-weight: 700; font-family: Consolas, monospace; margin-top: 4px; }
+  .kpi .k-u { font-size: 12.5px; color: var(--text-3); font-weight: 400; font-family: system-ui, sans-serif; margin-left: 4px; }
+  .kpi .k-d { font-size: 12px; margin-top: 4px; color: var(--text-3); }
+
+  .donut {
+    width: 156px; height: 156px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: conic-gradient(#15a15a 0 16%, #2656bb 16% 72%, #17a2b8 72% 100%);
+  }
+  .donut .d-hole {
+    width: 100px; height: 100px; border-radius: 50%; background: #fff;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .donut-legend { display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+  .donut-legend .dl-item { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .donut-legend .dl-item:hover { color: var(--primary); }
+  .donut-legend i { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+  .donut-legend .dl-v { margin-left: auto; font-family: Consolas, monospace; }
+
+  .stack-chart { display: flex; align-items: flex-end; gap: 14px; height: 190px; }
+  .stack-chart .sc-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; gap: 6px; }
+  .stack-chart .sc-bar { width: 100%; max-width: 40px; border-radius: 4px 4px 0 0; overflow: hidden; display: flex; flex-direction: column-reverse; cursor: pointer; }
+  .stack-chart .sc-seg { width: 100%; }
+  .stack-chart .sc-x { font-size: 11.5px; color: var(--text-3); white-space: nowrap; }
+  .stack-legend { display: flex; gap: 18px; font-size: 12.5px; color: var(--text-3); margin-top: 10px; }
+  .stack-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 6px; }
+
+  .line-chart { position: relative; height: 220px; padding: 10px 0 26px; }
+  .line-chart .lc-cols { position: absolute; left: 6px; right: 6px; top: 10px; bottom: 26px; display: flex; align-items: flex-end; }
+  .line-chart .lc-col { flex: 1; height: 100%; position: relative; display: flex; align-items: flex-end; justify-content: center; }
+  .line-chart .lc-bar { width: 58%; max-width: 26px; background: #dce7fa; border-radius: 4px 4px 0 0; cursor: pointer; }
+  .line-chart .lc-bar:hover { background: #b9cef4; }
+  .line-chart .lc-dot {
+    width: 9px; height: 9px; border-radius: 50%; background: #fff; border: 2px solid var(--warning);
+    position: absolute; z-index: 2; cursor: pointer;
+  }
+  .line-chart .lc-x { position: absolute; bottom: -22px; font-size: 11.5px; color: var(--text-3); }
+
+  .rpt-card {
+    border: 1px solid var(--border); border-radius: var(--radius); background: #fff; padding: 12px;
+    display: flex; gap: 12px; align-items: flex-start;
+  }
+  .rpt-thumb {
+    width: 92px; height: 122px; border: 1px solid var(--border); border-radius: 6px; background: #f7f9fc; flex-shrink: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--text-3); font-size: 11.5px;
+  }
+  .rpt-thumb i { font-size: 24px; color: var(--primary); }
+  .check-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 16px; }
+  .check-group .check { display: flex; align-items: center; gap: 8px; font-size: 13.5px; cursor: pointer; }
+
+  .up { color: #d97706; font-weight: 600; }
+  .down { color: #16a34a; font-weight: 600; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wszwb-21">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋租赁网签备案管理系统
+        <span class="sep">/</span> 租金监测统计
+        <span class="sep">/</span> <span class="cur">租赁业务台账统计</span>
+      </div>
+      <div class="page-title">租赁业务台账统计</div>
+    </div>
+    <div class="page-actions">
+      <div class="filter-item" style="margin:0">
+        <label>统计周期</label>
+        <select onchange="PMS.toast('已切换统计周期：' + this.value)">
+          <option>月</option><option>日</option><option>周</option><option>季</option><option>年</option>
+        </select>
+      </div>
+      <button type="button" class="btn btn-primary" onclick="genReport()"><i class="fa-solid fa-file-lines"></i> 生成月报</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《租赁业务台账统计表》Excel','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <div class="filter-item">
+      <label>统计日期起</label>
+      <input type="date" value="2026-07-01">
+    </div>
+    <div class="filter-item">
+      <label>统计日期止</label>
+      <input type="date" value="2026-07-31">
+    </div>
+    <div class="filter-item">
+      <label>行政区划</label>
+      <select><option value="">全市</option><option>城中区</option><option>鱼峰区</option><option>柳南区</option><option>柳北区</option><option>柳东新区</option><option>阳和工业新区</option><option>柳江区</option></select>
+    </div>
+    <div class="filter-item">
+      <label>租赁房屋类型</label>
+      <select><option value="">全部</option><option>成套住宅</option><option>非成套住宅</option><option>保障性租赁住房</option><option>公租房</option><option>商业用房</option><option>宿舍</option></select>
+    </div>
+    <div class="filter-item">
+      <label>出租方类型</label>
+      <select><option value="">全部</option><option>个人</option><option>住房租赁企业</option><option>政府平台公司</option><option>经纪机构代理</option><option>物业服务企业</option></select>
+    </div>
+    <div class="filter-actions">
+      <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件统计，口径：2026-07-01 至 2026-07-31')"><i class="fa-solid fa-magnifying-glass"></i> 统计</button>
+      <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      台账数据按周期固化写入，固化后不回改历史，口径变更以新周期记录体现。本页统计口径与租金水平信息发布保持一致。
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <span><i class="fa-solid fa-chart-pie"></i> 核心指标 · 2026 年 7 月</span>
+      <span class="text-3 text-sm">点击指标卡下钻至明细清单</span>
+    </div>
+    <div class="card-body">
+      <div class="grid-4">
+        <div class="kpi" onclick="drill(this, 'fy', '新增房源明细')">
+          <div class="k-l"><i class="fa-solid fa-house"></i> 新增房源</div>
+          <div class="k-v">1,428<span class="k-u">套</span></div>
+          <div class="k-d">环比 <span class="up">+6.2%</span></div>
+        </div>
+        <div class="kpi" onclick="drill(this, 'fy', '在租房源明细')">
+          <div class="k-l"><i class="fa-solid fa-building-user"></i> 在租房源</div>
+          <div class="k-v">21,436<span class="k-u">套</span></div>
+          <div class="k-d">环比 <span class="up">+1.8%</span></div>
+        </div>
+        <div class="kpi active" onclick="drill(this, 'ba', '新增备案明细')">
+          <div class="k-l"><i class="fa-solid fa-file-signature"></i> 新增备案</div>
+          <div class="k-v">3,286<span class="k-u">套</span></div>
+          <div class="k-d">环比 <span class="up">+4.6%</span></div>
+        </div>
+        <div class="kpi" onclick="drill(this, 'ba', '累计有效备案明细')">
+          <div class="k-l"><i class="fa-solid fa-folder-open"></i> 累计有效备案</div>
+          <div class="k-v">86,215<span class="k-u">套</span></div>
+          <div class="k-d">较年初 <span class="up">+18.4%</span></div>
+        </div>
+        <div class="kpi" onclick="drill(this, 'ba', '新增备案面积明细')">
+          <div class="k-l"><i class="fa-solid fa-ruler-combined"></i> 新增备案面积</div>
+          <div class="k-v">24.68<span class="k-u">万㎡</span></div>
+          <div class="k-d">套均 75.1 ㎡</div>
+        </div>
+        <div class="kpi" onclick="drill(this, 'ba', '平均租金水平明细')">
+          <div class="k-l"><i class="fa-solid fa-money-bill-trend-up"></i> 平均租金水平</div>
+          <div class="k-v">24.6<span class="k-u">元/㎡·月</span></div>
+          <div class="k-d">环比 <span class="up">+0.7%</span></div>
+        </div>
+        <div class="kpi" onclick="drill(this, 'ba', '租金指数明细')">
+          <div class="k-l"><i class="fa-solid fa-chart-line"></i> 租金指数</div>
+          <div class="k-v">102.8</div>
+          <div class="k-d">同比 <span class="up">+2.6%</span></div>
+        </div>
+        <div class="kpi" onclick="drill(this, 'fy', '空置房源明细')">
+          <div class="k-l"><i class="fa-solid fa-door-open"></i> 空置率</div>
+          <div class="k-v">8.6<span class="k-u">%</span></div>
+          <div class="k-d">环比 <span class="down">-0.4 个百分点</span></div>
+        </div>
+      </div>
+
+      <div class="section-title mt-16">主体与资金指标</div>
+      <div class="grid-4">
+        <div class="kpi" onclick="drill(this, 'qy', '在营租赁企业明细')">
+          <div class="k-l"><i class="fa-solid fa-building"></i> 在营租赁企业</div>
+          <div class="k-v">68<span class="k-u">家</span></div>
+          <div class="k-d">本月新增 3 家</div>
+        </div>
+        <div class="kpi" onclick="drill(this, 'qy', '备案门店明细')">
+          <div class="k-l"><i class="fa-solid fa-store"></i> 备案门店</div>
+          <div class="k-v">214<span class="k-u">家</span></div>
+          <div class="k-d">本月新增 8 家</div>
+        </div>
+        <div class="kpi" onclick="drill(this, 'qy', '监管账户明细')">
+          <div class="k-l"><i class="fa-solid fa-building-columns"></i> 监管账户</div>
+          <div class="k-v">76<span class="k-u">户</span></div>
+          <div class="k-d">开立率 100%</div>
+        </div>
+        <div class="kpi" onclick="drill(this, 'qy', '监管资金余额明细')">
+          <div class="k-l"><i class="fa-solid fa-vault"></i> 监管资金余额</div>
+          <div class="k-v">2.83<span class="k-u">亿元</span></div>
+          <div class="k-d">留存达标 64 家</div>
+        </div>
+      </div>
+
+      <div class="section-title mt-16">服务与风险指标</div>
+      <div class="grid-3">
+        <div class="kpi" onclick="drill(this, 'ba', '租赁期限分布明细')">
+          <div class="k-l"><i class="fa-solid fa-calendar-days"></i> 平均租赁期限</div>
+          <div class="k-v">14.2<span class="k-u">个月</span></div>
+          <div class="k-d">12 个月及以上占 78.6%</div>
+        </div>
+        <div class="kpi" onclick="drill(this, 'qy', '投诉件明细')">
+          <div class="k-l"><i class="fa-solid fa-comment-dots"></i> 投诉件数</div>
+          <div class="k-v">86<span class="k-u">件</span></div>
+          <div class="k-d">办结率 92.5%</div>
+        </div>
+        <div class="kpi" onclick="drill(this, 'qy', '预警件明细')">
+          <div class="k-l"><i class="fa-solid fa-bell"></i> 预警件数</div>
+          <div class="k-v">14<span class="k-u">件</span></div>
+          <div class="k-d">高风险 4 件</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head"><span><i class="fa-solid fa-chart-pie"></i> 本月备案结构 · 按房源属性</span></div>
+      <div class="card-body">
+        <div class="flex items-center gap-16">
+          <div class="donut"><div class="d-hole"><div class="text-3 text-sm">新增备案</div><div style="font-size:21px;font-weight:700">3,286</div><div class="text-3 text-sm">套</div></div></div>
+          <div class="donut-legend" style="flex:1">
+            <span class="dl-item" onclick="PMS.toast('保租房备案 526 套，占 16.0%')"><i style="background:#15a15a"></i>保障性租赁住房备案<span class="dl-v">526 套</span></span>
+            <span class="dl-item" onclick="PMS.toast('租赁企业备案 1,842 套，占 56.1%')"><i style="background:#2656bb"></i>租赁企业备案<span class="dl-v">1,842 套</span></span>
+            <span class="dl-item" onclick="PMS.toast('个人出租备案 918 套，占 27.9%')"><i style="background:#17a2b8"></i>个人出租备案<span class="dl-v">918 套</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span><i class="fa-solid fa-chart-column"></i> 本月新增备案 · 按城区</span></div>
+      <div class="card-body">
+        <div class="stack-chart">
+          <div class="sc-col">
+            <div class="sc-bar" style="height:86%" onclick="PMS.toast('城中区 686 套：企业 402 / 个人 198 / 保租房 86')">
+              <div class="sc-seg" style="height:58.6%;background:#2656bb"></div>
+              <div class="sc-seg" style="height:28.9%;background:#17a2b8"></div>
+              <div class="sc-seg" style="height:12.5%;background:#15a15a"></div>
+            </div>
+            <div class="sc-x">城中区</div>
+          </div>
+          <div class="sc-col">
+            <div class="sc-bar" style="height:74%" onclick="PMS.toast('鱼峰区 592 套：企业 328 / 个人 186 / 保租房 78')">
+              <div class="sc-seg" style="height:55.4%;background:#2656bb"></div>
+              <div class="sc-seg" style="height:31.4%;background:#17a2b8"></div>
+              <div class="sc-seg" style="height:13.2%;background:#15a15a"></div>
+            </div>
+            <div class="sc-x">鱼峰区</div>
+          </div>
+          <div class="sc-col">
+            <div class="sc-bar" style="height:66%" onclick="PMS.toast('柳南区 524 套：企业 286 / 个人 172 / 保租房 66')">
+              <div class="sc-seg" style="height:54.6%;background:#2656bb"></div>
+              <div class="sc-seg" style="height:32.8%;background:#17a2b8"></div>
+              <div class="sc-seg" style="height:12.6%;background:#15a15a"></div>
+            </div>
+            <div class="sc-x">柳南区</div>
+          </div>
+          <div class="sc-col">
+            <div class="sc-bar" style="height:58%" onclick="PMS.toast('柳北区 462 套：企业 242 / 个人 158 / 保租房 62')">
+              <div class="sc-seg" style="height:52.4%;background:#2656bb"></div>
+              <div class="sc-seg" style="height:34.2%;background:#17a2b8"></div>
+              <div class="sc-seg" style="height:13.4%;background:#15a15a"></div>
+            </div>
+            <div class="sc-x">柳北区</div>
+          </div>
+          <div class="sc-col">
+            <div class="sc-bar" style="height:72%" onclick="PMS.toast('柳东新区 568 套：企业 356 / 个人 96 / 保租房 116')">
+              <div class="sc-seg" style="height:62.7%;background:#2656bb"></div>
+              <div class="sc-seg" style="height:16.9%;background:#17a2b8"></div>
+              <div class="sc-seg" style="height:20.4%;background:#15a15a"></div>
+            </div>
+            <div class="sc-x">柳东新区</div>
+          </div>
+          <div class="sc-col">
+            <div class="sc-bar" style="height:34%" onclick="PMS.toast('阳和新区 268 套：企业 148 / 个人 62 / 保租房 58')">
+              <div class="sc-seg" style="height:55.2%;background:#2656bb"></div>
+              <div class="sc-seg" style="height:23.1%;background:#17a2b8"></div>
+              <div class="sc-seg" style="height:21.7%;background:#15a15a"></div>
+            </div>
+            <div class="sc-x">阳和新区</div>
+          </div>
+          <div class="sc-col">
+            <div class="sc-bar" style="height:23%" onclick="PMS.toast('柳江区 186 套：企业 80 / 个人 46 / 保租房 60')">
+              <div class="sc-seg" style="height:43.0%;background:#2656bb"></div>
+              <div class="sc-seg" style="height:24.8%;background:#17a2b8"></div>
+              <div class="sc-seg" style="height:32.2%;background:#15a15a"></div>
+            </div>
+            <div class="sc-x">柳江区</div>
+          </div>
+        </div>
+        <div class="stack-legend">
+          <span><i style="background:#2656bb"></i>租赁企业备案</span>
+          <span><i style="background:#17a2b8"></i>个人出租备案</span>
+          <span><i style="background:#15a15a"></i>保障性租赁住房备案</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <span><i class="fa-solid fa-chart-line"></i> 近 12 个月趋势 · 新增备案套数与平均租金单价</span>
+      <a class="link" href="rent-fluctuation.html">前往租金波动监测</a>
+    </div>
+    <div class="card-body">
+      <div class="line-chart">
+        <div class="lc-cols">
+          <div class="lc-col"><div class="lc-dot" style="bottom:18%" onclick="PMS.toast('2025-08 新增备案 2,486 套 · 均价 23.4 元/㎡·月')"></div><div class="lc-bar" style="height:52%" onclick="PMS.toast('2025-08 新增备案 2,486 套')"></div><div class="lc-x">08</div></div>
+          <div class="lc-col"><div class="lc-dot" style="bottom:24%" onclick="PMS.toast('2025-09 新增备案 2,864 套 · 均价 23.6 元/㎡·月')"></div><div class="lc-bar" style="height:60%" onclick="PMS.toast('2025-09 新增备案 2,864 套')"></div><div class="lc-x">09</div></div>
+          <div class="lc-col"><div class="lc-dot" style="bottom:28%" onclick="PMS.toast('2025-10 新增备案 2,642 套 · 均价 23.7 元/㎡·月')"></div><div class="lc-bar" style="height:55%" onclick="PMS.toast('2025-10 新增备案 2,642 套')"></div><div class="lc-x">10</div></div>
+          <div class="lc-col"><div class="lc-dot" style="bottom:26%" onclick="PMS.toast('2025-11 新增备案 2,418 套 · 均价 23.6 元/㎡·月')"></div><div class="lc-bar" style="height:50%" onclick="PMS.toast('2025-11 新增备案 2,418 套')"></div><div class="lc-x">11</div></div>
+          <div class="lc-col"><div class="lc-dot" style="bottom:32%" onclick="PMS.toast('2025-12 新增备案 2,286 套 · 均价 23.8 元/㎡·月')"></div><div class="lc-bar" style="height:47%" onclick="PMS.toast('2025-12 新增备案 2,286 套')"></div><div class="lc-x">12</div></div>
+          <div class="lc-col"><div class="lc-dot" style="bottom:40%" onclick="PMS.toast('2026-01 新增备案 2,142 套 · 均价 24.0 元/㎡·月')"></div><div class="lc-bar" style="height:44%" onclick="PMS.toast('2026-01 新增备案 2,142 套')"></div><div class="lc-x">01</div></div>
+          <div class="lc-col"><div class="lc-dot" style="bottom:37%" onclick="PMS.toast('2026-02 新增备案 1,986 套 · 均价 23.9 元/㎡·月')"></div><div class="lc-bar" style="height:41%" onclick="PMS.toast('2026-02 新增备案 1,986 套')"></div><div class="lc-x">02</div></div>
+          <div class="lc-col"><div class="lc-dot" style="bottom:48%" onclick="PMS.toast('2026-03 新增备案 3,042 套 · 均价 24.1 元/㎡·月')"></div><div class="lc-bar" style="height:63%" onclick="PMS.toast('2026-03 新增备案 3,042 套')"></div><div class="lc-x">03</div></div>
+          <div class="lc-col"><div class="lc-dot" style="bottom:55%" onclick="PMS.toast('2026-04 新增备案 3,186 套 · 均价 24.2 元/㎡·月')"></div><div class="lc-bar" style="height:66%" onclick="PMS.toast('2026-04 新增备案 3,186 套')"></div><div class="lc-x">04</div></div>
+          <div class="lc-col"><div class="lc-dot" style="bottom:62%" onclick="PMS.toast('2026-05 新增备案 3,124 套 · 均价 24.4 元/㎡·月')"></div><div class="lc-bar" style="height:65%" onclick="PMS.toast('2026-05 新增备案 3,124 套')"></div><div class="lc-x">05</div></div>
+          <div class="lc-col"><div class="lc-dot" style="bottom:70%" onclick="PMS.toast('2026-06 新增备案 3,142 套 · 均价 24.5 元/㎡·月')"></div><div class="lc-bar" style="height:65%" onclick="PMS.toast('2026-06 新增备案 3,142 套')"></div><div class="lc-x">06</div></div>
+          <div class="lc-col"><div class="lc-dot" style="bottom:78%" onclick="PMS.toast('2026-07 新增备案 3,286 套 · 均价 24.6 元/㎡·月')"></div><div class="lc-bar" style="height:68%" onclick="PMS.toast('2026-07 新增备案 3,286 套')"></div><div class="lc-x">07</div></div>
+        </div>
+      </div>
+      <div class="stack-legend" style="margin-top:26px">
+        <span><i style="background:#dce7fa"></i>新增备案套数（柱）</span>
+        <span><i style="background:#e0a91e"></i>平均租金单价（折线）</span>
+        <span style="margin-left:auto">近 12 个月累计新增备案 32,604 套</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <span><i class="fa-solid fa-ranking-star"></i> 分区排行</span>
+      <span class="text-3 text-sm">点击表头可按该列排序</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tblQx" data-static>
+        <thead>
+          <tr>
+            <th onclick="sortBy(0)">行政区划</th>
+            <th class="num" onclick="sortBy(1)">新增房源(套)</th>
+            <th class="num" onclick="sortBy(2)">在租房源(套)</th>
+            <th class="num" onclick="sortBy(3)">新增备案(套)</th>
+            <th class="num" onclick="sortBy(4)">累计备案(套)</th>
+            <th class="num" onclick="sortBy(5)">备案面积(万㎡)</th>
+            <th class="num" onclick="sortBy(6)">平均租金单价(元/㎡·月)</th>
+            <th class="num" onclick="sortBy(7)">环比</th>
+            <th class="num" onclick="sortBy(8)">空置率</th>
+            <th class="num" onclick="sortBy(9)">在营企业(家)</th>
+            <th class="num" onclick="sortBy(10)">监管资金余额(万元)</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="nowrap fw-600">城中区</td>
+            <td class="num">312</td><td class="num">4,862</td><td class="num">686</td><td class="num">18,642</td>
+            <td class="num">5.24</td><td class="num">32.6</td><td class="num up">+5.8%</td><td class="num">6.8%</td>
+            <td class="num">22</td><td class="num">9,864.20</td>
+            <td class="col-ops"><span class="link" onclick="drillArea('城中区')">明细</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">鱼峰区</td>
+            <td class="num">268</td><td class="num">4,124</td><td class="num">592</td><td class="num">16,428</td>
+            <td class="num">4.46</td><td class="num">27.4</td><td class="num up">+1.2%</td><td class="num">7.4%</td>
+            <td class="num">16</td><td class="num">6,428.60</td>
+            <td class="col-ops"><span class="link" onclick="drillArea('鱼峰区')">明细</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">柳南区</td>
+            <td class="num">246</td><td class="num">3,864</td><td class="num">524</td><td class="num">15,286</td>
+            <td class="num">3.92</td><td class="num">22.8</td><td class="num up">+0.4%</td><td class="num">8.2%</td>
+            <td class="num">12</td><td class="num">4,286.40</td>
+            <td class="col-ops"><span class="link" onclick="drillArea('柳南区')">明细</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">柳北区</td>
+            <td class="num">218</td><td class="num">3,428</td><td class="num">462</td><td class="num">13,864</td>
+            <td class="num">3.48</td><td class="num">21.9</td><td class="num down">-0.6%</td><td class="num">9.6%</td>
+            <td class="num">8</td><td class="num">2,864.80</td>
+            <td class="col-ops"><span class="link" onclick="drillArea('柳北区')">明细</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">柳东新区</td>
+            <td class="num">242</td><td class="num">3,286</td><td class="num">568</td><td class="num">12,486</td>
+            <td class="num">4.28</td><td class="num">19.6</td><td class="num up">+6.4%</td><td class="num">10.4%</td>
+            <td class="num">6</td><td class="num">3,642.20</td>
+            <td class="col-ops"><span class="link" onclick="drillArea('柳东新区')">明细</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">阳和工业新区</td>
+            <td class="num">86</td><td class="num">1,286</td><td class="num">268</td><td class="num">6,428</td>
+            <td class="num">1.86</td><td class="num">17.2</td><td class="num up">+2.1%</td><td class="num">11.2%</td>
+            <td class="num">3</td><td class="num">982.40</td>
+            <td class="col-ops"><span class="link" onclick="drillArea('阳和工业新区')">明细</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">柳江区</td>
+            <td class="num">56</td><td class="num">586</td><td class="num">186</td><td class="num">3,081</td>
+            <td class="num">1.44</td><td class="num">15.8</td><td class="num up">+0.9%</td><td class="num">12.6%</td>
+            <td class="num">1</td><td class="num">231.40</td>
+            <td class="col-ops"><span class="link" onclick="drillArea('柳江区')">明细</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <span><i class="fa-solid fa-list-ul"></i> <span id="dtTitle">新增备案明细</span></span>
+      <span class="link" onclick="PMS.toast('已生成明细清单 Excel','success')">导出明细</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tblDt" data-static>
+        <thead id="dtHead"></thead>
+        <tbody id="dtBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><span><i class="fa-solid fa-file-lines"></i> 月报生成</span></div>
+    <div class="card-body">
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>报告期次</label><span class="req">*</span>
+          <input type="text" value="2026 年 7 月">
+        </div>
+        <div class="form-item">
+          <label>报告模板</label><span class="req">*</span>
+          <select><option>月度简报</option><option>季度分析</option><option>年度报告</option></select>
+        </div>
+        <div class="form-item col-full">
+          <label>包含章节</label>
+          <div class="check-group">
+            <label class="check"><input type="checkbox" checked> 市场概况</label>
+            <label class="check"><input type="checkbox" checked> 备案情况</label>
+            <label class="check"><input type="checkbox" checked> 租金水平</label>
+            <label class="check"><input type="checkbox" checked> 主体监管</label>
+            <label class="check"><input type="checkbox" checked> 资金监管</label>
+            <label class="check"><input type="checkbox"> 风险提示</label>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center gap-16 mt-16">
+        <button type="button" class="btn btn-primary" onclick="genReport()"><i class="fa-solid fa-wand-magic-sparkles"></i> 生成月报</button>
+        <span class="text-3 text-sm">生成后可在下方预览并下载 Word / PDF 版本</span>
+      </div>
+
+      <div class="rpt-card mt-16" id="rptCard" style="display:none">
+        <div class="rpt-thumb">
+          <i class="fa-solid fa-file-word"></i>
+          <div>月度简报</div>
+          <div>2026-07</div>
+        </div>
+        <div>
+          <div class="fw-600">柳州市住房租赁市场运行月报（2026 年 7 月）</div>
+          <div class="text-3 text-sm mt-8">
+            含市场概况、备案情况、租金水平、主体监管、资金监管 5 个章节，
+            数据口径 2026-07-01 至 2026-07-31，图表 8 张，共 12 页。
+          </div>
+          <div class="text-3 text-sm mt-8">生成时间 2026-08-01 16:24 · 生成人 韦国强</div>
+          <div class="flex items-center gap-16 mt-8">
+            <span class="link" onclick="PMS.toast('已打开月报预览')">在线预览</span>
+            <span class="link" onclick="PMS.toast('已下载 Word 版本','success')">下载 Word</span>
+            <span class="link" onclick="PMS.toast('已下载 PDF 版本','success')">下载 PDF</span>
+            <span class="link" onclick="PMS.toast('已推送至住建局领导与统计部门','success')">推送报送</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+var DETAIL = {
+  ba: {
+    head: ['备案编号', '合同编号', '坐落', '出租方', '承租人', '租赁期限', '月租金(元)', '建筑面积(㎡)', '备案时间'],
+    rows: [
+      ['ZLBA450200202600491', 'ZLHT450200202600486', '城中区文昌路 66 号阳光 100 城市广场 3 栋 2 单元 1602 室', '吴某某', '覃**', '2026-08-01 至 2027-07-31', '2,300.00', '70.20', '2026-07-31'],
+      ['ZLBA450200202600486', 'ZLHT450200202600478', '柳东新区官塘大道 3 号万科城 12 栋 1 单元 1802 室', '柳州安寓住房租赁有限公司', '黄**', '2026-08-01 至 2028-07-31', '2,680.00', '108.60', '2026-07-30'],
+      ['ZLBA450200202600478', 'ZLHT450200202600462', '鱼峰区屏山大道 66 号奥园誉峰 3 栋 1 单元 1806 室', '谭某某', '石**', '2026-07-20 至 2027-07-19', '1,892.00', '70.10', '2026-07-28'],
+      ['ZLBA450200202600462', 'ZLHT450200202600441', '柳东新区官塘大道 9 号龙城人才公寓 2 栋 1 单元 1108 室（保租房）', '柳州龙城人才公寓运营管理有限公司', '莫**', '2026-08-01 至 2027-07-31', '1,320.00', '44.50', '2026-07-26'],
+      ['ZLBA450200202600441', 'ZLHT450200202600418', '柳南区航鹰大道 8 号龙城华府 1 栋 2 单元 1102 室', '黄某某', '莫**', '2026-07-15 至 2027-07-14', '1,764.00', '70.00', '2026-07-22']
+    ]
+  },
+  fy: {
+    head: ['租赁房源编号', '坐落', '房屋类型', '建筑面积(㎡)', '户型', '出租方', '核验状态', '发布状态', '房源状态'],
+    rows: [
+      ['ZLFY450200202600862', '城中区东堤路 12 号江与城 5 栋 1 单元 706 室', '成套住宅', '86.24', '两房两厅', 'XXXX市桂中房产经纪有限公司', '已失效', '已下架', '待核验'],
+      ['ZLFY450200202600814', '柳南区航鹰大道 8 号龙城华府 1 栋 2 单元 1102 室', '成套住宅', '70.00', '两房两厅', '黄某某', '核验通过', '已发布', '已出租'],
+      ['ZLFY450200202600768', '鱼峰区静兰路 18 号荣和公园里 6 栋 3 单元 902 室', '成套住宅', '112.40', '三房两厅', '卢某某', '核验不通过', '未发布', '空置'],
+      ['ZLFY450200202600722', '柳东新区官塘大道 3 号万科城 12 栋 1 单元 1802 室', '成套住宅', '108.60', '三房两厅', '柳州安寓住房租赁有限公司', '核验通过', '已发布', '已出租'],
+      ['ZLFY450200202600684', '柳北区跃进路 25 号钢城家园 7 栋 2 单元 403 室', '非成套住宅', '42.80', '一房一厅', '韦某某', '核验通过', '已下架', '空置']
+    ]
+  },
+  qy: {
+    head: ['企业编号', '企业名称', '企业类型', '门店数', '管理房源(套)', '备案合同(份)', '监管账户', '信用等级', '经营状态'],
+    rows: [
+      ['ZLQY45020000021', '柳州安寓住房租赁有限公司', '住房租赁企业', '14', '6,428', '5,914', '已开立 2 户', 'A 级', '正常经营'],
+      ['ZLQY45020000012', 'XXXX市住房租赁发展集团有限公司', '政府平台公司', '6', '7,986', '6,412', '已开立 3 户', 'A 级', '正常经营'],
+      ['ZLQY45020000038', '柳州寓家公寓管理有限公司', '住房租赁企业', '9', '3,286', '2,914', '留存不足', 'D 级', '责令整改'],
+      ['ZLQY45020000047', 'XXXX市和居住房租赁服务有限公司', '住房租赁企业', '5', '1,842', '1,486', '已开立 1 户', 'B 级', '正常经营'],
+      ['ZLQY45020000063', 'XXXX市桂中房产经纪有限公司', '房地产经纪机构', '22', '4,126', '3,286', '不适用', 'C 级', '正常经营']
+    ]
+  }
+};
+
+function renderDetail(key, title) {
+  var d = DETAIL[key];
+  document.getElementById('dtTitle').textContent = title;
+  document.getElementById('dtHead').innerHTML = '<tr>' + d.head.map(function (h, i) {
+    return '<th' + (i >= 3 && /\(/.test(h) ? ' class="num"' : '') + '>' + h + '</th>';
+  }).join('') + '</tr>';
+  document.getElementById('dtBody').innerHTML = d.rows.map(function (r) {
+    return '<tr>' + r.map(function (c, i) {
+      var cls = i === 2 || (key === 'fy' && i === 1) ? 'cell-lg' : 'nowrap';
+      return '<td class="' + cls + '">' + c + '</td>';
+    }).join('') + '</tr>';
+  }).join('');
+}
+
+function drill(el, key, title) {
+  document.querySelectorAll('.kpi').forEach(function (k) { k.classList.remove('active'); });
+  el.classList.add('active');
+  renderDetail(key, title);
+  PMS.toast('已下钻至「' + title + '」');
+}
+
+function drillArea(area) {
+  renderDetail('ba', area + ' · 新增备案明细');
+  PMS.toast('已下钻至 ' + area + ' 备案明细');
+}
+
+var sortAsc = {};
+function sortBy(idx) {
+  var tb = document.querySelector('#tblQx tbody');
+  var rows = Array.prototype.slice.call(tb.querySelectorAll('tr'));
+  sortAsc[idx] = !sortAsc[idx];
+  rows.sort(function (a, b) {
+    var x = a.children[idx].textContent.replace(/[,%+]/g, '').trim();
+    var y = b.children[idx].textContent.replace(/[,%+]/g, '').trim();
+    var nx = parseFloat(x), ny = parseFloat(y);
+    if (!isNaN(nx) && !isNaN(ny)) return sortAsc[idx] ? nx - ny : ny - nx;
+    return sortAsc[idx] ? x.localeCompare(y, 'zh') : y.localeCompare(x, 'zh');
+  });
+  rows.forEach(function (r) { tb.appendChild(r); });
+  PMS.toast('已按第 ' + (idx + 1) + ' 列' + (sortAsc[idx] ? '升序' : '降序') + '排序');
+}
+
+function genReport() {
+  PMS.confirm({
+    title: '生成月报',
+    message: '按所选章节生成 2026 年 7 月租赁市场运行月报？',
+    detail: '月报取本期固化台账数据，生成后可预览、下载与推送报送。',
+    type: 'info',
+    okText: '生成月报',
+    onOk: function () {
+      document.getElementById('rptCard').style.display = '';
+      PMS.toast('月报已生成，共 12 页 8 张图表', 'success');
+    }
+  });
+}
+
+(function () {
+  renderDetail('ba', '新增备案明细');
+  PMS.renderPager(document.getElementById('tblDt'), {
+    pageNum: 1, pageSize: 20, total: 3286,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>超期未网签未备案督促 · 新建商品房网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：临期 / 超期天数着色 */
+  .days { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .days.warn { color: #b45309; }
+  .days.over { color: var(--danger); }
+  tr.is-over td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
+  tr.is-warn td:first-child { box-shadow: inset 3px 0 0 var(--warning); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsswb-26">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房网签备案管理系统
+        <span class="sep">/</span> 网签备案
+        <span class="sep">/</span> <span class="cur">超期未网签未备案督促</span>
+      </div>
+      <div class="page-title">超期未网签未备案督促</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" onclick="batchUrge()"><i class="fa-solid fa-paper-plane"></i> 批量发送督促</button>
+      <button type="button" class="btn" onclick="location.href='subscribe-list.html'">认购台账</button>
+      <button type="button" class="btn" onclick="location.href='contract-list.html'">合同网签</button>
+      <button type="button" class="btn" onclick="location.href='filing-list.html'">备案台账</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《超期督促台账》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">临期</div><div class="s-value">42</div><div class="s-trend text-3">剩余 ≤ 7 天</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-file-signature"></i></div>
+      <div><div class="s-label">超期未网签</div><div class="s-value">26</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-stamp"></i></div>
+      <div><div class="s-label">超期未备案</div><div class="s-value">18</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-bell"></i></div>
+      <div><div class="s-label">本月已督办</div><div class="s-value">56</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-sliders"></i>
+    <div>系统按双阈值监测：约定网签 / 备案日期前 <b>7 天</b>进入临期队列，逾期即进入超期队列；可勾选多条后批量向开发企业经办人发送督促短信与系统消息，连续超期企业纳入重点监控名单。</div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>认购 / 合同号</label>
+        <input type="text" placeholder="如 RG20260618042 / SF450200…">
+      </div>
+      <div class="filter-item">
+        <label>项目</label>
+        <input type="text" placeholder="项目名称关键词">
+      </div>
+      <div class="filter-item">
+        <label>开发企业</label>
+        <input type="text" placeholder="企业名称关键词">
+      </div>
+      <div class="filter-item">
+        <label>督促类型</label>
+        <select><option value="">全部</option><option>临期</option><option>超期未网签</option><option>超期未备案</option></select>
+      </div>
+      <div class="filter-item">
+        <label>督办状态</label>
+        <select><option value="">全部</option><option>待督办</option><option>已督办</option><option>已办结</option></select>
+      </div>
+      <div class="filter-item">
+        <label>约定日期起</label>
+        <input type="date" value="2026-06-01">
+      </div>
+      <div class="filter-item">
+        <label>约定日期止</label>
+        <input type="date" value="2026-08-15">
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 86 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        <button type="button" class="btn btn-primary" onclick="batchUrge()"><i class="fa-solid fa-paper-plane"></i> 批量发送督促</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="warn">临期 <span class="badge orange">42</span></div>
+      <div class="tab" data-tab="sign">超期未网签 <span class="badge red">26</span></div>
+      <div class="tab" data-tab="file">超期未备案 <span class="badge purple">18</span></div>
+      <div class="tab" data-tab="done">本月已督办</div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblUrge" data-static>
+        <thead>
+          <tr>
+            <th style="width:44px"><input type="checkbox" id="ckAll" onclick="toggleAll(this)"></th>
+            <th>认购 / 合同号</th>
+            <th>项目房号</th>
+            <th>约定日期</th>
+            <th>超期天数</th>
+            <th>开发企业</th>
+            <th>状态</th>
+            <th>上次督办</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="sign" class="is-over">
+            <td><input type="checkbox" class="ck-r" checked></td>
+            <td class="nowrap fw-600">RG20260618042</td>
+            <td class="nowrap">龙光玖誉城（四期）12-1-0902</td>
+            <td class="nowrap text-danger">2026-07-18</td>
+            <td class="nowrap"><span class="days over">超期 13 天</span></td>
+            <td class="nowrap">柳州龙光房地产开发有限公司</td>
+            <td class="nowrap"><span class="badge red">超期未网签</span></td>
+            <td class="nowrap">2026-07-28</td>
+            <td class="col-ops">
+              <span class="link" onclick="sendOne('RG20260618042')">发送督促</span>
+              <a class="link" href="subscribe-list.html">认购</a>
+              <a class="link" href="contract-list.html">转网签</a>
+            </td>
+          </tr>
+          <tr data-st="sign" class="is-over">
+            <td><input type="checkbox" class="ck-r" checked></td>
+            <td class="nowrap fw-600">RG20260622048</td>
+            <td class="nowrap">中南春风南岸（二期）8-2-1101</td>
+            <td class="nowrap text-danger">2026-07-22</td>
+            <td class="nowrap"><span class="days over">超期 9 天</span></td>
+            <td class="nowrap">柳州中南房地产开发有限公司</td>
+            <td class="nowrap"><span class="badge red">超期未网签</span></td>
+            <td class="nowrap">2026-07-29</td>
+            <td class="col-ops">
+              <span class="link" onclick="sendOne('RG20260622048')">发送督促</span>
+              <a class="link" href="subscribe-list.html">认购</a>
+              <a class="link" href="contract-list.html">转网签</a>
+            </td>
+          </tr>
+          <tr data-st="file" class="is-over">
+            <td><input type="checkbox" class="ck-r" checked></td>
+            <td class="nowrap fw-600">SF450200202601188</td>
+            <td class="nowrap">彰泰江湾城（三期）10-1-1502</td>
+            <td class="nowrap text-danger">2026-07-20</td>
+            <td class="nowrap"><span class="days over">超期 11 天</span></td>
+            <td class="nowrap">柳州彰泰置业有限公司</td>
+            <td class="nowrap"><span class="badge purple">超期未备案</span></td>
+            <td class="nowrap">2026-07-27</td>
+            <td class="col-ops">
+              <span class="link" onclick="sendOne('SF450200202601188')">发送督促</span>
+              <a class="link" href="contract-list.html">合同</a>
+              <a class="link" href="filing-list.html">备案</a>
+            </td>
+          </tr>
+          <tr data-st="file" class="is-over">
+            <td><input type="checkbox" class="ck-r"></td>
+            <td class="nowrap fw-600">SF450200202601206</td>
+            <td class="nowrap">华润置地柳州万象天地 3-1-2201</td>
+            <td class="nowrap text-danger">2026-07-24</td>
+            <td class="nowrap"><span class="days over">超期 7 天</span></td>
+            <td class="nowrap">柳州华润置地房地产开发有限公司</td>
+            <td class="nowrap"><span class="badge purple">超期未备案</span></td>
+            <td class="nowrap text-3">—</td>
+            <td class="col-ops">
+              <span class="link" onclick="sendOne('SF450200202601206')">发送督促</span>
+              <a class="link" href="contract-list.html">合同</a>
+              <a class="link" href="filing-list.html">备案</a>
+            </td>
+          </tr>
+          <tr data-st="warn" class="is-warn">
+            <td><input type="checkbox" class="ck-r"></td>
+            <td class="nowrap fw-600">RG20260726074</td>
+            <td class="nowrap">保利柳江府（二期）5-2-1201</td>
+            <td class="nowrap text-warning">2026-08-02</td>
+            <td class="nowrap"><span class="days warn">剩 1 天</span></td>
+            <td class="nowrap">柳州保利房地产开发有限公司</td>
+            <td class="nowrap"><span class="badge orange">临期</span></td>
+            <td class="nowrap text-3">—</td>
+            <td class="col-ops">
+              <span class="link" onclick="sendOne('RG20260726074')">发送督促</span>
+              <a class="link" href="subscribe-list.html">认购</a>
+              <a class="link" href="contract-list.html">转网签</a>
+            </td>
+          </tr>
+          <tr data-st="warn" class="is-warn">
+            <td><input type="checkbox" class="ck-r"></td>
+            <td class="nowrap fw-600">RG20260728080</td>
+            <td class="nowrap">柳州万科城（五期）16-1-0802</td>
+            <td class="nowrap text-warning">2026-08-05</td>
+            <td class="nowrap"><span class="days warn">剩 4 天</span></td>
+            <td class="nowrap">柳州万科房地产开发有限公司</td>
+            <td class="nowrap"><span class="badge orange">临期</span></td>
+            <td class="nowrap text-3">—</td>
+            <td class="col-ops">
+              <span class="link" onclick="sendOne('RG20260728080')">发送督促</span>
+              <a class="link" href="subscribe-list.html">认购</a>
+              <a class="link" href="contract-list.html">转网签</a>
+            </td>
+          </tr>
+          <tr data-st="warn" class="is-warn">
+            <td><input type="checkbox" class="ck-r"></td>
+            <td class="nowrap fw-600">SF450200202601268</td>
+            <td class="nowrap">彰泰滨江学府 7-2-1801</td>
+            <td class="nowrap text-warning">2026-08-06</td>
+            <td class="nowrap"><span class="days warn">剩 5 天</span></td>
+            <td class="nowrap">柳州彰泰置业有限公司</td>
+            <td class="nowrap"><span class="badge orange">临期·待备案</span></td>
+            <td class="nowrap text-3">—</td>
+            <td class="col-ops">
+              <span class="link" onclick="sendOne('SF450200202601268')">发送督促</span>
+              <a class="link" href="contract-list.html">合同</a>
+              <a class="link" href="filing-list.html">备案</a>
+            </td>
+          </tr>
+          <tr data-st="sign" class="is-over">
+            <td><input type="checkbox" class="ck-r"></td>
+            <td class="nowrap fw-600">RG20260610036</td>
+            <td class="nowrap">荣和千千树 2-1-0601</td>
+            <td class="nowrap text-danger">2026-07-10</td>
+            <td class="nowrap"><span class="days over">超期 21 天</span></td>
+            <td class="nowrap">柳州荣和房地产开发有限公司</td>
+            <td class="nowrap"><span class="badge red">超期未网签</span></td>
+            <td class="nowrap">2026-07-25</td>
+            <td class="col-ops">
+              <span class="link" onclick="sendOne('RG20260610036')">发送督促</span>
+              <a class="link" href="subscribe-list.html">认购</a>
+              <a class="link" href="contract-list.html">转网签</a>
+            </td>
+          </tr>
+          <tr data-st="done">
+            <td><input type="checkbox" class="ck-r"></td>
+            <td class="nowrap fw-600">RG20260605028</td>
+            <td class="nowrap">中航郡府 4-1-1402</td>
+            <td class="nowrap">2026-07-05</td>
+            <td class="nowrap"><span class="text-3">已办结</span></td>
+            <td class="nowrap">柳州中航置业有限公司</td>
+            <td class="nowrap"><span class="badge green">已办结</span></td>
+            <td class="nowrap">2026-07-12</td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.toast('督办轨迹：7-08 短信 → 7-10 约谈 → 7-12 已转合同')">轨迹</span>
+              <a class="link" href="contract-list.html">合同</a>
+            </td>
+          </tr>
+          <tr data-st="file" class="is-over">
+            <td><input type="checkbox" class="ck-r"></td>
+            <td class="nowrap fw-600">SF450200202601142</td>
+            <td class="nowrap">恒大城 9-3-1001</td>
+            <td class="nowrap text-danger">2026-07-15</td>
+            <td class="nowrap"><span class="days over">超期 16 天</span></td>
+            <td class="nowrap">柳州恒大房地产开发有限公司</td>
+            <td class="nowrap"><span class="badge purple">超期未备案</span></td>
+            <td class="nowrap">2026-07-26</td>
+            <td class="col-ops">
+              <span class="link" onclick="sendOne('SF450200202601142')">发送督促</span>
+              <a class="link" href="contract-list.html">合同</a>
+              <a class="link" href="filing-list.html">备案</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  var table = document.getElementById('tblUrge');
+  document.getElementById('stTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var name = tab.getAttribute('data-tab');
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.style.display = (name === 'all' || tr.getAttribute('data-st') === name) ? '' : 'none';
+    });
+  });
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 86,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+
+function toggleAll(el) {
+  document.querySelectorAll('#tblUrge .ck-r').forEach(function (c) { c.checked = el.checked; });
+}
+
+function sendOne(no) {
+  PMS.toast('已向企业经办人发送督促：' + no + '（短信 + 系统消息）', 'success');
+}
+
+function batchUrge() {
+  var n = document.querySelectorAll('#tblUrge .ck-r:checked').length;
+  if (!n) {
+    PMS.toast('请先勾选需要督办的记录', 'error');
+    return;
+  }
+  PMS.confirm({
+    title: '批量发送督促',
+    message: '确认向已勾选的 ' + n + ' 条记录发送督促？',
+    detail: '将同步推送短信与系统消息至开发企业经办人，并记入本月督办台账。',
+    type: 'warning',
+    okText: '确认发送',
+    onOk: function () {
+      PMS.toast('已批量发送督促 ' + n + ' 条', 'success');
+    }
+  });
+}
+</script>
+</body>
+</html>

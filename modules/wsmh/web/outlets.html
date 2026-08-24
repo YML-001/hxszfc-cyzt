@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>办理网点导航与窗口排队 · 统一服务门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  .otl-body { padding: 0 0 40px; }
+  .otl-main { display: grid; grid-template-columns: 460px 1fr; gap: 18px; align-items: start; }
+  .otl-list { max-height: 720px; overflow: auto; }
+  .otl-g { padding: 9px 16px; background: var(--bg-soft); font-size: 12.5px; color: var(--text-3); border-bottom: 1px solid var(--border); }
+  .otl-i { padding: 14px 16px; border-bottom: 1px solid var(--row-line); cursor: pointer; transition: .14s; }
+  .otl-i:last-child { border-bottom: 0; }
+  .otl-i:hover { background: var(--row-hover); }
+  .otl-i.on { background: var(--primary-light-2); box-shadow: inset 3px 0 0 var(--primary); }
+  .otl-i .oi-t { font-size: 14.5px; font-weight: 700; color: var(--text-1); display: flex; align-items: center; gap: 8px; }
+  .otl-i .oi-t .oi-no {
+    width: 20px; height: 20px; border-radius: 50%; background: var(--primary); color: #fff; flex: none;
+    font-size: 11.5px; line-height: 20px; text-align: center; font-family: "DIN Alternate", var(--font);
+  }
+  .otl-i.on .oi-t .oi-no { background: var(--accent); }
+  .otl-i .oi-m { font-size: 12.5px; color: var(--text-3); margin-top: 6px; line-height: 1.9; padding-left: 28px; }
+  .otl-i .oi-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; padding-left: 28px; }
+  .otl-i .oi-a { margin-top: 10px; padding-left: 28px; display: flex; gap: 8px; }
+
+  .otl-map {
+    position: relative; height: 560px; background: linear-gradient(160deg, #eef3fb 0%, #e6edf8 60%, #e9f1ea 100%);
+    border-radius: var(--radius-card); overflow: hidden;
+    background-image: linear-gradient(rgba(38, 86, 187, .05) 1px, transparent 1px), linear-gradient(90deg, rgba(38, 86, 187, .05) 1px, transparent 1px);
+    background-size: 46px 46px;
+  }
+  .otl-map .om-river {
+    position: absolute; left: -14%; top: 26%; width: 130%; height: 190px;
+    border-top: 26px solid rgba(63, 142, 200, .28); border-radius: 50%; transform: rotate(-9deg);
+  }
+  .otl-map .om-river2 {
+    position: absolute; left: 8%; top: 52%; width: 96%; height: 210px;
+    border-top: 20px solid rgba(63, 142, 200, .2); border-radius: 50%; transform: rotate(8deg);
+  }
+  .otl-map .om-qx { position: absolute; font-size: 13px; color: rgba(38, 86, 187, .42); font-weight: 700; letter-spacing: 2px; }
+  .otl-map .om-legend {
+    position: absolute; left: 14px; bottom: 14px; background: rgba(255, 255, 255, .92); border: 1px solid var(--border);
+    border-radius: 6px; padding: 9px 12px; font-size: 12px; color: var(--text-2); line-height: 2;
+  }
+  .otl-map .om-legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: 0; }
+  .otl-pin {
+    position: absolute; transform: translate(-50%, -100%); cursor: pointer; text-align: center; z-index: 3;
+  }
+  .otl-pin .op-d {
+    width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--primary);
+    color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow); margin: 0 auto;
+  }
+  .otl-pin .op-d i { transform: rotate(45deg); font-size: 13px; }
+  .otl-pin .op-l {
+    font-size: 11.5px; color: var(--text-2); background: rgba(255, 255, 255, .9); border-radius: 3px;
+    padding: 1px 5px; margin-top: 5px; white-space: nowrap; border: 1px solid var(--border);
+  }
+  .otl-pin.t2 .op-d { background: var(--info); }
+  .otl-pin.t3 .op-d { background: var(--success); }
+  .otl-pin.on { z-index: 6; }
+  .otl-pin.on .op-d { background: var(--accent); box-shadow: 0 0 0 6px rgba(200, 40, 30, .18), var(--shadow); }
+  .otl-pin.on .op-l { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 700; }
+  .otl-info { border-top: 1px solid var(--border); padding: 16px 18px; }
+  .otl-info .oif-t { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 9px; }
+  .otl-info .oif-a { display: flex; gap: 8px; margin-top: 13px; flex-wrap: wrap; }
+  .ticket {
+    border: 2px dashed var(--primary-soft); border-radius: 10px; padding: 20px; text-align: center; background: var(--primary-light-2);
+  }
+  .ticket .tk-no { font-size: 46px; font-weight: 700; color: var(--accent); font-family: "DIN Alternate", var(--font); letter-spacing: 3px; line-height: 1.2; }
+  .ticket .tk-l { font-size: 13px; color: var(--text-3); }
+</style>
+</head>
+<body data-nav="service">
+
+<div class="wrap">
+  <div class="crumb"><a href="home.html">首页</a><i class="fa-solid fa-angle-right"></i>
+    <a href="service-hall.html">业务办理</a><i class="fa-solid fa-angle-right"></i>网点导航与窗口排队</div>
+</div>
+
+<div class="wrap otl-body">
+  <div class="col-head">
+    <h2>办理网点导航与窗口排队</h2><span class="ch-en">Outlets &amp; Queue</span>
+    <span class="ch-more" style="cursor:default">叫号与等待人数每 60 秒同步一次，取号后号票推送至我的消息</span>
+  </div>
+
+  <div class="stat-grid mb-16" id="otl-stat"></div>
+
+  <div class="tabs" data-tabs data-scope="otl-box">
+    <a class="on" data-tab="ot-nav" data-fp="wsmh-03-03">网点导航</a>
+    <a data-tab="ot-queue" data-fp="wsmh-03-04">排队情况</a>
+  </div>
+
+  <div id="otl-box">
+    <!-- Tab1 网点导航（wsmh-03-03） -->
+    <div class="tab-pane on" id="ot-nav">
+      <div class="otl-main">
+        <div class="card">
+          <div class="card-head"><h3><i class="fa-solid fa-list text-primary"></i> 网点列表</h3>
+            <span class="sub" id="nav-sub"></span></div>
+          <div class="card-body" style="padding:12px 16px">
+            <div class="pill-tabs" id="lx-pills"></div>
+          </div>
+          <div class="otl-list" id="otl-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3><i class="fa-solid fa-map-location-dot text-primary"></i> 网点分布示意图</h3>
+            <span class="sub">点击左侧「地图导航」或图上标记查看详情</span></div>
+          <div class="otl-map" id="otl-map"></div>
+          <div class="otl-info" id="otl-info"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab2 排队情况（wsmh-03-04） -->
+    <div class="tab-pane" id="ot-queue">
+      <div class="alert alert-info">
+        <i class="fa-solid fa-circle-info"></i>
+        <span>排队数据来源于各网点叫号系统，每 60 秒同步一次。<b>在线取号</b>后号票会推送至「个人中心 → 我的消息」，
+          请在叫号前 15 分钟到达网点，过号需重新取号。自助终端点位即到即办无需取号，资金监管合作银行需通过银行渠道预约。</span>
+      </div>
+      <div class="table-wrap">
+        <table class="pub-table">
+          <thead><tr>
+            <th>网点名称</th><th style="width:130px">网点类型</th><th style="width:110px">开放窗口数</th>
+            <th style="width:110px">当前叫号</th><th style="width:110px">等待人数</th>
+            <th style="width:130px">预计等待时长</th><th style="width:100px">状态</th><th style="width:120px">操作</th>
+          </tr></thead>
+          <tbody id="queue-list"></tbody>
+        </table>
+        <div class="table-note"><i class="fa-solid fa-circle-info"></i>
+          预计等待时长按「等待人数 × 单笔平均办理 8 分钟 ÷ 开放窗口数」估算，仅供参考。等待人数超过 5 人标橙、超过 10 人标红，
+          建议错峰办理或改用全程网办事项在线提交。</div>
+      </div>
+      <div class="grid-2 mt-16">
+        <div class="card">
+          <div class="card-head"><h3><i class="fa-solid fa-chart-simple text-primary"></i> 各网点等待人数对比</h3></div>
+          <div class="card-body" id="queue-bar"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3><i class="fa-solid fa-lightbulb text-warning"></i> 错峰与免排队建议</h3></div>
+          <div class="card-body text-sm text-2" style="line-height:2.1">
+            <b>一、优先网上办。</b>全市 24 个事项中 <b id="wb-n">—</b> 个全程网办，在
+            <a href="service-hall.html">网上办事大厅</a>提交即可，无需到窗口排队。<br>
+            <b>二、错峰到窗口。</b>每日 09:00-10:00 与 14:00-15:00 为高峰时段，建议选择 11:00 前后或 16:00 后办理。<br>
+            <b>三、就近选网点。</b>存量房备案、租赁备案在各区分中心均可办理，无需集中到市本级大厅。<br>
+            <b>四、自助终端 24 小时。</b>文昌大厅自助服务区 07:00-22:00 开放，可自助查询、打印与缴款取号。<br>
+            <b>五、特殊群体帮办。</b>老年人、残障人士可在<a href="service-hall.html?tab=sv-help">帮办代办</a>预约现场帮办或上门收件。
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="src-note"></div>
+</div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+/* 网点在示意图上的相对坐标（left%, top%），非真实地理坐标 */
+var POS = {
+  WD01: [48, 45], WD02: [63, 60], WD03: [43, 24], WD04: [36, 78],
+  WD05: [55, 38], WD06: [42, 53], WD07: [69, 49], WD08: [82, 17]
+};
+var LXS = ['交易备案办理点', '自助终端点位', '资金监管合作银行'];
+var curLx = '', curId = 'WD01';
+
+function pageInit() {
+  var tab = UI.param('tab');
+  if (tab) { var t = document.querySelector('[data-tab="' + tab + '"]'); if (t) t.click(); }
+  var id = UI.param('id');
+  if (id && PORTAL.outlets().filter(function (o) { return o.id === id; }).length) curId = id;
+
+  renderStat();
+  renderLxPills();
+  renderList();
+  renderMap();
+  renderInfo();
+  renderQueue();
+
+  document.getElementById('wb-n').textContent = PORTAL.items().filter(function (i) { return i.wb; }).length;
+  document.getElementById('src-note').innerHTML = UI.sourceNote(
+    '网点地址、电话与办理时间来源于市房产交易管理中心网点台账；叫号与等待人数来源于各网点叫号系统实时接口。');
+}
+
+function waitMin(o) {
+  if (!o.ck) return 0;
+  return Math.ceil(o.dd * 8 / o.ck);
+}
+function ztOf(o) {
+  if (o.lx !== '交易备案办理点') return { n: '即到即办', c: 'cyan' };
+  if (o.dd > 10) return { n: '拥挤', c: 'red' };
+  if (o.dd > 5) return { n: '繁忙', c: 'orange' };
+  if (o.dd > 2) return { n: '正常', c: 'blue' };
+  return { n: '空闲', c: 'green' };
+}
+
+function renderStat() {
+  var all = PORTAL.outlets();
+  var ck = 0, dd = 0, mins = 0, n = 0;
+  all.forEach(function (o) {
+    ck += o.ck; dd += o.dd;
+    if (o.lx === '交易备案办理点') { mins += waitMin(o); n++; }
+  });
+  document.getElementById('otl-stat').innerHTML = [
+    ['fa-location-dot', 'blue', all.length, '个', '办理网点总数'],
+    ['fa-window-maximize', 'cyan', ck, '个', '开放窗口数'],
+    ['fa-people-line', 'orange', dd, '人', '当前总等待人数'],
+    ['fa-clock', 'green', n ? Math.round(mins / n) : 0, '分钟', '平均等待时长']
+  ].map(function (x) {
+    return '<div class="stat-card"><span class="s-ico ' + x[1] + '"><i class="fa-solid ' + x[0] + '"></i></span>'
+      + '<div><div class="s-value">' + x[2] + '<em>' + x[3] + '</em></div><div class="s-label">' + x[4] + '</div></div></div>';
+  }).join('');
+}
+
+function renderLxPills() {
+  var box = document.getElementById('lx-pills');
+  box.innerHTML = '<a class="' + (curLx ? '' : 'on') + '" data-lx="">全部网点 ' + PORTAL.outlets().length + '</a>'
+    + LXS.map(function (l) {
+      return '<a class="' + (curLx === l ? 'on' : '') + '" data-lx="' + l + '">' + l + ' ' + PORTAL.outlets({ lx: l }).length + '</a>';
+    }).join('');
+  box.querySelectorAll('[data-lx]').forEach(function (a) {
+    a.onclick = function () { curLx = a.getAttribute('data-lx'); renderLxPills(); renderList(); };
+  });
+}
+
+function renderList() {
+  var box = document.getElementById('otl-list');
+  var arr = PORTAL.outlets({ lx: curLx });
+  document.getElementById('nav-sub').textContent = '共 ' + arr.length + ' 个，按类型分组';
+  if (!arr.length) { box.innerHTML = UI.empty('该类型下暂无网点'); return; }
+
+  var h = '';
+  LXS.forEach(function (l) {
+    var g = arr.filter(function (o) { return o.lx === l; });
+    if (!g.length) return;
+    h += '<div class="otl-g"><i class="fa-solid ' + (l === '交易备案办理点' ? 'fa-building-columns'
+      : l === '自助终端点位' ? 'fa-tablet-screen-button' : 'fa-landmark') + '"></i> ' + l + '（' + g.length + '）</div>';
+    h += g.map(function (o) {
+      var idx = PORTAL.outlets().indexOf(o) + 1;
+      var z = ztOf(o);
+      return '<div class="otl-i' + (o.id === curId ? ' on' : '') + '" data-oid="' + o.id + '">'
+        + '<div class="oi-t"><span class="oi-no">' + idx + '</span>' + UI.esc(o.n)
+        + '<span class="ml-auto">' + PORTAL.badge(z.n, z.c) + '</span></div>'
+        + '<div class="oi-m"><i class="fa-solid fa-location-dot"></i> ' + UI.esc(o.dz) + '<br>'
+        + '<i class="fa-solid fa-phone"></i> ' + UI.esc(o.tel) + '　<i class="fa-solid fa-clock"></i> ' + UI.esc(o.sj) + '<br>'
+        + '<i class="fa-solid fa-window-maximize"></i> 开放窗口 <b class="text-primary">' + o.ck + '</b> 个'
+        + (o.jh !== '—' ? '　当前叫号 <b class="text-accent">' + o.jh + '</b>　等待 <b class="text-accent">' + o.dd + '</b> 人' : '')
+        + '</div>'
+        + '<div class="oi-tags">' + o.xm.map(function (x) { return '<span class="tag-q">' + UI.esc(x) + '</span>'; }).join('') + '</div>'
+        + '<div class="oi-a">'
+        + '<button class="btn btn-sm btn-primary" data-nav="' + o.id + '" data-fp="wsmh-03-03"><i class="fa-solid fa-location-crosshairs"></i> 地图导航</button>'
+        + '<button class="btn btn-sm" data-tel="' + UI.esc(o.tel) + '" data-fp="wsmh-03-03"><i class="fa-solid fa-phone"></i> 电话咨询</button>'
+        + (o.lx === '交易备案办理点'
+          ? '<button class="btn btn-sm btn-ghost" data-take="' + o.id + '" data-fp="wsmh-03-04"><i class="fa-solid fa-ticket"></i> 在线取号</button>' : '')
+        + '</div></div>';
+    }).join('');
+  });
+  box.innerHTML = h;
+
+  box.querySelectorAll('[data-oid]').forEach(function (el) {
+    el.onclick = function (e) {
+      if (e.target.closest('button')) return;
+      select(el.getAttribute('data-oid'));
+    };
+  });
+  box.querySelectorAll('[data-nav]').forEach(function (b) {
+    b.onclick = function () { select(b.getAttribute('data-nav')); };
+  });
+  box.querySelectorAll('[data-tel]').forEach(function (b) {
+    b.onclick = function () {
+      UI.toast('请拨打 <b>' + b.getAttribute('data-tel') + '</b> 咨询，工作时间 ' + UI.esc(PORTAL.site().gzsj), 'info');
+    };
+  });
+  box.querySelectorAll('[data-take]').forEach(function (b) {
+    b.onclick = function () { takeNo(b.getAttribute('data-take')); };
+  });
+}
+
+function select(id) {
+  curId = id;
+  renderList(); renderMap(); renderInfo();
+  var el = document.querySelector('.otl-i[data-oid="' + id + '"]');
+  if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+}
+
+function renderMap() {
+  var all = PORTAL.outlets();
+  var h = '<div class="om-river"></div><div class="om-river2"></div>'
+    + '<div class="om-qx" style="left:38%;top:14%">柳北区</div>'
+    + '<div class="om-qx" style="left:47%;top:36%">城中区</div>'
+    + '<div class="om-qx" style="left:66%;top:64%">鱼峰区</div>'
+    + '<div class="om-qx" style="left:24%;top:56%">柳南区</div>'
+    + '<div class="om-qx" style="left:33%;top:86%">柳江区</div>'
+    + '<div class="om-qx" style="left:78%;top:9%">鹿寨县</div>';
+  h += all.map(function (o, i) {
+    var p = POS[o.id] || [50, 50];
+    var t = o.lx === '自助终端点位' ? ' t2' : (o.lx === '资金监管合作银行' ? ' t3' : '');
+    var ico = o.lx === '自助终端点位' ? 'fa-tablet-screen-button' : (o.lx === '资金监管合作银行' ? 'fa-landmark' : 'fa-building-columns');
+    return '<div class="otl-pin' + t + (o.id === curId ? ' on' : '') + '" style="left:' + p[0] + '%;top:' + p[1] + '%" data-pin="' + o.id + '">'
+      + '<div class="op-d"><i class="fa-solid ' + ico + '"></i></div>'
+      + '<div class="op-l">' + (i + 1) + '. ' + UI.esc(o.n.replace('XXXX市', '').replace('（市本级）', '')) + '</div></div>';
+  }).join('');
+  h += '<div class="om-legend">'
+    + '<div><i style="background:var(--primary)"></i>交易备案办理点</div>'
+    + '<div><i style="background:var(--info)"></i>自助终端点位</div>'
+    + '<div><i style="background:var(--success)"></i>资金监管合作银行</div>'
+    + '<div style="color:var(--text-3);font-size:11.5px">示意图，非真实比例地图</div></div>';
+  var map = document.getElementById('otl-map');
+  map.innerHTML = h;
+  map.querySelectorAll('[data-pin]').forEach(function (p) {
+    p.onclick = function () { select(p.getAttribute('data-pin')); };
+  });
+}
+
+function renderInfo() {
+  var o = PORTAL.outlets().filter(function (x) { return x.id === curId; })[0];
+  if (!o) { document.getElementById('otl-info').innerHTML = UI.empty('请选择网点'); return; }
+  var z = ztOf(o);
+  document.getElementById('otl-info').innerHTML =
+    '<div class="oif-t"><i class="fa-solid fa-location-dot text-accent"></i> ' + UI.esc(o.n)
+    + ' ' + PORTAL.badge(o.lx, 'blue') + ' ' + PORTAL.badge(z.n, z.c) + '</div>'
+    + '<div class="desc-list c2 mt-12"><dl>'
+    + '<dt>详细地址</dt><dd>' + UI.esc(o.dz) + '</dd>'
+    + '<dt>联系电话</dt><dd>' + UI.esc(o.tel) + '</dd>'
+    + '<dt>办理时间</dt><dd>' + UI.esc(o.sj) + '</dd>'
+    + '<dt>开放窗口</dt><dd>' + o.ck + ' 个</dd>'
+    + '<dt>当前叫号</dt><dd>' + (o.jh === '—' ? '无需叫号' : '<b class="text-accent">' + o.jh + '</b>') + '</dd>'
+    + '<dt>等待人数</dt><dd>' + (o.lx === '交易备案办理点' ? o.dd + ' 人（预计 ' + waitMin(o) + ' 分钟）' : '即到即办') + '</dd>'
+    + '<dt>可办事项</dt><dd>' + o.xm.map(function (x) { return '<span class="tag-q">' + UI.esc(x) + '</span>'; }).join(' ') + '</dd>'
+    + '<dt>交通指引</dt><dd>可乘公交至' + UI.esc(o.dz.replace(/\d+\s*号.*$/, '')) + '站下车，网点设无障碍通道与帮办专窗</dd>'
+    + '</dl></div>'
+    + '<div class="oif-a">'
+    + (o.lx === '交易备案办理点'
+      ? '<button class="btn btn-primary" id="info-take" data-fp="wsmh-03-04"><i class="fa-solid fa-ticket"></i> 在线取号</button>' : '')
+    + '<a class="btn" href="service-hall.html" data-fp="wsmh-03-01"><i class="fa-solid fa-bolt"></i> 该网点事项在线办</a>'
+    + '<a class="btn" href="service-hall.html?tab=sv-help" data-fp="wsmh-03-06"><i class="fa-solid fa-hand-holding-heart"></i> 预约帮办上门</a>'
+    + '<button class="btn" id="info-tel"><i class="fa-solid fa-phone"></i> 电话咨询</button>'
+    + '</div>';
+  var t = document.getElementById('info-take');
+  if (t) t.onclick = function () { takeNo(o.id); };
+  document.getElementById('info-tel').onclick = function () {
+    UI.toast('请拨打 <b>' + UI.esc(o.tel) + '</b> 咨询「' + UI.esc(o.n) + '」，工作时间 ' + UI.esc(o.sj), 'info');
+  };
+}
+
+/* ---------------- 排队情况（wsmh-03-04） ---------------- */
+function renderQueue() {
+  var all = PORTAL.outlets();
+  document.getElementById('queue-list').innerHTML = all.map(function (o) {
+    var z = ztOf(o);
+    var can = o.lx === '交易备案办理点';
+    var ddCls = o.dd > 10 ? 'text-danger bold' : (o.dd > 5 ? 'text-warning bold' : 'text-2');
+    return '<tr><td class="strong">' + UI.esc(o.n) + '<div class="text-3 text-xs">' + UI.esc(o.dz) + '</div></td>'
+      + '<td>' + PORTAL.badge(o.lx, o.lx === '交易备案办理点' ? 'blue' : o.lx === '自助终端点位' ? 'cyan' : 'green') + '</td>'
+      + '<td class="num">' + o.ck + '</td>'
+      + '<td class="num" id="jh-' + o.id + '">' + (o.jh === '—' ? '—' : o.jh) + '</td>'
+      + '<td class="num ' + ddCls + '" id="dd-' + o.id + '">' + (can ? o.dd + ' 人' : '—') + '</td>'
+      + '<td class="num" id="wt-' + o.id + '">' + (can ? '约 ' + waitMin(o) + ' 分钟' : '无需等待') + '</td>'
+      + '<td>' + PORTAL.badge(z.n, z.c) + '</td>'
+      + '<td class="acts"><a href="javascript:;" data-q="' + o.id + '" data-fp="wsmh-03-04">'
+      + (can ? '在线取号' : '办理说明') + '</a></td></tr>';
+  }).join('');
+  document.querySelectorAll('[data-q]').forEach(function (a) {
+    a.onclick = function () {
+      var id = a.getAttribute('data-q');
+      var o = PORTAL.outlets().filter(function (x) { return x.id === id; })[0];
+      if (o.lx === '自助终端点位') {
+        UI.toast('「' + UI.esc(o.n) + '」为自助终端点位，' + UI.esc(o.sj) + ' 开放，即到即办无需取号，可自助查询、打印与缴款', 'info');
+        return;
+      }
+      if (o.lx === '资金监管合作银行') {
+        UI.toast('「' + UI.esc(o.n) + '」为资金监管合作银行，三方协议签订可在二手房自助办理线上完成，如需到行请拨打 ' + UI.esc(o.tel) + ' 预约', 'info');
+        return;
+      }
+      takeNo(id);
+    };
+  });
+  renderQueueBar();
+}
+
+function renderQueueBar() {
+  var arr = PORTAL.outlets({ lx: '交易备案办理点' });
+  var max = 1;
+  arr.forEach(function (o) { max = Math.max(max, o.dd); });
+  document.getElementById('queue-bar').innerHTML = arr.map(function (o) {
+    var cls = o.dd > 10 ? ' red' : (o.dd > 5 ? '' : ' green');
+    return '<div class="mini-bar"><span class="mb-l" title="' + UI.esc(o.n) + '">' + UI.esc(o.n.replace('XXXX市', '').replace('房产交易', '')) + '</span>'
+      + '<span class="mb-t"><span class="mb-f' + cls + '" style="width:' + (o.dd / max * 100) + '%"></span></span>'
+      + '<span class="mb-v">' + o.dd + ' 人</span></div>';
+  }).join('')
+    + '<div class="text-3 text-xs mt-12" style="line-height:1.9"><i class="fa-solid fa-circle-info"></i> '
+    + '绿色为空闲（≤5 人）、蓝色为繁忙（6-10 人）、红色为拥挤（&gt;10 人）。取号后本页数据实时更新。</div>';
+}
+
+function takeNo(id) {
+  var o = PORTAL.outlets().filter(function (x) { return x.id === id; })[0];
+  if (!o) return;
+  if (!UI.needLogin('在线取号')) return;
+  var r = PORTAL.act('queue.take', { id: id });
+  if (!r) { UI.toast('取号失败，请稍后重试或到网点现场取号', 'error'); return; }
+
+  UI.modal('<i class="fa-solid fa-ticket text-accent"></i> 取号成功',
+    '<div class="ticket">'
+    + '<div class="tk-l">您的号码</div>'
+    + '<div class="tk-no">' + r.no + '</div>'
+    + '<div class="tk-l">' + UI.esc(o.n) + '</div>'
+    + '</div>'
+    + '<div class="desc-list mt-16"><dl>'
+    + '<dt>办理网点</dt><dd>' + UI.esc(o.n) + '</dd>'
+    + '<dt>网点地址</dt><dd>' + UI.esc(o.dz) + '</dd>'
+    + '<dt>当前叫号</dt><dd><b class="text-accent">' + UI.esc(o.jh) + '</b></dd>'
+    + '<dt>前面等待</dt><dd><b class="text-accent">' + r.wait + '</b> 人，预计等待约 ' + waitMin(o) + ' 分钟</dd>'
+    + '<dt>取号时间</dt><dd>' + PDATA.ymdhm(Date.now()) + '</dd>'
+    + '<dt>办理时间</dt><dd>' + UI.esc(o.sj) + '</dd>'
+    + '</dl></div>'
+    + '<div class="alert alert-warning mt-16" style="margin-bottom:0"><i class="fa-solid fa-triangle-exclamation"></i>'
+    + '<span><b>温馨提示：</b>请在叫号前 15 分钟到达网点并留意大厅屏幕叫号；过号后需重新取号。'
+    + '携带材料请对照事项<a href="service-hall.html">办事指南</a>一次备齐。若临时不能前往，请及时在我的消息中取消，避免占用号源。</span></div>',
+    '<button class="btn" data-act="close-modal">关闭</button>'
+    + '<a class="btn btn-primary" href="../person/my-cert.html"><i class="fa-solid fa-envelope"></i> 去我的消息查看号票</a>');
+
+  UI.toast('取号成功，号码 <b>' + r.no + '</b>，号票已推送至我的消息', 'success');
+  renderStat(); renderList(); renderInfo(); renderQueue();
+}
+</script>
+</body>
+</html>

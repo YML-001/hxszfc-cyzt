@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>拨付审批 · 新建商品房预售资金监管系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../../assets/css/app.css">
+<style>
+  .tbl-static { overflow: auto; }
+  /* 双锁结果头：一眼看清放行还是拦截 */
+  .lock-head { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--radius); margin-bottom: 12px; }
+  .lock-head.pass { background: var(--success-light); border: 1px solid #cfe9bd; }
+  .lock-head.deny { background: var(--danger-light); border: 1px solid #f7c6c6; }
+  .lock-head .lh-ico { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 19px; color: #fff; flex: 0 0 auto; }
+  .lock-head.pass .lh-ico { background: var(--success); }
+  .lock-head.deny .lh-ico { background: var(--danger); }
+  .lock-head .lh-t { font-size: 15px; font-weight: 700; color: var(--text-1); }
+  .lock-head .lh-d { font-size: 13px; color: var(--text-2); margin-top: 2px; }
+  /* 额度水位标尺 */
+  .gauge-bar { position: relative; height: 24px; border-radius: 4px; background: var(--bg-soft); overflow: hidden; }
+  .gauge-bar .g-lock { position: absolute; left: 0; top: 0; bottom: 0; background: var(--primary); }
+  .gauge-bar .g-pay { position: absolute; top: 0; bottom: 0; background: var(--warning); }
+  .gauge-bar .g-free { position: absolute; top: 0; bottom: 0; background: var(--success); }
+  .gauge-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--danger); }
+  .gauge-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 9px; font-size: 12.5px; color: var(--text-2); }
+  .gauge-legend i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; margin-right: 5px; }
+  /* 节点支取标尺：本节点上限 vs 已支取 vs 本次申请 */
+  .node-bar { position: relative; height: 24px; border-radius: 4px; background: var(--bg-soft); overflow: hidden; }
+  .node-bar .n-used { position: absolute; left: 0; top: 0; bottom: 0; background: var(--primary); }
+  .node-bar .n-req { position: absolute; top: 0; bottom: 0; background: var(--warning); }
+  .node-bar .n-cap { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--danger); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsszjjg-09">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房预售资金监管系统
+        <span class="sep">/</span> 资金监管 <span class="sep">/</span> <a class="link" href="usage.html">资金使用管理</a>
+        <span class="sep">/</span> <span class="cur">拨付审批</span>
+      </div>
+      <div class="page-title">拨付审批</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="usage.html"><i class="fa-solid fa-arrow-left"></i> 返回列表</a>
+      <a class="btn" href="usage-detail.html"><i class="fa-solid fa-circle-info"></i> 申请详情</a>
+      <a class="btn" href="project-detail.html"><i class="fa-solid fa-diagram-project"></i> 项目全景</a>
+      <button class="btn" onclick="PMS.toast('已重新执行双锁校验，结论不变','success')"><i class="fa-solid fa-rotate"></i> 重跑校验</button>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-lock"></i>
+    <div><b>审批口径</b>：双锁校验由系统在申请提交时自动执行，审批人不得绕过。
+      两把锁全过才允许放行——<b>锁一</b>拨付后账户余额 ≥ 剩余重点监管额度，
+      <b>锁二</b>当前工程形象进度节点已达到且未超比例支取。
+      重点监管额度内资金实行<b>区县初审 + 市级复审</b>两级审核，承诺办结时限 <b>3 个工作日</b>；
+      高危项目加严为三级审核、单次不超额度 10%、每笔必须现场核验。</div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <div class="wizard">
+        <div class="w-step done"><span class="w-num">1</span><span class="w-label">企业申请</span></div>
+        <div class="w-line"></div>
+        <div class="w-step done"><span class="w-num">2</span><span class="w-label">双锁校验</span></div>
+        <div class="w-line"></div>
+        <div class="w-step active"><span class="w-num">3</span><span class="w-label">区县初审</span></div>
+        <div class="w-line"></div>
+        <div class="w-step"><span class="w-num">4</span><span class="w-label">市级复审</span></div>
+        <div class="w-line"></div>
+        <div class="w-step"><span class="w-num">5</span><span class="w-label">出账指令</span></div>
+        <div class="w-line"></div>
+        <div class="w-step"><span class="w-num">6</span><span class="w-label">银行回执</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lock-head pass">
+    <span class="lh-ico"><i class="fa-solid fa-lock-open"></i></span>
+    <div>
+      <div class="lh-t">双锁校验通过，可以放行</div>
+      <div class="lh-d">锁一（额度水位）与锁二（节点进度）均已通过，本次申请 351.00 万元在两把锁的共同上限之内。校验时间 2026-07-31 09:40:22，校验依据实时余额与最近一次形象进度核验结论。</div>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+      <div><div class="s-label">申请金额(万元)</div><div class="s-value">351.00</div><div class="s-trend">YK20260700152</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-wallet"></i></div>
+      <div><div class="s-label">账户余额(万元)</div><div class="s-value">7,420.00</div><div class="s-trend">柳州银行 08:32 推送</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-shield-halved"></i></div>
+      <div><div class="s-label">剩余重点额度(万元)</div><div class="s-value">6,500.00</div><div class="s-trend">拨付后仍高于红线</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-arrows-left-right"></i></div>
+      <div><div class="s-label">两锁共同上限(万元)</div><div class="s-value">351.00</div><div class="s-trend text-success">取锁一锁二较低值</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-clock"></i></div>
+      <div><div class="s-label">办理时限</div><div class="s-value" style="font-size:16px">剩 1 天 6 小时</div><div class="s-trend text-danger">承诺 3 个工作日</div></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-lock"></i> 锁一 · 额度水位校验</h3>
+        <span class="badge green">通过</span>
+      </div>
+      <div class="card-body">
+        <div class="gauge-bar">
+          <div class="g-lock" style="width:87.6%"></div>
+          <div class="g-pay" style="left:87.6%;width:4.7%"></div>
+          <div class="g-free" style="left:92.3%;width:7.7%"></div>
+          <div class="gauge-mark" style="left:87.6%"></div>
+        </div>
+        <div class="gauge-legend">
+          <span><i style="background:var(--primary)"></i>剩余重点监管额度 6,500.00</span>
+          <span><i style="background:var(--warning)"></i>本次拟拨付 351.00</span>
+          <span><i style="background:var(--success)"></i>拨付后可动用 569.00</span>
+          <span><i style="background:var(--danger)"></i>额度红线</span>
+        </div>
+        <div class="tbl-static mt-16">
+          <table class="data-table compact" data-static>
+            <thead><tr><th>校验项</th><th class="num">金额(万元)</th><th>说明</th></tr></thead>
+            <tbody>
+              <tr><td class="nowrap">当前账户余额</td><td class="num">7,420.00</td><td class="cell-lg">柳州银行营业部 2026-07-31 08:32 推送</td></tr>
+              <tr><td class="nowrap">在途出账指令</td><td class="num text-danger">-0.00</td><td class="cell-lg">无未回执的在途指令</td></tr>
+              <tr><td class="nowrap">本次申请金额</td><td class="num text-danger">-351.00</td><td class="cell-lg">工程建设款</td></tr>
+              <tr><td class="nowrap fw-600">拨付后预计余额</td><td class="num fw-600">7,069.00</td><td class="cell-lg">= 余额 − 在途 − 本次</td></tr>
+              <tr><td class="nowrap">剩余重点监管额度</td><td class="num">6,500.00</td><td class="cell-lg">核定 6,500.00，已用保函替代 0.00</td></tr>
+              <tr><td class="nowrap fw-600">校验结论</td><td class="num fw-600 text-success">+569.00</td><td class="cell-lg"><span class="badge green">拨付后余额高于红线 569.00 万元，通过</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="hint mt-16"><i class="fa-solid fa-circle-info"></i>
+          锁一的口径是<b>「拨付后余额 ≥ 剩余重点监管额度」</b>，不是「余额 ≥ 申请额」。
+          在途未回执的指令按已出账计算，防止同一笔额度被重复占用。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-lock"></i> 锁二 · 节点进度校验</h3>
+        <span class="badge green">通过</span>
+      </div>
+      <div class="card-body">
+        <div class="node-bar">
+          <div class="n-used" style="width:64.6%"></div>
+          <div class="n-req" style="left:64.6%;width:5.4%"></div>
+          <div class="n-cap" style="left:70%"></div>
+        </div>
+        <div class="gauge-legend">
+          <span><i style="background:var(--primary)"></i>已累计支取 64.6%</span>
+          <span><i style="background:var(--warning)"></i>本次申请 5.4%</span>
+          <span><i style="background:var(--danger)"></i>本节点上限 70%</span>
+        </div>
+        <div class="tbl-static mt-16">
+          <table class="data-table compact" data-static>
+            <thead><tr><th>工程节点</th><th class="num">累计可支取</th><th>核验状态</th><th>核验日期</th></tr></thead>
+            <tbody>
+              <tr><td class="nowrap">基础完成（±0.00）</td><td class="num">25%</td><td><span class="badge green">已核验</span></td><td class="nowrap">2026-02-18</td></tr>
+              <tr><td class="nowrap">主体结构封顶三分之一</td><td class="num">40%</td><td><span class="badge green">已核验</span></td><td class="nowrap">2026-05-12</td></tr>
+              <tr><td class="nowrap">主体结构封顶三分之二</td><td class="num">55%</td><td><span class="badge green">已核验</span></td><td class="nowrap">2026-06-20</td></tr>
+              <tr><td class="nowrap fw-600 text-primary">主体结构封顶（当前）</td><td class="num fw-600">70%</td><td><span class="badge green">已核验</span></td><td class="nowrap">2026-07-22</td></tr>
+              <tr><td class="nowrap text-3">外墙装饰完成</td><td class="num text-3">85%</td><td><span class="badge gray">未达到</span></td><td class="nowrap text-3">—</td></tr>
+              <tr><td class="nowrap text-3">竣工验收合格</td><td class="num text-3">95%</td><td><span class="badge gray">未达到</span></td><td class="nowrap text-3">—</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <dl class="desc-list mt-16">
+          <div class="desc-item"><dt>本节点累计上限</dt><dd>6,500.00 × 70% = 4,550.00 万元</dd></div>
+          <div class="desc-item"><dt>历史累计已支取</dt><dd>4,199.00 万元（64.6%）</dd></div>
+          <div class="desc-item"><dt>本节点可再申请</dt><dd class="text-success">351.00 万元</dd></div>
+          <div class="desc-item"><dt>校验结论</dt><dd><span class="badge green">申请额恰好用满本节点额度，未超比例</span></dd></div>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <h4 class="section-title" data-icon="fa-circle-info">用款申请信息</h4>
+  <dl class="desc-list">
+    <div class="desc-item"><dt>用款编号</dt><dd>YK20260700152</dd></div>
+    <div class="desc-item"><dt>申请日期</dt><dd>2026-07-31</dd></div>
+    <div class="desc-item"><dt>所属项目</dt><dd>荣和·公园大道 三期</dd></div>
+    <div class="desc-item"><dt>监管协议</dt><dd>YSXY-2026-0087</dd></div>
+    <div class="desc-item"><dt>申请单位</dt><dd>XXXX市荣和房地产开发有限公司</dd></div>
+    <div class="desc-item"><dt>经办人</dt><dd>周建国　138****6742</dd></div>
+    <div class="desc-item"><dt>用款类型</dt><dd><span class="badge blue">工程建设款</span></dd></div>
+    <div class="desc-item"><dt>资金性质</dt><dd>重点监管额度内资金</dd></div>
+    <div class="desc-item"><dt>对应工程节点</dt><dd>主体结构封顶</dd></div>
+    <div class="desc-item"><dt>申请金额</dt><dd class="fw-600">3,510,000.00 元</dd></div>
+    <div class="desc-item"><dt>大写金额</dt><dd>叁佰伍拾壹万元整</dd></div>
+    <div class="desc-item"><dt>出账账户</dt><dd>6216 **** **** 4087</dd></div>
+    <div class="desc-item"><dt>收款单位</dt><dd>广西建工第三建筑工程有限责任公司</dd></div>
+    <div class="desc-item"><dt>收款账号</dt><dd>4500 **** **** 9012</dd></div>
+    <div class="desc-item"><dt>关联施工合同</dt><dd><a class="link" href="contractor-detail.html">SGHT-2025-0142</a></dd></div>
+    <div class="desc-item"><dt>项目风险等级</dt><dd><span class="lv blue">蓝色 · 正常</span></dd></div>
+    <div class="desc-item full"><dt>用款事由</dt><dd>15#—20# 楼主体结构已于 2026-07-20 全部封顶并通过监理与建设单位联合验收，按施工合同约定支付进度款至累计 50%。本次申请 351.00 万元，支付后累计支付 4,200.00 万元，占合同价 48.6%。</dd></div>
+  </dl>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-list-check"></i> 材料要件核验</h3><span class="badge green">4 项齐全</span></div>
+      <div class="card-body">
+        <div class="tbl-static">
+          <table class="data-table compact" data-static>
+            <thead><tr><th>必传材料</th><th>文件</th><th>核验</th></tr></thead>
+            <tbody>
+              <tr><td class="nowrap">用款申请表</td><td class="cell-lg"><span class="file-chip"><i class="fa-solid fa-file-pdf"></i> 用款申请表(YK20260700152).pdf</span></td><td><span class="badge green">已核</span></td></tr>
+              <tr><td class="nowrap">形象进度证明</td><td class="cell-lg"><span class="file-chip"><i class="fa-solid fa-file-pdf"></i> 主体封顶验收记录.pdf</span></td><td><span class="badge green">已核</span></td></tr>
+              <tr><td class="nowrap">监理确认意见</td><td class="cell-lg"><span class="file-chip"><i class="fa-solid fa-file-pdf"></i> 监理单位进度确认函.pdf</span></td><td><span class="badge green">已核</span></td></tr>
+              <tr><td class="nowrap">工程款支付申请</td><td class="cell-lg"><span class="file-chip"><i class="fa-solid fa-file-pdf"></i> 施工方付款申请与发票.pdf</span></td><td><span class="badge green">已核</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="hint mt-16"><i class="fa-solid fa-circle-info"></i> 必传材料清单来自《监管规则配置》，按用款类型差异化设置，缺件的申请在企业端就无法提交。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-shield-halved"></i> 收款方名录校验</h3><span class="badge green">在白名单内</span></div>
+      <div class="card-body">
+        <div class="tbl-static">
+          <table class="data-table compact" data-static>
+            <thead><tr><th>校验项</th><th>申请值</th><th>名录值</th><th>结果</th></tr></thead>
+            <tbody>
+              <tr><td class="nowrap">收款户名</td><td class="cell-lg">广西建工第三建筑工程有限责任公司</td><td class="cell-lg">同左</td><td><span class="badge green">一致</span></td></tr>
+              <tr><td class="nowrap">收款账号</td><td class="nowrap">4500****9012</td><td class="nowrap">4500****9012</td><td><span class="badge green">一致</span></td></tr>
+              <tr><td class="nowrap">开户银行</td><td class="nowrap">工商银行柳州分行</td><td class="nowrap">工商银行柳州分行</td><td><span class="badge green">一致</span></td></tr>
+              <tr><td class="nowrap">施工合同</td><td class="nowrap">SGHT-2025-0142</td><td class="nowrap">履行中</td><td><span class="badge green">有效</span></td></tr>
+              <tr><td class="nowrap">合同付款节点</td><td class="nowrap">累计 50%</td><td class="nowrap">已付 48.6%</td><td><span class="badge green">未超约定</span></td></tr>
+              <tr><td class="nowrap">关联关系筛查</td><td class="cell-lg">与开发企业无股权关联</td><td class="cell-lg">工商数据比对</td><td><span class="badge green">无关联</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="hint mt-16"><i class="fa-solid fa-ban"></i> 收款账号不在施工名录库的一律拦截，本年已拦截 18 笔，其中 6 笔收款方为开发企业关联公司。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-handshake"></i> 主办银行协同核对意见</h3>
+      <span class="sub">本项目实行主办银行制，用款申请同步推送主办银行核对工程进度与资金用途</span>
+    </div>
+    <div class="card-body">
+      <dl class="desc-list">
+        <div class="desc-item"><dt>主办银行</dt><dd>建设银行柳州城中支行</dd></div>
+        <div class="desc-item"><dt>核对人</dt><dd>覃海燕　0772-283****</dd></div>
+        <div class="desc-item"><dt>核对时间</dt><dd>2026-07-31 11:26</dd></div>
+        <div class="desc-item"><dt>核对结论</dt><dd><span class="badge green">同意拨付</span></dd></div>
+        <div class="desc-item"><dt>白名单项目</dt><dd>是（融资协调机制第三批）</dd></div>
+        <div class="desc-item"><dt>开发贷款发放情况</dt><dd>已发放 8,600 万元，本月无新增</dd></div>
+        <div class="desc-item full"><dt>核对意见</dt><dd>经现场查看，15#—20# 楼主体结构确已封顶，工程形象进度与申报一致。本次付款用途为工程进度款，未发现与开发贷款重复拨付情形，同意按 351.00 万元拨付。</dd></div>
+      </dl>
+      <p class="hint mt-16"><i class="fa-solid fa-circle-info"></i>
+        与融资协调机制白名单项目的放款银行共享开发贷款发放与预售资金使用信息，<b>防止重复拨付与资金挪用</b>。
+        主办银行核对意见随件留存，是审批的必备附件。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-clipboard-check"></i> 审批意见</h3>
+      <span class="node-tag"><i class="fa-solid fa-user-shield"></i> 当前节点：区县初审 · 柳南区住建局</span>
+    </div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="form-item"><label>审批结论 <span class="req">*</span></label><select><option selected>同意拨付</option><option>同意部分拨付</option><option>退回补正</option><option>不予拨付</option></select></div>
+        <div class="form-item"><label>核准金额(元) <span class="req">*</span></label><input type="number" value="3510000"></div>
+        <div class="form-item col-full"><label>审批意见 <span class="req">*</span></label><textarea placeholder="请输入审批意见">双锁校验均通过，材料要件齐全，收款方在施工名录库内且与开发企业无关联关系，主办银行核对同意。经查项目形象进度与申报一致，同意按申请金额 351.00 万元拨付，报市级复审。</textarea></div>
+      </div>
+      <div class="btn-row mt-16">
+        <button class="btn btn-success" onclick="PMS.confirm({title:'审批确认',message:'确认通过并报市级复审？',detail:'核准金额 3,510,000.00 元，复审通过后自动生成出账指令推送柳州银行营业部。',type:'success',okText:'通过',onOk:function(){PMS.toast('已通过，已流转至市级复审','success')}})"><i class="fa-solid fa-check"></i> 通过并报复审</button>
+        <button class="btn btn-danger" onclick="PMS.confirm({title:'退回确认',message:'确认退回该用款申请？',detail:'退回后企业需补充材料重新提交，本次办理时限重新计算。',okText:'退回',onOk:function(){PMS.toast('已退回申请单位','error')}})"><i class="fa-solid fa-rotate-left"></i> 退回补正</button>
+        <button class="btn" onclick="PMS.toast('已发起现场核验任务，指派至柳南区住建局')"><i class="fa-solid fa-helmet-safety"></i> 发起现场核验</button>
+        <button class="btn" onclick="PMS.toast('草稿已保存')">保存草稿</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3><i class="fa-solid fa-timeline"></i> 流转轨迹</h3></div>
+    <div class="card-body">
+      <div class="timeline">
+        <div class="tl-item done">
+          <div class="tl-dot"></div>
+          <div class="tl-title">企业提交用款申请</div>
+          <div class="tl-meta">2026-07-31 09:38 · 周建国 · XXXX市荣和房地产开发有限公司</div>
+          <div class="tl-desc">通过单位机构端提交，申请金额 351.00 万元，附形象进度证明等 4 项材料。</div>
+        </div>
+        <div class="tl-item done">
+          <div class="tl-dot"></div>
+          <div class="tl-title">系统双锁校验</div>
+          <div class="tl-meta">2026-07-31 09:40 · 系统自动</div>
+          <div class="tl-desc">锁一通过（拨付后余额高于红线 569.00 万元）；锁二通过（本节点可再申请 351.00 万元，恰好用满）。</div>
+        </div>
+        <div class="tl-item done">
+          <div class="tl-dot"></div>
+          <div class="tl-title">主办银行核对</div>
+          <div class="tl-meta">2026-07-31 11:26 · 覃海燕 · 建设银行柳州城中支行</div>
+          <div class="tl-desc">同意拨付，未发现与开发贷款重复拨付情形。</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot"></div>
+          <div class="tl-title">区县初审</div>
+          <div class="tl-meta">当前节点 · 柳南区住建局 · 剩 1 天 6 小时</div>
+          <div class="tl-desc">审核材料真实性、进度一致性与收款方合规性。</div>
+        </div>
+        <div class="tl-item pending">
+          <div class="tl-dot"></div>
+          <div class="tl-title">市级复审</div>
+          <div class="tl-meta">待流转 · 市住建局房产科</div>
+        </div>
+        <div class="tl-item pending">
+          <div class="tl-dot"></div>
+          <div class="tl-title">生成出账指令并推送银行</div>
+          <div class="tl-meta">待流转 · 系统自动</div>
+        </div>
+        <div class="tl-item pending">
+          <div class="tl-dot"></div>
+          <div class="tl-title">银行执行并回传回执</div>
+          <div class="tl-meta">待流转 · 柳州银行营业部 · 约定 30 分钟内</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../../assets/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>档案利用留痕审计 · 房屋交易档案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  .no-code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; }
+  .s-unit { font-size: 12.5px; font-weight: 500; color: var(--text-3); margin-left: 3px; }
+  .mt-4 { margin-top: 4px; }
+  .modal-head { display: flex; align-items: center; gap: 10px; }
+  .modal-head h3 { font-size: 16px; font-weight: 700; }
+  .modal-head .close { margin-left: auto; cursor: pointer; color: var(--text-3); font-size: 18px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: none; border: 0; }
+  .modal-head .close:hover { background: var(--bg-soft); color: var(--text-1); }
+  /* 本页特有：只读约束提示条 */
+  .ro-tip {
+    display: flex; align-items: center; gap: 9px; padding: 9px 14px; border-radius: 8px;
+    background: var(--bg-soft); color: var(--text-3); font-size: 12.5px; margin-bottom: 12px;
+  }
+  /* 本页特有：异常行与异常小旗 */
+  .data-table tbody tr.ab-row { background: #fff5f5; }
+  .data-table tbody tr.ab-row td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
+  .flag { color: var(--danger); cursor: help; margin-right: 4px; }
+  .ab-tag {
+    display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 20px;
+    background: var(--danger-light); color: var(--danger); font-size: 12px; font-weight: 600; cursor: help;
+  }
+  /* 本页特有：异常规则卡 */
+  .rule-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+  .rule-card { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: flex; gap: 11px; }
+  .rule-card .ri {
+    width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center;
+    justify-content: center; background: var(--danger-light); color: var(--danger); font-size: 14px;
+  }
+  .rule-card .rt { font-size: 13.5px; font-weight: 700; margin-bottom: 3px; display: flex; align-items: center; gap: 7px; }
+  .rule-card .rd { font-size: 12.5px; color: var(--text-3); line-height: 1.6; }
+  .rule-card .rn { margin-left: auto; font-size: 12.5px; font-weight: 700; color: var(--danger); font-variant-numeric: tabular-nums; }
+  /* 本页特有：利用趋势迷你图 */
+  .tr-wrap { display: flex; align-items: flex-end; gap: 6px; height: 108px; padding-top: 6px; }
+  .tr-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .tr-bar { width: 100%; max-width: 34px; border-radius: 4px 4px 0 0; background: var(--primary); position: relative; }
+  .tr-bar.out { background: var(--info, #22a6b3); }
+  .tr-col .tl { font-size: 11.5px; color: var(--text-3); }
+  .tr-stack { width: 100%; max-width: 34px; display: flex; flex-direction: column; justify-content: flex-end; height: 78px; }
+  .lg-row { display: flex; align-items: center; gap: 16px; font-size: 12.5px; color: var(--text-3); margin-top: 8px; }
+  .lg-row i.dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 5px; }
+  /* 本页特有：详情时间线 */
+  .ac-line { display: flex; gap: 12px; padding: 9px 0; border-bottom: 1px dashed var(--border); font-size: 13px; }
+  .ac-line:last-child { border-bottom: 0; }
+  .ac-line .t { width: 132px; flex-shrink: 0; color: var(--text-3); font-variant-numeric: tabular-nums; }
+  .ck-inline { display: inline-flex; align-items: center; gap: 6px; margin-right: 12px; font-size: 13px; }
+  .ck-inline input { width: auto; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdagl-20">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> <a class="link" href="index.html">房屋交易档案管理系统</a>
+        <span class="sep">/</span> 档案保管利用
+        <span class="sep">/</span> <span class="cur">档案利用留痕审计</span>
+      </div>
+      <div class="page-title">档案利用留痕审计</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="PMS.toast('已导出当前筛选条件下的全量留痕记录（8,462 条）','success')"><i class="fa-solid fa-file-export"></i> 导出审计报表</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-eye"></i></div>
+      <div><div class="s-label">本月利用</div><div class="s-value">8,462<span class="s-unit">次</span></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-box-archive"></i></div>
+      <div><div class="s-label">涉及案卷</div><div class="s-value">3,286<span class="s-unit">卷</span></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-building-user"></i></div>
+      <div><div class="s-label">内部业务调阅</div><div class="s-value">5,286<span class="s-unit">次</span></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-user-group"></i></div>
+      <div><div class="s-label">外部查阅</div><div class="s-value">1,862<span class="s-unit">次</span></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-flag"></i></div>
+      <div><div class="s-label">异常访问标记</div><div class="s-value text-danger">6<span class="s-unit">条</span></div></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-chart-column"></i> 近 7 日利用趋势</h3><span class="text-3 text-sm">内部业务调阅 / 外部查阅</span></div>
+      <div class="card-body">
+        <div class="tr-wrap">
+          <div class="tr-col"><div class="tr-stack"><div class="tr-bar out" style="height:22%"></div><div class="tr-bar" style="height:46%"></div></div><span class="tl">07-26</span></div>
+          <div class="tr-col"><div class="tr-stack"><div class="tr-bar out" style="height:18%"></div><div class="tr-bar" style="height:38%"></div></div><span class="tl">07-27</span></div>
+          <div class="tr-col"><div class="tr-stack"><div class="tr-bar out" style="height:30%"></div><div class="tr-bar" style="height:62%"></div></div><span class="tl">07-28</span></div>
+          <div class="tr-col"><div class="tr-stack"><div class="tr-bar out" style="height:26%"></div><div class="tr-bar" style="height:58%"></div></div><span class="tl">07-29</span></div>
+          <div class="tr-col"><div class="tr-stack"><div class="tr-bar out" style="height:34%"></div><div class="tr-bar" style="height:66%"></div></div><span class="tl">07-30</span></div>
+          <div class="tr-col"><div class="tr-stack"><div class="tr-bar out" style="height:28%"></div><div class="tr-bar" style="height:52%"></div></div><span class="tl">07-31</span></div>
+          <div class="tr-col"><div class="tr-stack"><div class="tr-bar out" style="height:24%"></div><div class="tr-bar" style="height:44%"></div></div><span class="tl">08-01</span></div>
+        </div>
+        <div class="lg-row">
+          <span><i class="dot" style="background:var(--primary)"></i>内部业务调阅</span>
+          <span><i class="dot" style="background:var(--info,#22a6b3)"></i>外部查阅</span>
+          <span style="margin-left:auto">日均 1,208 次，峰值出现在 07-30（不动产登记批量核验）</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-shield-halved"></i> 异常访问识别规则</h3><span class="badge red">本月命中 6 条</span></div>
+      <div class="card-body">
+        <div class="rule-grid">
+          <div class="rule-card">
+            <div class="ri"><i class="fa-solid fa-user-lock"></i></div>
+            <div style="flex:1">
+              <div class="rt">无有效授权访问 <span class="rn">2</span></div>
+              <div class="rd">访问密级档案但无对应授权记录</div>
+            </div>
+          </div>
+          <div class="rule-card">
+            <div class="ri"><i class="fa-solid fa-download"></i></div>
+            <div style="flex:1">
+              <div class="rt">高频下载 <span class="rn">1</span></div>
+              <div class="rd">同一用户 1 小时内下载 ≥ 20 份档案影像</div>
+            </div>
+          </div>
+          <div class="rule-card">
+            <div class="ri"><i class="fa-solid fa-moon"></i></div>
+            <div style="flex:1">
+              <div class="rt">非工作时间访问 <span class="rn">1</span></div>
+              <div class="rd">工作日 20:00 ~ 次日 8:00 或节假日发起</div>
+            </div>
+          </div>
+          <div class="rule-card">
+            <div class="ri"><i class="fa-solid fa-globe"></i></div>
+            <div style="flex:1">
+              <div class="rt">异常 IP 访问 <span class="rn">1</span></div>
+              <div class="rd">从非常用 IP 段发起访问</div>
+            </div>
+          </div>
+          <div class="rule-card">
+            <div class="ri"><i class="fa-solid fa-users-viewfinder"></i></div>
+            <div style="flex:1">
+              <div class="rt">集中访问同一权利人 <span class="rn">1</span></div>
+              <div class="rd">短期内集中访问同一权利人名下多卷档案</div>
+            </div>
+          </div>
+          <div class="rule-card">
+            <div class="ri"><i class="fa-solid fa-hourglass-half"></i></div>
+            <div style="flex:1">
+              <div class="rt">超长访问时长 <span class="rn">0</span></div>
+              <div class="rd">单次阅览时长异常（如 &gt; 2 小时）</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3><i class="fa-solid fa-shoe-prints"></i> 利用留痕记录</h3></div>
+    <div class="card-body">
+      <div class="ro-tip">
+        <i class="fa-solid fa-lock"></i>
+        档案利用记录不可修改、不可删除，仅供安全审计使用；本记录含系统内部业务调阅在内的全部访问行为。
+      </div>
+
+      <div class="filter-bar" style="border-radius:8px;border:1px solid var(--border)">
+        <div class="filter-item"><label>查询编号</label><input type="text" placeholder="如 CX2026080100862"></div>
+        <div class="filter-item"><label>档案号</label><input type="text" placeholder="如 DA450204202600862"></div>
+        <div class="filter-item"><label>查询人姓名</label><input type="text" placeholder="姓名"></div>
+        <div class="filter-item"><label>查询人部门</label><input type="text" placeholder="部门 / 单位"></div>
+        <div class="filter-item">
+          <label>查询类型</label>
+          <select><option value="">全部</option><option>目录检索</option><option>在线阅览</option><option>下载</option><option>打印</option><option>接口调用</option><option>查档出证</option></select>
+        </div>
+        <div class="filter-item">
+          <label>查询渠道</label>
+          <select><option value="">全部</option><option>内部系统</option><option>门户</option><option>小程序</option><option>接口</option><option>自助终端</option></select>
+        </div>
+        <div class="filter-item">
+          <label>业务关联类型</label>
+          <select><option value="">全部</option><option>档案借阅</option><option>办件办理</option><option>查档出证</option><option>日常查询</option></select>
+        </div>
+        <div class="filter-item"><label>查询时间</label><input type="date" value="2026-07-01"></div>
+        <div class="filter-item"><label>至</label><input type="date" value="2026-08-01"></div>
+        <div class="filter-item">
+          <label>是否有效授权</label>
+          <select><option value="">全部</option><option>有</option><option>无</option></select>
+        </div>
+        <div class="filter-actions">
+          <label class="ck-inline">
+            <input type="checkbox" id="onlyAb" onchange="filterAb()"> 仅看异常访问
+          </label>
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件查询到 8,462 条留痕记录')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn" onclick="document.getElementById('onlyAb').checked=false;filterAb();PMS.toast('已重置筛选条件')">重置</button>
+        </div>
+      </div>
+
+      <div class="table-wrap mt-16">
+        <table class="data-table" id="tblLy">
+          <thead>
+            <tr>
+              <th>查询编号</th>
+              <th>档案号 / 名称</th>
+              <th>卷内文件</th>
+              <th>查询类型</th>
+              <th>查询人 / 部门</th>
+              <th>查询渠道</th>
+              <th>业务关联</th>
+              <th>关联收件编号</th>
+              <th>查询条件 / 结果数</th>
+              <th>查询时间 / 时长</th>
+              <th>IP / 设备</th>
+              <th>有效授权</th>
+              <th>异常标记</th>
+              <th style="width:70px">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="ab-row" data-ab="1">
+              <td class="nowrap fw-600 no-code">
+                <i class="fa-solid fa-flag flag" title="异常原因：访问密级为「秘密」的档案，未查到对应授权记录"></i>
+                CX2026080100862
+              </td>
+              <td class="cell-lg">
+                <span class="no-code">DA450205201600642</span><br>
+                <span class="text-3 text-sm">2016 年度公有住房出售档案（第四卷）</span>
+              </td>
+              <td>第 6 件 房改房成本价计算表</td>
+              <td class="nowrap"><span class="badge orange">下载</span></td>
+              <td class="nowrap">周**<br><span class="text-3 text-sm">XXXX市房产交易所 · 综合业务岗</span></td>
+              <td class="nowrap"><span class="badge gray">内部系统</span></td>
+              <td class="nowrap">日常查询</td>
+              <td class="nowrap text-3">—</td>
+              <td class="cell-lg">档案号精确查询<br><span class="text-3 text-sm">结果 1 条</span></td>
+              <td class="nowrap">2026-08-01 21:42<br><span class="text-3 text-sm">6 分 12 秒</span></td>
+              <td class="nowrap no-code">10.86.24.118<br><span class="text-3 text-sm">Windows · Chrome</span></td>
+              <td class="nowrap"><span class="badge red">无</span></td>
+              <td class="nowrap">
+                <span class="ab-tag" title="访问密级为「秘密」的档案，未查到对应授权记录"><i class="fa-solid fa-user-lock"></i> 无有效授权</span>
+                <span class="ab-tag mt-4" title="工作日 20:00 ~ 次日 8:00 发起访问"><i class="fa-solid fa-moon"></i> 非工作时间</span>
+              </td>
+              <td class="col-ops"><a class="link" onclick="openD(this)">详情</a></td>
+            </tr>
+            <tr class="ab-row" data-ab="1">
+              <td class="nowrap fw-600 no-code">
+                <i class="fa-solid fa-flag flag" title="异常原因：1 小时内下载 26 份档案影像，超过阈值 20 份"></i>
+                CX2026073100486
+              </td>
+              <td class="cell-lg">
+                <span class="no-code">DA450204202600862 等 26 卷</span><br>
+                <span class="text-3 text-sm">2026 年度存量房买卖合同备案档案等</span>
+              </td>
+              <td>整卷影像</td>
+              <td class="nowrap"><span class="badge orange">下载</span></td>
+              <td class="nowrap">吴**<br><span class="text-3 text-sm">XXXX市房产交易所 · 数据统计岗</span></td>
+              <td class="nowrap"><span class="badge gray">内部系统</span></td>
+              <td class="nowrap">日常查询</td>
+              <td class="nowrap text-3">—</td>
+              <td class="cell-lg">按年度 + 档案类型批量导出<br><span class="text-3 text-sm">结果 26 条</span></td>
+              <td class="nowrap">2026-07-31 15:08<br><span class="text-3 text-sm">42 分 06 秒</span></td>
+              <td class="nowrap no-code">10.86.24.086<br><span class="text-3 text-sm">Windows · Edge</span></td>
+              <td class="nowrap"><span class="badge green">有</span><br><span class="text-3 text-sm">部门负责人授权</span></td>
+              <td class="nowrap">
+                <span class="ab-tag" title="同一用户 1 小时内下载 26 份档案影像（阈值 20 份）"><i class="fa-solid fa-download"></i> 高频下载</span>
+              </td>
+              <td class="col-ops"><a class="link" onclick="openD(this)">详情</a></td>
+            </tr>
+            <tr class="ab-row" data-ab="1">
+              <td class="nowrap fw-600 no-code">
+                <i class="fa-solid fa-flag flag" title="异常原因：从非常用 IP 段 218.65.**.** 发起访问"></i>
+                CX2026073000324
+              </td>
+              <td class="cell-lg">
+                <span class="no-code">DA450202202300186</span><br>
+                <span class="text-3 text-sm">2023 年度商品房买卖合同备案档案（第三卷）</span>
+              </td>
+              <td>第 2 件 商品房买卖合同</td>
+              <td class="nowrap"><span class="badge blue">在线阅览</span></td>
+              <td class="nowrap">林**<br><span class="text-3 text-sm">广西**律师事务所</span></td>
+              <td class="nowrap"><span class="badge cyan">门户</span></td>
+              <td class="nowrap">档案借阅</td>
+              <td class="nowrap no-code">JY2026072800186</td>
+              <td class="cell-lg">按借阅申请授权范围调阅<br><span class="text-3 text-sm">结果 1 条</span></td>
+              <td class="nowrap">2026-07-30 10:26<br><span class="text-3 text-sm">18 分 42 秒</span></td>
+              <td class="nowrap no-code text-danger">218.65.**.**<br><span class="text-3 text-sm">Android · 微信浏览器</span></td>
+              <td class="nowrap"><span class="badge green">有</span><br><span class="text-3 text-sm">借阅审批授权</span></td>
+              <td class="nowrap">
+                <span class="ab-tag" title="从非常用 IP 段发起访问，历史访问均来自柳州本地固定 IP"><i class="fa-solid fa-globe"></i> 异常 IP</span>
+              </td>
+              <td class="col-ops"><a class="link" onclick="openD(this)">详情</a></td>
+            </tr>
+            <tr class="ab-row" data-ab="1">
+              <td class="nowrap fw-600 no-code">
+                <i class="fa-solid fa-flag flag" title="异常原因：30 分钟内集中访问同一权利人名下 8 卷档案"></i>
+                CX2026072900218
+              </td>
+              <td class="cell-lg">
+                <span class="no-code">DA450202201800426 等 8 卷</span><br>
+                <span class="text-3 text-sm">权利人「陈**」名下全部交易档案</span>
+              </td>
+              <td>目录及首页影像</td>
+              <td class="nowrap"><span class="badge gray">目录检索</span></td>
+              <td class="nowrap">梁**<br><span class="text-3 text-sm">XXXX市房产交易所 · 窗口受理岗</span></td>
+              <td class="nowrap"><span class="badge gray">内部系统</span></td>
+              <td class="nowrap">日常查询</td>
+              <td class="nowrap text-3">—</td>
+              <td class="cell-lg">按权利人姓名 + 证件号检索<br><span class="text-3 text-sm">结果 8 条</span></td>
+              <td class="nowrap">2026-07-29 16:18<br><span class="text-3 text-sm">31 分 24 秒</span></td>
+              <td class="nowrap no-code">10.86.24.042<br><span class="text-3 text-sm">Windows · Chrome</span></td>
+              <td class="nowrap"><span class="badge orange">无</span><br><span class="text-3 text-sm">未关联办件</span></td>
+              <td class="nowrap">
+                <span class="ab-tag" title="短期内集中访问同一权利人名下 8 卷档案，且未关联任何在办业务"><i class="fa-solid fa-users-viewfinder"></i> 集中访问同一权利人</span>
+              </td>
+              <td class="col-ops"><a class="link" onclick="openD(this)">详情</a></td>
+            </tr>
+            <tr data-ab="0">
+              <td class="nowrap fw-600 no-code">CX2026080100486</td>
+              <td class="cell-lg">
+                <span class="no-code">DA450204202600862</span><br>
+                <span class="text-3 text-sm">2026 年度存量房买卖合同备案档案（第八卷）</span>
+              </td>
+              <td>第 3 件 存量房买卖合同</td>
+              <td class="nowrap"><span class="badge blue">在线阅览</span></td>
+              <td class="nowrap">韦国强<br><span class="text-3 text-sm">XXXX市房产交易所 · 综合业务岗</span></td>
+              <td class="nowrap"><span class="badge gray">内部系统</span></td>
+              <td class="nowrap">日常查询</td>
+              <td class="nowrap text-3">—</td>
+              <td class="cell-lg">档案号精确查询<br><span class="text-3 text-sm">结果 1 条</span></td>
+              <td class="nowrap">2026-08-01 14:26<br><span class="text-3 text-sm">4 分 08 秒</span></td>
+              <td class="nowrap no-code">10.86.24.008<br><span class="text-3 text-sm">Windows · Chrome</span></td>
+              <td class="nowrap"><span class="badge green">有</span><br><span class="text-3 text-sm">岗位权限</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="col-ops"><a class="link" onclick="openD(this)">详情</a></td>
+            </tr>
+            <tr data-ab="0">
+              <td class="nowrap fw-600 no-code">CX2026080100428</td>
+              <td class="cell-lg">
+                <span class="no-code">DA450202202600426</span><br>
+                <span class="text-3 text-sm">2026 年度商品房买卖合同备案档案（第十卷）</span>
+              </td>
+              <td>整卷目录</td>
+              <td class="nowrap"><span class="badge purple">接口调用</span></td>
+              <td class="nowrap">系统账号 UNIFY-BDC<br><span class="text-3 text-sm">XXXX市不动产登记中心</span></td>
+              <td class="nowrap"><span class="badge purple">接口</span></td>
+              <td class="nowrap">办件办理</td>
+              <td class="nowrap no-code">SJ2026080100862</td>
+              <td class="cell-lg">按不动产单元号调取归档材料<br><span class="text-3 text-sm">结果 1 条</span></td>
+              <td class="nowrap">2026-08-01 11:08<br><span class="text-3 text-sm">2 秒</span></td>
+              <td class="nowrap no-code">10.86.30.012<br><span class="text-3 text-sm">服务端 · 政务外网</span></td>
+              <td class="nowrap"><span class="badge green">有</span><br><span class="text-3 text-sm">接口授权（协同接口）</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="col-ops"><a class="link" onclick="openD(this)">详情</a></td>
+            </tr>
+            <tr data-ab="0">
+              <td class="nowrap fw-600 no-code">CX2026073100862</td>
+              <td class="cell-lg">
+                <span class="no-code">DA450204201900308</span><br>
+                <span class="text-3 text-sm">2019 年度存量房买卖合同备案档案（第五卷）</span>
+              </td>
+              <td>第 2 件 存量房买卖合同、第 5 件 契税完税凭证</td>
+              <td class="nowrap"><span class="badge green">查档出证</span></td>
+              <td class="nowrap">黄**（权利人本人）<br><span class="text-3 text-sm">自助查询</span></td>
+              <td class="nowrap"><span class="badge cyan">自助终端</span></td>
+              <td class="nowrap">查档出证</td>
+              <td class="nowrap no-code">CD2026073100186</td>
+              <td class="cell-lg">身份证 + 人脸核验后查询本人名下档案<br><span class="text-3 text-sm">结果 3 条</span></td>
+              <td class="nowrap">2026-07-31 09:42<br><span class="text-3 text-sm">7 分 36 秒</span></td>
+              <td class="nowrap no-code">10.86.28.204<br><span class="text-3 text-sm">自助终端 ZZ-窗口大厅-03</span></td>
+              <td class="nowrap"><span class="badge green">有</span><br><span class="text-3 text-sm">本人实名核验</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="col-ops"><a class="link" onclick="openD(this)">详情</a></td>
+            </tr>
+            <tr data-ab="0">
+              <td class="nowrap fw-600 no-code">CX2026073100642</td>
+              <td class="cell-lg">
+                <span class="no-code">DA450202201500426</span><br>
+                <span class="text-3 text-sm">2015 年度商品房认购登记档案（第六卷）</span>
+              </td>
+              <td>第 1 件 商品房认购书</td>
+              <td class="nowrap"><span class="badge orange">打印</span></td>
+              <td class="nowrap">蒙丽华<br><span class="text-3 text-sm">XXXX市房产交易所 · 档案管理岗</span></td>
+              <td class="nowrap"><span class="badge gray">内部系统</span></td>
+              <td class="nowrap">档案借阅</td>
+              <td class="nowrap no-code">JY2026073000426</td>
+              <td class="cell-lg">复制出证打印<br><span class="text-3 text-sm">结果 1 条</span></td>
+              <td class="nowrap">2026-07-31 15:26<br><span class="text-3 text-sm">3 分 12 秒</span></td>
+              <td class="nowrap no-code">10.86.24.026<br><span class="text-3 text-sm">Windows · Chrome</span></td>
+              <td class="nowrap"><span class="badge green">有</span><br><span class="text-3 text-sm">借阅审批授权</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="col-ops"><a class="link" onclick="openD(this)">详情</a></td>
+            </tr>
+            <tr data-ab="0">
+              <td class="nowrap fw-600 no-code">CX2026073000186</td>
+              <td class="cell-lg">
+                <span class="no-code">DA450203202400186</span><br>
+                <span class="text-3 text-sm">2024 年度房屋租赁备案档案（第二卷）</span>
+              </td>
+              <td>目录</td>
+              <td class="nowrap"><span class="badge gray">目录检索</span></td>
+              <td class="nowrap">覃永明<br><span class="text-3 text-sm">XXXX市房产交易所 · 档案管理岗</span></td>
+              <td class="nowrap"><span class="badge blue">小程序</span></td>
+              <td class="nowrap">日常查询</td>
+              <td class="nowrap text-3">—</td>
+              <td class="cell-lg">按坐落地址模糊检索<br><span class="text-3 text-sm">结果 12 条</span></td>
+              <td class="nowrap">2026-07-30 08:52<br><span class="text-3 text-sm">1 分 28 秒</span></td>
+              <td class="nowrap no-code">10.86.24.008<br><span class="text-3 text-sm">iOS · 微信小程序</span></td>
+              <td class="nowrap"><span class="badge green">有</span><br><span class="text-3 text-sm">岗位权限</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="col-ops"><a class="link" onclick="openD(this)">详情</a></td>
+            </tr>
+            <tr data-ab="0">
+              <td class="nowrap fw-600 no-code">CX2026072900642</td>
+              <td class="cell-lg">
+                <span class="no-code">DA450202201600308</span><br>
+                <span class="text-3 text-sm">2016 年度抵押备案档案（第二卷）</span>
+              </td>
+              <td>第 4 件 抵押合同</td>
+              <td class="nowrap"><span class="badge blue">在线阅览</span></td>
+              <td class="nowrap">刘**<br><span class="text-3 text-sm">XXXX市中级人民法院</span></td>
+              <td class="nowrap"><span class="badge cyan">门户</span></td>
+              <td class="nowrap">档案借阅</td>
+              <td class="nowrap no-code">JY2026072600862</td>
+              <td class="cell-lg">调卷办案授权范围内调阅<br><span class="text-3 text-sm">结果 1 条</span></td>
+              <td class="nowrap">2026-07-29 14:12<br><span class="text-3 text-sm">22 分 06 秒</span></td>
+              <td class="nowrap no-code">10.92.16.086<br><span class="text-3 text-sm">Windows · Chrome</span></td>
+              <td class="nowrap"><span class="badge green">有</span><br><span class="text-3 text-sm">调卷函 + 借阅审批</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="col-ops"><a class="link" onclick="openD(this)">详情</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="mdD">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>利用留痕详情</h3>
+        <span class="badge blue no-code" id="dNo">CX2026080100862</span>
+        <span class="badge gray"><i class="fa-solid fa-lock"></i> 只读</span>
+        <button type="button" class="close" onclick="PMS.closeModal('mdD')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-danger" id="dAb">
+          <i class="fa-solid fa-flag"></i>
+          <div>
+            <b>本条记录被标记为异常访问。</b>
+            <span id="dAbTxt">访问密级为「秘密」的档案，未查到对应授权记录；且发生在工作日 20:00 后。</span>
+            建议由安全管理岗核实访问事由，必要时冻结账号并上报。
+          </div>
+        </div>
+
+        <div class="section-title">访问信息</div>
+        <dl class="desc-list">
+          <div class="desc-item"><dt>查询编号</dt><dd class="no-code" id="dNo2">CX2026080100862</dd></div>
+          <div class="desc-item"><dt>查询类型</dt><dd id="dType">下载</dd></div>
+          <div class="desc-item"><dt>查询人</dt><dd id="dUser">周**</dd></div>
+          <div class="desc-item"><dt>所属部门</dt><dd id="dDept">XXXX市房产交易所 · 综合业务岗</dd></div>
+          <div class="desc-item"><dt>查询渠道</dt><dd id="dCh">内部系统</dd></div>
+          <div class="desc-item"><dt>业务关联类型</dt><dd id="dBiz">日常查询</dd></div>
+          <div class="desc-item"><dt>关联业务主键</dt><dd class="no-code text-3">—</dd></div>
+          <div class="desc-item"><dt>关联收件编号</dt><dd class="no-code text-3" id="dSj">—</dd></div>
+          <div class="desc-item"><dt>查询时间</dt><dd id="dTime">2026-08-01 21:42:18</dd></div>
+          <div class="desc-item"><dt>访问时长</dt><dd id="dDur">6 分 12 秒</dd></div>
+          <div class="desc-item"><dt>IP 地址</dt><dd class="no-code" id="dIp">10.86.24.118</dd></div>
+          <div class="desc-item"><dt>设备信息</dt><dd id="dDev">Windows 10 · Chrome 126 · 终端 PC-ZHYW-018</dd></div>
+          <div class="desc-item"><dt>是否有效授权</dt><dd id="dAuth"><span class="badge red">无</span></dd></div>
+          <div class="desc-item"><dt>授权来源</dt><dd class="text-3" id="dAuthFrom">—</dd></div>
+          <div class="desc-item span-2"><dt>查询条件</dt><dd id="dCond">档案号 = DA450205201600642（精确查询），结果 1 条</dd></div>
+        </dl>
+
+        <div class="section-title mt-16">访问对象</div>
+        <dl class="desc-list">
+          <div class="desc-item"><dt>档案号</dt><dd class="no-code" id="dDa">DA450205201600642</dd></div>
+          <div class="desc-item"><dt>档案名称</dt><dd id="dDaName">2016 年度公有住房出售档案（第四卷）</dd></div>
+          <div class="desc-item"><dt>卷内文件</dt><dd id="dWj">第 6 件 房改房成本价计算表</dd></div>
+          <div class="desc-item"><dt>档案密级</dt><dd><span class="badge orange">秘密</span></dd></div>
+          <div class="desc-item span-2"><dt>档案入口</dt><dd>
+            <a class="link" href="archive-detail.html">查看档案详情</a>　
+            <a class="link" href="archive-viewer.html">打开档案全景阅览</a>
+          </dd></div>
+        </dl>
+
+        <div class="section-title mt-16">操作轨迹</div>
+        <div>
+          <div class="ac-line"><span class="t">21:42:18</span><span>登录内部系统，进入档案检索页</span></div>
+          <div class="ac-line"><span class="t">21:42:36</span><span>按档案号精确查询 DA450205201600642，命中 1 条</span></div>
+          <div class="ac-line"><span class="t">21:43:02</span><span>打开档案详情，加载卷内文件目录（共 12 件）</span></div>
+          <div class="ac-line"><span class="t">21:44:26</span><span>在线阅览第 6 件「房改房成本价计算表」第 1 ~ 3 页</span></div>
+          <div class="ac-line"><span class="t">21:47:52</span><span class="text-danger">下载第 6 件影像 PDF（3 页，2.4 MB）——未查到授权记录</span></div>
+          <div class="ac-line"><span class="t">21:48:30</span><span>退出档案详情</span></div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="PMS.closeModal('mdD')">关闭</button>
+        <button type="button" class="btn" onclick="PMS.toast('已导出本条留痕记录 PDF','success')"><i class="fa-solid fa-download"></i> 导出本条记录</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+PMS.renderPager(document.getElementById('tblLy'), {
+  pageNum: 1, pageSize: 10, total: 8462,
+  onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+});
+
+function filterAb() {
+  var on = document.getElementById('onlyAb').checked;
+  document.querySelectorAll('#tblLy tbody tr').forEach(function (tr) {
+    tr.style.display = (on && tr.getAttribute('data-ab') !== '1') ? 'none' : '';
+  });
+  PMS.toast(on ? '已筛选出 6 条异常访问记录' : '已显示全部留痕记录');
+}
+
+function txt(tr, i) {
+  var td = tr.children[i];
+  return td ? td.innerText.replace(/\s*\n\s*/g, ' · ').trim() : '';
+}
+function openD(a) {
+  var tr = a.closest('tr');
+  var ab = tr.getAttribute('data-ab') === '1';
+  var no = txt(tr, 0).replace(/^·\s*/, '');
+  document.getElementById('dNo').textContent = no;
+  document.getElementById('dNo2').textContent = no;
+  var da = txt(tr, 1).split(' · ');
+  document.getElementById('dDa').textContent = da[0] || '';
+  document.getElementById('dDaName').textContent = da[1] || '';
+  document.getElementById('dWj').textContent = txt(tr, 2);
+  document.getElementById('dType').textContent = txt(tr, 3);
+  var u = txt(tr, 4).split(' · ');
+  document.getElementById('dUser').textContent = u[0] || '';
+  document.getElementById('dDept').textContent = u.slice(1).join(' · ');
+  document.getElementById('dCh').textContent = txt(tr, 5);
+  document.getElementById('dBiz').textContent = txt(tr, 6);
+  document.getElementById('dSj').textContent = txt(tr, 7);
+  document.getElementById('dCond').textContent = txt(tr, 8);
+  var t = txt(tr, 9).split(' · ');
+  document.getElementById('dTime').textContent = t[0] || '';
+  document.getElementById('dDur').textContent = t[1] || '';
+  var ip = txt(tr, 10).split(' · ');
+  document.getElementById('dIp').textContent = ip[0] || '';
+  document.getElementById('dDev').textContent = ip.slice(1).join(' · ');
+  var au = txt(tr, 11).split(' · ');
+  document.getElementById('dAuth').innerHTML = au[0] === '无'
+    ? '<span class="badge red">无</span>' : '<span class="badge green">有</span>';
+  document.getElementById('dAuthFrom').textContent = au[1] || '—';
+  document.getElementById('dAb').style.display = ab ? '' : 'none';
+  if (ab) document.getElementById('dAbTxt').textContent = txt(tr, 12) + '。';
+  PMS.openModal('mdD');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>事项详情与办事指南 · 统一服务门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  .idt-body { padding: 0 0 40px; }
+  .idt-hero {
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card);
+    padding: 20px 24px; display: flex; align-items: flex-start; gap: 20px; margin-bottom: 16px;
+  }
+  .idt-hero .ih-l { flex: 1; min-width: 0; }
+  .idt-hero h1 { font-size: 24px; line-height: 1.4; color: var(--text-1); }
+  .idt-hero .ih-code { font-size: 12.5px; color: var(--text-3); font-family: Menlo, Consolas, monospace; margin-top: 6px; }
+  .idt-hero .ih-tags { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .idt-hero .ih-r { flex: none; width: 224px; text-align: right; }
+  .idt-hero .ih-r .ih-note { font-size: 12px; color: var(--text-3); margin-top: 9px; line-height: 1.8; text-align: left; }
+  .idt-main { display: grid; grid-template-columns: 1fr 320px; gap: 18px; align-items: start; }
+  .idt-kpi { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+  .idt-kpi .ik-i {
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card);
+    padding: 13px 16px; text-align: center;
+  }
+  .idt-kpi .ik-v { font-size: 22px; font-weight: 700; color: var(--primary); font-family: "DIN Alternate", var(--font); }
+  .idt-kpi .ik-v em { font-style: normal; font-size: 13px; color: var(--text-3); font-weight: 400; margin-left: 3px; }
+  .idt-kpi .ik-v.red { color: var(--accent); }
+  .idt-kpi .ik-l { font-size: 12.5px; color: var(--text-3); margin-top: 3px; }
+  .idt-faq .if-q { font-size: 13.5px; font-weight: 500; color: var(--text-1); }
+  .idt-faq .if-a { font-size: 12.5px; color: var(--text-3); line-height: 1.9; margin-top: 6px; }
+  .idt-faq > div { padding: 10px 0; border-bottom: 1px dashed var(--row-line); }
+  .idt-faq > div:last-child { border-bottom: 0; }
+  .idt-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .idt-pick a {
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card);
+    padding: 14px 16px; color: inherit; display: block; transition: .16s;
+  }
+  .idt-pick a:hover { border-color: var(--primary); box-shadow: var(--shadow-sm); color: inherit; }
+  .idt-pick .ip-t { font-size: 14.5px; font-weight: 700; }
+  .idt-pick .ip-d { font-size: 12.5px; color: var(--text-3); margin-top: 5px; line-height: 1.8; }
+</style>
+</head>
+<body data-nav="guide">
+
+<div class="wrap">
+  <div class="crumb"><a href="home.html">首页</a><i class="fa-solid fa-angle-right"></i>
+    <a href="service-hall.html">业务办理</a><i class="fa-solid fa-angle-right"></i>
+    <a href="guide.html">办事指南</a><i class="fa-solid fa-angle-right"></i><span id="crumb-cur">事项详情</span></div>
+</div>
+
+<div class="wrap idt-body" id="idt-root"></div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+/* 在线办理入口映射（与网上办事大厅一致） */
+var APPLY_MAP = {
+  SX0201: 'second-hand-apply.html', SX0202: 'second-hand-apply.html', SX0203: 'second-hand-apply.html?tab=sa-express',
+  SX0301: 'rent-sign.html', SX0303: 'rent-sign.html?tab=rs-change', SX0304: 'rent-sign.html?tab=rs-cancel',
+  SX0101: 'select-room.html', SX1101: 'rent-public.html?tab=rp-bzf', SX0105: 'buy-service.html?tab=bs-refund'
+};
+/* 办理流程五环节：名称、图标、说明、时限占比、责任科室（责任科室按事项承办科室动态替换） */
+var FLOW = [
+  ['在线提交', 'fa-keyboard', '申请人在门户、小程序或自助终端填报申请信息并上传材料，系统做完整性校验', '即时', '申请人自助'],
+  ['收件受理', 'fa-inbox', '收件人员核对材料齐全性与法定形式，材料齐全的当场受理，不齐全的一次性告知补正内容', '0.5 个工作日', ''],
+  ['业务审核', 'fa-magnifying-glass-chart', '业务科室核验权属、限制情形与合同要素，必要时发起跨部门核验', '', ''],
+  ['办结出件', 'fa-stamp', '审核通过后办结出件，生成备案编号与电子证明，同步推送广西政务服务网', '0.5 个工作日', ''],
+  ['结果获取', 'fa-file-shield', '在线获取带二维码与验真码的结果证明，也可到窗口或自助终端打印', '即时', '申请人自助']
+];
+
+function pageInit() {
+  var code = UI.param('code');
+  var it = code ? PORTAL.item(code) : null;
+  if (!it) { renderPicker(code); return; }
+  renderDetail(it);
+}
+
+/* 无参数或事项不存在：给事项选择列表 */
+function renderPicker(code) {
+  document.getElementById('crumb-cur').textContent = '选择事项';
+  var h = '';
+  if (code) {
+    h += '<div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation"></i>'
+      + '<span>未找到事项编码「<b>' + UI.esc(code) + '</b>」对应的办事指南，可能事项已调整或链接有误。请从下面的事项目录中选择。</span></div>';
+  }
+  h += '<div class="col-head"><h2>办事指南 · 事项目录</h2><span class="ch-en">Service Catalogue</span>'
+    + '<span class="ch-more" style="cursor:default">共 ' + PORTAL.items().length + ' 个事项，与广西政务服务网事项目录同源</span></div>';
+  h += PDATA.THEMES.map(function (t) {
+    var arr = PORTAL.items({ theme: t.k });
+    if (!arr.length) return '';
+    return '<div class="col-head" style="margin:18px 0 12px;border-bottom-width:1px">'
+      + '<h2 style="font-size:17px"><i class="fa-solid ' + t.i + '"></i> ' + t.n + '</h2>'
+      + '<span class="ch-en">' + arr.length + ' 个事项</span></div>'
+      + '<div class="idt-pick">' + arr.map(function (i) {
+        return '<a href="item-detail.html?code=' + i.code + '" data-fp="wsmh-04-01">'
+          + '<div class="ip-t">' + UI.esc(i.name) + (i.hot ? ' <span class="badge red">热门</span>' : '') + '</div>'
+          + '<div class="ip-d">' + UI.esc(i.dept) + '　承诺 ' + i.nsrq + ' 个工作日<br>'
+          + i.clnum + ' 份材料　' + (i.wb ? '全程网办' : '需到窗口') + '</div></a>';
+      }).join('') + '</div>';
+  }).join('');
+  h += '<div id="src-note"></div>';
+  document.getElementById('idt-root').innerHTML = h;
+  document.getElementById('src-note').innerHTML = UI.sourceNote();
+}
+
+function renderDetail(it) {
+  document.getElementById('crumb-cur').textContent = it.name;
+  document.title = it.name + ' · 办事指南 · 统一服务门户';
+  var theme = PDATA.THEMES.filter(function (t) { return t.k === it.theme; })[0] || { n: '综合', i: 'fa-folder' };
+  var scene = PDATA.SCENES.filter(function (s) { return s.k === it.scene; })[0];
+  var sceneName = it.scene === 'company' ? '企业办事' : (scene ? scene.n : '通用');
+
+  /* 材料统计 */
+  /* 电子证照免提交的材料本身也属于可复用，统计可复用份数时不重复计入 */
+  var mian = 0, fy = 0, must = 0;
+  it.cl.forEach(function (m) { if (m.mian) mian++; else if (m.fy) fy++; if (m.bt) must++; });
+
+  var html = '';
+
+  /* 顶部标题与在线办理 */
+  html += '<div class="idt-hero">'
+    + '<div class="ih-l">'
+    + '<h1>' + UI.esc(it.name) + '</h1>'
+    + '<div class="ih-code">事项编码 ' + it.code + '　|　事项类型 行政确认 / 公共服务　|　实施主体 XXXX市房产交易管理中心</div>'
+    + '<div class="ih-tags">'
+    + (it.wb ? '<span class="badge green"><i class="fa-solid fa-globe"></i> 全程网办</span>'
+      : '<span class="badge orange"><i class="fa-solid fa-building-user"></i> 需到窗口</span>')
+    + (it.hot ? '<span class="badge red"><i class="fa-solid fa-fire"></i> 高频热门事项</span>' : '')
+    + '<span class="badge blue"><i class="fa-solid ' + theme.i + '"></i> ' + theme.n + '</span>'
+    + '<span class="badge cyan"><i class="fa-solid fa-users-gear"></i> 承办科室：' + UI.esc(it.dept) + '</span>'
+    + '<span class="badge gray"><i class="fa-solid fa-compass"></i> 适用情形：' + UI.esc(sceneName) + '</span>'
+    + '</div></div>'
+    + '<div class="ih-r">'
+    + '<button class="btn btn-accent btn-lg btn-block" id="btn-apply" data-fp="wsmh-03-01">'
+    + '<i class="fa-solid fa-bolt"></i> 在线办理</button>'
+    + '<div class="ih-note"><i class="fa-solid fa-circle-info"></i> 需登录并完成实名认证；'
+    + (it.wb ? '本事项全程网办，无需到窗口。' : '本事项需到窗口确认签署，网上可先行填报预约。') + '</div>'
+    + '</div></div>';
+
+  /* 四个关键指标 */
+  html += '<div class="idt-kpi">'
+    + '<div class="ik-i"><div class="ik-v">' + it.fdrq + '<em>个工作日</em></div><div class="ik-l">法定办结时限</div></div>'
+    + '<div class="ik-i"><div class="ik-v red">' + it.nsrq + '<em>个工作日</em></div><div class="ik-l">承诺办结时限</div></div>'
+    + '<div class="ik-i"><div class="ik-v">' + it.clnum + '<em>份</em></div><div class="ik-l">需提交材料</div></div>'
+    + '<div class="ik-i"><div class="ik-v">' + mian + '<em>份</em></div><div class="ik-l">电子证照免提交</div></div>'
+    + '</div>';
+
+  html += '<div class="idt-main"><div>';
+
+  /* 基本信息 */
+  html += '<div class="card mb-16"><div class="card-head"><h3><i class="fa-solid fa-circle-info text-primary"></i> 基本信息</h3>'
+    + '<span class="sub">与广西政务服务网事项目录同源</span></div>'
+    + '<div class="card-body np"><div class="desc-list" style="border:0;border-radius:0"><dl>'
+    + dd('事项编码', it.code) + dd('事项名称', UI.esc(it.name))
+    + dd('业务主题', theme.n) + dd('适用情形', sceneName)
+    + dd('承办科室', UI.esc(it.dept)) + dd('办理方式', it.wb ? '全程网办（网站 / 小程序 / 自助终端）' : '网上填报 + 窗口确认')
+    + dd('法定办结时限', it.fdrq + ' 个工作日')
+    + dd('承诺办结时限', '<b class="text-accent">' + it.nsrq + '</b> 个工作日（较法定压缩 '
+      + Math.round((1 - it.nsrq / it.fdrq) * 100) + '%）')
+    + dd('收费标准', UI.esc(it.sf))
+    + dd('办理地点', UI.esc(it.dd))
+    + dd('咨询电话', PORTAL.site().tel + '（' + PORTAL.site().gzsj + '）')
+    + dd('数据来源', '与广西政务服务网事项目录同源，每日 06:00 同步，最近更新 ' + UI.today())
+    + '</dl></div></div></div>';
+
+  /* 办理条件 */
+  html += '<div class="card mb-16"><div class="card-head"><h3><i class="fa-solid fa-list-check text-primary"></i> 办理条件</h3>'
+    + '<span class="sub">不符合条件的将被退件，请提交前逐条核对</span></div>'
+    + '<div class="card-body">'
+    + '<div class="alert alert-info" style="margin-bottom:12px"><i class="fa-solid fa-circle-check"></i><span>'
+    + UI.esc(it.tj) + '</span></div>'
+    + '<div class="text-sm text-2" style="line-height:2">'
+    + '<b>补充说明：</b>①申请人须完成实名认证，认证等级达到 L2 及以上方可在线提交；'
+    + '②涉及共有权人的，需全体共有权人在线确认或提交书面同意文件；'
+    + '③委托他人办理的，需在「网上办事大厅 → 帮办代办」提交代办授权并上传授权委托书；'
+    + '④房屋存在查封、异议登记、在建工程抵押等限制交易情形的，需先解除后办理。</div>'
+    + '</div></div>';
+
+  /* 材料清单 */
+  html += '<div class="card mb-16"><div class="card-head"><h3><i class="fa-solid fa-folder-open text-primary"></i> 材料清单</h3>'
+    + '<span class="sub">共 ' + it.cl.length + ' 份</span>'
+    + '<div class="ca"><button class="btn btn-sm" id="btn-form" data-fp="wsmh-03-05">'
+    + '<i class="fa-solid fa-download"></i> 下载申请表格</button></div></div>'
+    + '<div class="card-body np"><table class="pub-table"><thead><tr>'
+    + '<th style="width:52px">序号</th><th>材料名称</th><th style="width:110px">材料类型</th>'
+    + '<th style="width:90px">是否必需</th><th style="width:150px">纸质 / 电子</th>'
+    + '<th style="width:110px">可否复用</th><th style="width:150px">电子证照免提交</th>'
+    + '</tr></thead><tbody>'
+    + it.cl.map(function (m, i) {
+      return '<tr><td class="num">' + (i + 1) + '</td>'
+        + '<td class="strong">' + UI.esc(m.mc) + '</td>'
+        + '<td>' + UI.esc(m.lx) + '</td>'
+        + '<td>' + (m.bt ? '<span class="badge red">必需</span>' : '<span class="badge gray">条件必需</span>') + '</td>'
+        + '<td>' + (m.mian ? '电子证照直接调取' : (m.fy ? '纸质 / 电子均可' : '纸质原件 + 复印件')) + '</td>'
+        + '<td>' + (m.fy ? '<span class="badge cyan">材料库可复用</span>' : '<span class="badge gray">不可复用</span>') + '</td>'
+        + '<td>' + (m.mian ? '<span class="badge green"><i class="fa-solid fa-shield-halved"></i> 免于提交</span>' : '需提交') + '</td></tr>';
+    }).join('')
+    + '</tbody></table>'
+    + '<div class="table-note"><i class="fa-solid fa-circle-info"></i> 共 <b>' + it.cl.length + '</b> 份材料，'
+    + '其中 <b>' + must + '</b> 份为必需材料、<b>' + mian + '</b> 份可通过电子证照免提交'
+    + (fy ? '，另有 <b>' + fy + '</b> 份可从材料库复用，复用材料在提交时自动带出，无需重复上传' : '')
+    + '。实际需自行上传的约 <b>' + Math.max(0, it.cl.length - mian) + '</b> 份。</div>'
+    + '</div></div>';
+
+  /* 办理流程 */
+  html += '<div class="card mb-16"><div class="card-head"><h3><i class="fa-solid fa-route text-primary"></i> 办理流程</h3>'
+    + '<span class="sub">共 5 个环节，逐环节标注办理时限与责任科室</span></div>'
+    + '<div class="card-body"><div class="step-flow">'
+    + FLOW.map(function (f, i) {
+      var day = f[3] || (Math.max(1, it.nsrq - 1) + ' 个工作日');
+      var dept = f[4] || (i === 1 ? '综合受理科' : it.dept);
+      return '<div class="sf-i"><div class="sf-n"><i class="fa-solid ' + f[1] + '"></i></div>'
+        + '<div class="sf-t">' + (i + 1) + '. ' + f[0] + '</div>'
+        + '<div class="sf-d">' + f[2] + '</div>'
+        + '<div class="sf-tag"><span class="badge orange">时限 ' + day + '</span>'
+        + '<span class="badge blue" style="margin-top:4px">' + UI.esc(dept) + '</span></div></div>';
+    }).join('')
+    + '</div>'
+    + '<div class="alert alert-success mt-16" style="margin-bottom:0"><i class="fa-solid fa-clock"></i><span>'
+    + '全流程承诺 <b>' + it.nsrq + '</b> 个工作日办结，法定时限 ' + it.fdrq + ' 个工作日。'
+    + '受理后每个环节的状态变化都会推送站内消息与短信，可在「二手房进度查询」或「个人中心 → 我的办件」实时查看。'
+    + '超过承诺时限未办结的，可通过咨询投诉渠道催办。</span></div>'
+    + '</div></div>';
+
+  /* 常见退件原因 */
+  html += '<div class="card mb-16"><div class="card-head"><h3><i class="fa-solid fa-triangle-exclamation text-warning"></i> 常见退件原因</h3>'
+    + '<span class="sub">提交前自查，减少「跑第二趟」</span></div>'
+    + '<div class="card-body">'
+    + it.tjyy.map(function (r, i) {
+      return '<div class="alert alert-warning" style="margin-bottom:' + (i === it.tjyy.length - 1 ? '0' : '8px') + '">'
+        + '<i class="fa-solid fa-circle-exclamation"></i><span><b>原因 ' + (i + 1) + '：</b>' + UI.esc(r) + '</span></div>';
+    }).join('')
+    + '</div></div>';
+
+  /* 相关问答 */
+  html += '<div class="card"><div class="card-head"><h3><i class="fa-solid fa-circle-question text-primary"></i> 相关问答</h3>'
+    + '<span class="sub">来自知识库高频问题</span>'
+    + '<div class="ca"><a class="btn btn-sm" href="help.html">更多问答</a></div></div>'
+    + '<div class="card-body idt-faq" id="faq-box"></div></div>';
+
+  html += '</div><div>';
+
+  /* 右侧操作区 */
+  html += '<div class="card mb-16"><div class="card-head"><h3><i class="fa-solid fa-bolt text-accent"></i> 办理与咨询</h3></div>'
+    + '<div class="card-body">'
+    + '<button class="btn btn-accent btn-block mb-8" id="btn-apply2" data-fp="wsmh-03-01"><i class="fa-solid fa-bolt"></i> 在线办理</button>'
+    + '<a class="btn btn-block mb-8" href="chat.html?ctx=' + encodeURIComponent(it.name) + '" data-fp="wsmh-31-06">'
+    + '<i class="fa-solid fa-headset"></i> 咨询此事项</a>'
+    + '<button class="btn btn-block mb-8" id="btn-form2" data-fp="wsmh-03-05"><i class="fa-solid fa-download"></i> 下载申请表格</button>'
+    + '<a class="btn btn-block mb-8" href="service-hall.html?tab=sv-help" data-fp="wsmh-03-06"><i class="fa-solid fa-hand-holding-heart"></i> 预约帮办</a>'
+    + '<a class="btn btn-block" href="outlets.html" data-fp="wsmh-03-03"><i class="fa-solid fa-location-dot"></i> 查看办理网点</a>'
+    + '<div class="text-3 text-xs mt-12" style="line-height:1.9"><i class="fa-solid fa-circle-info"></i> '
+    + '「咨询此事项」会带上本事项名称进入智能客服会话，与移动端同一知识库、同一会话记录。</div>'
+    + '</div></div>';
+
+  /* 办理地点与时间 */
+  html += '<div class="card mb-16"><div class="card-head"><h3><i class="fa-solid fa-location-dot text-primary"></i> 办理地点与时间</h3></div>'
+    + '<div class="card-body text-sm text-2" style="line-height:2">'
+    + '<b>窗口地址：</b>' + UI.esc(it.dd) + '<br>'
+    + '<b>办理时间：</b>' + UI.esc(PORTAL.site().gzsj) + '<br>'
+    + '<b>咨询电话：</b>' + UI.esc(PORTAL.site().tel) + '<br>'
+    + '<b>其他渠道：</b>门户网站、微信小程序、政务自助终端与各交易网点窗口，四个渠道服务能力等价、数据实时同步。'
+    + '<div class="mt-12"><a class="btn btn-sm btn-block" href="outlets.html?tab=ot-queue" data-fp="wsmh-03-04">'
+    + '<i class="fa-solid fa-people-line"></i> 查看窗口排队与在线取号</a></div>'
+    + '</div></div>';
+
+  /* 同主题事项 */
+  html += '<div class="card"><div class="card-head"><h3><i class="fa-solid ' + theme.i + ' text-primary"></i> 同主题其他事项</h3></div>'
+    + '<div class="card-body" style="padding:8px 18px 14px">'
+    + (function () {
+      var arr = PORTAL.items({ theme: it.theme }).filter(function (x) { return x.code !== it.code; });
+      if (!arr.length) return '<div class="text-3 text-sm" style="padding:8px 0">本主题下暂无其他事项，可前往<a href="service-hall.html">网上办事大厅</a>查看全部事项。</div>';
+      return arr.map(function (x) {
+        return '<a href="item-detail.html?code=' + x.code + '" style="display:block;padding:9px 0;border-bottom:1px dashed var(--row-line)">'
+          + '<div class="text-1" style="font-size:13.5px;font-weight:500">' + UI.esc(x.name) + '</div>'
+          + '<div class="text-3 text-xs" style="margin-top:3px">' + UI.esc(x.dept) + ' · 承诺 ' + x.nsrq + ' 个工作日 · '
+          + (x.wb ? '全程网办' : '需到窗口') + '</div></a>';
+      }).join('');
+    })()
+    + '</div></div>';
+
+  html += '</div></div><div id="src-note"></div>';
+
+  document.getElementById('idt-root').innerHTML = html;
+
+  /* 相关问答（取本主题相关 3 条） */
+  var LB = { new: '商品房', second: '存量房', rent: '住房租赁', fund: '资金监管', query: '查询出证' };
+  var faqs = PORTAL.faq({ lb: LB[it.theme] || '' });
+  if (faqs.length < 3) {
+    PORTAL.faq().forEach(function (q) {
+      if (faqs.length < 3 && faqs.indexOf(q) < 0) faqs.push(q);
+    });
+  }
+  document.getElementById('faq-box').innerHTML = faqs.slice(0, 3).map(function (q) {
+    return '<div><div class="if-q"><i class="fa-solid fa-q text-primary"></i> ' + UI.esc(q.q) + '</div>'
+      + '<div class="if-a"><i class="fa-solid fa-a text-accent"></i> ' + UI.esc(q.a) + '</div></div>';
+  }).join('')
+    + '<button class="btn btn-block mt-12" data-act="chat" data-fp="wsmh-31-06"><i class="fa-solid fa-headset"></i> 没找到答案？问智能客服</button>';
+
+  document.getElementById('btn-apply').onclick = function () { doApply(it); };
+  document.getElementById('btn-apply2').onclick = function () { doApply(it); };
+  document.getElementById('btn-form').onclick = function () { doForm(it); };
+  document.getElementById('btn-form2').onclick = function () { doForm(it); };
+
+  document.getElementById('src-note').innerHTML = UI.sourceNote(
+    '本事项的办理条件、材料清单、时限与收费标准与广西政务服务网事项目录同源，如与窗口公示不一致，以正式办事指南与窗口答复为准。');
+}
+
+function dd(k, v) { return '<dt>' + k + '</dt><dd>' + v + '</dd>'; }
+
+function doApply(it) {
+  if (!UI.needLogin('在线办理「' + it.name + '」')) return;
+  if (!UI.needRealname('在线办理「' + it.name + '」')) return;
+  PORTAL.act('prefs.recent', { code: it.code, name: it.name });
+  var target = APPLY_MAP[it.code];
+  if (!target) {
+    if (it.scene === 'company') {
+      UI.confirm('该事项由企业端申报',
+        '「<b>' + UI.esc(it.name) + '</b>」为企业与机构办理事项，需先完成入网备案并配置经办人账号，申报入口在<b>企业与机构工作台</b>。',
+        function () { UI.go('company/index.html', { user: 'company' }); }, '去企业工作台');
+      return;
+    }
+    UI.confirm('线上填报 + 窗口确认',
+      '「<b>' + UI.esc(it.name) + '</b>」承办科室为' + UI.esc(it.dept) + '，承诺 ' + it.nsrq + ' 个工作日办结。'
+      + '本事项' + (it.wb ? '支持全程网办，' : '需到窗口确认签署，') + '可先预约帮办或查看办理网点排队情况后前往。',
+      function () { UI.go('web/outlets.html'); }, '查看办理网点');
+    return;
+  }
+  UI.toast('已记入最近访问，正在进入「' + UI.esc(it.name) + '」在线申报', 'success');
+  setTimeout(function () { UI.go('web/' + target); }, 600);
+}
+
+function doForm(it) {
+  UI.toast('已下载《' + UI.esc(it.name) + '申请表》 DOCX　版本号 V2026.1，生效日期 2026-01-01。'
+    + '更多范本可在「网上办事大厅 → 表格与范本下载」获取', 'success');
+}
+</script>
+</body>
+</html>

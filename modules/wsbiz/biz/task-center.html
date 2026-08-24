@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>统一待办中心 · 统一工作门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+<script>try{if(window.self!==window.top)document.documentElement.classList.add('pt-embed');}catch(e){document.documentElement.classList.add('pt-embed');}</script>
+</head>
+<!-- 不写 data-role：避免 app.js 注入模块侧栏，本页为全屏独立门户风格 -->
+<body class="pt-body">
+
+<!-- 顶部导航：与门户首页一致 -->
+<header class="pt-nav">
+  <div class="pt-brand">
+    <div class="logo"><i class="fa-solid fa-city"></i></div>
+    <div class="name">华信房产交易中心<small>一网通办 · 统一工作门户</small></div>
+  </div>
+  <nav class="pt-nav-menu">
+    <a class="pt-nav-link active" href="task-center.html?role=biz"><i class="fa-solid fa-gauge-high"></i> 工作台</a>
+    <a class="pt-nav-link" href="portal-home.html?role=biz"><i class="fa-solid fa-globe"></i> 一网通办</a>
+    <a class="pt-nav-link" href="shell.html?role=biz&amp;page=guide.html"><i class="fa-solid fa-book"></i> 业务指引</a>
+    <a class="pt-nav-link" href="shell.html?role=biz&amp;page=case-ledger.html"><i class="fa-solid fa-chart-column"></i> 办件台账</a>
+  </nav>
+  <div class="pt-nav-right">
+    <a class="pt-ico" href="shell.html?role=biz&amp;page=news.html" title="消息"><i class="fa-solid fa-bell"></i><span class="dot" id="navDot" style="display:none">0</span></a>
+    <a class="pt-ico" href="shell.html?role=biz&amp;page=guide.html" title="帮助"><i class="fa-solid fa-circle-question"></i></a>
+    <div class="pt-user">
+      <div class="avatar">韦</div>
+      <div><div class="u-name">韦晓明</div><div class="u-role">综合受理科 · 业务审核员</div></div>
+    </div>
+    <a class="pt-ico" href="../../../index.html" title="返回原型导航 / 退出"><i class="fa-solid fa-right-from-bracket"></i></a>
+  </div>
+</header>
+
+<div class="pt-wrap" style="padding-top:24px">
+
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+    <div style="font-size:22px;font-weight:800;color:var(--text-1)">统一待办中心</div>
+    <span class="text-3" style="font-size:13px">全平台待办任务跨系统聚合，办理审核相关业务</span>
+  </div>
+
+  <!-- 四个页签 -->
+  <div class="pt-tabs">
+    <div class="pt-tab active" data-tab="todo" onclick="setTab('todo')"><i class="fa-solid fa-clipboard-list"></i> 我的待办 <span class="cnt" id="cTodo">0</span></div>
+    <div class="pt-tab urgent" data-tab="urgent" onclick="setTab('urgent')"><i class="fa-solid fa-bolt"></i> 紧急待办 <span class="cnt" id="cUrgent">0</span></div>
+    <div class="pt-tab" data-tab="start" onclick="setTab('start')"><i class="fa-solid fa-paper-plane"></i> 我的发起 <span class="cnt" id="cStart">0</span></div>
+    <div class="pt-tab" data-tab="done" onclick="setTab('done')"><i class="fa-solid fa-circle-check"></i> 我的已办 <span class="cnt" id="cDone">0</span></div>
+  </div>
+
+  <div class="pt-todo-layout">
+
+    <!-- 左侧：系统 → 业务分类 两级树 -->
+    <aside class="pt-tree">
+      <div class="pt-tree-head"><span class="bar"></span>系统 / 业务分类</div>
+      <div class="pt-tree-body" id="treeBody"></div>
+    </aside>
+
+    <!-- 右侧：列表 -->
+    <main class="pt-todo-main">
+      <div class="pt-panel" data-tabs-scope>
+        <div class="pt-scope-tip" id="scopeTip"><i class="fa-solid fa-filter"></i> <span>当前范围：<b id="scopeName">全部系统</b></span></div>
+        <div class="filter-bar">
+          <div class="filter-item"><label>关键词</label><input type="text" id="fKw" placeholder="收件编号 / 事项 / 申请人" oninput="repaint()"></div>
+          <div class="filter-item" data-only="todo urgent"><label>任务类型</label><select id="fRwlx" data-dict="rwlx" onchange="repaint()"></select></div>
+          <div class="filter-item"><label>属地</label><select id="fSaid" data-dict="said" onchange="repaint()"></select></div>
+          <button class="btn btn-primary" onclick="repaint()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button class="btn" onclick="resetFilter()">重置</button>
+          <span class="spacer" style="flex:1"></span>
+          <button class="btn" data-only="todo urgent" onclick="openBatch('pass')"><i class="fa-solid fa-check"></i> 批量通过</button>
+          <button class="btn" data-only="todo urgent" onclick="openBatch('reject')"><i class="fa-solid fa-rotate-left"></i> 批量退回</button>
+          <button class="btn btn-primary" data-only="todo urgent" onclick="openAssign()"><i class="fa-solid fa-user-plus"></i> 指定分派</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="tbTask" data-static>
+            <thead><tr id="tbHead"></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- 指定分派 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="assignDrawer">
+  <div class="drawer-head"><h3>指定分派任务</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-info"><i class="fa-solid fa-circle-info"></i><span>分派后任务直接进入承办人待办，签收时间即为分派时间，作为办理时限的起算点。</span></div>
+    <dl class="desc-list"><div class="desc-item full"><dt>选中数量</dt><dd id="asCount">0 件</dd></div></dl>
+    <div class="section-title mt-16">分派信息</div>
+    <div class="form-grid">
+      <div class="form-item"><label>承办人<span class="req">*</span></label><select id="asUser"></select></div>
+      <div class="form-item col-full"><label>分派说明</label><textarea id="asNote" rows="3" placeholder="如：按属地归口分派新城区经办"></textarea></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="doAssign()"><i class="fa-solid fa-user-plus"></i> 确认分派</button>
+  </div>
+</div>
+
+<!-- 批量办理 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="batchDrawer">
+  <div class="drawer-head"><h3 id="bhTitle">批量办理</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation"></i><span id="bhTip">批量办理仅适用于同类简单件；状态不允许或受一件事主子件约束的任务会被自动跳过并在结果中提示。</span></div>
+    <dl class="desc-list"><div class="desc-item full"><dt>选中数量</dt><dd id="bhCount">0 件</dd></div></dl>
+    <div class="section-title mt-16">办理意见</div>
+    <div class="form-grid">
+      <div class="form-item col-full"><label id="bhLabel">审核意见<span class="req">*</span></label>
+        <textarea id="bhText" rows="4" placeholder="将写入每一件的审理意见与办理日志"></textarea></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" id="bhOk" onclick="doBatch()"><i class="fa-solid fa-check"></i> 确认</button>
+  </div>
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/flow-data.js"></script>
+<script src="../assets/js/flow.js"></script>
+<script>
+(function () {
+  /* ---------- 系统 → 业务分类 分组（两级树） ---------- */
+  var SYS_GROUPS = [
+    { key: 'jyba', name: '商品房与项目监管系统', icon: 'fa-file-signature', cats: ['01', '12'] },
+    { key: 'clfjy', name: '存量房交易系统', icon: 'fa-house-chimney', cats: ['02'] },
+    { key: 'zl', name: '房屋租赁系统', icon: 'fa-key', cats: ['03'] },
+    { key: 'dyxz', name: '抵押与限制登记系统', icon: 'fa-building-columns', cats: ['04'] },
+    { key: 'zcxzf', name: '政策性住房系统', icon: 'fa-people-roof', cats: ['05'] },
+    { key: 'chmj', name: '测绘成果与面积系统', icon: 'fa-ruler-combined', cats: ['06'] },
+    { key: 'dagl', name: '房产档案与查询系统', icon: 'fa-folder-open', cats: ['07', '13'] },
+    { key: 'zjjg', name: '交易资金监管系统', icon: 'fa-sack-dollar', cats: ['08', '09', '10'] },
+    { key: 'cyxy', name: '从业主体与信用监管系统', icon: 'fa-user-shield', cats: ['11'] },
+    { key: 'gzcx', name: '更正撤销与其他', icon: 'fa-rotate-left', cats: ['14', '99'] }
+  ];
+
+  var TAB_META = {
+    todo:   { label: '我的待办', hasCheck: true },
+    urgent: { label: '紧急待办', hasCheck: true },
+    start:  { label: '我的发起', hasCheck: false },
+    done:   { label: '我的已办', hasCheck: false }
+  };
+  var THEADS = {
+    todo: ['<th style="width:38px"><input type="checkbox" onclick="FLOW.pickAll(this,\'tbTask\')" title="全选本页"></th>',
+           '<th>收件编号</th>', '<th>事项名称</th>', '<th>业务分类</th>', '<th>任务类型</th>', '<th>当前环节</th>',
+           '<th>申请人</th>', '<th>紧急程度</th>', '<th>剩余时限</th>', '<th>任务状态</th>', '<th>操作</th>'],
+    start: ['<th>收件编号</th>', '<th>事项名称</th>', '<th>业务分类</th>', '<th>申请人</th>', '<th>当前环节</th>',
+            '<th>收件时间</th>', '<th>剩余时限</th>', '<th>办件状态</th>', '<th>操作</th>'],
+    done:  ['<th>收件编号</th>', '<th>事项名称</th>', '<th>业务分类</th>', '<th>办结环节</th>', '<th>办结时间</th>', '<th>操作</th>']
+  };
+  THEADS.urgent = THEADS.todo;
+
+  var tab = 'todo', batchMode = 'pass';
+  var selSys = '', selCat = '';   /* 树选中：selSys=系统key selCat=ywdlm；空=全部 */
+
+  /* 从 URL ?tab= 初始化页签（门户首页快捷指标带过来的） */
+  (function () {
+    var t = null;
+    try { t = new URLSearchParams(location.search).get('tab'); } catch (e) {}
+    if (t && TAB_META[t]) tab = t;
+  })();
+
+  function sysByKey(k) { for (var i = 0; i < SYS_GROUPS.length; i++) if (SYS_GROUPS[i].key === k) return SYS_GROUPS[i]; return null; }
+  function catToSys(code) {
+    for (var i = 0; i < SYS_GROUPS.length; i++) if (SYS_GROUPS[i].cats.indexOf(code) >= 0) return SYS_GROUPS[i];
+    return SYS_GROUPS[SYS_GROUPS.length - 1];   /* 未归类归到「其他」 */
+  }
+  function ywdlmOf(row) {
+    if (tab === 'done') { var c = FLOW.byId('cases', row.bjzj); return c ? c.ywdlm : '99'; }
+    return row.ywdlm;
+  }
+  function inScope(code) {
+    if (selCat) return code === selCat;
+    if (selSys) { var s = sysByKey(selSys); return s ? s.cats.indexOf(code) >= 0 : true; }
+    return true;
+  }
+
+  /* ---------- 各页签的原始数据（未过滤 scope 与关键词） ---------- */
+  function rawRows() {
+    if (tab === 'urgent') {
+      return FLOW.myTasks().filter(function (t) {
+        var r = FLOW.remain(FLOW.caseOf(t));
+        return t.jjcd === '2' || r.level === 'orange' || r.level === 'red';
+      });
+    }
+    if (tab === 'start') return FLOW.myCases();
+    if (tab === 'done') return FLOW.myDone();
+    return FLOW.myTasks();
+  }
+
+  function val(id) { var el = document.getElementById(id); return el ? (el.value || '').trim() : ''; }
+
+  function rows() {
+    var kw = val('fKw'), rwlx = val('fRwlx'), said = val('fSaid');
+    return rawRows().filter(function (r) {
+      if (!inScope(ywdlmOf(r))) return false;
+      var sjbh = r.sjbh || '', sxmc = r.sxmc || '';
+      var sqr = '';
+      if (tab === 'start') sqr = r.sqr || '';
+      var saidVal = r.said; if (tab === 'done') { var c = FLOW.byId('cases', r.bjzj) || {}; saidVal = c.said; }
+      if (kw && sjbh.indexOf(kw) < 0 && sxmc.indexOf(kw) < 0 && sqr.indexOf(kw) < 0) return false;
+      if ((tab === 'todo' || tab === 'urgent') && rwlx && r.rwlx !== rwlx) return false;
+      if (said && saidVal !== said) return false;
+      return true;
+    });
+  }
+
+  /* ---------- 左侧树渲染（数量随页签联动） ---------- */
+  function renderTree() {
+    var base = rawRows();
+    var byCat = {};
+    base.forEach(function (r) { var y = ywdlmOf(r); byCat[y] = (byCat[y] || 0) + 1; });
+
+    var html = '<div class="all' + (!selSys && !selCat ? ' active' : '') + '" onclick="pickAll2()">' +
+      '<i class="fa-solid fa-border-all" style="width:18px;text-align:center"></i><span>全部系统</span>' +
+      '<span class="n">' + base.length + '</span></div>';
+
+    SYS_GROUPS.forEach(function (s) {
+      var total = 0, cats = [];
+      s.cats.forEach(function (code) {
+        var n = byCat[code] || 0;
+        total += n;
+        cats.push({ code: code, n: n });
+      });
+      if (!total) return;   /* 当前页签下该系统无数据则不显示 */
+      var sysOn = selSys === s.key && !selCat;
+      var open = (selSys === s.key) || cats.some(function (c) { return c.code === selCat; });
+      html += '<div class="pt-sys' + (open ? ' open' : '') + '">' +
+        '<div class="pt-sys-head' + (sysOn ? ' active' : '') + '" onclick="pickSys(\'' + s.key + '\')">' +
+          '<span class="s-ico"><i class="fa-solid ' + s.icon + '"></i></span>' +
+          '<span class="s-name">' + s.name + '</span>' +
+          '<span class="n">' + total + '</span>' +
+          '<i class="fa-solid fa-angle-right caret"></i>' +
+        '</div>' +
+        '<div class="pt-sys-subs">' + cats.filter(function (c) { return c.n; }).map(function (c) {
+          var on = selCat === c.code;
+          return '<div class="pt-cat-node' + (on ? ' active' : '') + '" onclick="event.stopPropagation();pickCat(\'' + c.code + '\')">' +
+            '<span>' + FLOW.dict('ywdlm', c.code) + '</span><span class="n">' + c.n + '</span></div>';
+        }).join('') + '</div>' +
+      '</div>';
+    });
+    document.getElementById('treeBody').innerHTML = html;
+
+    var nm = '全部系统';
+    if (selCat) nm = FLOW.dict('ywdlm', selCat);
+    else if (selSys) { var s2 = sysByKey(selSys); nm = s2 ? s2.name : '全部系统'; }
+    document.getElementById('scopeName').textContent = nm;
+  }
+  window.pickAll2 = function () { selSys = ''; selCat = ''; renderTree(); repaint(); };
+  window.pickSys = function (k) {
+    if (selSys === k && !selCat) { selSys = ''; }   /* 再点收起 */
+    else { selSys = k; selCat = ''; }
+    renderTree(); repaint();
+  };
+  window.pickCat = function (code) { selCat = code; selSys = catToSys(code).key; renderTree(); repaint(); };
+
+  /* ---------- 页签切换 ---------- */
+  window.setTab = function (t) {
+    tab = t;
+    document.querySelectorAll('.pt-tabs .pt-tab').forEach(function (el) {
+      el.classList.toggle('active', el.getAttribute('data-tab') === t);
+    });
+    document.querySelectorAll('[data-only]').forEach(function (el) {
+      var ok = el.getAttribute('data-only').split(' ').indexOf(t) >= 0;
+      el.style.display = ok ? '' : 'none';
+    });
+    rebuildHead();
+    renderTree();
+    rebindTable();
+    repaint();
+  };
+  function rebuildHead() {
+    document.getElementById('tbHead').innerHTML = (THEADS[tab] || THEADS.todo).join('');
+  }
+
+  window.resetFilter = function () {
+    ['fKw', 'fRwlx', 'fSaid'].forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ''; });
+    repaint(); PMS.toast('已重置查询条件');
+  };
+  window.repaint = function () { FLOW.paint('tbTask'); renderTree(); syncCounts(); };
+
+  function syncCounts() {
+    var urg = FLOW.myTasks().filter(function (t) {
+      var r = FLOW.remain(FLOW.caseOf(t));
+      return t.jjcd === '2' || r.level === 'orange' || r.level === 'red';
+    }).length;
+    document.getElementById('cTodo').textContent = FLOW.myTasks().length;
+    document.getElementById('cUrgent').textContent = urg;
+    document.getElementById('cStart').textContent = FLOW.myCases().length;
+    document.getElementById('cDone').textContent = FLOW.myDone().length;
+    var dot = document.getElementById('navDot');
+    if (dot) { var n = FLOW.stat('unread'); dot.textContent = n; dot.style.display = n ? '' : 'none'; }
+  }
+
+  /* ---------- 行渲染 ---------- */
+  function taskCells(t) {
+    var c = FLOW.caseOf(t) || {};
+    var r = FLOW.remain(c);
+    var ops = [];
+    if (t.rwzt === '0') ops.push('<span class="link" onclick="event.stopPropagation();signOne(\'' + t.id + '\')">签收</span>');
+    else ops.push('<span class="link" onclick="event.stopPropagation();handleTask(\'' + t.id + '\')">办理</span>');
+    if (r.level === 'orange' || r.level === 'red') ops.push('<span class="link" onclick="event.stopPropagation();urgeOne(\'' + t.id + '\')">催办</span>');
+    ops.push('<span class="link" onclick="event.stopPropagation();viewCase(\'' + t.bjzj + '\')">详情</span>');
+    return [
+      '<td onclick="event.stopPropagation()"><input type="checkbox" data-pick="' + t.id + '"></td>',
+      '<td>' + FLOW.esc(t.sjbh) + '</td>',
+      '<td class="cell-lg">' + FLOW.esc(t.sxmc) + '</td>',
+      '<td>' + FLOW.esc(FLOW.dict('ywdlm', t.ywdlm)) + '</td>',
+      '<td>' + FLOW.badge(FLOW.dict('rwlx', t.rwlx), t.rwlx === '1' ? 'orange' : (t.rwlx === '3' || t.rwlx === '4' ? 'red' : 'blue')) + '</td>',
+      '<td>' + FLOW.esc(t.jd) + '</td>',
+      '<td>' + FLOW.esc(c.sqr) + '</td>',
+      '<td>' + FLOW.jjBadge(t.jjcd) + '</td>',
+      '<td>' + FLOW.remainCell(c) + '</td>',
+      '<td>' + FLOW.rwztBadge(t.rwzt) + '</td>',
+      '<td>' + ops.join(' ') + '</td>'
+    ];
+  }
+  function startCells(c) {
+    return [
+      '<td>' + FLOW.esc(c.sjbh) + '</td>',
+      '<td class="cell-lg">' + FLOW.esc(c.sxmc) + '</td>',
+      '<td>' + FLOW.esc(FLOW.dict('ywdlm', c.ywdlm)) + '</td>',
+      '<td>' + FLOW.esc(c.sqr) + '</td>',
+      '<td>' + FLOW.esc(c.jd) + '</td>',
+      '<td>' + FLOW.fmt.time(c.sjsj) + '</td>',
+      '<td>' + FLOW.remainCell(c) + '</td>',
+      '<td>' + FLOW.ztBadge(c.blzt) + '</td>',
+      '<td><span class="link" onclick="event.stopPropagation();viewCase(\'' + c.id + '\')">详情</span></td>'
+    ];
+  }
+  function doneCells(l) {
+    var c = FLOW.byId('cases', l.bjzj) || {};
+    return [
+      '<td>' + FLOW.esc(l.sjbh) + '</td>',
+      '<td class="cell-lg">' + FLOW.esc(l.sxmc) + '</td>',
+      '<td>' + FLOW.esc(FLOW.dict('ywdlm', c.ywdlm)) + '</td>',
+      '<td>' + FLOW.badge(FLOW.esc(l.jd || '出件登簿'), 'green') + '</td>',
+      '<td>' + FLOW.fmt.time(l.czsj) + '</td>',
+      '<td><span class="link" onclick="event.stopPropagation();viewCase(\'' + l.bjzj + '\')">详情</span></td>'
+    ];
+  }
+  function cellsFor(row) {
+    if (tab === 'start') return startCells(row);
+    if (tab === 'done') return doneCells(row);
+    return taskCells(row);
+  }
+
+  var EMPTY = { todo: '暂无待办任务，辛苦了', urgent: '当前无紧急待办', start: '暂无我发起的办件', done: '暂无已办记录' };
+
+  function rebindTable() {
+    FLOW.table({
+      id: 'tbTask', pageSize: 10, empty: EMPTY[tab] || '暂无数据',
+      icon: tab === 'todo' || tab === 'urgent' ? 'fa-face-smile' : 'fa-folder-open',
+      rows: rows,
+      cells: cellsFor,
+      attrs: function (row) {
+        if (tab === 'todo' || tab === 'urgent') return ' class="clickable" data-focus="' + row.id + '" onclick="handleTask(\'' + row.id + '\')"';
+        return '';
+      },
+      after: syncCounts
+    });
+  }
+
+  /* ---------- 操作 ---------- */
+  window.handleTask = function (id) { FLOW.goto('approval-handle.html', { id: id }); };
+  window.viewCase = function (cid) { FLOW.goto('case-detail.html', { id: cid }); };
+  window.signOne = function (id) { FLOW.act.signTask(id); };
+  window.urgeOne = function (id) {
+    PMS.confirm({
+      title: '催办提醒', type: 'warning', okText: '发送催办',
+      message: '向承办人与科室负责人发送催办提醒？',
+      detail: '若该件已超期，将自动升级为督办任务并按三级递进处置。',
+      onOk: function () { FLOW.act.urge(id); }
+    });
+  };
+
+  window.openAssign = function () {
+    var ids = FLOW.checked('tbTask');
+    if (!ids.length) { PMS.toast('请先勾选要分派的任务', 'error'); return; }
+    document.getElementById('asCount').textContent = ids.length + ' 件';
+    document.getElementById('asUser').innerHTML = '<option value="">请选择承办人</option>' +
+      FLOW.get('users').map(function (u) {
+        return '<option value="' + u.id + '">' + u.name + '（' + u.dept + ' · ' + u.post + '）</option>';
+      }).join('');
+    PMS.openDrawer('assignDrawer');
+  };
+  window.doAssign = function () {
+    var ids = FLOW.checked('tbTask');
+    var uid = document.getElementById('asUser').value;
+    if (!uid) { PMS.toast('请选择承办人', 'error'); return; }
+    ids.forEach(function (id) { FLOW.act.assign(id, uid); });
+    PMS.closeDrawer('assignDrawer');
+  };
+  window.openBatch = function (mode) {
+    var ids = FLOW.checked('tbTask');
+    if (!ids.length) { PMS.toast('请先勾选要办理的任务', 'error'); return; }
+    batchMode = mode;
+    var map = {
+      pass: ['批量通过', '审核意见', '批量通过将逐件校验状态与一件事主子件约束，通过后出具备案证明并触发归档。'],
+      reject: ['批量退回', '退回原因', '批量退回将把办件置为待补正并累加补正次数，请填写统一的退回原因。']
+    };
+    document.getElementById('bhTitle').textContent = map[mode][0];
+    document.getElementById('bhLabel').innerHTML = map[mode][1] + '<span class="req">*</span>';
+    document.getElementById('bhTip').textContent = map[mode][2];
+    document.getElementById('bhCount').textContent = ids.length + ' 件';
+    document.getElementById('bhText').value = '';
+    PMS.openDrawer('batchDrawer');
+  };
+  window.doBatch = function () {
+    var ids = FLOW.checked('tbTask');
+    var text = document.getElementById('bhText').value.trim();
+    if (!text) { PMS.toast('请填写办理意见', 'error'); return; }
+    FLOW.act.batchHandle(ids, batchMode, text);
+    PMS.closeDrawer('batchDrawer');
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    /* 初始化页签高亮与 data-only 显隐 */
+    document.querySelectorAll('.pt-tabs .pt-tab').forEach(function (el) {
+      el.classList.toggle('active', el.getAttribute('data-tab') === tab);
+    });
+    document.querySelectorAll('[data-only]').forEach(function (el) {
+      var ok = el.getAttribute('data-only').split(' ').indexOf(tab) >= 0;
+      el.style.display = ok ? '' : 'none';
+    });
+    rebuildHead();
+    rebindTable();
+    FLOW.on(function () { renderTree(); FLOW.paint('tbTask'); syncCounts(); });
+  });
+})();
+</script>
+</body>
+</html>

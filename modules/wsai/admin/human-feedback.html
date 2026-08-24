@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>人工修正回流 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="pt" data-active="prompt-template" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>模型底座</span>
+      <span class="sep">/</span><span>AI 输出治理</span>
+      <span class="sep">/</span><span class="cur">人工修正回流</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-shield-halved"></i>AI 输出治理 wsai-03</span>
+    <a href="../common/ai-audit-log.html?role=pt">AI 输出留痕</a>
+    <a href="prompt-template.html?role=pt">提示词模板</a>
+    <a href="content-filter.html?role=pt">内容合规过滤</a>
+    <a href="hallucination-guard.html?role=pt">幻觉防控审核</a>
+    <a class="active" href="human-feedback.html?role=pt">人工修正回流</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-arrows-rotate"></i>
+    <span>迭代台账：每个智能体的<b>采纳率、人工修正率与满意度</b>都由人工确认动作累计得出。
+      点「回流样本」把该智能体的修正与驳回样本推进底座模型的待调优池，再到<a class="link" href="model-eval.html?role=pt">模型效果评估</a>发起重训，
+      形成「用 → 纠 → 训 → 再用」的闭环。</span>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-thumbs-up"></i></div>
+      <div><div class="s-label">整体采纳率</div><div class="s-value" id="kAdopt">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-pen"></i></div>
+      <div><div class="s-label">整体修正率</div><div class="s-value" id="kFix">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-ban"></i></div>
+      <div><div class="s-label">整体驳回率</div><div class="s-value" id="kRej">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-inbox"></i></div>
+      <div><div class="s-label">未回流样本</div><div class="s-value" id="kWait">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon ai"><i class="fa-solid fa-face-smile"></i></div>
+      <div><div class="s-label">公众满意度</div><div class="s-value" id="kSat">—</div>
+        <div class="s-trend text-2" id="kSatSub">—</div></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head"><h3>各智能体迭代指标</h3><span class="sub">采纳率越高说明输出越可用</span></div>
+      <div class="card-body">
+        <div class="table-wrap" style="max-height:360px">
+          <table class="data-table compact" id="tAgent" data-static>
+            <thead><tr>
+              <th>智能体</th><th>状态</th><th class="num">调用量</th>
+              <th class="num">采纳率</th><th class="num">修正率</th><th class="num">未回流</th><th>操作</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>确认动作构成</h3><span class="sub">按应用场景统计</span></div>
+      <div class="card-body">
+        <div id="sceneBars"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3>修正回流明细</h3>
+      <span class="sub">每条人工确认动作都在此留痕</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tFb" data-static>
+        <thead><tr>
+          <th>应用场景</th><th>确认动作</th><th class="cell-lg">原 AI 结论</th>
+          <th class="cell-lg">人工修正内容</th><th>底座模型</th><th>是否已回流</th><th>确认人</th><th>时间</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  function paintKpi() {
+    var done = AI.where('outputs', function (o) { return o.qrzt !== '0'; });
+    var rej = done.length
+      ? Math.round(done.filter(function (o) { return o.qrzt === '3'; }).length / done.length * 1000) / 10 : 0;
+    document.getElementById('kAdopt').textContent = AI.stat('adoptRate') + '%';
+    document.getElementById('kFix').textContent = AI.stat('correctRate') + '%';
+    document.getElementById('kRej').textContent = rej + '%';
+    document.getElementById('kWait').textContent = AI.where('feedbacks', function (f) {
+      return !f.pushed && (f.action === '2' || f.action === '3');
+    }).length;
+
+    var chats = AI.get('chats').filter(function (c) { return c.satisfied != null; });
+    var sat = chats.length
+      ? Math.round(chats.filter(function (c) { return c.satisfied; }).length / chats.length * 1000) / 10 : 0;
+    document.getElementById('kSat').textContent = chats.length ? sat + '%' : '—';
+    document.getElementById('kSatSub').textContent = chats.length ? (chats.length + ' 次评价') : '暂无评价';
+
+    /* 按场景统计三类动作 */
+    var byScene = {};
+    AI.get('feedbacks').forEach(function (f) {
+      if (!byScene[f.scene]) byScene[f.scene] = { a: 0, f: 0, r: 0 };
+      if (f.action === '1') byScene[f.scene].a++;
+      if (f.action === '2') byScene[f.scene].f++;
+      if (f.action === '3') byScene[f.scene].r++;
+    });
+    var keys = Object.keys(byScene);
+    document.getElementById('sceneBars').innerHTML = keys.length ? keys.map(function (k) {
+      var v = byScene[k], t = v.a + v.f + v.r;
+      return '<div style="margin-bottom:12px">' +
+        '<div class="flex items-center justify-between" style="font-size:13px;margin-bottom:5px">' +
+          '<span>' + AI.dict('scene', k) + '</span>' +
+          '<span class="text-3">采纳 ' + v.a + ' · 修正 ' + v.f + ' · 驳回 ' + v.r + '</span></div>' +
+        '<div class="progress" style="display:flex;height:10px">' +
+          '<span style="width:' + (v.a / t * 100) + '%;background:var(--success);border-radius:0"></span>' +
+          '<span style="width:' + (v.f / t * 100) + '%;background:var(--primary);border-radius:0"></span>' +
+          '<span style="width:' + (v.r / t * 100) + '%;background:var(--danger);border-radius:0"></span>' +
+        '</div></div>';
+    }).join('') +
+      '<div class="graph-legend mt-16">' +
+        '<span><i style="background:var(--success)"></i>采纳</span>' +
+        '<span><i style="background:var(--primary)"></i>人工修正</span>' +
+        '<span><i style="background:var(--danger)"></i>驳回</span>' +
+      '</div>'
+      : '<div class="empty"><i class="fa-regular fa-chart-bar"></i><div>暂无人工确认记录</div></div>';
+  }
+
+  AI.table({
+    id: 'tAgent', pageSize: 10,
+    rows: function () { return AI.get('agents').filter(function (a) { return a.calls > 0; }); },
+    cells: function (a) {
+      var wait = AI.where('feedbacks', function (f) {
+        return !f.pushed && f.scene === a.scene && (f.action === '2' || f.action === '3');
+      }).length;
+      return [
+        '<td>' + AI.esc(a.mc) + '</td>',
+        '<td>' + AI.ztBadge(a.ztzt) + '</td>',
+        '<td class="num">' + AI.num(a.calls) + '</td>',
+        '<td class="num text-success fw-600">' + a.adopt + '%</td>',
+        '<td class="num">' + a.correct + '%</td>',
+        '<td class="num">' + (wait ? '<span class="text-danger fw-600">' + wait + '</span>' : '0') + '</td>',
+        '<td class="col-ops">' + (wait
+          ? '<button class="btn btn-primary btn-sm" onclick="AI.act.pushSamples(\'' + a.id + '\')">' +
+            '<i class="fa-solid fa-arrows-rotate"></i> 回流样本</button>'
+          : '<button class="btn btn-sm" onclick="AI.toast(\'该智能体暂无未回流的修正或驳回样本\',\'error\')">' +
+            '<i class="fa-solid fa-check"></i> 已回流</button>') + '</td>'
+      ];
+    },
+    empty: '暂无有调用记录的智能体'
+  });
+
+  AI.table({
+    id: 'tFb', pageSize: 10,
+    rows: function () {
+      return AI.get('feedbacks').slice().sort(function (a, b) { return b.at - a.at; });
+    },
+    cells: function (f) {
+      var o = AI.byId('outputs', f.outputId);
+      var m = AI.byId('models', f.modelId);
+      var color = { '1': 'green', '2': 'blue', '3': 'red' }[f.action] || 'gray';
+      return [
+        '<td>' + AI.dict('scene', f.scene) + '</td>',
+        '<td>' + AI.badge(AI.dict('qrzt', f.action), color) + '</td>',
+        '<td class="cell-lg">' + (o ? AI.esc(o.text) : '<span class="text-3">—</span>') + '</td>',
+        '<td class="cell-lg">' + (f.correction
+          ? AI.esc(f.correction)
+          : '<span class="text-3">' + (f.action === '1' ? '无需修正' : '未填写') + '</span>') + '</td>',
+        '<td>' + (m ? AI.esc(m.mc) : '<span class="text-3">—</span>') + '</td>',
+        '<td>' + (f.pushed
+          ? '<span class="badge green">已回流</span>'
+          : (f.action === '1' ? '<span class="badge gray">正样本无需回流</span>' : '<span class="badge orange">待回流</span>')) + '</td>',
+        '<td>' + AI.esc(f.czr || '—') + '</td>',
+        '<td>' + AI.fmt.time(f.at) + '</td>'
+      ];
+    },
+    empty: '暂无回流记录'
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () { paintKpi(); AI.repaintAll(); });
+  });
+})();
+</script>
+</body>
+</html>

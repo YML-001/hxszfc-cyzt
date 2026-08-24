@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能导办 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="jb" data-active="assist-fill" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>智能应用</span>
+      <span class="sep">/</span><span>智能办事助手</span>
+      <span class="sep">/</span><span class="cur">智能导办（PC 端）</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-wand-magic-sparkles"></i>智能办事助手 wsai-05</span>
+    <a href="../handler/assist-fill.html?role=jb">AI 辅助填报</a>
+    <a href="../handler/fill-validate.html?role=jb">智能填报校验</a>
+    <a href="chat.html?role=jb">智能客服问答</a>
+    <a class="active" href="guide-bot.html?role=jb">智能导办</a>
+    <a href="voice-fill.html?role=jb">语音交互式填报</a>
+    <a href="kiosk-avatar.html?role=jb">数字人导办</a>
+    <a href="m-guide.html?role=jb">移动端导办</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-signs-post"></i>
+    <span>按用户情形推荐应办事项、所需材料与办理路径。<b>材料清单一律取自事项材料关联表，AI 不自行增删</b>；
+      推荐结论需人工确认后才能作为正式办事指引对外发布。</span>
+  </div>
+
+  <div class="grid-2">
+    <!-- 情形选择 -->
+    <div class="card">
+      <div class="card-head">
+        <h3>请选择您的办事情形</h3>
+        <span class="sub">按业务类型逐项确认</span>
+      </div>
+      <div class="card-body">
+        <div class="quick-grid" id="kinds" style="grid-template-columns:repeat(2,1fr)"></div>
+        <div class="alert alert-info mt-16">
+          <i class="fa-solid fa-circle-info"></i>
+          <span>不确定该办哪个事项？可以先到<a class="link" href="chat.html?role=jb">智能客服问答</a>描述您的情况。</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 导办结果 -->
+    <div class="card">
+      <div class="card-head">
+        <h3>办事清单</h3>
+        <span class="sub" id="resSub">尚未选择情形</span>
+      </div>
+      <div class="card-body" id="resBox">
+        <div class="empty"><i class="fa-regular fa-rectangle-list"></i><div>请在左侧选择办事情形</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="aiPushHint" class="mt-16"></div>
+
+  <div class="card mt-16">
+    <div class="card-head"><h3>导办记录</h3><span class="sub">全部智能导办输出留痕</span></div>
+    <div class="table-wrap">
+      <table class="data-table" id="tGuide" data-static>
+        <thead><tr>
+          <th>业务标识</th><th class="cell-lg">导办结论</th><th>模型 / 版本</th>
+          <th>置信度</th><th>溯源</th><th>确认状态</th><th>时间</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var ICON = { '新房': ['fa-building', 'blue'], '二手房': ['fa-house-chimney', 'green'],
+               '租赁': ['fa-key', 'cyan'], '抵押': ['fa-building-columns', 'orange'] };
+  var last = null;
+
+  function paintKinds() {
+    document.getElementById('kinds').innerHTML = AI.act.guideRules().map(function (r) {
+      var m = ICON[r.key] || ['fa-file-lines', 'blue'];
+      return '<a class="quick-item" onclick="go(\'' + r.key + '\')" style="cursor:pointer">' +
+        '<span class="q-ico ' + m[1] + '"><i class="fa-solid ' + m[0] + '"></i></span>' +
+        '<span class="q-label">我要办' + AI.esc(r.key) + '<div class="text-3 text-sm">' + AI.esc(r.sxmc) + '</div></span></a>';
+    }).join('');
+  }
+
+  window.go = function (kind) {
+    var r = AI.act.guide(kind, '1');
+    if (!r) return;
+    last = r;
+    paintRes();
+  };
+
+  function paintRes() {
+    if (!last) return;
+    var o = AI.byId('outputs', last.output.id) || last.output;
+    var r = last.rule;
+    document.getElementById('resSub').textContent = r.sxmc;
+    document.getElementById('resBox').innerHTML =
+      '<div class="flex items-center gap-12 mb-16" style="flex-wrap:wrap">' +
+        AI.aiMark(o.qrzt) + AI.aiSource(o) + '</div>' +
+      (o.blocked
+        ? '<div class="alert alert-danger"><i class="fa-solid fa-shield-halved"></i>' +
+          '<span>未检索到该事项的已生效办事指南，按幻觉防控要求不予推荐，已转人工。' +
+          '请到<a class="link" href="../admin/knowledge-audit.html?role=pt">知识库更新审核</a>确认对应指南是否已生效。</span></div>'
+        : '<div class="grp-card"><div class="grp-head"><span class="gi"><i class="fa-solid fa-clipboard-list"></i></span>' +
+            '推荐事项</div>' +
+            '<dl class="desc-list">' +
+              '<div class="desc-item"><dt>应办事项</dt><dd>' + AI.esc(r.sxmc) + '</dd></div>' +
+              '<div class="desc-item"><dt>承诺时限</dt><dd>' + r.days + ' 个工作日</dd></div>' +
+              '<div class="desc-item"><dt>材料件数</dt><dd>' + r.mats.length + ' 项</dd></div>' +
+              '<div class="desc-item"><dt>办理渠道</dt><dd>综合窗口 / 网上办 / 自助终端</dd></div>' +
+            '</dl></div>' +
+          '<div class="grp-card"><div class="grp-head"><span class="gi"><i class="fa-solid fa-folder-open"></i></span>' +
+            '所需材料（取自事项材料关联表）</div>' +
+            '<div class="home-todo">' + r.mats.map(function (m, i) {
+              return '<div class="todo-row"><span class="badge blue">' + (i + 1) + '</span>' +
+                '<span class="todo-text">' + AI.esc(m) + '</span>' +
+                '<span class="todo-time">原件 + 复印件</span></div>';
+            }).join('') + '</div></div>' +
+          '<div class="grp-card"><div class="grp-head"><span class="gi"><i class="fa-solid fa-route"></i></span>' +
+            '办理路径</div>' +
+            '<div class="flow-canvas" style="padding:12px 8px">' +
+              ['取号或网上申报', '窗口收件与材料核验', '业务审核', '出件与备案证明'].map(function (s, i) {
+                return (i ? '<div class="flow-arrow"><i class="fa-solid fa-angle-right"></i></div>' : '') +
+                  '<div class="flow-node" style="padding:9px 12px"><div class="fn-h" style="font-size:12.5px">' +
+                  '<i class="fa-solid fa-' + ['ticket', 'inbox', 'user-check', 'stamp'][i] + '"></i>' + s + '</div></div>';
+              }).join('') +
+            '</div></div>') +
+      '<div class="mt-16 btn-row">' +
+        (o.qrzt === '0'
+          ? AI.actTriplet(o.id)
+          : '<button class="btn btn-primary" onclick="toIntake()"><i class="fa-solid fa-arrow-right"></i> 一键去统一收件</button>') +
+      '</div>';
+  }
+
+  window.toIntake = function () {
+    AI.pushTo('统一工作门户 · 统一收件', last.rule.sxmc + ' 已预选事项',
+      '../../统一门户/biz/intake.html?role=biz');
+  };
+
+  AI.table({
+    id: 'tGuide', pageSize: 10,
+    rows: function () { return AI.where('outputs', function (o) { return o.scene === '02'; }); },
+    cells: function (o) {
+      return [
+        '<td>' + AI.esc(o.bizId) + '</td>',
+        '<td class="cell-lg">' + AI.esc(o.text) + '</td>',
+        '<td>' + AI.esc(o.mxmc) + '<br><span class="text-3 text-sm">' + AI.esc(o.ver) + '</span></td>',
+        '<td>' + AI.confidence(o.conf) + '</td>',
+        '<td>' + AI.citeChips(o.cites) + '</td>',
+        '<td>' + AI.qrBadge(o.qrzt) + '</td>',
+        '<td>' + AI.fmt.time(o.at) + '</td>',
+        '<td class="col-ops">' + (o.qrzt === '0' ? AI.actTriplet(o.id) : '<span class="text-3">已确认</span>') + '</td>'
+      ];
+    },
+    empty: '暂无导办记录'
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    paintKinds();
+    AI.on(function () { if (last) paintRes(); AI.repaintAll(); });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>预约取号 · 统一工作门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="biz" data-active="appointment">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 预约窗口
+        <span class="sep">/</span> <span class="cur">预约取号</span>
+      </div>
+      <div class="page-title">预约取号</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="openQuota()"><i class="fa-solid fa-sliders"></i> 号源配置</button>
+      <button class="btn btn-primary" onclick="openBook()"><i class="fa-solid fa-plus"></i> 新增预约</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-calendar-check"></i></div><div>
+      <div class="s-label">预约总量</div><div class="s-value" id="kAll">—</div></div></div>
+    <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-person-walking"></i></div><div>
+      <div class="s-label">到场率</div><div class="s-value" id="kArrive">—</div></div></div>
+    <div class="stat-card"><div class="s-icon red"><i class="fa-solid fa-user-slash"></i></div><div>
+      <div class="s-label">失约率</div><div class="s-value" id="kNoShow">—</div><div class="s-trend text-danger">用于号源调整</div></div></div>
+    <div class="stat-card"><div class="s-icon orange"><i class="fa-solid fa-users-line"></i></div><div>
+      <div class="s-label">当前等待</div><div class="s-value" id="kWait">—</div></div></div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <span>号源上限是<b>硬约束</b>：某窗口某时段号源用尽即不可预约，取消或改约会释放号源。排队规则为<b>预约号优先于现场号</b>，同类型按取号先后排序。</span>
+  </div>
+
+  <!-- 台账与叫号分页签，避免两块面板挤压列表可视高度 -->
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="list" onclick="setTab('list')">预约台账</div>
+      <div class="tab" data-tab="call" onclick="setTab('call')">排队叫号与号源余量</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="list">
+      <div class="filter-bar">
+        <div class="filter-item"><label>申请人 / 预约号</label><input type="text" id="fKw" placeholder="姓名或预约号" oninput="repaint()"></div>
+        <div class="filter-item"><label>预约状态</label><select id="fYyzt" data-dict="yyzt" onchange="repaint()"></select></div>
+        <div class="filter-item"><label>窗口</label><select id="fWid" onchange="repaint()"></select></div>
+        <div class="filter-item"><label>预约渠道</label>
+          <select id="fWay" onchange="repaint()">
+            <option value="">全部</option><option value="统一服务门户">统一服务门户</option>
+            <option value="微信小程序">微信小程序</option><option value="移动端">移动端</option>
+          </select></div>
+        <button class="btn btn-primary" onclick="repaint()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button class="btn" onclick="resetFilter()">重置</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="tbAppt" data-static>
+          <thead>
+            <tr><th>预约号</th><th>申请人</th><th>办理事项</th><th>窗口</th><th>预约日期</th>
+                <th>时段</th><th>状态</th><th>操作</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="call">
+      <div class="filter-bar">
+        <div class="filter-item"><label>叫号窗口</label><select id="callWid" onchange="renderQueue()"></select></div>
+        <div class="spacer"></div>
+        <button class="btn btn-primary" onclick="doCall()"><i class="fa-solid fa-bullhorn"></i> 叫下一位</button>
+        <button class="btn" onclick="doWalkIn()"><i class="fa-solid fa-plus"></i> 现场取号</button>
+      </div>
+      <div class="card-body">
+        <div class="grid-2">
+          <div id="queuePanel"></div>
+          <div>
+            <div class="section-title">今日号源余量　<span class="node-tag"><i class="fa-solid fa-user-shield"></i>事项管理员</span></div>
+            <div id="quotaPanel"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- 新增预约 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="bookDrawer">
+  <div class="drawer-head"><h3>新增预约</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation"></i>
+      <span>选择时段时会实时校验号源余量，<b>余量为 0 的时段不可选</b>。</span></div>
+    <div class="form-grid">
+      <div class="form-item"><label>申请人<span class="req">*</span></label><input type="text" id="bSqr" placeholder="如 罗永年"></div>
+      <div class="form-item"><label>联系电话</label><input type="text" id="bDh" placeholder="如 186****6034"></div>
+      <div class="form-item"><label>办理事项<span class="req">*</span></label><select id="bSxdm"></select></div>
+      <div class="form-item"><label>窗口<span class="req">*</span></label><select id="bWid" onchange="renderSlots()"></select></div>
+      <div class="form-item"><label>预约渠道</label>
+        <select id="bWay"><option>统一服务门户</option><option>微信小程序</option><option>移动端</option></select></div>
+      <div class="form-item"><label>预约日期</label><input type="date" id="bDate" onchange="renderSlots()"></div>
+      <div class="form-item col-full"><label>时段<span class="req">*</span></label><div id="slotPick" class="grid-2"></div></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="doBook()"><i class="fa-solid fa-check"></i> 确认预约</button>
+  </div>
+</div>
+
+<!-- 号源配置 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="quotaDrawer">
+  <div class="drawer-head"><h3>号源资源配置</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>
+      <span>按窗口配置单时段号源上限，支持县区独立配置。保存后预约页可选余量即时变化。</span></div>
+    <div class="table-wrap">
+      <table class="data-table" data-static id="tbQuota">
+        <thead><tr><th>窗口</th><th>类型</th><th>可办业务</th><th>属地</th><th>单时段上限</th><th>操作</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="drawer-foot"><button class="btn btn-primary" data-close-drawer>完成</button></div>
+</div>
+
+<!-- 改约 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="rebookDrawer">
+  <div class="drawer-head"><h3>改约时段</h3><span class="badge blue" id="rbNo">—</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-info"><i class="fa-solid fa-circle-info"></i><span>改约会释放原时段号源并占用新时段号源；目标时段号源已满时不能改约。</span></div>
+    <div class="form-item col-full"><label>目标时段<span class="req">*</span></label><div id="rbSlots" class="grid-2"></div></div>
+  </div>
+  <div class="drawer-foot"><button class="btn" data-close-drawer>取消</button></div>
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/flow-data.js"></script>
+<script src="../assets/js/flow.js"></script>
+<script>
+(function () {
+  var SLOTS = FLOW_DATA.SLOTS;
+  var pickedSlot = '', rebookId = null, tab = 'list';
+
+  function val(id) { return (document.getElementById(id).value || '').trim(); }
+  window.setTab = function (t) {
+    tab = t;
+    document.querySelectorAll('.tabs .tab').forEach(function (el) {
+      el.classList.toggle('active', el.getAttribute('data-tab') === t);
+    });
+    document.querySelectorAll('.tab-panel').forEach(function (p) {
+      p.classList.toggle('active', p.getAttribute('data-panel') === t);
+    });
+    if (t === 'list') FLOW.paint('tbAppt'); else render();
+  };
+  window.resetFilter = function () {
+    ['fKw', 'fYyzt', 'fWid', 'fWay'].forEach(function (id) { document.getElementById(id).value = ''; });
+    repaint(); PMS.toast('已重置查询条件');
+  };
+
+  function rows() {
+    var kw = val('fKw'), zt = val('fYyzt'), wid = val('fWid'), way = val('fWay');
+    return FLOW.get('appts').slice().sort(function (a, b) { return b.createdAt - a.createdAt; })
+      .filter(function (a) {
+        if (kw && a.sqr.indexOf(kw) < 0 && a.yyh.indexOf(kw) < 0) return false;
+        if (zt && a.yyzt !== zt) return false;
+        if (wid && a.wid !== wid) return false;
+        if (way && a.way !== way) return false;
+        return true;
+      });
+  }
+  window.repaint = function () { FLOW.paint('tbAppt'); render(); };
+
+  function render() {
+    document.getElementById('kAll').textContent = FLOW.stat('apptTotal');
+    document.getElementById('kArrive').textContent = FLOW.stat('arriveRate');
+    document.getElementById('kNoShow').textContent = FLOW.stat('noShowRate');
+    document.getElementById('kWait').textContent = FLOW.stat('waiting');
+    renderQueue();
+    renderQuota();
+  }
+
+  /* 功能点 34 排队叫号 */
+  window.renderQueue = function () {
+    var wid = val('callWid');
+    var list = FLOW.where('queue', function (q) { return !wid || q.wid === wid; });
+    var doing = list.filter(function (q) { return q.pdzt === '2'; });
+    var waiting = list.filter(function (q) { return q.pdzt === '0'; })
+      .sort(function (a, b) {
+        if (a.isAppt !== b.isAppt) return b.isAppt - a.isAppt;
+        return a.createdAt - b.createdAt;
+      });
+    document.getElementById('queuePanel').innerHTML =
+      '<div style="background:var(--primary);color:#fff;border-radius:8px;padding:18px;text-align:center;margin-bottom:14px">' +
+        '<div style="font-size:12.5px;opacity:.85">当前办理</div>' +
+        '<div style="font-size:30px;font-weight:700;letter-spacing:2px;margin:4px 0">' +
+          (doing.length ? FLOW.esc(doing[0].pdh) : '—') + '</div>' +
+        '<div style="font-size:13px;opacity:.9">' +
+          (doing.length ? FLOW.esc(doing[0].sqr) + ' · ' + FLOW.esc(doing[0].wname) : '暂无叫号') + '</div>' +
+      '</div>' +
+      '<div class="section-title">等待队列（' + waiting.length + ' 人，预约号优先）</div>' +
+      (waiting.length ? '<div class="home-todo">' + waiting.slice(0, 8).map(function (q) {
+        return '<div class="todo-row">' +
+          FLOW.badge(q.pdh, q.isAppt ? 'blue' : 'gray') +
+          '<span class="todo-text">' + FLOW.esc(q.sqr) + '　' + FLOW.esc(q.sxmc) + '</span>' +
+          '<span class="todo-time">' + (q.isAppt ? '预约号 · 优先' : '现场号') + '</span></div>';
+      }).join('') + '</div>'
+        : '<div class="empty" style="padding:24px"><i class="fa-regular fa-user"></i><div>当前没有等待中的号</div></div>');
+  };
+  window.doCall = function () { FLOW.act.callNext(val('callWid') || null); };
+  window.doWalkIn = function () {
+    var name = FLOW_DATA.USERS ? '现场群众' : '现场群众';
+    FLOW.act.walkIn(name, val('callWid') || 'W01');
+  };
+
+  /* 功能点 35 号源余量 */
+  function renderQuota() {
+    var ws = FLOW.get('windows');
+    document.getElementById('quotaPanel').innerHTML =
+      '<div class="table-wrap"><table class="data-table" data-static><thead><tr><th>窗口</th>' +
+      SLOTS.map(function (s) { return '<th class="num">' + s + '</th>'; }).join('') +
+      '</tr></thead><tbody>' + ws.map(function (w) {
+        return '<tr><td>' + FLOW.esc(w.name) + '</td>' + SLOTS.map(function (s) {
+          var left = FLOW.act.slotLeft(w.id, s, Date.now());
+          var color = left === 0 ? 'red' : (left <= 3 ? 'orange' : 'green');
+          return '<td class="num">' + FLOW.badge(left + ' / ' + w.cap, color) + '</td>';
+        }).join('') + '</tr>';
+      }).join('') + '</tbody></table></div>';
+  }
+  window.openQuota = function () {
+    document.querySelector('#tbQuota tbody').innerHTML = FLOW.get('windows').map(function (w) {
+      return '<tr><td>' + FLOW.esc(w.name) + '</td><td>' + FLOW.esc(w.type) + '</td>' +
+        '<td>' + FLOW.esc(w.scope) + '</td><td>' + FLOW.esc(FLOW.dict('said', w.said)) + '</td>' +
+        '<td><input type="number" min="1" value="' + w.cap + '" data-cap="' + w.id + '" style="width:90px"></td>' +
+        '<td><span class="link" onclick="saveCap(\'' + w.id + '\')">保存</span></td></tr>';
+    }).join('');
+    PMS.openDrawer('quotaDrawer');
+  };
+  window.saveCap = function (wid) {
+    var input = document.querySelector('[data-cap="' + wid + '"]');
+    if (FLOW.act.saveQuota(wid, input.value)) { renderQuota(); }
+  };
+
+  /* 功能点 33 网上预约 */
+  window.openBook = function () {
+    document.getElementById('bSqr').value = '';
+    document.getElementById('bDh').value = '';
+    pickedSlot = '';
+    renderSlots();
+    PMS.openDrawer('bookDrawer');
+  };
+  window.renderSlots = function () {
+    var wid = val('bWid');
+    var date = val('bDate') ? new Date(val('bDate') + 'T09:00:00').getTime() : Date.now();
+    document.getElementById('slotPick').innerHTML = SLOTS.map(function (s) {
+      var left = FLOW.act.slotLeft(wid, s, date);
+      var full = left <= 0;
+      return '<label class="quick-item" style="cursor:' + (full ? 'not-allowed' : 'pointer') +
+        ';flex-direction:row;justify-content:space-between;padding:12px;opacity:' + (full ? '.55' : '1') + '">' +
+        '<span class="flex items-center gap-8">' +
+          '<input type="radio" name="slot" value="' + s + '"' + (full ? ' disabled' : '') +
+          (pickedSlot === s ? ' checked' : '') + ' onchange="pickedSlot=this.value">' +
+          '<span class="q-label">' + s + '</span></span>' +
+        FLOW.badge(full ? '已满' : ('余 ' + left), full ? 'red' : (left <= 3 ? 'orange' : 'green')) +
+        '</label>';
+    }).join('');
+  };
+  window.doBook = function () {
+    var date = val('bDate') ? new Date(val('bDate') + 'T09:00:00').getTime() : Date.now();
+    var a = FLOW.act.book({
+      sqr: val('bSqr'), sqrdh: val('bDh'), sxdm: val('bSxdm'),
+      wid: val('bWid'), slot: pickedSlot, date: date, way: val('bWay')
+    });
+    if (a) { PMS.closeDrawer('bookDrawer'); }
+  };
+
+  /* 取号 / 取消 / 改约 / 爽约 */
+  window.doTake = function (id) { FLOW.act.takeNumber(id); };
+  window.doCancel = function (id) {
+    PMS.confirm({
+      title: '取消预约', type: 'warning', okText: '取消预约',
+      message: '确认取消该预约？', detail: '取消后号源立即释放，可被其他申请人预约。',
+      onOk: function () { FLOW.act.cancelBook(id); }
+    });
+  };
+  window.openRebook = function (id) {
+    rebookId = id;
+    var a = FLOW.byId('appts', id);
+    document.getElementById('rbNo').textContent = a.yyh;
+    document.getElementById('rbSlots').innerHTML = SLOTS.map(function (s) {
+      var left = FLOW.act.slotLeft(a.wid, s, a.date);
+      var full = left <= 0 || s === a.slot;
+      return '<button class="btn" ' + (full ? 'disabled' : '') + ' onclick="doRebook(\'' + s + '\')" ' +
+        'style="justify-content:space-between;height:auto;padding:10px 14px">' +
+        '<span>' + s + '</span>' + (s === a.slot ? '<span class="text-3">当前时段</span>' : FLOW.badge(full ? '已满' : ('余 ' + left), full ? 'red' : 'green')) +
+        '</button>';
+    }).join('');
+    PMS.openDrawer('rebookDrawer');
+  };
+  window.doRebook = function (slot) {
+    if (FLOW.act.rebook(rebookId, slot)) PMS.closeDrawer('rebookDrawer');
+  };
+  window.doNoShow = function (id) {
+    PMS.confirm({
+      title: '标记爽约', type: 'danger', okText: '标记爽约',
+      message: '确认将该预约标记为爽约？', detail: '爽约记录将计入失约率，用于号源投放调整。',
+      onOk: function () { FLOW.act.markNoShow(id); }
+    });
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var ws = FLOW.get('windows');
+    var wopts = ws.map(function (w) { return '<option value="' + w.id + '">' + FLOW.esc(w.name) + '</option>'; }).join('');
+    document.getElementById('callWid').innerHTML = '<option value="">全部窗口</option>' + wopts;
+    document.getElementById('fWid').innerHTML = '<option value="">全部窗口</option>' + wopts;
+    document.getElementById('bWid').innerHTML = wopts;
+    document.getElementById('bSxdm').innerHTML = FLOW.get('items').map(function (it) {
+      return '<option value="' + it.sxdm + '">' + FLOW.esc(it.sxmc) + '</option>';
+    }).join('');
+    document.getElementById('bDate').value = new Date().toISOString().slice(0, 10);
+
+    FLOW.table({
+      id: 'tbAppt', pageSize: 8, empty: '没有匹配的预约记录', icon: 'fa-calendar-xmark',
+      rows: rows,
+      cells: function (a) {
+        var ops = [];
+        if (a.yyzt === '0') {
+          ops.push('<span class="link" onclick="event.stopPropagation();doTake(\'' + a.id + '\')">取号</span>');
+          ops.push('<span class="link" onclick="event.stopPropagation();openRebook(\'' + a.id + '\')">改约</span>');
+          ops.push('<span class="link danger" onclick="event.stopPropagation();doCancel(\'' + a.id + '\')">取消</span>');
+          ops.push('<span class="link danger" onclick="event.stopPropagation();doNoShow(\'' + a.id + '\')">爽约</span>');
+        } else if (a.yyzt === '1') {
+          ops.push('<span class="link danger" onclick="event.stopPropagation();doNoShow(\'' + a.id + '\')">爽约</span>');
+        } else {
+          ops.push('<span class="text-3">—</span>');
+        }
+        var color = { '0': 'blue', '1': 'cyan', '2': 'green', '3': 'gray', '4': 'red', '5': 'gray' }[a.yyzt];
+        return [
+          '<td>' + FLOW.esc(a.yyh) + '</td>',
+          '<td>' + FLOW.esc(a.sqr) + '</td>',
+          '<td>' + FLOW.esc(a.sxmc) + '</td>',
+          '<td>' + FLOW.esc(a.wname) + '</td>',
+          '<td>' + FLOW.fmt.date(a.date) + '</td>',
+          '<td>' + FLOW.esc(a.slot) + '</td>',
+          '<td>' + FLOW.badge(FLOW.dict('yyzt', a.yyzt), color) + '</td>',
+          '<td>' + ops.join(' ') + '</td>'
+        ];
+      },
+      attrs: function (a) { return ' data-focus="' + a.id + '"'; },
+      after: render
+    });
+    FLOW.on(function () { FLOW.paint('tbAppt'); render(); });
+  });
+})();
+</script>
+</body>
+</html>

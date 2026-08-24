@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>备案办理与备案证明 · 房屋租赁网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：五项校验列表、自动备案成功卡、A4 备案证明、共享推送开关行 */
+  .chk-row {
+    display: flex; align-items: flex-start; gap: 11px; padding: 12px 14px; background: #fff;
+    border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  .chk-row + .chk-row { margin-top: 8px; }
+  .chk-row .cr-i {
+    width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .chk-row .cr-i.ok { background: var(--success-light); color: var(--success); }
+  .chk-row .cr-i.na { background: #eef1f6; color: var(--text-3); }
+  .chk-row .cr-b { flex: 1; min-width: 0; }
+  .chk-row .cr-t { font-size: 13.5px; font-weight: 600; color: var(--text-1); }
+  .chk-row .cr-d { font-size: 12.5px; color: var(--text-3); margin-top: 4px; line-height: 1.6; }
+  .chk-row .cr-ms { font-family: Consolas, monospace; font-size: 12px; color: var(--text-3); flex-shrink: 0; align-self: center; }
+
+  .ok-card {
+    border: 1px solid #bbf7d0; background: linear-gradient(135deg, #f0fdf4, #f6fdf9);
+    border-radius: var(--radius); padding: 20px; display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  }
+  .ok-card .oc-i {
+    width: 54px; height: 54px; border-radius: 50%; background: var(--success); color: #fff;
+    display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0;
+  }
+  .ok-card .oc-t { font-size: 17px; font-weight: 700; color: var(--text-1); }
+  .ok-card .oc-d { font-size: 12.5px; color: var(--text-3); margin-top: 5px; line-height: 1.8; }
+  .ok-card .oc-d b { color: var(--success); font-family: Consolas, monospace; font-size: 13.5px; }
+
+  .fold-head {
+    display: flex; align-items: center; justify-content: space-between; cursor: pointer;
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 11px 14px; background: var(--bg-soft);
+    font-size: 13.5px; font-weight: 600; color: var(--text-1);
+  }
+  .fold-body { border: 1px solid var(--border); border-top: none; border-radius: 0 0 var(--radius) var(--radius); padding: 14px; background: #fff; }
+
+  .cert {
+    width: 100%; max-width: 620px; margin: 0 auto; aspect-ratio: 1 / 1.414; background: #fff;
+    border: 1px solid var(--border); border-radius: 4px; padding: 34px 40px; position: relative;
+    box-shadow: 0 4px 18px rgba(15, 23, 42, .08); display: flex; flex-direction: column;
+  }
+  .cert .ct-org { text-align: center; font-size: 15px; color: #b91c1c; letter-spacing: 3px; font-weight: 700; }
+  .cert .ct-title { text-align: center; font-size: 25px; font-weight: 700; letter-spacing: 6px; margin: 22px 0 8px; color: var(--text-1); }
+  .cert .ct-no { text-align: center; font-size: 13px; color: var(--text-2); margin-bottom: 20px; }
+  .cert .ct-line { height: 2px; background: #b91c1c; margin-bottom: 20px; }
+  .cert table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .cert td { border: 1px solid #cbd5e1; padding: 8px 10px; line-height: 1.6; }
+  .cert td.lb { width: 108px; background: #f8fafc; color: var(--text-3); }
+  .cert .ct-foot { margin-top: auto; display: flex; align-items: flex-end; justify-content: space-between; }
+  .cert .ct-qr {
+    width: 82px; height: 82px; border: 1px solid var(--border); border-radius: 4px; background: #fff;
+    background-image: repeating-linear-gradient(0deg, #0f172a 0 4px, transparent 4px 8px),
+                      repeating-linear-gradient(90deg, #0f172a 0 4px, transparent 4px 8px);
+    background-size: 8px 8px; opacity: .85;
+  }
+  .cert .ct-qrtip { font-size: 11px; color: var(--text-3); margin-top: 5px; max-width: 150px; line-height: 1.5; }
+  .cert .ct-seal {
+    width: 108px; height: 108px; border-radius: 50%; border: 3px solid #b91c1c; color: #b91c1c;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    font-size: 12px; font-weight: 700; line-height: 1.5; transform: rotate(-14deg); opacity: .82; padding: 10px;
+  }
+  .cert .ct-date { text-align: right; font-size: 12.5px; color: var(--text-2); margin-top: 8px; }
+
+  .sw-row {
+    display: flex; align-items: center; gap: 12px; padding: 11px 13px; background: #fff;
+    border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  .sw-row + .sw-row { margin-top: 8px; }
+  .sw-row .sr-t { font-size: 13.5px; font-weight: 600; flex: 1; min-width: 0; }
+  .sw-row .sr-m { font-size: 12px; color: var(--text-3); margin-top: 3px; font-weight: 400; }
+
+  .radio-line { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; min-height: 32px; }
+  .radio-line label { font-size: 14px; color: var(--text-2); font-weight: 400; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wszwb-15">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋租赁网签备案管理系统
+        <span class="sep">/</span> 合同网签备案
+        <span class="sep">/</span> <a class="link" href="contract-list.html">租赁合同台账</a>
+        <span class="sep">/</span> <span class="cur">备案办理与备案证明</span>
+      </div>
+      <div class="page-title">租赁备案办理与备案证明</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="contract-detail.html"><i class="fa-solid fa-arrow-left"></i> 返回合同</a>
+      <button type="button" class="btn" onclick="PMS.toast('备案证明已发送至打印机','success')"><i class="fa-solid fa-print"></i> 打印证明</button>
+      <button type="button" class="btn btn-primary" onclick="pushAll()"><i class="fa-solid fa-share-nodes"></i> 推送共享</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      租赁合同备案不收取任何费用。备案证明可用于落户与居住登记、适龄儿童入学学位申请、住房公积金租房提取、人才租房补贴申请、市场主体住所登记五类公共服务事项。
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3><i class="fa-solid fa-file-contract"></i> 合同摘要</h3></div>
+    <div class="card-body">
+      <dl class="desc-list">
+        <div class="desc-item full"><dt>房屋坐落</dt><dd class="fw-600">柳州市城中区文昌路 66 号阳光 100 城市广场 3 栋 2 单元 1602 室</dd></div>
+        <div class="desc-item"><dt>合同编号</dt><dd>ZLHT450200202600512</dd></div>
+        <div class="desc-item"><dt>网签编号</dt><dd>WQ450200202600512</dd></div>
+        <div class="desc-item"><dt>合同状态</dt><dd><span class="badge green">已签署</span></dd></div>
+        <div class="desc-item"><dt>出租人</dt><dd>陈某某</dd></div>
+        <div class="desc-item"><dt>承租人</dt><dd>黄某某</dd></div>
+        <div class="desc-item"><dt>租赁期限</dt><dd>2026-08-01 至 2027-07-31</dd></div>
+        <div class="desc-item"><dt>月租金</dt><dd class="fw-600">2,300.00 元</dd></div>
+        <div class="desc-item"><dt>押金</dt><dd>2,300.00 元</dd></div>
+        <div class="desc-item"><dt>签订时间</dt><dd>2026-07-30 14:52</dd></div>
+      </dl>
+
+      <div class="section-title mt-16">备案类型与申请渠道</div>
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>备案类型<span class="req">*</span></label>
+          <select><option selected>0 首次备案</option><option>1 变更备案</option><option>2 续租备案</option><option>3 注销备案</option><option>4 转租备案</option></select>
+        </div>
+        <div class="form-item">
+          <label>申请渠道<span class="req">*</span></label>
+          <select><option>窗口</option><option selected>统一服务门户</option><option>微信小程序</option><option>企业端</option><option>经纪机构</option></select>
+        </div>
+        <div class="form-item"><label>受理时间</label><input type="text" readonly value="2026-07-30 14:53"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-shield-halved"></i> 备案五项自动校验</h3>
+      <span class="sub">全部通过即自动备案，存在疑点时转人工审核</span>
+    </div>
+    <div class="card-body">
+      <div class="chk-row">
+        <div class="cr-i ok"><i class="fa-solid fa-check"></i></div>
+        <div class="cr-b">
+          <div class="cr-t">核验码有效性 <span class="badge green">通过</span></div>
+          <div class="cr-d">ZLHY-450200-2026-000386，有效期至 2026-10-27，签约时点在有效期内。</div>
+        </div>
+        <div class="cr-ms">62ms</div>
+      </div>
+      <div class="chk-row">
+        <div class="cr-i ok"><i class="fa-solid fa-check"></i></div>
+        <div class="cr-b">
+          <div class="cr-t">房屋在租备案冲突 <span class="badge green">通过</span></div>
+          <div class="cr-d">不动产单元号 450201001002GB00186F00021602 无有效在租备案，无重复备案冲突。</div>
+        </div>
+        <div class="cr-ms">108ms</div>
+      </div>
+      <div class="chk-row">
+        <div class="cr-i ok"><i class="fa-solid fa-check"></i></div>
+        <div class="cr-b">
+          <div class="cr-t">当事人实名认证 <span class="badge green">通过</span></div>
+          <div class="cr-d">出租人陈某某、承租人黄某某均已完成实名认证，证件信息与签署人一致。</div>
+        </div>
+        <div class="cr-ms">86ms</div>
+      </div>
+      <div class="chk-row">
+        <div class="cr-i ok"><i class="fa-solid fa-check"></i></div>
+        <div class="cr-b">
+          <div class="cr-t">租金押金要素完整性 <span class="badge green">通过</span></div>
+          <div class="cr-d">押金 2,300 元＝1 个月租金，未超 3 个月上限；支付周期季付，未一次性收取超 3 个月租金。</div>
+        </div>
+        <div class="cr-ms">41ms</div>
+      </div>
+      <div class="chk-row">
+        <div class="cr-i na"><i class="fa-solid fa-minus"></i></div>
+        <div class="cr-b">
+          <div class="cr-t">主体备案状态 <span class="badge gray">不适用</span></div>
+          <div class="cr-d">本合同为个人直租，无企业主体，不校验开业报告与机构备案状态。</div>
+        </div>
+        <div class="cr-ms">—</div>
+      </div>
+
+      <div class="ok-card mt-16">
+        <div class="oc-i"><i class="fa-solid fa-check"></i></div>
+        <div>
+          <div class="oc-t">自动备案完成，用时 5.2 秒</div>
+          <div class="oc-d">
+            备案编号 <b>ZLBA450200202600478</b>　备案时间 2026-07-30 14:53<br>
+            备案有效期 2026-08-01 至 2027-07-31　备案证明编号 柳房租备字〔2026〕第 000478 号
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-16">
+        <div class="fold-head" onclick="toggleFold()">
+          <span><i class="fa-solid fa-user-check"></i> 转人工审核分支（存在疑点时启用）</span>
+          <i class="fa-solid fa-chevron-down" id="foldIco"></i>
+        </div>
+        <div class="fold-body" id="foldBody" style="display:none">
+          <div class="form-grid form-align">
+            <div class="form-item"><label>受理人</label><input type="text" readonly value="韦国强"></div>
+            <div class="form-item"><label>受理时间</label><input type="text" readonly value="2026-07-30 14:53"></div>
+            <div class="form-item"><label>审核人</label><input type="text" value="周建华"></div>
+            <div class="form-item"><label>审核时间</label><input type="datetime-local" value="2026-07-30T15:20"></div>
+            <div class="form-item">
+              <label>审核结果</label>
+              <select><option selected>待审</option><option>通过</option><option>退回补正</option><option>不予备案</option></select>
+            </div>
+            <div class="form-item col-full"><label>审核意见</label><textarea rows="3" placeholder="填写审核意见，退回补正时须写明补正事项与期限"></textarea></div>
+          </div>
+          <div class="flex gap-8 mt-16">
+            <button type="button" class="btn btn-primary btn-sm" onclick="PMS.toast('人工审核通过，已完成备案','success')">通过</button>
+            <button type="button" class="btn btn-sm" onclick="PMS.toast('已退回补正，短信告知申请人','success')">退回补正</button>
+            <button type="button" class="btn btn-danger btn-sm" onclick="PMS.toast('已出具不予备案结论','success')">不予备案</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-certificate"></i> 备案证明预览</h3>
+      <span class="sub">电子印章已加盖，可扫码验真</span>
+    </div>
+    <div class="card-body">
+      <div class="cert">
+        <div class="ct-org">XXXX市住房和城乡建设局</div>
+        <div class="ct-title">房屋租赁合同备案证明</div>
+        <div class="ct-no">柳房租备字〔2026〕第 000478 号</div>
+        <div class="ct-line"></div>
+        <table>
+          <tr><td class="lb">备案编号</td><td>ZLBA450200202600478</td><td class="lb">合同编号</td><td>ZLHT450200202600512</td></tr>
+          <tr><td class="lb">房屋坐落</td><td colspan="3">柳州市城中区文昌路 66 号阳光 100 城市广场 3 栋 2 单元 1602 室</td></tr>
+          <tr><td class="lb">租赁方式</td><td>整租</td><td class="lb">出租面积</td><td>82.60 ㎡</td></tr>
+          <tr><td class="lb">出租人</td><td>陈某某</td><td class="lb">承租人</td><td>黄某某</td></tr>
+          <tr><td class="lb">租赁期限</td><td colspan="3">2026 年 8 月 1 日 至 2027 年 7 月 31 日（12 个月）</td></tr>
+          <tr><td class="lb">月租金</td><td>人民币 2,300.00 元</td><td class="lb">备案时间</td><td>2026 年 7 月 30 日</td></tr>
+          <tr><td class="lb">备案有效期</td><td colspan="3">2026 年 8 月 1 日 至 2027 年 7 月 31 日</td></tr>
+        </table>
+        <div class="ct-foot">
+          <div>
+            <div class="ct-qr"></div>
+            <div class="ct-qrtip">扫描二维码或登录住房租赁服务平台可核验本证明真伪</div>
+          </div>
+          <div>
+            <div class="ct-seal">XXXX市住房和城乡建设局<br>租赁备案专用章</div>
+            <div class="ct-date">2026 年 7 月 30 日</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-8 mt-16" style="justify-content:center">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('备案证明 PDF 已开始下载','success')"><i class="fa-solid fa-download"></i> 下载 PDF</button>
+        <button type="button" class="btn" onclick="PMS.toast('已发送至打印机','success')"><i class="fa-solid fa-print"></i> 打印</button>
+        <button type="button" class="btn" onclick="PMS.toast('已生成微信推送卡片','success')"><i class="fa-brands fa-weixin"></i> 发送至微信</button>
+        <a class="btn" href="filing-voucher.html"><i class="fa-solid fa-folder-open"></i> 前往凭证中心</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-share-nodes"></i> 共享推送</h3>
+      <span class="sub">备案完成后按清单推送至相关部门</span>
+    </div>
+    <div class="card-body">
+      <div class="sw-row">
+        <label class="radio-line" style="min-height:auto"><input type="checkbox" checked></label>
+        <div class="sr-t">推送公安（居住登记）<div class="sr-m">推送随同居住人信息用于居住登记与居住证申领</div></div>
+        <span class="text-3 text-sm">2026-07-30 16:12</span>
+        <span class="badge green">已推送</span>
+        <button type="button" class="btn btn-sm" onclick="PMS.toast('已重新推送至公安部门','success')">立即推送</button>
+      </div>
+      <div class="sw-row">
+        <label class="radio-line" style="min-height:auto"><input type="checkbox" checked></label>
+        <div class="sr-t">推送教育（学位关联）<div class="sr-m">推送备案编号与租赁期限用于适龄儿童入学学位申请</div></div>
+        <span class="text-3 text-sm">2026-07-30 16:12</span>
+        <span class="badge green">已推送</span>
+        <button type="button" class="btn btn-sm" onclick="PMS.toast('已重新推送至教育部门','success')">立即推送</button>
+      </div>
+      <div class="sw-row">
+        <label class="radio-line" style="min-height:auto"><input type="checkbox" checked></label>
+        <div class="sr-t">推送公积金（租房提取）<div class="sr-m">推送备案信息与租金金额用于住房公积金租房提取核验</div></div>
+        <span class="text-3 text-sm">2026-07-30 16:12</span>
+        <span class="badge green">已推送</span>
+        <button type="button" class="btn btn-sm" onclick="PMS.toast('已重新推送至公积金中心','success')">立即推送</button>
+      </div>
+      <div class="sw-row">
+        <label class="radio-line" style="min-height:auto"><input type="checkbox" checked></label>
+        <div class="sr-t">推送税务与统计<div class="sr-m">按月批量推送备案租金数据，用于税源分析与市场统计</div></div>
+        <span class="text-3 text-sm">每月 1 日批量</span>
+        <span class="badge blue">待批量</span>
+        <button type="button" class="btn btn-sm" onclick="PMS.toast('已加入本月批量推送队列','success')">立即推送</button>
+      </div>
+      <div class="text-3 text-sm mt-16">
+        共享字段范围与授权要求可在「信息共享与线索移送」中配置，涉及个人信息的调用全程留痕并接受审计。
+        <a class="link" href="data-share.html">前往配置</a>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function toggleFold() {
+  var b = document.getElementById('foldBody');
+  var i = document.getElementById('foldIco');
+  var on = b.style.display === 'none';
+  b.style.display = on ? '' : 'none';
+  i.className = on ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down';
+}
+
+function pushAll() {
+  PMS.confirm({
+    title: '推送共享',
+    message: '将本次备案结果推送至已勾选的部门？',
+    detail: '推送内容按共享清单配置的字段范围执行，失败三次重试后自动转人工处理。',
+    type: 'info',
+    okText: '推送',
+    onOk: function () { PMS.toast('已推送 4 个部门，全部成功', 'success'); }
+  });
+}
+</script>
+</body>
+</html>

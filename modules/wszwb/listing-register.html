@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>出租放盘登记 · 房屋租赁网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：分步面板、分间录入行、配套设施标签、房源照片宫格 */
+  .step-panel { display: none; }
+  .step-panel.active { display: block; }
+  .form-foot {
+    display: flex; justify-content: flex-end; gap: 10px;
+    padding: 12px 14px; border-top: 1px solid var(--border); background: #fff;
+    border-radius: 0 0 var(--radius) var(--radius);
+  }
+  .form-foot .foot-tip { margin-right: auto; font-size: 12.5px; color: var(--text-3); align-self: center; }
+  .radio-line { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; min-height: 32px; }
+  .radio-line label { font-size: 14px; color: var(--text-2); font-weight: 400; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+
+  .room-row {
+    display: grid; grid-template-columns: 96px 1fr 1fr 1fr 1fr 1fr 62px;
+    gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px dashed var(--row-line);
+  }
+  .room-row:last-child { border-bottom: none; }
+  .room-row .rr-no { font-weight: 600; font-size: 13.5px; }
+  .room-row input, .room-row select { width: 100%; }
+  .room-head { font-size: 12.5px; color: var(--text-3); }
+
+  .tag-pick { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tag-pick label {
+    display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 20px; padding: 5px 14px;
+    font-size: 13px; color: var(--text-2); background: #fff; transition: .15s;
+  }
+  .tag-pick label:hover { border-color: var(--primary-soft); }
+  .tag-pick input { margin: 0; }
+
+  .photo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .photo-cell {
+    position: relative; aspect-ratio: 4 / 3; border-radius: 8px; overflow: hidden;
+    border: 1px solid var(--border); background: var(--bg-soft);
+  }
+  .photo-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo-cell .pc-tag {
+    position: absolute; left: 6px; top: 6px; background: rgba(15, 23, 42, .62); color: #fff;
+    font-size: 11.5px; border-radius: 4px; padding: 2px 7px;
+  }
+  .photo-cell.add {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 6px; color: var(--primary); cursor: pointer; border-style: dashed; border-color: var(--primary-soft);
+  }
+  .photo-cell.add:hover { background: var(--primary-light); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wszwb-07">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋租赁网签备案管理系统
+        <span class="sep">/</span> 租赁房源管理
+        <span class="sep">/</span> <a class="link" href="listing-list.html">租赁房源台账</a>
+        <span class="sep">/</span> <span class="cur">出租放盘登记</span>
+      </div>
+      <div class="page-title">出租放盘登记</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="PMS.toast('草稿已保存，租赁房源编号 ZLFY450200202600386','success')"><i class="fa-regular fa-floppy-disk"></i> 存草稿</button>
+      <a class="btn" href="listing-list.html"><i class="fa-solid fa-arrow-left"></i> 返回台账</a>
+    </div>
+  </div>
+
+  <div class="wizard" id="wz">
+    <div class="w-step active" data-step="1"><span class="w-num">1</span><span class="w-label">房屋定位与租赁方式</span></div>
+    <div class="w-line"></div>
+    <div class="w-step" data-step="2"><span class="w-num">2</span><span class="w-label">房屋与出租方信息</span></div>
+    <div class="w-line"></div>
+    <div class="w-step" data-step="3"><span class="w-num">3</span><span class="w-label">租金与配套信息</span></div>
+  </div>
+
+  <form onsubmit="return false">
+
+    <!-- 步骤一 -->
+    <div class="step-panel active" data-panel="1">
+      <div class="card">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-magnifying-glass-location"></i> 房屋定位</h3>
+          <span class="sub">从不动产登记带回权属信息，带回字段不可修改</span>
+        </div>
+        <div class="card-body">
+          <div class="form-grid form-align">
+            <div class="form-item">
+              <label>登记主体<span class="req">*</span></label>
+              <select>
+                <option selected>个人业主</option><option>住房租赁企业</option>
+                <option>经纪机构代录</option><option>政府机构</option><option>产权单位</option>
+              </select>
+            </div>
+            <div class="form-item">
+              <label>查询方式<span class="req">*</span></label>
+              <select><option selected>按不动产单元号</option><option>按产权证号</option><option>按楼盘房号</option></select>
+            </div>
+            <div class="form-item">
+              <label>不动产单元号<span class="req">*</span></label>
+              <input type="text" value="450201001002GB00186F00021602">
+            </div>
+            <div class="form-item">
+              <label>&nbsp;</label>
+              <button type="button" class="btn btn-primary" onclick="PMS.toast('已从不动产登记带回权属信息','success')"><i class="fa-solid fa-cloud-arrow-down"></i> 查询并带入</button>
+            </div>
+          </div>
+
+          <div class="alert alert-success mt-16">
+            <i class="fa-solid fa-circle-check"></i>
+            <div>已从不动产登记系统带回权属信息，房屋无查封、无禁止出租情形，可继续登记。</div>
+          </div>
+
+          <div class="section-title mt-16">不动产登记带回结果 <span class="badge cyan">来自不动产登记</span></div>
+          <dl class="desc-list">
+            <div class="desc-item full"><dt>房屋坐落</dt><dd class="fw-600">柳州市城中区文昌路 66 号阳光 100 城市广场 3 栋 2 单元 1602 室</dd></div>
+            <div class="desc-item"><dt>产权人</dt><dd>陈某某（4502**********0518）</dd></div>
+            <div class="desc-item"><dt>不动产权证号</dt><dd>桂(2020)柳州市不动产权第 0026418 号</dd></div>
+            <div class="desc-item"><dt>建筑面积</dt><dd>82.60 ㎡</dd></div>
+            <div class="desc-item"><dt>房屋用途</dt><dd>成套住宅</dd></div>
+            <div class="desc-item"><dt>共有情况</dt><dd>单独所有</dd></div>
+            <div class="desc-item"><dt>查封状态</dt><dd><span class="badge green">无查封</span></dd></div>
+            <div class="desc-item"><dt>抵押状态</dt><dd><span class="badge green">无抵押</span></dd></div>
+          </dl>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-table-cells-large"></i> 租赁方式</h3>
+          <span class="sub">选择「分间合租」或「床位」时展开对应的明细录入区</span>
+        </div>
+        <div class="card-body">
+          <div class="form-grid form-align">
+            <div class="form-item col-full">
+              <label>租赁方式<span class="req">*</span></label>
+              <div class="radio-line">
+                <label><input type="radio" name="zlfs" value="whole" checked onchange="onMode()"> 整租</label>
+                <label><input type="radio" name="zlfs" value="room" onchange="onMode()"> 分间合租</label>
+                <label><input type="radio" name="zlfs" value="bed" onchange="onMode()"> 床位</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- 分间录入 -->
+          <div id="roomBox" style="display:none">
+            <div class="alert alert-warning mt-16">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <div>
+                分间合租须符合本市最小出租单位与人均使用面积标准（人均使用面积不得低于 <b>5 ㎡</b>），
+                不得改变房屋内部结构分割出租，不得将厨房、卫生间、阳台和地下储藏室出租供人员居住。
+              </div>
+            </div>
+            <div class="section-title mt-16">分间明细</div>
+            <div class="room-row room-head">
+              <span>分间编号</span><span>分间面积(㎡)</span><span>可住人数</span>
+              <span>独立卫浴</span><span>独立阳台</span><span>分间参考租金(元/月)</span><span>操作</span>
+            </div>
+            <div id="roomList">
+              <div class="room-row">
+                <span class="rr-no">分间 A</span>
+                <input type="number" value="18.60" step="0.01">
+                <input type="number" value="1" min="1">
+                <select><option>是</option><option selected>否</option></select>
+                <select><option>是</option><option selected>否</option></select>
+                <input type="number" value="1180">
+                <span class="link danger" onclick="PMS.delRow(this.closest('.room-row'),'分间 A')">删除</span>
+              </div>
+              <div class="room-row">
+                <span class="rr-no">分间 B</span>
+                <input type="number" value="22.30" step="0.01">
+                <input type="number" value="2" min="1">
+                <select><option selected>是</option><option>否</option></select>
+                <select><option selected>是</option><option>否</option></select>
+                <input type="number" value="1380">
+                <span class="link danger" onclick="PMS.delRow(this.closest('.room-row'),'分间 B')">删除</span>
+              </div>
+            </div>
+            <button type="button" class="btn btn-sm mt-16" onclick="addRoom()"><i class="fa-solid fa-plus"></i> 新增分间</button>
+            <div class="alert alert-info mt-16" id="roomCalc">
+              <i class="fa-solid fa-calculator"></i>
+              <div>已录入 2 间，分间面积合计 40.90 ㎡，可住 3 人，人均使用面积 13.63 ㎡，<b>符合</b>本市标准（≥ 5 ㎡）。</div>
+            </div>
+          </div>
+
+          <!-- 床位录入 -->
+          <div id="bedBox" style="display:none">
+            <div class="form-grid form-align mt-16">
+              <div class="form-item">
+                <label>床位数<span class="req">*</span></label>
+                <input type="number" value="8" min="1">
+              </div>
+              <div class="form-item">
+                <label>单床可租对象</label>
+                <select><option>不限</option><option selected>企业员工</option><option>学生</option><option>人才</option></select>
+              </div>
+              <div class="form-item">
+                <label>单床参考租金(元/月)</label>
+                <input type="number" value="600">
+              </div>
+              <div class="form-item col-full">
+                <label>宿舍型租赁住房说明</label>
+                <textarea rows="2">面向园区企业员工的宿舍型租赁住房，每间 2 床位，配备独立卫浴与集中厨房，由企业统一承租后分配。</textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 步骤二 -->
+    <div class="step-panel" data-panel="2">
+      <div class="card">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-house"></i> 房屋信息</h3>
+          <span class="sub">灰底字段来自不动产登记，不可修改</span>
+        </div>
+        <div class="card-body">
+          <div class="form-grid form-align">
+            <div class="form-item">
+              <label>楼盘名称</label>
+              <input type="text" value="阳光 100 城市广场" readonly style="background:var(--bg-soft)">
+            </div>
+            <div class="form-item col-2">
+              <label>房屋坐落</label>
+              <input type="text" value="柳州市城中区文昌路 66 号阳光 100 城市广场 3 栋 2 单元 1602 室" readonly style="background:var(--bg-soft)">
+            </div>
+            <div class="form-item">
+              <label>不动产单元号</label>
+              <input type="text" value="450201001002GB00186F00021602" readonly style="background:var(--bg-soft)">
+            </div>
+            <div class="form-item">
+              <label>不动产权证号</label>
+              <input type="text" value="桂(2020)柳州市不动产权第 0026418 号" readonly style="background:var(--bg-soft)">
+            </div>
+            <div class="form-item">
+              <label>租赁房屋类型<span class="req">*</span></label>
+              <select>
+                <option selected>商品住房出租</option><option>保障性租赁住房</option><option>公共租赁住房</option>
+                <option>人才公寓</option><option>直管公房出租</option><option>宿舍型租赁住房</option>
+                <option>非住宅出租</option><option>集体宿舍</option><option>拆迁安置房出租</option><option>其他</option>
+              </select>
+            </div>
+            <div class="form-item">
+              <label>房屋用途</label>
+              <select><option selected>成套住宅</option><option>非成套住宅</option><option>商业</option><option>办公</option><option>其他</option></select>
+            </div>
+            <div class="form-item">
+              <label>建筑面积(㎡)</label>
+              <input type="number" value="82.60" readonly style="background:var(--bg-soft)">
+            </div>
+            <div class="form-item">
+              <label>出租面积(㎡)<span class="req">*</span></label>
+              <input type="number" value="82.60" step="0.01">
+            </div>
+            <div class="form-item">
+              <label>户型<span class="req">*</span></label>
+              <input type="text" value="2 室 1 厅 1 卫">
+            </div>
+            <div class="form-item">
+              <label>朝向</label>
+              <select><option>东</option><option selected>南</option><option>西</option><option>北</option><option>东南</option><option>西南</option></select>
+            </div>
+            <div class="form-item">
+              <label>所在层 / 总层数</label>
+              <input type="text" value="16 / 33">
+            </div>
+            <div class="form-item">
+              <label>装修情况</label>
+              <select><option>毛坯</option><option>简装</option><option selected>精装</option><option>拎包入住</option></select>
+            </div>
+            <div class="form-item">
+              <label>可住人数<span class="req">*</span></label>
+              <input type="number" value="3" min="1">
+            </div>
+            <div class="form-item">
+              <label>是否存在安全隐患</label>
+              <select id="riskSel" onchange="document.getElementById('riskTxt').closest('.form-item').style.display=this.value==='是'?'':'none'">
+                <option selected>否</option><option>是</option>
+              </select>
+            </div>
+            <div class="form-item col-full" style="display:none">
+              <label>安全隐患说明<span class="req">*</span></label>
+              <textarea id="riskTxt" rows="2" placeholder="说明隐患部位、程度与整改计划，核验时将逐项核实"></textarea>
+            </div>
+            <div class="form-item col-full">
+              <label>配套设施</label>
+              <div class="tag-pick">
+                <label><input type="checkbox" checked> 空调</label>
+                <label><input type="checkbox" checked> 热水器</label>
+                <label><input type="checkbox" checked> 洗衣机</label>
+                <label><input type="checkbox" checked> 冰箱</label>
+                <label><input type="checkbox" checked> 宽带</label>
+                <label><input type="checkbox" checked> 燃气</label>
+                <label><input type="checkbox" checked> 电梯</label>
+                <label><input type="checkbox"> 车位</label>
+                <label><input type="checkbox" checked> 家具</label>
+                <label><input type="checkbox" checked> 家电</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-user-tie"></i> 出租方信息</h3>
+          <span class="sub">出租方为住房租赁企业时须填写托管企业并校验开业报告状态</span>
+        </div>
+        <div class="card-body">
+          <div class="form-grid form-align">
+            <div class="form-item">
+              <label>出租方类型<span class="req">*</span></label>
+              <select id="lessorType" onchange="onLessor()">
+                <option selected>个人业主</option><option>住房租赁企业</option><option>政府机构</option><option>产权单位</option>
+              </select>
+            </div>
+            <div class="form-item">
+              <label>出租方名称<span class="req">*</span></label>
+              <input type="text" value="陈某某">
+            </div>
+            <div class="form-item">
+              <label>证件类型 / 号码<span class="req">*</span></label>
+              <input type="text" value="居民身份证 4502**********0518">
+            </div>
+            <div class="form-item">
+              <label>联系电话<span class="req">*</span></label>
+              <input type="text" value="138****6721">
+            </div>
+            <div class="form-item" id="entBox" style="display:none">
+              <label>托管企业<span class="req">*</span></label>
+              <select onchange="PMS.toast('企业编号 ZLQY45020000021，开业报告状态：已受理','success')">
+                <option>柳州安寓住房租赁有限公司</option>
+                <option>柳州寓家公寓管理有限公司</option>
+                <option>XXXX市和居住房租赁服务有限公司</option>
+                <option>XXXX市住房租赁发展集团有限公司</option>
+              </select>
+              <span class="hint">选择后自动带出企业编号与开业报告状态，未报告的企业不得登记房源</span>
+            </div>
+            <div class="form-item col-full">
+              <label>产权人授权情况</label>
+              <div class="radio-line">
+                <label><input type="radio" name="auth" checked> 产权人本人出租</label>
+                <label><input type="radio" name="auth"> 已取得产权人书面委托</label>
+                <label><input type="radio" name="auth"> 共有人一致同意</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 步骤三 -->
+    <div class="step-panel" data-panel="3">
+      <div class="card">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-coins"></i> 租金与押金</h3>
+          <span class="sub">参考租金单价按出租面积自动计算</span>
+        </div>
+        <div class="card-body">
+          <div class="form-grid form-align">
+            <div class="form-item">
+              <label>参考租金(元/月)<span class="req">*</span></label>
+              <input type="number" id="rent" value="2300" onchange="calcRent()" onkeyup="calcRent()">
+            </div>
+            <div class="form-item">
+              <label>参考租金单价(元/㎡·月)</label>
+              <input type="text" id="rentUnit" value="27.85" readonly style="background:var(--bg-soft)">
+              <span class="hint" id="rentTip">城中区同户型平均 28.6 元/㎡·月，本房源偏离 −2.6%，处于合理区间</span>
+            </div>
+            <div class="form-item">
+              <label>押金方式<span class="req">*</span></label>
+              <select><option>押一付一</option><option selected>押一付三</option><option>押二付一</option><option>年付</option><option>其他</option></select>
+            </div>
+            <div class="form-item">
+              <label>押金金额(元)<span class="req">*</span></label>
+              <input type="number" value="2300">
+            </div>
+            <div class="form-item">
+              <label>租金支付方式<span class="req">*</span></label>
+              <select><option>月付</option><option selected>季付</option><option>半年付</option><option>年付</option></select>
+            </div>
+            <div class="form-item">
+              <label>是否含物业费</label>
+              <select><option selected>否</option><option>是</option></select>
+            </div>
+            <div class="form-item col-full">
+              <label>其他费用说明</label>
+              <textarea rows="2">水电燃气按实际用量由承租人承担，物业管理费 1.2 元/㎡·月由承租人承担，网络宽带费已包含在租金内。</textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3><i class="fa-solid fa-calendar-days"></i> 出租条件</h3></div>
+        <div class="card-body">
+          <div class="form-grid form-align">
+            <div class="form-item">
+              <label>可租日期<span class="req">*</span></label>
+              <input type="date" value="2026-08-01">
+            </div>
+            <div class="form-item">
+              <label>最短租期(月)<span class="req">*</span></label>
+              <input type="number" value="12" min="1">
+            </div>
+            <div class="form-item">
+              <label>可租对象</label>
+              <select><option selected>不限</option><option>家庭</option><option>学生</option><option>人才</option><option>企业员工</option></select>
+            </div>
+            <div class="form-item">
+              <label>是否可养宠物</label>
+              <select><option selected>否</option><option>是</option></select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-images"></i> 附件与房源照片</h3>
+          <span class="sub">照片将用于发布审核环节的图片查重比对</span>
+        </div>
+        <div class="card-body">
+          <div class="form-grid form-align">
+            <div class="form-item">
+              <label>产权证影像<span class="req">*</span></label>
+              <input type="file">
+            </div>
+            <div class="form-item">
+              <label>VR 看房链接</label>
+              <input type="text" placeholder="https://vr.example.com/…">
+            </div>
+          </div>
+          <div class="section-title mt-16">房源照片</div>
+          <div class="photo-grid">
+            <div class="photo-cell">
+              <img src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=480&q=60" alt="客厅">
+              <span class="pc-tag">客厅</span>
+            </div>
+            <div class="photo-cell">
+              <img src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=480&q=60" alt="主卧">
+              <span class="pc-tag">主卧</span>
+            </div>
+            <div class="photo-cell">
+              <img src="https://images.unsplash.com/photo-1556911220-bff31c812dba?w=480&q=60" alt="厨房">
+              <span class="pc-tag">厨房</span>
+            </div>
+            <div class="photo-cell">
+              <img src="https://images.unsplash.com/photo-1620626011761-996317b8d101?w=480&q=60" alt="卫生间">
+              <span class="pc-tag">卫生间</span>
+            </div>
+            <div class="photo-cell">
+              <img src="https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=480&q=60" alt="次卧">
+              <span class="pc-tag">次卧</span>
+            </div>
+            <div class="photo-cell">
+              <img src="https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=480&q=60" alt="阳台">
+              <span class="pc-tag">阳台</span>
+            </div>
+            <div class="photo-cell add" onclick="PMS.toast('已选择照片，正在上传')">
+              <i class="fa-solid fa-plus" style="font-size:20px"></i>
+              <span class="text-sm">上传照片</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert alert-info">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>
+          分间合租须符合本市最小出租单位与人均使用面积标准，不得改变房屋内部结构分割出租，
+          不得按床位出租给不符合规定的对象。提交后系统自动发起租赁房源核验，核验通过方可对外发布招租。
+        </div>
+      </div>
+    </div>
+
+    <div class="form-foot">
+      <span class="foot-tip">带 <span class="text-danger">*</span> 为必填项，灰底字段自动带入不可修改</span>
+      <button type="button" class="btn" id="btnPrev" onclick="goStep(cur - 1)" disabled><i class="fa-solid fa-angle-left"></i> 上一步</button>
+      <button type="button" class="btn" onclick="PMS.toast('草稿已保存，租赁房源编号 ZLFY450200202600386','success')"><i class="fa-regular fa-floppy-disk"></i> 保存草稿</button>
+      <button type="button" class="btn btn-primary" id="btnNext" onclick="goStep(cur + 1)">下一步 <i class="fa-solid fa-angle-right"></i></button>
+      <button type="button" class="btn btn-primary" id="btnSubmit" onclick="submitListing()" style="display:none"><i class="fa-solid fa-paper-plane"></i> 提交并申请核验</button>
+    </div>
+
+  </form>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+var cur = 1, ROOM_SEQ = 2;
+
+function goStep(n) {
+  if (n < 1 || n > 3) return;
+  cur = n;
+  document.querySelectorAll('#wz .w-step').forEach(function (s) {
+    var i = parseInt(s.getAttribute('data-step'), 10);
+    s.classList.toggle('active', i === n);
+    s.classList.toggle('done', i < n);
+  });
+  document.querySelectorAll('.step-panel').forEach(function (p) {
+    p.classList.toggle('active', p.getAttribute('data-panel') === String(n));
+  });
+  document.getElementById('btnPrev').disabled = n === 1;
+  document.getElementById('btnNext').style.display = n === 3 ? 'none' : '';
+  document.getElementById('btnSubmit').style.display = n === 3 ? '' : 'none';
+  window.scrollTo(0, 0);
+}
+
+/* 租赁方式切换：分间与床位各自展开专属录入区 */
+function onMode() {
+  var v = document.querySelector('input[name=zlfs]:checked').value;
+  document.getElementById('roomBox').style.display = v === 'room' ? '' : 'none';
+  document.getElementById('bedBox').style.display = v === 'bed' ? '' : 'none';
+}
+
+function addRoom() {
+  ROOM_SEQ++;
+  var name = '分间 ' + String.fromCharCode(64 + ROOM_SEQ);
+  document.getElementById('roomList').insertAdjacentHTML('beforeend',
+    '<div class="room-row">' +
+      '<span class="rr-no">' + name + '</span>' +
+      '<input type="number" value="16.00" step="0.01">' +
+      '<input type="number" value="1" min="1">' +
+      '<select><option>是</option><option selected>否</option></select>' +
+      '<select><option>是</option><option selected>否</option></select>' +
+      '<input type="number" value="980">' +
+      '<span class="link danger" onclick="PMS.delRow(this.closest(\'.room-row\'),\'' + name + '\')">删除</span>' +
+    '</div>');
+  PMS.toast('已新增' + name);
+}
+
+function onLessor() {
+  var v = document.getElementById('lessorType').value;
+  document.getElementById('entBox').style.display = v === '住房租赁企业' ? '' : 'none';
+}
+
+/* 参考租金单价按出租面积换算，并与同区域同户型均价对比 */
+function calcRent() {
+  var AREA = 82.60, BASE = 28.6;
+  var rent = parseFloat(document.getElementById('rent').value) || 0;
+  var unit = rent / AREA;
+  document.getElementById('rentUnit').value = unit.toFixed(2);
+  var dev = (unit - BASE) / BASE * 100;
+  document.getElementById('rentTip').textContent =
+    '城中区同户型平均 ' + BASE + ' 元/㎡·月，本房源偏离 ' + (dev >= 0 ? '+' : '') + dev.toFixed(1) + '%，' +
+    (Math.abs(dev) > 30 ? '偏离过大，发布审核时将重点核查' : '处于合理区间');
+}
+
+function submitListing() {
+  PMS.confirm({
+    title: '提交并申请核验',
+    message: '提交本房源并发起租赁房源核验？',
+    detail: '系统将自动比对产权、查封、已租赁、委托关系与安全条件五项，核验通过后签发核验码。',
+    type: 'info',
+    okText: '提交',
+    onOk: function () {
+      PMS.toast('房源 ZLFY450200202600386 已提交，核验申请 ZLHY450200202600386 已受理', 'success');
+      setTimeout(function () { location.href = 'listing-verify.html'; }, 900);
+    }
+  });
+}
+
+onMode();
+onLessor();
+calcRent();
+</script>
+</body>
+</html>

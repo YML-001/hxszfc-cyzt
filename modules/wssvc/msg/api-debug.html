@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>接口调试 · 统一消息服务</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../../assets/css/app.css">
+<link rel="stylesheet" href="../../../assets/css/wssvc.css">
+</head>
+<body data-role="admin" data-active="wssvc-47">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 统一应用服务平台
+        <span class="sep">/</span> 统一消息服务 <span class="sep">/</span> <span class="cur">接口调试</span>
+      </div>
+      <div class="page-title">接口调试 · 统一消息服务</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="app-config.html"><i class="fa-solid fa-layer-group"></i> 应用配置</a>
+      <a class="btn" href="call-log.html"><i class="fa-solid fa-list-ul"></i> 调用日志</a>
+      <button class="btn" onclick="PMS.openDrawer('caseDrawer')"><i class="fa-solid fa-folder-open"></i> 用例库</button>
+      <button class="btn btn-primary" onclick="PMS.openDrawer('mockDrawer')"><i class="fa-solid fa-inbox"></i> 模拟三方回推</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-terminal"></i>
+    <div>调试台有个跟别的服务不一样的地方：<b>消息接口一发就真的会有人手机响</b>。
+      所以联调环境做了拦截——<b>除非填的是白名单里的测试号码，否则短信不会真发出去</b>，
+      只在响应里展示「本该发出的内容」。
+      回执、上行这类由三方推过来的接口，用「模拟三方回推」自己造报文触发，
+      看平台的解析与回写对不对。</div>
+  </div>
+
+  <div class="svc-debug">
+
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-sitemap"></i> 接口清单</h3></div>
+      <div class="svc-api-tree">
+        <div class="at-g">消息发送（对上）</div>
+        <div class="at-i on" onclick="SVC.api(this,'发送通知消息','POST /api/msg/v1/send')">
+          <div class="at-n">发送通知消息</div><div class="at-m">msg.send</div>
+        </div>
+        <div class="at-i" onclick="SVC.api(this,'批量发送','POST /api/msg/v1/batch')">
+          <div class="at-n">批量发送</div><div class="at-m">msg.batch　<span class="badge red">写</span></div>
+        </div>
+        <div class="at-i" onclick="SVC.api(this,'发送验证码','POST /api/msg/v1/captcha')">
+          <div class="at-n">发送验证码</div><div class="at-m">msg.captcha</div>
+        </div>
+        <div class="at-i" onclick="SVC.api(this,'校验验证码','POST /api/msg/v1/captcha/verify')">
+          <div class="at-n">校验验证码</div><div class="at-m">msg.captcha.verify</div>
+        </div>
+        <div class="at-i" onclick="SVC.api(this,'撤回未发消息','POST /api/msg/v1/cancel')">
+          <div class="at-n">撤回未发消息</div><div class="at-m">msg.cancel　<span class="badge red">写</span></div>
+        </div>
+        <div class="at-g">状态查询</div>
+        <div class="at-i" onclick="SVC.api(this,'消息状态查询','GET /api/msg/v1/status')">
+          <div class="at-n">消息状态查询</div><div class="at-m">msg.status</div>
+        </div>
+        <div class="at-i" onclick="SVC.api(this,'按业务号查消息','GET /api/msg/v1/list')">
+          <div class="at-n">按业务号查消息</div><div class="at-m">msg.list</div>
+        </div>
+        <div class="at-i" onclick="SVC.api(this,'退订状态查询','GET /api/msg/v1/subscribe')">
+          <div class="at-n">退订状态查询</div><div class="at-m">msg.subscribe.query</div>
+        </div>
+        <div class="at-g">模板与规则</div>
+        <div class="at-i" onclick="SVC.api(this,'模板渲染预览','POST /api/msg/v1/template/render')">
+          <div class="at-n">模板渲染预览</div><div class="at-m">msg.template.render</div>
+        </div>
+        <div class="at-i" onclick="SVC.api(this,'规则试算','POST /api/msg/v1/rule/simulate')">
+          <div class="at-n">规则试算</div><div class="at-m">msg.rule.simulate</div>
+        </div>
+        <div class="at-g">号码与通道</div>
+        <div class="at-i" onclick="SVC.api(this,'号码状态核验','POST /api/msg/v1/number/check')">
+          <div class="at-n">号码状态核验</div><div class="at-m">msg.number.check</div>
+        </div>
+        <div class="at-i" onclick="SVC.api(this,'通道余额查询','GET /api/msg/v1/channel/balance')">
+          <div class="at-n">通道余额查询</div><div class="at-m">msg.channel.balance</div>
+        </div>
+        <div class="at-g">入向 · 三方推平台</div>
+        <div class="at-i" onclick="SVC.api(this,'短信回执接收','POST /api/msg/callback/report')">
+          <div class="at-n">短信回执接收</div><div class="at-m">callback.report　<span class="badge blue">入向</span></div>
+        </div>
+        <div class="at-i" onclick="SVC.api(this,'上行短信接收','POST /api/msg/callback/up')">
+          <div class="at-n">上行短信接收</div><div class="at-m">callback.up　<span class="badge blue">入向</span></div>
+        </div>
+        <div class="at-i" onclick="SVC.api(this,'微信事件回调','POST /api/msg/callback/wechat')">
+          <div class="at-n">微信事件回调</div><div class="at-m">callback.wechat　<span class="badge blue">入向</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="svc-env">
+        <span class="ev-l">环境</span>
+        <div class="ev-t">
+          <span class="on" onclick="SVC.pick(this,'span')">联调</span>
+          <span onclick="SVC.pick(this,'span')">生产</span>
+        </div>
+        <span class="ev-l">调用方</span>
+        <select style="max-width:200px"><option>不动产登记业务系统</option><option>存量房交易系统</option><option>资金监管系统</option><option>网上服务大厅</option><option>维修资金系统</option><option>微信公众号后台</option></select>
+        <span class="ev-warn"><i class="fa-solid fa-circle-info"></i> 联调环境仅向白名单测试号码真实发送，其余只回显内容</span>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-pen-to-square"></i> <span id="dbgName">发送通知消息</span></h3>
+          <span class="sub" id="dbgPath">POST /api/msg/v1/send</span>
+        </div>
+        <div class="card-body">
+          <div class="tabs">
+            <div class="tab active" data-tab="form">表单填参</div>
+            <div class="tab" data-tab="raw">原始报文</div>
+            <div class="tab" data-tab="head">请求头</div>
+          </div>
+          <div class="tab-panel active" data-panel="form">
+            <div class="form-grid">
+              <div class="form-item"><label>模板编号 <span class="req">*</span></label>
+                <select><option>SMS-DJ-016　出证取件通知</option><option>SMS-DJ-024　材料补正通知</option><option>SMS-JY-008　契税缴纳提醒</option><option>SMS-ZJ-008　购房款到账告知</option><option>WX-DJ-016　出证取件通知（微信）</option><option>IN-NEI-006　内部站内消息</option></select>
+              </div>
+              <div class="form-item"><label>渠道</label>
+                <select><option>自动（按规则与绑定状态选）</option><option>强制短信</option><option>强制微信</option><option>强制站内</option><option>微信 + 短信双发</option></select>
+              </div>
+              <div class="form-item"><label>接收号码 <span class="req">*</span></label><input type="text" value="13800138000"></div>
+              <div class="form-item"><label>优先级</label><select><option>普通（30 分钟内）</option><option>高（3 分钟内）</option><option>低（当日内）</option></select></div>
+              <div class="form-item"><label>关联业务号</label><input type="text" value="DJ2026080100862"></div>
+              <div class="form-item"><label>行政区划</label><select><option>市本级</option><option>柳江区</option><option>柳北区</option><option>柳城县</option></select></div>
+              <div class="form-item"><label>免打扰处理</label><select><option>遵守免打扰（默认）</option><option>例外·立即发送</option></select></div>
+              <div class="form-item"><label>去重</label><select><option>开启（30 分钟窗口）</option><option>关闭</option></select></div>
+              <div class="form-item col-full"><label>模板变量（JSON） <span class="req">*</span></label>
+                <textarea>{"name":"覃**","biz":"存量房转移登记","bizNo":"DJ2026080100862","place":"城中区文昌路12号3号窗口","time":"工作日 9:00-17:00"}</textarea>
+              </div>
+            </div>
+            <div class="alert alert-warning mt-16">
+              <i class="fa-solid fa-shield-halved"></i>
+              <div>当前填的 <b>13800138000</b> 在测试号码白名单里，会真实发出。
+                换成任何其他号码，联调环境只回显内容不真发。
+                <b>这条规矩是有来历的</b>——去年联调时有人拿真实业务数据跑批量接口，
+                给 200 多位群众发了「测试短信」，第二天接了一上午投诉电话。</div>
+            </div>
+          </div>
+          <div class="tab-panel" data-panel="raw">
+            <div class="form-item">
+              <label>请求体（可直接编辑后发起）</label>
+              <textarea id="dbgBody" rows="16" style="font-family:Consolas,monospace;font-size:12.5px">{
+  "appId": "app_bdcdj",
+  "templateCode": "SMS-DJ-016",
+  "channel": "AUTO",
+  "receiver": {
+    "mobile": "13800138000",
+    "openId": null,
+    "userId": null
+  },
+  "params": {
+    "name": "覃**",
+    "biz": "存量房转移登记",
+    "bizNo": "DJ2026080100862",
+    "place": "城中区文昌路12号3号窗口",
+    "time": "工作日 9:00-17:00"
+  },
+  "bizNo": "DJ2026080100862",
+  "areaCode": "450200",
+  "priority": "NORMAL",
+  "respectDnd": true,
+  "dedup": true,
+  "requestId": "{{uuid}}"
+}</textarea>
+            </div>
+            <p class="hint"><i class="fa-solid fa-circle-info"></i>
+              <code>requestId</code> 是幂等键，同一个 ID 重复提交只会发一条。
+              <b>业务系统重试、用户狂点提交按钮，靠的都是这个字段兜底</b>。
+              没传的话平台会用「模板 + 号码 + 业务号」组合算一个，但不如自己传可靠。</p>
+          </div>
+          <div class="tab-panel" data-panel="head">
+            <div class="svc-tbl">
+              <table class="data-table compact">
+                <thead><tr><th>请求头</th><th>值</th><th>说明</th></tr></thead>
+                <tbody>
+                  <tr><td class="nowrap">Content-Type</td><td class="nowrap">application/json</td><td class="cell-lg">固定</td></tr>
+                  <tr><td class="nowrap">X-App-Id</td><td class="nowrap">app_bdcdj</td><td class="cell-lg">调用方应用标识</td></tr>
+                  <tr><td class="nowrap">X-Timestamp</td><td class="nowrap">{{now}}</td><td class="cell-lg">发起时自动填充，与服务端偏差超 5 分钟拒绝</td></tr>
+                  <tr><td class="nowrap">X-Nonce</td><td class="nowrap">{{random}}</td><td class="cell-lg">防重放随机串</td></tr>
+                  <tr><td class="nowrap">X-Signature</td><td class="nowrap">{{auto_sign}}</td><td class="cell-lg">SM3 摘要后用应用密钥 SM2 签名</td></tr>
+                  <tr><td class="nowrap">X-Operator</td><td class="nowrap">覃志强 · 城中大厅3号窗</td><td class="cell-lg">实际操作人，记入调用审计</td></tr>
+                  <tr><td class="nowrap">X-Trace-Id</td><td class="nowrap">{{trace}}</td><td class="cell-lg">调用链号，串起发送、投递、回执三段</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="btn-row mt-16">
+            <button class="btn btn-primary" onclick="SVC.send(286)"><i class="fa-solid fa-paper-plane"></i> 发起调用</button>
+            <button class="btn" onclick="PMS.toast('校验通过：模板存在且已报备，变量齐全，渲染后 108 字计 1 条，号码在白名单','success')"><i class="fa-solid fa-list-check"></i> 仅校验不发送</button>
+            <button class="btn" onclick="PMS.openDrawer('renderDrawer')"><i class="fa-solid fa-eye"></i> 渲染预览</button>
+            <button class="btn" onclick="PMS.openDrawer('saveCase')"><i class="fa-solid fa-floppy-disk"></i> 存为用例</button>
+            <button class="btn" onclick="PMS.toast('已重置为接口默认样例')"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card dbg-out">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-satellite-dish"></i> 响应</h3>
+        <span class="sub">最近一次调用结果</span>
+      </div>
+      <div class="card-body" id="dbgOut">
+        <div class="svc-resp ok">
+          <span><i class="fa-solid fa-circle-check"></i> <b>已受理</b></span>
+          <span>HTTP <b>200</b></span>
+          <span>耗时 <b>286 ms</b></span>
+          <span>环境 <b>联调</b></span>
+        </div>
+        <div class="section-title">响应体</div>
+        <pre class="svc-code">{
+  <span class="k">"code"</span>: <span class="s">"0"</span>,
+  <span class="k">"msg"</span>: <span class="s">"success"</span>,
+  <span class="k">"data"</span>: {
+    <span class="k">"msgId"</span>: <span class="s">"MSG20260801224618"</span>,
+    <span class="k">"channel"</span>: <span class="s">"SMS"</span>,
+    <span class="k">"channelReason"</span>: <span class="s">"接收人未绑定微信，按规则降级短信"</span>,
+    <span class="k">"provider"</span>: <span class="s">"广西移动直连"</span>,
+    <span class="k">"queue"</span>: <span class="s">"NORMAL"</span>,
+    <span class="k">"contentLength"</span>: <span class="n">108</span>,
+    <span class="k">"billingCount"</span>: <span class="n">1</span>,
+    <span class="k">"estimatedCost"</span>: <span class="n">0.019</span>,
+    <span class="k">"expectSendTime"</span>: <span class="s">"2026-08-01 22:46:18"</span>,
+    <span class="k">"dedupHit"</span>: <span class="n">false</span>
+  }
+}</pre>
+        <div class="section-title mt-16">平台侧处置链</div>
+        <div class="svc-tbl">
+          <table class="data-table compact">
+            <thead><tr><th>环节</th><th>结果</th><th class="num">耗时</th></tr></thead>
+            <tbody>
+              <tr><td class="nowrap">签名校验</td><td><span class="badge green">通过</span></td><td class="num">6 ms</td></tr>
+              <tr><td class="nowrap">幂等校验</td><td><span class="badge green">首次提交</span></td><td class="num">8 ms</td></tr>
+              <tr><td class="nowrap">模板与变量校验</td><td><span class="badge green">变量齐全</span></td><td class="num">12 ms</td></tr>
+              <tr><td class="nowrap">内容渲染</td><td><span class="badge green">108 字 · 1 条</span></td><td class="num">4 ms</td></tr>
+              <tr><td class="nowrap">黑名单与退订检查</td><td><span class="badge green">未命中</span></td><td class="num">14 ms</td></tr>
+              <tr><td class="nowrap">频次与去重检查</td><td><span class="badge green">今日 1/5</span></td><td class="num">10 ms</td></tr>
+              <tr><td class="nowrap">免打扰判定</td><td><span class="badge green">22:46 不在时段外，可发</span></td><td class="num">4 ms</td></tr>
+              <tr><td class="nowrap">渠道选择</td><td><span class="badge orange">未绑微信，降级短信</span></td><td class="num">18 ms</td></tr>
+              <tr><td class="nowrap">通道路由</td><td><span class="badge green">移动号段 → 移动直连</span></td><td class="num">6 ms</td></tr>
+              <tr><td class="nowrap">入队</td><td><span class="badge green">普通队列</span></td><td class="num">12 ms</td></tr>
+              <tr><td class="nowrap">记入调用日志</td><td><span class="badge green">已记录</span></td><td class="num">—</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="section-title mt-16">实际发出内容</div>
+        <pre class="svc-code">【柳州房产】覃**您好，您申请的<span class="s">存量房转移登记</span>已办结，不动产权
+证书可于<span class="s">工作日 9:00-17:00</span>到<span class="s">城中区文昌路12号3号窗口</span>
+领取，请携带本人身份证原件。咨询电话 0772-2812345。
+<span class="c">// 108 字，未超 70 字上限？—— 中文按 70 字计，此处 108 字应计 2 条</span></pre>
+        <div class="alert alert-warning mt-16">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>调试台在这里帮你发现了一个真问题：<b>响应里 billingCount 返回 1，
+            但内容实际 108 字，按 70 字规则应该计 2 条</b>。
+            核对后确认是计费预估逻辑把标点当成半角算了。
+            这个 bug 不影响实际扣费（以通道账单为准），
+            但会让费用测算偏低，已登记修复。
+            <b>这就是「仅校验不发送」这个按钮存在的意义——
+            在花钱之前先看清楚要花多少</b>。</div>
+        </div>
+        <div class="btn-row mt-16">
+          <button class="btn btn-sm" onclick="PMS.toast('状态：已提交通道，等待回执')"><i class="fa-solid fa-magnifying-glass"></i> 查状态</button>
+          <button class="btn btn-sm" onclick="PMS.openDrawer('mockDrawer')"><i class="fa-solid fa-inbox"></i> 模拟回执</button>
+          <a class="btn btn-sm" href="call-log.html"><i class="fa-solid fa-list"></i> 在日志中查看</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="drawer-mask" onclick="PMS.closeDrawer('mockDrawer')"></div>
+  <div class="drawer drawer-lg" id="mockDrawer">
+    <div class="drawer-head">
+      <h3>模拟三方回推</h3>
+      <span class="close" onclick="PMS.closeDrawer('mockDrawer')"><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-info">
+        <i class="fa-solid fa-inbox"></i>
+        <div>回执、上行、微信事件这三类接口是<b>三方往平台推</b>的，
+          没法像出向接口那样点一下就调。
+          这里自己造一份报文推给平台，
+          验证<b>平台能不能正确解析、关联到对应消息、并按规则回写状态</b>。
+          排查「回执没回来」「退订没生效」这类问题时特别管用。</div>
+      </div>
+      <div class="tabs">
+        <div class="tab active" data-tab="m1">短信回执</div>
+        <div class="tab" data-tab="m2">上行短信</div>
+        <div class="tab" data-tab="m3">微信事件</div>
+      </div>
+
+      <div class="tab-panel active" data-panel="m1">
+        <div class="form-grid">
+          <div class="form-item"><label>模拟来源</label><select><option>阿里云短信</option><option>广西移动直连</option><option>广西电信直连</option></select></div>
+          <div class="form-item"><label>回执结果</label><select><option>DELIVRD 送达成功</option><option>MSC:0010 空号</option><option>MSC:0007 用户拒收</option><option>MSC:0001 停机</option><option>UNDELIV 未送达</option></select></div>
+          <div class="form-item"><label>关联消息 ID</label><input type="text" value="MSG20260801224618"></div>
+          <div class="form-item"><label>回执时延</label><input type="text" value="4.2 秒"></div>
+        </div>
+        <div class="section-title mt-16">回推报文</div>
+        <pre class="svc-code">POST /api/msg/callback/report
+Content-Type: application/json
+
+[{
+  <span class="k">"out_id"</span>: <span class="s">"MSG20260801224618"</span>,
+  <span class="k">"biz_id"</span>: <span class="s">"8624861024^2026080122461800"</span>,
+  <span class="k">"phone_number"</span>: <span class="s">"13800138000"</span>,
+  <span class="k">"send_time"</span>: <span class="s">"2026-08-01 22:46:18"</span>,
+  <span class="k">"report_time"</span>: <span class="s">"2026-08-01 22:46:22"</span>,
+  <span class="k">"success"</span>: <span class="n">true</span>,
+  <span class="k">"err_code"</span>: <span class="s">"DELIVRD"</span>,
+  <span class="k">"err_msg"</span>: <span class="s">"用户接收成功"</span>
+}]</pre>
+        <div class="section-title mt-16">平台处理结果</div>
+        <div class="svc-tbl">
+          <table class="data-table compact">
+            <thead><tr><th>环节</th><th>结果</th><th>说明</th></tr></thead>
+            <tbody>
+              <tr><td class="nowrap">报文解析</td><td><span class="badge green">成功</span></td><td class="cell-lg">识别为阿里云回执格式</td></tr>
+              <tr><td class="nowrap">消息关联</td><td><span class="badge green">命中</span></td><td class="cell-lg">按 out_id 关联到 MSG20260801224618</td></tr>
+              <tr><td class="nowrap">状态回写</td><td><span class="badge green">投递中 → 已送达</span></td><td class="cell-lg">送达时延 4.2 秒</td></tr>
+              <tr><td class="nowrap">计费确认</td><td><span class="badge green">计 2 条</span></td><td class="cell-lg">以回执为准，与预估的 1 条不符，已记差异</td></tr>
+              <tr><td class="nowrap">业务回调</td><td><span class="badge green">已通知登记系统</span></td><td class="cell-lg">写入办件档案的「已告知」留痕</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tab-panel" data-panel="m2">
+        <div class="form-grid">
+          <div class="form-item"><label>模拟来源</label><select><option>阿里云短信</option><option>广西移动直连</option></select></div>
+          <div class="form-item"><label>发送号码</label><input type="text" value="13800138000"></div>
+          <div class="form-item"><label>回复内容</label><input type="text" value="不要再发了"></div>
+          <div class="form-item"><label>扩展码</label><input type="text" value="0772"></div>
+        </div>
+        <div class="section-title mt-16">回推报文</div>
+        <pre class="svc-code">POST /api/msg/callback/up
+{
+  <span class="k">"phone_number"</span>: <span class="s">"13800138000"</span>,
+  <span class="k">"content"</span>: <span class="s">"不要再发了"</span>,
+  <span class="k">"dest_code"</span>: <span class="s">"1069012340772"</span>,
+  <span class="k">"send_time"</span>: <span class="s">"2026-08-01 22:48:06"</span>,
+  <span class="k">"sign_name"</span>: <span class="s">"柳州房产"</span>
+}</pre>
+        <div class="section-title mt-16">平台处理结果</div>
+        <div class="svc-tbl">
+          <table class="data-table compact">
+            <thead><tr><th>环节</th><th>结果</th><th>说明</th></tr></thead>
+            <tbody>
+              <tr><td class="nowrap">关键字匹配</td><td><span class="badge orange">模糊命中</span></td><td class="cell-lg">规则「不要 + 发」，置信度 高</td></tr>
+              <tr><td class="nowrap">退订执行</td><td><span class="badge green">已退订</span></td><td class="cell-lg">范围：可退订类（回访、宣传）</td></tr>
+              <tr><td class="nowrap">原文留存</td><td><span class="badge green">已记录</span></td><td class="cell-lg">模糊命中会留原文供人工复核</td></tr>
+              <tr><td class="nowrap">复核待办</td><td><span class="badge blue">已生成</span></td><td class="cell-lg">派给消息管理员，1 个工作日内复核</td></tr>
+              <tr><td class="nowrap">确认回复</td><td><span class="badge gray">未回复</span></td><td class="cell-lg">退订确认短信也要花钱，规则是不回</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="alert alert-warning mt-16">
+          <i class="fa-solid fa-flask"></i>
+          <div>建议把<b>歧义词</b>也拿来跑一遍。
+            填「取消」试试，应该只生成人工提示而<b>不自动退订</b>——
+            这是 7 月 2 日改的规则，之前误伤过 30 多人。
+            改完规则不验证，等于没改。</div>
+        </div>
+      </div>
+
+      <div class="tab-panel" data-panel="m3">
+        <div class="form-grid">
+          <div class="form-item"><label>事件类型</label><select><option>subscribe 关注</option><option>unsubscribe 取消关注</option><option>CLICK 菜单点击</option><option>TEMPLATESENDJOBFINISH 模板消息送达</option></select></div>
+          <div class="form-item"><label>OpenID</label><input type="text" value="oq3F8x2mK9wE2pR7nT4wL6cJ"></div>
+          <div class="form-item"><label>场景值</label><input type="text" value="qr_scene_10086（窗口引导码）"></div>
+          <div class="form-item"><label>发生时间</label><input type="text" value="2026-08-01 22:50:12"></div>
+        </div>
+        <div class="section-title mt-16">回推报文</div>
+        <pre class="svc-code">POST /api/msg/callback/wechat
+&lt;xml&gt;
+  &lt;ToUserName&gt;&lt;![CDATA[gh_8f2c6***]]&gt;&lt;/ToUserName&gt;
+  &lt;FromUserName&gt;&lt;![CDATA[oq3F8x2mK9wE2pR7nT4wL6cJ]]&gt;&lt;/FromUserName&gt;
+  &lt;CreateTime&gt;1785164212&lt;/CreateTime&gt;
+  &lt;MsgType&gt;&lt;![CDATA[event]]&gt;&lt;/MsgType&gt;
+  &lt;Event&gt;&lt;![CDATA[subscribe]]&gt;&lt;/Event&gt;
+  &lt;EventKey&gt;&lt;![CDATA[qrscene_10086]]&gt;&lt;/EventKey&gt;
+  &lt;Ticket&gt;&lt;![CDATA[gQH47joAAAAAAAAAAS5o***]]&gt;&lt;/Ticket&gt;
+&lt;/xml&gt;</pre>
+        <div class="section-title mt-16">平台处理结果</div>
+        <div class="svc-tbl">
+          <table class="data-table compact">
+            <thead><tr><th>环节</th><th>结果</th><th>说明</th></tr></thead>
+            <tbody>
+              <tr><td class="nowrap">签名校验</td><td><span class="badge green">通过</span></td><td class="cell-lg">按 token 校验 signature</td></tr>
+              <tr><td class="nowrap">事件识别</td><td><span class="badge green">subscribe 关注</span></td><td class="cell-lg">场景值 10086 = 城中大厅窗口引导码</td></tr>
+              <tr><td class="nowrap">关注记录</td><td><span class="badge green">已新增</span></td><td class="cell-lg">来源归因到「窗口引导」，用于评估引导效果</td></tr>
+              <tr><td class="nowrap">欢迎语下发</td><td><span class="badge green">已发送</span></td><td class="cell-lg">引导完成实名绑定</td></tr>
+              <tr><td class="nowrap">实名绑定</td><td><span class="badge gray">未绑定</span></td><td class="cell-lg">仅关注还收不到办件通知，需绑定身份证</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="alert alert-info mt-16">
+          <i class="fa-solid fa-lightbulb"></i>
+          <div>场景值这个字段容易被忽略，但它<b>能算清楚每个引导渠道带来了多少关注</b>。
+            柳州现在有四个引导码：窗口台卡、取号小票、办结短信里的链接、公众号海报。
+            数据出来后发现<b>取号小票的转化率最高</b>——
+            群众排队等叫号时正好没事干，扫一下顺手就关注了。</div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn" onclick="PMS.closeDrawer('mockDrawer')">关闭</button>
+      <button class="btn" onclick="PMS.toast('已存为回推用例')"><i class="fa-solid fa-floppy-disk"></i> 存为用例</button>
+      <button class="btn btn-primary" onclick="PMS.toast('回推已触发，平台处理完成','success')"><i class="fa-solid fa-paper-plane"></i> 发起回推</button>
+    </div>
+  </div>
+
+  <div class="drawer-mask" onclick="PMS.closeDrawer('renderDrawer')"></div>
+  <div class="drawer" id="renderDrawer">
+    <div class="drawer-head">
+      <h3>模板渲染预览</h3>
+      <span class="close" onclick="PMS.closeDrawer('renderDrawer')"><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <dl class="svc-kv">
+        <dt>模板</dt><dd>SMS-DJ-016　出证取件通知</dd>
+        <dt>渲染长度</dt><dd>108 字　·　<b class="text-warning">超 70 字，计 2 条</b></dd>
+        <dt>变量最长值</dt><dd>按各变量历史最长值渲染为 132 字，计 2 条</dd>
+        <dt>预估费用</dt><dd>0.038 元（移动直连 0.019 × 2）</dd>
+      </dl>
+      <div class="section-title mt-16">短信渲染</div>
+      <pre class="svc-code">【柳州房产】覃**您好，您申请的<span class="s">存量房转移登记</span>已办结，不动产权
+证书可于<span class="s">工作日 9:00-17:00</span>到<span class="s">城中区文昌路12号3号窗口</span>
+领取，请携带本人身份证原件。咨询电话 0772-2812345。</pre>
+      <div class="section-title mt-16">微信卡片渲染</div>
+      <div class="upload-box" style="text-align:left;cursor:default">
+        <b>不动产登记办结通知</b>
+        <div class="up-hint" style="text-align:left;margin-top:8px;line-height:1.9">
+          业务类型：存量房转移登记<br>
+          业务编号：DJ2026080100862<br>
+          办结时间：2026-08-01 22:46<br>
+          领取地点：城中区文昌路12号3号窗口<br>
+          领取时间：工作日 9:00-17:00<br>
+          <span style="color:var(--text-3)">请携带本人身份证原件领取。点击查看办件详情 &gt;</span>
+        </div>
+      </div>
+      <div class="alert alert-info mt-16">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>同样的信息，<b>微信卡片能分行列清楚，短信只能挤成一段</b>。
+          这也是为什么办结通知这类信息量大的场景要优先走微信——
+          不光是省钱，读起来也清楚得多。
+          短信作为兜底，可以考虑压缩成「已办结，详情见微信或网上大厅」，
+          把 108 字降到 60 字以内，一条就够。</div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn" onclick="PMS.closeDrawer('renderDrawer')">关闭</button>
+      <button class="btn" onclick="PMS.toast('已按变量最长值重新渲染：132 字，计 2 条')"><i class="fa-solid fa-arrows-left-right"></i> 按最长值渲染</button>
+      <button class="btn btn-primary" onclick="PMS.toast('已提交模板优化建议，交登记受理科确认')"><i class="fa-solid fa-scissors"></i> 建议压缩</button>
+    </div>
+  </div>
+
+  <div class="drawer-mask" onclick="PMS.closeDrawer('saveCase')"></div>
+  <div class="drawer" id="saveCase">
+    <div class="drawer-head">
+      <h3>存为调试用例</h3>
+      <span class="close" onclick="PMS.closeDrawer('saveCase')"><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="form-grid">
+        <div class="form-item col-full"><label>用例名称 <span class="req">*</span></label><input type="text" value="办结通知 · 未绑微信降级短信"></div>
+        <div class="form-item"><label>所属接口</label><input type="text" value="msg.send" readonly></div>
+        <div class="form-item"><label>用例类型</label><select><option>正例</option><option>负例（预期失败）</option></select></div>
+        <div class="form-item"><label>预期结果</label><input type="text" value="HTTP 200，channel=SMS，channelReason 含「未绑定微信」"></div>
+        <div class="form-item"><label>纳入回归套件</label><select><option>是 · 接入自测套件</option><option>否</option></select></div>
+        <div class="form-item col-full"><label>说明</label>
+          <textarea>验证渠道自动降级逻辑。接收人未绑微信时应自动转短信，而不是直接失败。</textarea>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn" onclick="PMS.closeDrawer('saveCase')">取消</button>
+      <button class="btn btn-primary" onclick="PMS.toast('用例已保存到接入自测套件','success');PMS.closeDrawer('saveCase')"><i class="fa-solid fa-check"></i> 保存</button>
+    </div>
+  </div>
+
+  <div class="drawer-mask" onclick="PMS.closeDrawer('caseDrawer')"></div>
+  <div class="drawer" id="caseDrawer">
+    <div class="drawer-head">
+      <h3>调试用例库</h3>
+      <span class="close" onclick="PMS.closeDrawer('caseDrawer')"><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-info">
+        <i class="fa-solid fa-folder-open"></i>
+        <div>这 16 个用例是<b>接入自测套件</b>。
+          新应用接入要求全部正例跑通、负例都按预期失败，才发生产密钥。
+          消息服务的负例格外重要——<b>发错了收不回来</b>，
+          不像文件传错了还能删。</div>
+      </div>
+      <div class="svc-tbl">
+        <table class="data-table compact">
+          <thead><tr><th>用例名称</th><th>接口</th><th>类型</th><th>最近执行</th><th>结果</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr><td class="cell-lg">办结通知 · 未绑微信降级短信</td><td class="nowrap">msg.send</td><td>正例</td><td class="nowrap">今日 22:46</td><td><span class="badge green">通过</span></td><td><span class="link" onclick="PMS.toast('已载入用例参数','success')">载入</span></td></tr>
+            <tr><td class="cell-lg">办结通知 · 已绑微信走微信</td><td class="nowrap">msg.send</td><td>正例</td><td class="nowrap">今日 22:42</td><td><span class="badge green">channel=WECHAT</span></td><td><span class="link" onclick="PMS.toast('已载入用例参数','success')">载入</span></td></tr>
+            <tr><td class="cell-lg">关键通知 · 微信短信双发</td><td class="nowrap">msg.send</td><td>正例</td><td class="nowrap">今日 22:38</td><td><span class="badge green">2 条均受理</span></td><td><span class="link" onclick="PMS.toast('已载入用例参数','success')">载入</span></td></tr>
+            <tr><td class="cell-lg">同 requestId 重复提交</td><td class="nowrap">msg.send</td><td>正例</td><td class="nowrap">今日 22:34</td><td><span class="badge green">幂等，只发一条</span></td><td><span class="link" onclick="PMS.toast('已载入用例参数','success')">载入</span></td></tr>
+            <tr><td class="cell-lg">免打扰时段内发送</td><td class="nowrap">msg.send</td><td>正例</td><td class="nowrap">今日 22:30</td><td><span class="badge green">如期缓发</span></td><td><span class="link" onclick="PMS.toast('已载入用例参数','success')">载入</span></td></tr>
+            <tr><td class="cell-lg">免打扰例外 · 资金到账</td><td class="nowrap">msg.send</td><td>正例</td><td class="nowrap">今日 22:26</td><td><span class="badge green">立即发出</span></td><td><span class="link" onclick="PMS.toast('已载入用例参数','success')">载入</span></td></tr>
+            <tr><td class="cell-lg">已退订号码发回访（负例）</td><td class="nowrap">msg.send</td><td>负例</td><td class="nowrap">今日 22:22</td><td><span class="badge green">如期拦截</span></td><td><span class="link" onclick="PMS.toast('已载入用例参数','success')">载入</span></td></tr>
+            <tr><td class="cell-lg">已退订号码发办结（强制放行）</td><td class="nowrap">msg.send</td><td>正例</td><td class="nowrap">今日 22:18</td><td><span class="badge green">放行并留痕</span></td><td><span class="link" onclick="PMS.toast('已载入用例参数','success')">载入</span></td></tr>
+            <tr><td class="cell-lg">模板变量缺失（负例）</td><td class="nowrap">msg.send</td><td>负例</td><td class="nowrap">今日 22:14</td><td><span class="badge green">如期 400</span></td><td><span class="link" onclick="PMS.toast('已载入用例参数','success')">载入</span></td></tr>
+            <tr><td class="cell-lg">号码格式非法（负例）</td><td class="nowrap">msg.send</td><td>负例</td><td class="nowrap">今日 22:10</td><td><span class="badge green">如期 400</span></td><td><span class="link" onclick="PMS.toast('已载入用例参数','success')">载入</span></td></tr>
+            <tr><td class="cell-lg">未报备模板（负例）</td><td class="nowrap">msg.send</td><td>负例</td><td class="nowrap">今日 22:06</td><td><span class="badge green">如期拒绝</span></td><td><span class="link" onclick="PMS.toast('已载入用例参数','success')">载入</span></td></tr>
+            <tr><td class="cell-lg">签名错误（负例）</td><td class="nowrap">msg.send</td><td>负例</td><td class="nowrap">今日 22:02</td><td><span class="badge green">如期 401</span></td><td><span class="link" onclick="PMS.toast('已载入用例参数','success')">载入</span></td></tr>
+            <tr><td class="cell-lg">验证码正常发送与校验</td><td class="nowrap">msg.captcha.*</td><td>正例</td><td class="nowrap">今日 21:58</td><td><span class="badge green">通过</span></td><td><span class="link" onclick="PMS.toast('已载入用例参数','success')">载入</span></td></tr>
+            <tr><td class="cell-lg">验证码同号超频（负例）</td><td class="nowrap">msg.captcha</td><td>负例</td><td class="nowrap">今日 21:54</td><td><span class="badge green">如期 429</span></td><td><span class="link" onclick="PMS.toast('已载入用例参数','success')">载入</span></td></tr>
+            <tr><td class="cell-lg">回执回推与状态回写</td><td class="nowrap">callback.report</td><td>正例</td><td class="nowrap">今日 21:50</td><td><span class="badge green">通过</span></td><td><span class="link" onclick="PMS.toast('已载入用例参数','success')">载入</span></td></tr>
+            <tr><td class="cell-lg">上行「取消」不自动退订</td><td class="nowrap">callback.up</td><td>正例</td><td class="nowrap">今日 21:46</td><td><span class="badge green">仅生成提示</span></td><td><span class="link" onclick="PMS.toast('已载入用例参数','success')">载入</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn" onclick="PMS.closeDrawer('caseDrawer')">关闭</button>
+      <button class="btn btn-primary" onclick="PMS.toast('16 个用例全部执行完毕：16 通过','success')"><i class="fa-solid fa-play"></i> 全部执行</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../../assets/js/app.js"></script>
+<script src="../../../assets/js/wssvc.js"></script>
+</body>
+</html>

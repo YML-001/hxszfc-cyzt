@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>服务调用日志 · 统一文件服务</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../../assets/css/app.css">
+<link rel="stylesheet" href="../../../assets/css/wssvc.css">
+</head>
+<body data-role="admin" data-active="wssvc-37">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 统一应用服务平台
+        <span class="sep">/</span> 统一文件服务 <span class="sep">/</span> <span class="cur">服务调用日志</span>
+      </div>
+      <div class="page-title">服务调用日志 · 统一文件服务</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="overview.html"><i class="fa-solid fa-chart-line"></i> 服务概览</a>
+      <a class="btn" href="preview-auth.html"><i class="fa-solid fa-shield-halved"></i> 访问鉴权</a>
+      <button class="btn" onclick="PMS.toast('已按当前条件订阅告警，失败率超 1% 时推送','success')"><i class="fa-solid fa-bell"></i> 订阅告警</button>
+      <button class="btn btn-primary" onclick="SVC.exportAsync('文件服务调用日志')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <div>文件服务的日志有个特点：<b>量特别大但绝大部分没人关心</b>——
+      每天 8 万多条里 99.9% 是成功的上传下载。
+      所以这个页面的重点不是「翻日志」，是<b>快速把那 100 多条失败的挑出来看清楚</b>。
+      默认筛选已经排除成功记录，按失败原因分组，一类一类处置。</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-list"></i></div>
+      <div><div class="s-label">今日调用</div><div class="s-value">86,420</div><div class="s-trend">上传 24,862 · 读取 61,558</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-circle-xmark"></i></div>
+      <div><div class="s-label">失败</div><div class="s-value">121</div><div class="s-trend">失败率 0.14%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-file-circle-exclamation"></i></div>
+      <div><div class="s-label">被规则拦截</div><div class="s-value">86</div><div class="s-trend text-warning">超限 62 · 格式不符 24</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-clock"></i></div>
+      <div><div class="s-label">P95 时延</div><div class="s-value">486<span class="text-sm"> ms</span></div><div class="s-trend">预览转换拉高了整体</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-bolt"></i></div>
+      <div><div class="s-label">秒传命中</div><div class="s-value">3,842</div><div class="s-trend text-success">省 6.2 GB 上传</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item"><label>时间范围</label><select><option>今日</option><option>近 3 日</option><option>近 7 日</option><option>近 30 日</option><option>自定义</option></select></div>
+      <div class="filter-item"><label>接口</label><select><option value="">全部</option><option>文件上传</option><option>分片上传</option><option>文件下载</option><option>在线预览</option><option>外链签发</option><option>OCR 识别</option><option>哈希校验</option><option>文件删除</option></select></div>
+      <div class="filter-item"><label>调用方应用</label><select><option value="">全部</option><option>不动产登记业务系统</option><option>存量房交易系统</option><option>档案管理系统</option><option>网上服务大厅</option><option>测绘成果管理</option><option>中介机构端</option></select></div>
+      <div class="filter-item"><label>结果</label><select><option>仅失败与拦截</option><option value="">全部</option><option>成功</option><option>失败</option><option>被拦截</option></select></div>
+      <div class="filter-item"><label>文件 / 业务号</label><input type="text" placeholder="文件 ID、文件名或业务号"></div>
+      <div class="filter-item"><label>TraceID</label><input type="text" placeholder="调用链号"></div>
+      <div class="filter-actions">
+        <button class="btn btn-primary" onclick="PMS.toast('已检索调用日志','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button class="btn" onclick="PMS.toast('已重置为默认条件')">重置</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>时间</th><th>接口</th><th>调用方应用</th><th>文件</th><th class="num">大小</th><th>操作人</th><th class="num">耗时</th><th>结果</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:48:12</td><td class="cell-lg">在线预览</td><td class="nowrap">网上服务大厅</td>
+            <td class="cell-lg">F-2026-0801-00486215（不存在）</td><td class="num">—</td><td class="nowrap">未认证</td><td class="num">12 ms</td>
+            <td><span class="badge red">签名不符</span></td><td><a class="link danger" href="preview-auth.html">查拦截</a></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:46:04</td><td class="cell-lg">文件上传</td><td class="nowrap">网上服务大厅</td>
+            <td class="cell-lg">IMG_20260801_214532.jpg</td><td class="num text-danger">18.6 MB</td><td class="nowrap">购房人 蒙**</td><td class="num">2,486 ms</td>
+            <td><span class="badge orange">超出大小上限</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:42:36</td><td class="cell-lg">文件上传</td><td class="nowrap">不动产登记业务系统</td>
+            <td class="cell-lg">不动产登记申请书_扫描件.pdf</td><td class="num">2.4 MB</td><td class="nowrap">窗口 覃志强</td><td class="num">386 ms</td>
+            <td><span class="badge green">成功</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:40:18</td><td class="cell-lg">在线预览</td><td class="nowrap">测绘成果管理</td>
+            <td class="cell-lg">锦绣江南3-1-1102_分层分户图.dwg</td><td class="num">18.6 MB</td><td class="nowrap">测绘科 蒙志刚</td><td class="num text-warning">4,862 ms</td>
+            <td><span class="badge orange">慢调用</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:38:52</td><td class="cell-lg">OCR 识别（身份证）</td><td class="nowrap">存量房交易系统</td>
+            <td class="cell-lg">身份证正反面_合并.jpg</td><td class="num">4.2 MB</td><td class="nowrap">窗口 韦丽娟</td><td class="num">1,242 ms</td>
+            <td><span class="badge green">成功 0.98</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:36:20</td><td class="cell-lg">文件上传（版本覆盖）</td><td class="nowrap">统一签约服务</td>
+            <td class="cell-lg">存量房买卖合同_签署版.pdf v3</td><td class="num">1.8 MB</td><td class="nowrap">系统自动</td><td class="num">242 ms</td>
+            <td><span class="badge green">成功</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:34:06</td><td class="cell-lg">文件上传</td><td class="nowrap">中介机构端</td>
+            <td class="cell-lg">材料打包.rar</td><td class="num">6.8 MB</td><td class="nowrap">链家柳州 韦经理</td><td class="num">86 ms</td>
+            <td><span class="badge orange">格式不在白名单</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:30:44</td><td class="cell-lg">外链签发</td><td class="nowrap">网上服务大厅</td>
+            <td class="cell-lg">不动产权证书_45010020260008642.pdf</td><td class="num">862 KB</td><td class="nowrap">购房人 韦**</td><td class="num">18 ms</td>
+            <td><span class="badge green">成功</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:26:18</td><td class="cell-lg">分片上传合并</td><td class="nowrap">档案管理系统</td>
+            <td class="cell-lg">2003年产权登记卷_城中区_第1428卷.tif</td><td class="num">86.2 MB</td><td class="nowrap">档案科 陆丽华</td><td class="num">3,286 ms</td>
+            <td><span class="badge green">成功</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:22:40</td><td class="cell-lg">文件下载</td><td class="nowrap">柳州银行（接口）</td>
+            <td class="cell-lg">抵押合同_柳州银行.pdf</td><td class="num">1.2 MB</td><td class="nowrap">系统对系统</td><td class="num">168 ms</td>
+            <td><span class="badge green">成功</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:18:52</td><td class="cell-lg">在线预览</td><td class="nowrap">中介机构端</td>
+            <td class="cell-lg">身份证正反面_合并.jpg</td><td class="num">4.2 MB</td><td class="nowrap">我爱我家 陆经理</td><td class="num">24 ms</td>
+            <td><span class="badge red">权限不足</span></td><td><a class="link danger" href="preview-auth.html">查策略</a></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:14:26</td><td class="cell-lg">文件上传（秒传）</td><td class="nowrap">不动产登记业务系统</td>
+            <td class="cell-lg">户口簿_扫描件.pdf</td><td class="num">3.2 MB</td><td class="nowrap">窗口 覃志强</td><td class="num">42 ms</td>
+            <td><span class="badge blue">秒传命中</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:10:08</td><td class="cell-lg">OCR 识别（不动产权证）</td><td class="nowrap">存量房交易系统</td>
+            <td class="cell-lg">上手权证_历史扫描.jpg</td><td class="num">2.8 MB</td><td class="nowrap">窗口 韦丽娟</td><td class="num">1,862 ms</td>
+            <td><span class="badge orange">置信度 0.82 待人工</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:04:32</td><td class="cell-lg">文件上传</td><td class="nowrap">网上服务大厅</td>
+            <td class="cell-lg">结婚证.jpg</td><td class="num">1.6 MB</td><td class="nowrap">申请人 黄**</td><td class="num text-danger">30,000 ms</td>
+            <td><span class="badge red">上传超时</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">20:58:14</td><td class="cell-lg">哈希校验</td><td class="nowrap">平台内部</td>
+            <td class="cell-lg">批量校验 5,000 个对象</td><td class="num">—</td><td class="nowrap">系统定时</td><td class="num">8,642 ms</td>
+            <td><span class="badge green">全部一致</span></td><td><span class="link">报文</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="drawer-mask" onclick="PMS.closeDrawer('logDrawer')"></div>
+  <div class="drawer drawer-lg" id="logDrawer">
+    <div class="drawer-head">
+      <h3>调用报文详情 · 文件上传（超出大小上限）</h3>
+      <span class="close" onclick="PMS.closeDrawer('logDrawer')"><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="svc-resp warn">
+        <span><i class="fa-solid fa-triangle-exclamation"></i> <b>被规则拦截</b></span>
+        <span>HTTP <b>413</b></span>
+        <span>耗时 <b>2,486 ms</b></span>
+        <span>重试 <b>0 次</b></span>
+        <span>TraceID <b>c8e2a91f-3d47-4b02-8a6e-1f92</b></span>
+      </div>
+      <dl class="svc-kv">
+        <dt>调用时间</dt><dd>2026-08-01 21:46:04.128</dd>
+        <dt>接口</dt><dd>文件上传　POST /api/file/v1/upload</dd>
+        <dt>调用方</dt><dd>网上服务大厅（app_wsdt）　·　互联网区　·　IP 171.14.***.102</dd>
+        <dt>操作人</dt><dd>购房人 蒙**　138****2846　·　已实名认证</dd>
+        <dt>文件</dt><dd class="text-danger">IMG_20260801_214532.jpg　18.6 MB　（上限 10 MB）</dd>
+        <dt>业务场景</dt><dd>网上申请转移登记，上传身份证照片</dd>
+        <dt>拦截规则</dt><dd>「群众自助上传」业务类型，单文件上限 10 MB</dd>
+      </dl>
+      <div class="section-title mt-16">耗时分解</div>
+      <div class="svc-span">
+        <i class="s1" style="width:94%"></i>
+        <i class="s2" style="width:4%"></i>
+        <i class="s3" style="width:2%"></i>
+      </div>
+      <div class="svc-lg">
+        <span><i style="background:var(--primary)"></i>接收上行数据 2,340 ms</span>
+        <span><i style="background:var(--info)"></i>规则校验 96 ms</span>
+        <span><i style="background:#7ea6e8"></i>返回响应 50 ms</span>
+      </div>
+      <div class="section-title mt-16">请求报文</div>
+      <pre class="svc-code"><span class="c">POST /api/file/v1/upload   Content-Type: multipart/form-data</span>
+{
+  <span class="k">"appId"</span>: <span class="s">"app_wsdt"</span>,
+  <span class="k">"bizType"</span>: <span class="s">"PUBLIC_SELF_UPLOAD"</span>,
+  <span class="k">"bizNo"</span>: <span class="s">"WS2026080100286"</span>,
+  <span class="k">"fileName"</span>: <span class="s">"IMG_20260801_214532.jpg"</span>,
+  <span class="k">"fileSize"</span>: <span class="n">19503104</span>,
+  <span class="k">"contentType"</span>: <span class="s">"image/jpeg"</span>,
+  <span class="k">"clientCompressed"</span>: <span class="n">false</span>,
+  <span class="k">"operator"</span>: { <span class="k">"name"</span>: <span class="s">"蒙**"</span>, <span class="k">"idType"</span>: <span class="s">"REALNAME"</span> }
+}</pre>
+      <div class="section-title mt-16">响应报文</div>
+      <pre class="svc-code">{
+  <span class="k">"code"</span>: <span class="s">"FILE_TOO_LARGE"</span>,
+  <span class="k">"msg"</span>: <span class="s">"文件大小 18.6 MB 超出该场景上限 10 MB"</span>,
+  <span class="k">"data"</span>: {
+    <span class="k">"limitMb"</span>: <span class="n">10</span>,
+    <span class="k">"actualMb"</span>: <span class="n">18.6</span>,
+    <span class="k">"suggestion"</span>: <span class="s">"请在手机相册中选择「压缩后发送」，或使用系统内置的拍照上传"</span>
+  }
+}</pre>
+      <div class="alert alert-warning mt-16">
+        <i class="fa-solid fa-lightbulb"></i>
+        <div><b>客户端压缩明明开着，为什么还是传了 18.6 MB 上来？</b>
+          查了一下：这个用户用的是微信内置浏览器的旧版本，
+          压缩脚本在那个 WebView 里没执行。
+          处置办法是<b>服务端返回的提示要给出可操作的替代路径</b>——
+          告诉他用「压缩后发送」，而不是干巴巴一句「文件太大」。
+          提示文案已按这个思路改过，改后同类重试成功率从 42% 升到 86%。</div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn" onclick="PMS.closeDrawer('logDrawer')">关闭</button>
+      <button class="btn" onclick="SVC.exportAsync('调用报文 c8e2a91f')"><i class="fa-solid fa-download"></i> 导出报文</button>
+      <a class="btn" href="api-debug.html"><i class="fa-solid fa-terminal"></i> 在调试台重放</a>
+      <a class="btn btn-primary" href="param.html"><i class="fa-solid fa-sliders"></i> 去调整参数</a>
+    </div>
+  </div>
+
+</main>
+<script src="../../../assets/js/app.js"></script>
+<script src="../../../assets/js/wssvc.js"></script>
+</body>
+</html>

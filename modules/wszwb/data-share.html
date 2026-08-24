@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>信息共享与线索移送 · 房屋租赁网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：字段标签串、六类线索卡 */
+  .card.list-card > .tab-panel.active > .card-body { flex: 1 1 auto; min-height: 0; overflow: auto; }
+
+  .fld { display: inline-flex; flex-wrap: wrap; gap: 4px; max-width: 260px; }
+  .fld span {
+    background: var(--bg-soft); border-radius: 4px; padding: 1px 7px; font-size: 11.5px; color: var(--text-2);
+  }
+  .fld .more { color: var(--primary); cursor: pointer; background: var(--primary-light); }
+
+  .clue-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .clue-card {
+    border: 1px solid var(--border); border-radius: var(--radius); background: #fff; padding: 13px 15px;
+    cursor: pointer; transition: .15s; display: flex; align-items: center; gap: 12px;
+  }
+  .clue-card:hover { border-color: var(--primary); box-shadow: 0 2px 8px rgba(37,99,235,.1); }
+  .clue-card.active { border-color: var(--primary); background: #f5f9ff; }
+  .clue-card .cl-i {
+    width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; font-size: 15px;
+    display: flex; align-items: center; justify-content: center; background: var(--warning-light); color: #b45309;
+  }
+  .clue-card .cl-t { font-size: 13px; color: var(--text-3); }
+  .clue-card .cl-v { font-size: 20px; font-weight: 700; color: var(--text-1); letter-spacing: -.5px; }
+  .clue-card .cl-v small { font-size: 12px; font-weight: 500; color: var(--text-3); margin-left: 3px; }
+
+  .data-table tbody tr.is-bad > td { background: #fff5f5; }
+  .data-table tbody tr.is-bad:hover > td { background: #ffecec; }
+  .rate-ok { color: var(--success); font-weight: 600; }
+  .rate-bad { color: var(--danger); font-weight: 600; }
+  .tree { display: flex; flex-direction: column; gap: 6px; }
+  .tree .tr-g { border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 13px; }
+  .tree .tr-g > .tg-t { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+  .tree .tr-g > .tg-b { display: flex; flex-wrap: wrap; gap: 12px; }
+  .tree label { font-size: 12.5px; color: var(--text-2); display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wszwb-04">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋租赁网签备案管理系统
+        <span class="sep">/</span> 租赁备案服务
+        <span class="sep">/</span> <span class="cur">信息共享与线索移送</span>
+      </div>
+      <div class="page-title">租赁信息共享与线索移送</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" onclick="PMS.openDrawer('drField')"><i class="fa-solid fa-plus"></i> 新增共享事项</button>
+      <button type="button" class="btn" onclick="batchPush()"><i class="fa-solid fa-paper-plane"></i> 批量推送</button>
+      <button type="button" class="btn" onclick="PMS.toast('已导出《共享与移送台账》Excel','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-building-columns"></i></div>
+      <div><div class="s-label">共享部门</div><div class="s-value">8 <small>个</small></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-list-check"></i></div>
+      <div><div class="s-label">共享事项</div><div class="s-value">14 <small>项</small></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-paper-plane"></i></div>
+      <div><div class="s-label">本月推送</div><div class="s-value">26,486 <small>条</small></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">推送成功率</div><div class="s-value">99.6<small>%</small></div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      涉及个人信息的共享调用须记录调用方、调用时间与用途，接受审计；推送失败三次重试后自动转人工处理。
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="tabs" data-tabs-scope>
+      <div class="tab active" data-tab="cfg">共享清单配置</div>
+      <div class="tab" data-tab="log">推送台账</div>
+      <div class="tab" data-tab="clue">线索移送台账</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="cfg">
+      <div class="table-wrap">
+        <table class="data-table" data-static>
+          <thead>
+            <tr>
+              <th>事项编号</th><th>共享事项名称</th><th>接收部门</th><th>共享字段范围</th><th>推送时机</th><th>推送方式</th>
+              <th>需相对人授权</th><th class="num">本月推送量</th><th class="num">成功率</th><th>状态</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="nowrap fw-600">GX001</td>
+              <td class="cell-lg">租赁备案信息共享（居住登记）</td>
+              <td class="nowrap">公安</td>
+              <td><div class="fld"><span>备案编号</span><span>坐落</span><span>承租人姓名</span><span>证件号码</span><span>随同居住人</span><span class="more" onclick="PMS.openDrawer('drField')">+4</span></div></td>
+              <td class="nowrap">备案完成即时</td>
+              <td class="nowrap">接口</td>
+              <td class="nowrap"><span class="badge green">是</span></td>
+              <td class="num">3,286</td>
+              <td class="num rate-ok">99.9%</td>
+              <td class="nowrap"><span class="badge green">启用</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="PMS.openDrawer('drField')">编辑字段</span>
+                <span class="link" onclick="PMS.toast('测试推送成功，响应 128ms','success')">测试推送</span>
+                <span class="link" onclick="toggleItem('GX001','停用')">停用</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">GX002</td>
+              <td class="cell-lg">适龄儿童入学学位关联</td>
+              <td class="nowrap">教育</td>
+              <td><div class="fld"><span>备案编号</span><span>坐落</span><span>租赁期限</span><span>承租人姓名</span><span class="more" onclick="PMS.openDrawer('drField')">+3</span></div></td>
+              <td class="nowrap">备案完成即时</td>
+              <td class="nowrap">接口</td>
+              <td class="nowrap"><span class="badge green">是</span></td>
+              <td class="num">3,286</td>
+              <td class="num rate-ok">99.8%</td>
+              <td class="nowrap"><span class="badge green">启用</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="PMS.openDrawer('drField')">编辑字段</span>
+                <span class="link" onclick="PMS.toast('测试推送成功，响应 96ms','success')">测试推送</span>
+                <span class="link" onclick="toggleItem('GX002','停用')">停用</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">GX003</td>
+              <td class="cell-lg">住房公积金租房提取核验</td>
+              <td class="nowrap">公积金</td>
+              <td><div class="fld"><span>备案编号</span><span>月租金</span><span>租赁期限</span><span>承租人证件号</span><span class="more" onclick="PMS.openDrawer('drField')">+2</span></div></td>
+              <td class="nowrap">备案完成即时</td>
+              <td class="nowrap">接口</td>
+              <td class="nowrap"><span class="badge green">是</span></td>
+              <td class="num">3,286</td>
+              <td class="num rate-ok">99.7%</td>
+              <td class="nowrap"><span class="badge green">启用</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="PMS.openDrawer('drField')">编辑字段</span>
+                <span class="link" onclick="PMS.toast('测试推送成功，响应 142ms','success')">测试推送</span>
+                <span class="link" onclick="toggleItem('GX003','停用')">停用</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">GX004</td>
+              <td class="cell-lg">市场主体住所登记核验</td>
+              <td class="nowrap">市场监管</td>
+              <td><div class="fld"><span>备案编号</span><span>坐落</span><span>承租使用用途</span><span>租赁期限</span></div></td>
+              <td class="nowrap">每日批量</td>
+              <td class="nowrap">接口</td>
+              <td class="nowrap"><span class="badge gray">否</span></td>
+              <td class="num">862</td>
+              <td class="num rate-ok">100.0%</td>
+              <td class="nowrap"><span class="badge green">启用</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="PMS.openDrawer('drField')">编辑字段</span>
+                <span class="link" onclick="PMS.toast('测试推送成功，响应 88ms','success')">测试推送</span>
+                <span class="link" onclick="toggleItem('GX004','停用')">停用</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">GX005</td>
+              <td class="cell-lg">租赁涉税信息共享</td>
+              <td class="nowrap">税务</td>
+              <td><div class="fld"><span>备案编号</span><span>出租人名称</span><span>月租金</span><span>租金总额</span><span class="more" onclick="PMS.openDrawer('drField')">+3</span></div></td>
+              <td class="nowrap">每月批量</td>
+              <td class="nowrap">文件</td>
+              <td class="nowrap"><span class="badge gray">否</span></td>
+              <td class="num">8,642</td>
+              <td class="num rate-ok">99.4%</td>
+              <td class="nowrap"><span class="badge green">启用</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="PMS.openDrawer('drField')">编辑字段</span>
+                <span class="link" onclick="PMS.toast('测试推送成功，文件已生成','success')">测试推送</span>
+                <span class="link" onclick="toggleItem('GX005','停用')">停用</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">GX006</td>
+              <td class="cell-lg">租赁市场统计数据共享</td>
+              <td class="nowrap">统计</td>
+              <td><div class="fld"><span>行政区划</span><span>备案套数</span><span>备案面积</span><span>平均租金</span></div></td>
+              <td class="nowrap">每月批量</td>
+              <td class="nowrap">文件</td>
+              <td class="nowrap"><span class="badge gray">否</span></td>
+              <td class="num">6,428</td>
+              <td class="num rate-ok">100.0%</td>
+              <td class="nowrap"><span class="badge green">启用</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="PMS.openDrawer('drField')">编辑字段</span>
+                <span class="link" onclick="PMS.toast('测试推送成功，文件已生成','success')">测试推送</span>
+                <span class="link" onclick="toggleItem('GX006','停用')">停用</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">GX007</td>
+              <td class="cell-lg">租金贷业务合规信息共享</td>
+              <td class="nowrap">金融</td>
+              <td><div class="fld"><span>合同编号</span><span>放贷机构</span><span>贷款金额</span><span>占租金比例</span><span class="more" onclick="PMS.openDrawer('drField')">+2</span></div></td>
+              <td class="nowrap">每日批量</td>
+              <td class="nowrap">接口</td>
+              <td class="nowrap"><span class="badge green">是</span></td>
+              <td class="num">386</td>
+              <td class="num rate-ok">99.5%</td>
+              <td class="nowrap"><span class="badge green">启用</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="PMS.openDrawer('drField')">编辑字段</span>
+                <span class="link" onclick="PMS.toast('测试推送成功，响应 156ms','success')">测试推送</span>
+                <span class="link" onclick="toggleItem('GX007','停用')">停用</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">GX008</td>
+              <td class="cell-lg">困难群众租赁保障核验</td>
+              <td class="nowrap">民政</td>
+              <td><div class="fld"><span>备案编号</span><span>承租人证件号</span><span>月租金</span><span>房屋类型</span></div></td>
+              <td class="nowrap">每日批量</td>
+              <td class="nowrap">接口</td>
+              <td class="nowrap"><span class="badge green">是</span></td>
+              <td class="num">310</td>
+              <td class="num rate-bad">96.8%</td>
+              <td class="nowrap"><span class="badge orange">试运行</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="PMS.openDrawer('drField')">编辑字段</span>
+                <span class="link" onclick="PMS.toast('测试推送成功，响应 210ms','success')">测试推送</span>
+                <span class="link" onclick="toggleItem('GX008','启用')">启用</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="log">
+      <div class="filter-bar">
+        <div class="filter-item"><label>关键词</label><input type="text" placeholder="推送批次号 / 事项名称"></div>
+        <div class="filter-item">
+          <label>接收部门</label>
+          <select><option value="">全部</option><option>公安</option><option>民政</option><option>教育</option><option>市场监管</option><option>金融</option><option>税务</option><option>统计</option><option>公积金</option></select>
+        </div>
+        <div class="filter-item">
+          <label>状态</label>
+          <select><option value="">全部</option><option>成功</option><option>部分失败</option><option>失败</option><option>重试中</option></select>
+        </div>
+        <div class="filter-item"><label>推送时间起</label><input type="date" value="2026-07-25"></div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 486 批次')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table" id="tblLog" data-static>
+          <thead>
+            <tr>
+              <th>推送批次号</th><th>事项名称</th><th>接收部门</th><th>推送时间</th><th class="num">数据量</th>
+              <th class="num">成功</th><th class="num">失败</th><th>失败原因</th><th class="num">重试次数</th><th>状态</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="nowrap fw-600">PC20260801000186</td>
+              <td class="cell-lg">租赁备案信息共享（居住登记）</td>
+              <td class="nowrap">公安</td>
+              <td class="nowrap">2026-08-01 06:10</td>
+              <td class="num">142</td><td class="num">142</td><td class="num">0</td>
+              <td class="text-3">—</td><td class="num">0</td>
+              <td class="nowrap"><span class="badge green">成功</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已展开推送明细')">查看明细</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">PC20260801000174</td>
+              <td class="cell-lg">适龄儿童入学学位关联</td>
+              <td class="nowrap">教育</td>
+              <td class="nowrap">2026-08-01 06:10</td>
+              <td class="num">142</td><td class="num">142</td><td class="num">0</td>
+              <td class="text-3">—</td><td class="num">0</td>
+              <td class="nowrap"><span class="badge green">成功</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已展开推送明细')">查看明细</span></td>
+            </tr>
+            <tr class="is-bad">
+              <td class="nowrap fw-600">PC20260801000162</td>
+              <td class="cell-lg">困难群众租赁保障核验</td>
+              <td class="nowrap">民政</td>
+              <td class="nowrap">2026-08-01 06:12</td>
+              <td class="num">18</td><td class="num">14</td><td class="num">4</td>
+              <td class="cell-lg">接收方接口超时（4 条），网关返回 504</td><td class="num">2</td>
+              <td class="nowrap"><span class="badge orange">重试中</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="PMS.toast('已展开失败明细')">查看明细</span>
+                <span class="link" onclick="PMS.toast('已发起第 3 次重试','success')">重新推送</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">PC20260731000148</td>
+              <td class="cell-lg">住房公积金租房提取核验</td>
+              <td class="nowrap">公积金</td>
+              <td class="nowrap">2026-07-31 14:53</td>
+              <td class="num">1</td><td class="num">1</td><td class="num">0</td>
+              <td class="text-3">—</td><td class="num">0</td>
+              <td class="nowrap"><span class="badge green">成功</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已展开推送明细')">查看明细</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">PC20260731000131</td>
+              <td class="cell-lg">租赁涉税信息共享</td>
+              <td class="nowrap">税务</td>
+              <td class="nowrap">2026-07-31 02:00</td>
+              <td class="num">8,642</td><td class="num">8,590</td><td class="num">52</td>
+              <td class="cell-lg">出租人证件号校验不通过（52 条），已转人工核对</td><td class="num">3</td>
+              <td class="nowrap"><span class="badge orange">部分失败</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="PMS.toast('已展开失败明细')">查看明细</span>
+                <span class="link" onclick="PMS.toast('已转人工处理队列','success')">转人工</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">PC20260731000118</td>
+              <td class="cell-lg">租赁市场统计数据共享</td>
+              <td class="nowrap">统计</td>
+              <td class="nowrap">2026-07-31 02:00</td>
+              <td class="num">6,428</td><td class="num">6,428</td><td class="num">0</td>
+              <td class="text-3">—</td><td class="num">0</td>
+              <td class="nowrap"><span class="badge green">成功</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已展开推送明细')">查看明细</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="clue">
+      <div class="card-body" style="padding-bottom:0">
+        <div class="clue-grid">
+          <div class="clue-card active" data-clue="nofile" onclick="pickClue(this)">
+            <div class="cl-i"><i class="fa-solid fa-file-circle-xmark"></i></div>
+            <div><div class="cl-t">未备案出租</div><div class="cl-v">186 <small>条</small></div></div>
+          </div>
+          <div class="clue-card" data-clue="fake" onclick="pickClue(this)">
+            <div class="cl-i"><i class="fa-solid fa-image"></i></div>
+            <div><div class="cl-t">虚假房源</div><div class="cl-v">42 <small>条</small></div></div>
+          </div>
+          <div class="clue-card" data-clue="ge" onclick="pickClue(this)">
+            <div class="cl-i"><i class="fa-solid fa-border-all"></i></div>
+            <div><div class="cl-t">违规隔断</div><div class="cl-v">28 <small>条</small></div></div>
+          </div>
+          <div class="clue-card" data-clue="nolic" onclick="pickClue(this)">
+            <div class="cl-i"><i class="fa-solid fa-store-slash"></i></div>
+            <div><div class="cl-t">无照经营</div><div class="cl-v">16 <small>条</small></div></div>
+          </div>
+          <div class="clue-card" data-clue="loan" onclick="pickClue(this)">
+            <div class="cl-i"><i class="fa-solid fa-money-bill-trend-up"></i></div>
+            <div><div class="cl-t">租金贷违规</div><div class="cl-v">9 <small>条</small></div></div>
+          </div>
+          <div class="clue-card" data-clue="tax" onclick="pickClue(this)">
+            <div class="cl-i"><i class="fa-solid fa-receipt"></i></div>
+            <div><div class="cl-t">涉税异常</div><div class="cl-v">64 <small>条</small></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table" id="tblClue" data-static>
+          <thead>
+            <tr>
+              <th>线索编号</th><th>线索类型</th><th>涉及主体</th><th>线索来源</th><th>发现时间</th>
+              <th>归口部门</th><th>移送时间</th><th>接收人</th><th>反馈结果</th><th>反馈时间</th><th>状态</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-clue="nofile">
+              <td class="nowrap fw-600">XS2026000386</td>
+              <td class="nowrap">未备案出租</td>
+              <td class="cell-lg">吴某某（个人出租人 · 名下 2 次单方备案）</td>
+              <td class="nowrap">系统预警</td>
+              <td class="nowrap">2026-07-29</td>
+              <td class="nowrap">住建（本部门）</td>
+              <td class="nowrap">2026-07-30</td>
+              <td class="nowrap">周建华</td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap"><span class="badge orange">处理中</span></td>
+              <td class="col-ops">
+                <a class="link" href="tenant-filing.html">查看单方备案</a>
+                <a class="link" href="violation-ledger.html">登记违规</a>
+              </td>
+            </tr>
+            <tr data-clue="fake">
+              <td class="nowrap fw-600">XS2026000372</td>
+              <td class="nowrap">虚假房源</td>
+              <td class="cell-lg">柳州星宿公寓管理有限公司</td>
+              <td class="nowrap">投诉举报</td>
+              <td class="nowrap">2026-07-28</td>
+              <td class="nowrap">市场监管</td>
+              <td class="nowrap">2026-07-29</td>
+              <td class="nowrap">市场监管局 李某</td>
+              <td class="cell-lg">已立案调查，要求补充证据材料</td>
+              <td class="nowrap">2026-07-30</td>
+              <td class="nowrap"><span class="badge blue">已反馈</span></td>
+              <td class="col-ops">
+                <a class="link" href="publisher-verify.html">虚假房源处置</a>
+                <span class="link" onclick="PMS.toast('已补充证据快照与图片查重报告','success')">补充材料</span>
+              </td>
+            </tr>
+            <tr data-clue="ge">
+              <td class="nowrap fw-600">XS2026000358</td>
+              <td class="nowrap">违规隔断</td>
+              <td class="cell-lg">柳北区跃进路 33 号桂中华府 6-2-1104</td>
+              <td class="nowrap">日常检查</td>
+              <td class="nowrap">2026-07-26</td>
+              <td class="nowrap">住建 / 消防</td>
+              <td class="nowrap">2026-07-27</td>
+              <td class="nowrap">消防救援支队 覃某</td>
+              <td class="cell-lg">已下达责令限期整改通知书，整改期限 15 日</td>
+              <td class="nowrap">2026-07-29</td>
+              <td class="nowrap"><span class="badge blue">已反馈</span></td>
+              <td class="col-ops">
+                <a class="link" href="listing-detail.html">查看房源</a>
+                <a class="link" href="violation-ledger.html">登记违规</a>
+              </td>
+            </tr>
+            <tr data-clue="nolic">
+              <td class="nowrap fw-600">XS2026000341</td>
+              <td class="nowrap">无照经营</td>
+              <td class="cell-lg">「柳州优家公寓」（未注册主体，微信招租）</td>
+              <td class="nowrap">媒体曝光</td>
+              <td class="nowrap">2026-07-22</td>
+              <td class="nowrap">市场监管</td>
+              <td class="nowrap">2026-07-23</td>
+              <td class="nowrap">市场监管局 韦某</td>
+              <td class="cell-lg">已核实并责令停止经营，移送综合执法</td>
+              <td class="nowrap">2026-07-28</td>
+              <td class="nowrap"><span class="badge green">已办结</span></td>
+              <td class="col-ops"><a class="link" href="violation-ledger.html">查看处置</a></td>
+            </tr>
+            <tr data-clue="loan">
+              <td class="nowrap fw-600">XS2026000326</td>
+              <td class="nowrap">租金贷违规</td>
+              <td class="cell-lg">柳州安居住房租赁有限公司（未明确告知 3 户）</td>
+              <td class="nowrap">系统预警</td>
+              <td class="nowrap">2026-07-20</td>
+              <td class="nowrap">金融监管</td>
+              <td class="nowrap">2026-07-21</td>
+              <td class="nowrap">金融办 梁某</td>
+              <td class="cell-lg">已约谈企业，要求 10 日内逐户补充告知并提交凭证</td>
+              <td class="nowrap">2026-07-25</td>
+              <td class="nowrap"><span class="badge blue">已反馈</span></td>
+              <td class="col-ops">
+                <a class="link" href="fund-compliance.html">合规监测</a>
+                <span class="link" onclick="PMS.toast('已跟踪企业整改进度')">跟踪整改</span>
+              </td>
+            </tr>
+            <tr data-clue="tax">
+              <td class="nowrap fw-600">XS2026000312</td>
+              <td class="nowrap">涉税异常</td>
+              <td class="cell-lg">柳江区拉堡片区 12 组备案租金显著低于市场水平</td>
+              <td class="nowrap">系统预警</td>
+              <td class="nowrap">2026-07-18</td>
+              <td class="nowrap">税务</td>
+              <td class="nowrap">2026-07-19</td>
+              <td class="nowrap">税务局 白某</td>
+              <td class="cell-lg">已纳入风险名录，按季核查</td>
+              <td class="nowrap">2026-07-24</td>
+              <td class="nowrap"><span class="badge green">已办结</span></td>
+              <td class="col-ops"><a class="link" href="rent-fluctuation.html">波动监测</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 字段范围抽屉 -->
+  <div class="drawer-mask" data-close-drawer></div>
+  <div class="drawer drawer-lg" id="drField">
+    <div class="drawer-head"><span>共享字段范围配置</span><i class="fa-solid fa-xmark" data-close-drawer></i></div>
+    <div class="drawer-body">
+      <div class="form-grid form-align">
+        <div class="form-item col-full"><label>共享事项名称<span class="req">*</span></label><input type="text" value="租赁备案信息共享（居住登记）"></div>
+        <div class="form-item"><label>接收部门<span class="req">*</span></label><select><option selected>公安</option><option>民政</option><option>教育</option><option>市场监管</option><option>金融</option><option>税务</option><option>统计</option><option>公积金</option></select></div>
+        <div class="form-item"><label>推送时机<span class="req">*</span></label><select><option selected>备案完成即时</option><option>每日批量</option><option>每月批量</option></select></div>
+        <div class="form-item"><label>推送方式</label><select><option selected>接口</option><option>文件</option></select></div>
+        <div class="form-item"><label>是否需相对人授权</label><select><option selected>是</option><option>否</option></select></div>
+      </div>
+
+      <div class="section-title mt-16">字段多选</div>
+      <div class="tree">
+        <div class="tr-g">
+          <div class="tg-t"><label><input type="checkbox" checked> 备案信息</label></div>
+          <div class="tg-b">
+            <label><input type="checkbox" checked> 备案编号</label>
+            <label><input type="checkbox" checked> 备案类型</label>
+            <label><input type="checkbox" checked> 备案时间</label>
+            <label><input type="checkbox" checked> 备案有效期</label>
+            <label><input type="checkbox"> 备案证明编号</label>
+          </div>
+        </div>
+        <div class="tr-g">
+          <div class="tg-t"><label><input type="checkbox" checked> 房屋信息</label></div>
+          <div class="tg-b">
+            <label><input type="checkbox" checked> 房屋坐落</label>
+            <label><input type="checkbox" checked> 不动产单元号</label>
+            <label><input type="checkbox" checked> 租赁方式</label>
+            <label><input type="checkbox"> 出租面积</label>
+            <label><input type="checkbox"> 房屋用途</label>
+          </div>
+        </div>
+        <div class="tr-g">
+          <div class="tg-t"><label><input type="checkbox" checked> 当事人信息</label></div>
+          <div class="tg-b">
+            <label><input type="checkbox" checked> 承租人姓名</label>
+            <label><input type="checkbox" checked> 承租人证件号码</label>
+            <label><input type="checkbox" checked> 随同居住人姓名</label>
+            <label><input type="checkbox" checked> 随同居住人证件号码</label>
+            <label><input type="checkbox"> 出租人姓名</label>
+            <label><input type="checkbox"> 联系电话</label>
+          </div>
+        </div>
+        <div class="tr-g">
+          <div class="tg-t"><label><input type="checkbox"> 租金信息</label></div>
+          <div class="tg-b">
+            <label><input type="checkbox"> 月租金</label>
+            <label><input type="checkbox"> 租金总额</label>
+            <label><input type="checkbox"> 押金金额</label>
+            <label><input type="checkbox"> 支付周期</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert alert-warning mt-16">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>共享字段应遵循最小必要原则。勾选证件号码等敏感字段的，接收方每次调用均须记录调用人、时间与用途，并纳入年度审计。</div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('共享字段范围已保存','success')">保存</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function toggleItem(no, act) {
+  PMS.confirm({
+    title: act + '共享事项',
+    message: act + '共享事项「' + no + '」？',
+    detail: act === '停用' ? '停用后该事项不再推送，已推送数据不受影响。' : '启用后按配置的推送时机自动推送。',
+    type: act === '停用' ? 'warning' : 'info',
+    okText: act,
+    onOk: function () { PMS.toast('已' + act, 'success'); }
+  });
+}
+
+function batchPush() {
+  PMS.confirm({
+    title: '批量推送',
+    message: '立即执行全部启用中共享事项的批量推送？',
+    detail: '本次预计推送 26,486 条，失败三次重试后自动转人工处理。',
+    type: 'info',
+    okText: '推送',
+    onOk: function () { PMS.toast('批量推送已发起，可在推送台账中查看进度', 'success'); }
+  });
+}
+
+function pickClue(el) {
+  var on = el.classList.contains('active');
+  document.querySelectorAll('.clue-card').forEach(function (c) { c.classList.remove('active'); });
+  var k = on ? '' : el.getAttribute('data-clue');
+  if (!on) el.classList.add('active');
+  document.querySelectorAll('#tblClue tbody tr').forEach(function (tr) {
+    tr.style.display = (!k || tr.getAttribute('data-clue') === k) ? '' : 'none';
+  });
+  PMS.toast(k ? '已筛选：' + el.querySelector('.cl-t').textContent : '已取消筛选，显示全部线索');
+}
+
+(function () {
+  PMS.renderPager(document.getElementById('tblClue'), {
+    pageNum: 1, pageSize: 20, total: 345,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+  PMS.renderPager(document.getElementById('tblLog'), {
+    pageNum: 1, pageSize: 20, total: 486,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+</script>
+</body>
+</html>

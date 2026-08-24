@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>幻觉防控审核 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="pt" data-active="prompt-template" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>模型底座</span>
+      <span class="sep">/</span><span>AI 输出治理</span>
+      <span class="sep">/</span><span class="cur">幻觉防控审核</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-shield-halved"></i>AI 输出治理 wsai-03</span>
+    <a href="../common/ai-audit-log.html?role=pt">AI 输出留痕</a>
+    <a href="prompt-template.html?role=pt">提示词模板</a>
+    <a href="content-filter.html?role=pt">内容合规过滤</a>
+    <a class="active" href="hallucination-guard.html?role=pt">幻觉防控审核</a>
+    <a href="human-feedback.html?role=pt">人工修正回流</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-shield-halved"></i>
+    <span>幻觉防控是硬约束一的执行者：<b>置信度低于阈值</b>、或<b>需溯源场景没有已生效知识库引用</b>的输出会被直接拦截并转人工，
+      答复必须可追溯到政策原文。注意：引用了草稿或已废止文档不算有效引用。</span>
+  </div>
+
+  <div class="grid-2">
+    <!-- 配置区 + 试算 -->
+    <div class="card">
+      <div class="card-head">
+        <h3>防控配置</h3>
+        <span class="sub" id="cfgSub">—</span>
+      </div>
+      <div class="card-body">
+        <div class="form-grid">
+          <div class="form-item col-full">
+            <label>置信度阈值（%） <span class="req">*</span></label>
+            <input type="range" id="cfConf" min="50" max="99" step="1" style="width:100%;height:auto;padding:0"
+                   oninput="onSlide()">
+            <div class="flex items-center justify-between">
+              <span class="text-3 text-sm">50%（宽松）</span>
+              <span class="fw-700 text-lg text-primary" id="cfVal">—</span>
+              <span class="text-3 text-sm">99%（严格）</span>
+            </div>
+          </div>
+          <div class="form-item col-full">
+            <label>溯源要求</label>
+            <label class="flex items-center gap-8" style="font-weight:400;font-size:13.5px">
+              <input type="checkbox" id="cfCite" style="width:auto;height:auto" onchange="onSlide()">
+              需溯源场景（问答 / 导办 / 问数 / 报告）必须命中已生效知识库
+            </label>
+            <label class="flex items-center gap-8" style="font-weight:400;font-size:13.5px">
+              <input type="checkbox" id="cfBlock" style="width:auto;height:auto" onchange="onSlide()">
+              无有效引用时直接拦截并转人工（不勾则仅告警）
+            </label>
+          </div>
+        </div>
+        <div class="btn-row mt-16">
+          <button class="btn btn-primary" onclick="save()"><i class="fa-solid fa-floppy-disk"></i> 保存并生效</button>
+          <button class="btn" onclick="load()"><i class="fa-solid fa-rotate-left"></i> 还原当前配置</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 试算结果 -->
+    <div class="card">
+      <div class="card-head">
+        <h3>阈值试算</h3>
+        <span class="sub">按待保存的阈值重算历史输出</span>
+      </div>
+      <div class="card-body">
+        <div class="grid-2" id="trialRings"></div>
+        <div id="trialText" class="mt-16"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3>会被拦截的输出</h3>
+      <span class="sub" id="listSub">按当前滑块位置试算，保存后才真正生效</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tBlock" data-static>
+        <thead><tr>
+          <th>应用场景</th><th>业务标识</th><th class="cell-lg">AI 结论</th>
+          <th>模型 / 版本</th><th>置信度</th><th>有效引用</th><th>拦截原因</th><th>当前状态</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var NEED = ['01', '02', '13', '14'];
+
+  function validCites(o) {
+    return (o.cites || []).filter(function (id) {
+      var d = AI.byId('kbDocs', id);
+      return d && d.zskzt === '2';
+    });
+  }
+  function blockReason(o, conf, needCite) {
+    if (o.conf < conf) return '置信度 ' + o.conf + '% 低于阈值 ' + conf + '%';
+    if (needCite && NEED.indexOf(o.scene) >= 0 && !validCites(o).length) return '需溯源场景无已生效知识库引用';
+    return '';
+  }
+
+  window.load = function () {
+    var g = AI.db().guard;
+    document.getElementById('cfConf').value = g.confMin;
+    document.getElementById('cfCite').checked = !!g.needCite;
+    document.getElementById('cfBlock').checked = !!g.blockNoCite;
+    onSlide();
+  };
+
+  window.onSlide = function () {
+    var conf = Number(document.getElementById('cfConf').value);
+    var needCite = document.getElementById('cfCite').checked;
+    document.getElementById('cfVal').textContent = conf + '%';
+    var g = AI.db().guard;
+    document.getElementById('cfgSub').textContent =
+      '当前生效：阈值 ' + g.confMin + '% · ' + (g.needCite ? '强制溯源' : '不强制溯源') +
+      ' · 累计拦截 ' + g.blocked + ' 次';
+
+    var all = AI.get('outputs');
+    var hit = all.filter(function (o) { return !!blockReason(o, conf, needCite); });
+    var rate = all.length ? Math.round(hit.length / all.length * 1000) / 10 : 0;
+    document.getElementById('trialRings').innerHTML =
+      AI.ring(rate, '将被拦截占比', hit.length + ' / ' + all.length + ' 条', 'var(--danger)') +
+      AI.ring(100 - rate, '可正常输出占比', (all.length - hit.length) + ' 条', 'var(--success)');
+
+    var delta = hit.length - all.filter(function (o) {
+      return !!blockReason(o, g.confMin, g.needCite);
+    }).length;
+    document.getElementById('trialText').innerHTML =
+      '<div class="alert ' + (delta > 0 ? 'alert-warning' : (delta < 0 ? 'alert-info' : 'alert-success')) + '">' +
+      '<i class="fa-solid fa-calculator"></i><span>' +
+      (delta > 0
+        ? '相比当前配置，会<b>多拦截 ' + delta + ' 条</b>输出。阈值调高更安全但会增加转人工量。'
+        : (delta < 0
+            ? '相比当前配置，会<b>少拦截 ' + Math.abs(delta) + ' 条</b>输出。阈值调低会放宽把关，请谨慎。'
+            : '与当前配置的拦截结果一致。')) +
+      '</span></div>';
+    document.getElementById('listSub').textContent =
+      '按试算阈值 ' + conf + '%，共 ' + hit.length + ' 条会被拦截并转人工';
+    AI.paint('tBlock');
+  };
+
+  window.save = function () {
+    AI.act.saveGuard(
+      document.getElementById('cfConf').value,
+      document.getElementById('cfCite').checked,
+      document.getElementById('cfBlock').checked
+    );
+  };
+
+  AI.table({
+    id: 'tBlock', pageSize: 10,
+    rows: function () {
+      var conf = Number(document.getElementById('cfConf').value || 75);
+      var needCite = document.getElementById('cfCite').checked;
+      return AI.get('outputs').filter(function (o) { return !!blockReason(o, conf, needCite); });
+    },
+    cells: function (o) {
+      var conf = Number(document.getElementById('cfConf').value || 75);
+      var needCite = document.getElementById('cfCite').checked;
+      var vc = validCites(o);
+      return [
+        '<td>' + AI.dict('scene', o.scene) + '</td>',
+        '<td>' + AI.esc(o.bizId) + '</td>',
+        '<td class="cell-lg">' + AI.esc(o.text) + '</td>',
+        '<td>' + AI.esc(o.mxmc) + '<br><span class="text-3 text-sm">' + AI.esc(o.ver) + '</span></td>',
+        '<td>' + AI.confidence(o.conf) + '</td>',
+        '<td>' + (vc.length ? AI.citeChips(vc) : '<span class="cite-none">无有效引用</span>') + '</td>',
+        '<td><span class="badge red">' + AI.esc(blockReason(o, conf, needCite)) + '</span></td>',
+        '<td>' + (o.blocked ? '<span class="badge red">已拦截</span>' : AI.qrBadge(o.qrzt)) + '</td>'
+      ];
+    },
+    empty: '按当前阈值没有输出会被拦截',
+    icon: 'fa-shield-halved'
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () { AI.repaintAll(); });
+    load();
+  });
+})();
+</script>
+</body>
+</html>

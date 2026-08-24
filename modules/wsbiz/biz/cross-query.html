@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>跨业务查询 · 统一工作门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="biz" data-active="cross-query">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 综合查询
+        <span class="sep">/</span> <span class="cur">跨业务查询</span>
+      </div>
+      <div class="page-title">跨业务查询</div>
+    </div>
+    <div class="page-actions">
+      <span class="node-tag"><i class="fa-solid fa-user-shield"></i>全部岗位</span>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <span>四个维度均基于全平台唯一的办件主表，一次输入即可看到该<b>房屋 / 当事人 / 项目 / 办件</b>的全部交易、抵押、限制、租赁与档案记录。每次查询都写入综合查询记录留痕，可在页底查看。</span>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="fw" onclick="setDim('fw')">按房屋维度</div>
+      <div class="tab" data-tab="ds" onclick="setDim('ds')">按当事人维度</div>
+      <div class="tab" data-tab="xm" onclick="setDim('xm')">按项目维度</div>
+      <div class="tab" data-tab="bj" onclick="setDim('bj')">按办件维度</div>
+    </div>
+    <div class="card-body">
+      <div class="filter-bar" style="border:none;padding:0;margin-bottom:12px">
+        <div class="filter-item" style="flex:1">
+          <label id="kwLabel">房屋坐落 / 房屋编码</label>
+          <input type="text" id="kw" style="width:100% !important" placeholder="输入后回车查询"
+                 onkeydown="if(event.key==='Enter'){doQuery();}">
+        </div>
+        <div class="filter-item" id="extraBox" style="display:none">
+          <label>业务大类</label><select id="fYwdlm" data-dict="ywdlm"></select>
+        </div>
+        <button class="btn btn-primary" onclick="doQuery()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button class="btn" onclick="clearQuery()">清空</button>
+      </div>
+      <div class="text-3 text-sm" id="egBox"></div>
+    </div>
+  </div>
+
+  <div id="result"></div>
+
+  <div class="card mt-16">
+    <div class="card-head"><h3>我的查询记录</h3><span class="sub">对应 MS_ZHCXJLXX 综合查询记录表</span></div>
+    <div class="card-body" style="padding-top:6px"><div class="home-todo" id="qlog"></div></div>
+  </div>
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/flow-data.js"></script>
+<script src="../assets/js/flow.js"></script>
+<script>
+(function () {
+  var dim = 'fw', hits = null;
+  var LABEL = {
+    fw: ['房屋坐落 / 房屋编码', 'fw'],
+    ds: ['当事人姓名 / 单位名称 / 证件号', 'sqr'],
+    xm: ['项目名称 / 项目地址', 'xmmc'],
+    bj: ['收件编号 / 合同号 / 承办人 / 事项名称', 'sjbh']
+  };
+
+  window.setDim = function (d) {
+    dim = d; hits = null;
+    document.querySelectorAll('.tabs .tab').forEach(function (el) {
+      el.classList.toggle('active', el.getAttribute('data-tab') === d);
+    });
+    document.getElementById('kwLabel').textContent = LABEL[d][0];
+    document.getElementById('extraBox').style.display = (d === 'bj') ? '' : 'none';
+    document.getElementById('kw').value = '';
+    render();
+  };
+  window.clearQuery = function () {
+    document.getElementById('kw').value = ''; hits = null; render();
+    PMS.toast('已清空查询条件');
+  };
+  window.doQuery = function () {
+    var kw = (document.getElementById('kw').value || '').trim();
+    hits = FLOW.act.query(dim, kw);
+    render();
+  };
+  window.useEg = function (el) {
+    document.getElementById('kw').value = el.textContent;
+    doQuery();
+  };
+
+  function render() {
+    /* 查询示例：取真实数据 */
+    var cs = FLOW.get('cases');
+    var eg = [];
+    if (cs.length) {
+      if (dim === 'fw') eg = [cs[1].fw, cs[4].fwbm];
+      else if (dim === 'ds') eg = [cs[2].sqr, cs[10].sqr];
+      else if (dim === 'xm') eg = [cs[0].xmmc, cs[6].xmmc];
+      else eg = [cs[3].sjbh, cs[5].htbh];
+    }
+    document.getElementById('egBox').innerHTML = '示例：' + eg.map(function (x) {
+      return '<span class="link" onclick="useEg(this)">' + FLOW.esc(x) + '</span>';
+    }).join('　');
+
+    /* 查询记录 */
+    var logs = FLOW.get('queries').slice(0, 6);
+    document.getElementById('qlog').innerHTML = logs.length ? logs.map(function (q) {
+      var dn = { fw: '房屋', ds: '当事人', xm: '项目', bj: '办件' }[q.dim] || q.dim;
+      return '<div class="todo-row">' + FLOW.badge(dn + '维度', 'blue') +
+        '<span class="todo-text">' + FLOW.esc(q.kw) + '　命中 ' + q.hit + ' 条</span>' +
+        '<span class="todo-time">' + FLOW.esc(q.czr) + ' · ' + FLOW.fmt.time(q.czsj) + '</span></div>';
+    }).join('') : '<div class="empty" style="padding:24px"><i class="fa-regular fa-clock-rotate-left"></i><div>暂无查询记录</div></div>';
+
+    var box = document.getElementById('result');
+    if (hits === null) {
+      box.innerHTML = '<div class="card"><div class="card-body"><div class="empty">' +
+        '<i class="fa-solid fa-magnifying-glass"></i><div>输入条件后查询，或点击上方示例快速体验</div></div></div></div>';
+      return;
+    }
+    if (!hits.length) {
+      box.innerHTML = '<div class="card"><div class="card-body"><div class="empty">' +
+        '<i class="fa-regular fa-folder-open"></i><div>没有命中记录，换个关键词试试</div></div></div></div>';
+      return;
+    }
+
+    var html = '';
+    var ywFilter = (dim === 'bj') ? (document.getElementById('fYwdlm').value || '') : '';
+    var list = ywFilter ? hits.filter(function (c) { return c.ywdlm === ywFilter; }) : hits;
+
+    /* 概览 */
+    html += '<div class="stat-grid">' +
+      kpi('blue', 'fa-folder-open', '命中办件', list.length) +
+      kpi('green', 'fa-circle-check', '已办结', list.filter(function (c) { return c.blzt === '2'; }).length) +
+      kpi('orange', 'fa-spinner', '在办', list.filter(function (c) { return c.blzt === '1' || c.blzt === '5'; }).length) +
+      kpi('cyan', 'fa-layer-group', '涉及业务大类', uniq(list.map(function (c) { return c.ywdlm; })).length) +
+    '</div>';
+
+    /* 房屋维度：按五类分组展示全景 */
+    if (dim === 'fw') {
+      var GROUPS = [
+        ['交易', ['01', '02', '05'], 'fa-file-signature'],
+        ['抵押与限制', ['04'], 'fa-building-columns'],
+        ['租赁', ['03'], 'fa-key'],
+        ['资金监管', ['08', '09', '10'], 'fa-sack-dollar'],
+        ['测绘与档案', ['06', '07'], 'fa-box-archive']
+      ];
+      html += '<div class="card"><div class="card-head"><h3>房屋全景记录</h3>' +
+        '<span class="sub">' + FLOW.esc(list[0].fw) + '</span></div><div class="card-body">';
+      GROUPS.forEach(function (g) {
+        var sub = list.filter(function (c) { return g[1].indexOf(c.ywdlm) >= 0; });
+        html += '<div class="grp-card"><div class="grp-head"><span class="gi"><i class="fa-solid ' + g[2] + '"></i></span>' +
+          g[0] + '　' + FLOW.badge(sub.length + ' 条', sub.length ? 'blue' : 'gray') + '</div>' +
+          (sub.length ? '<div class="home-todo">' + sub.map(rowLine).join('') + '</div>'
+            : '<div class="text-3 text-sm">该房屋暂无此类记录</div>') + '</div>';
+      });
+      html += '</div></div>';
+    } else {
+      /* 其他维度：统一列表 + 分组统计 */
+      var title = { ds: '当事人名下办件', xm: '项目全景信息', bj: '办件查询结果' }[dim];
+      html += '<div class="card"><div class="card-head"><h3>' + title + '</h3>' +
+        '<span class="sub">共 ' + list.length + ' 条</span></div>' +
+        '<div class="table-wrap"><table class="data-table" data-static><thead><tr>' +
+        '<th>收件编号</th><th>事项名称</th><th>业务大类</th><th>' +
+        (dim === 'xm' ? '房屋坐落' : (dim === 'ds' ? '房屋坐落' : '申请人')) + '</th>' +
+        '<th>承办人</th><th>收件时间</th><th>办理状态</th><th>操作</th></tr></thead><tbody>' +
+        list.map(function (c) {
+          return '<tr class="clickable" onclick="view(\'' + c.id + '\')">' +
+            '<td>' + FLOW.esc(c.sjbh) + '</td>' +
+            '<td class="cell-lg">' + FLOW.esc(c.sxmc) + '</td>' +
+            '<td>' + FLOW.esc(FLOW.dict('ywdlm', c.ywdlm)) + '</td>' +
+            '<td class="cell-lg">' + FLOW.esc(dim === 'bj' ? c.sqr : c.fw) + '</td>' +
+            '<td>' + FLOW.esc(c.jbrmc || '待领办') + '</td>' +
+            '<td>' + FLOW.fmt.date(c.sjsj) + '</td>' +
+            '<td>' + FLOW.ztBadge(c.blzt) + '</td>' +
+            '<td><span class="link" onclick="event.stopPropagation();view(\'' + c.id + '\')">详情</span></td></tr>';
+        }).join('') + '</tbody></table></div></div>';
+
+      /* 当事人维度补充关联关系 */
+      if (dim === 'ds') {
+        var houses = uniq(list.map(function (c) { return c.fw; }));
+        html += '<div class="card mt-16"><div class="card-head"><h3>关联关系</h3></div><div class="card-body">' +
+          '<dl class="desc-list">' +
+            row('当事人', list[0].sqr) + row('主体类型', FLOW.dict('ztlx', list[0].sqrlx)) +
+            row('证件号', list[0].sqrzjh) + row('涉及房屋数', houses.length + ' 套') +
+            '<div class="desc-item full"><dt>涉及房屋</dt><dd>' + houses.map(FLOW.esc).join('；') + '</dd></div>' +
+          '</dl></div></div>';
+      }
+      /* 项目维度补充全生命周期口径 */
+      if (dim === 'xm') {
+        html += '<div class="card mt-16"><div class="card-head"><h3>项目全生命周期概览</h3>' +
+          '<span class="sub">' + FLOW.esc(list[0].xmmc) + '</span></div><div class="card-body">' +
+          '<dl class="desc-list">' +
+            row('项目名称', list[0].xmmc) + row('项目地址', list[0].zl) +
+            row('所属属地', FLOW.dict('said', list[0].said)) +
+            row('预售许可', cnt(list, '12') ? cnt(list, '12') + ' 件' : '暂无记录') +
+            row('销售网签备案', cnt(list, '01') + ' 件') +
+            row('预售资金监管', cnt(list, '08') ? cnt(list, '08') + ' 件' : '暂无记录') +
+            row('抵押与限制', cnt(list, '04') + ' 件') +
+            row('维修资金', cnt(list, '10') ? cnt(list, '10') + ' 件' : '暂无记录') +
+          '</dl></div></div>';
+      }
+    }
+    box.innerHTML = html;
+  }
+
+  function rowLine(c) {
+    return '<a class="todo-row" href="case-detail.html?role=biz&id=' + c.id + '">' +
+      FLOW.ztBadge(c.blzt) +
+      '<span class="todo-text">' + FLOW.esc(c.sxmc) + '　' + FLOW.esc(c.sjbh) + '　' + FLOW.esc(c.sqr) + '</span>' +
+      '<span class="todo-time">' + FLOW.fmt.date(c.sjsj) + '</span></a>';
+  }
+  function kpi(color, icon, label, value) {
+    return '<div class="stat-card"><div class="s-icon ' + color + '"><i class="fa-solid ' + icon + '"></i></div><div>' +
+      '<div class="s-label">' + label + '</div><div class="s-value">' + value + '</div></div></div>';
+  }
+  function row(label, value) {
+    return '<div class="desc-item"><dt>' + label + '</dt><dd>' + FLOW.esc(value == null || value === '' ? '—' : value) + '</dd></div>';
+  }
+  function uniq(a) { var o = {}; a.forEach(function (x) { o[x] = 1; }); return Object.keys(o); }
+  function cnt(list, yw) { return list.filter(function (c) { return c.ywdlm === yw; }).length; }
+  window.view = function (id) { FLOW.goto('case-detail.html', { id: id }); };
+
+  document.addEventListener('DOMContentLoaded', function () { FLOW.on(render); });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>报送监控 · 房产交易数据中心</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  .rp-cal th.day, .rp-cal td.day { text-align: center; white-space: nowrap; width: 46px; padding: 6px 2px; }
+  .rp-cal td.day i { font-size: 15px; }
+  .rp-cal td.today { background: rgba(38, 86, 187, .06); }
+  .rp-cal th.today { background: rgba(38, 86, 187, .10); border-radius: 4px 4px 0 0; }
+  .rp-legend { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; font-size: 12.5px; color: var(--text-2); }
+  .rp-legend span i { margin-right: 4px; }
+</style>
+</head>
+<body data-role="admin" data-active="wsdata-14">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房产交易数据中心
+        <span class="sep">/</span> 上级报送管理
+        <span class="sep">/</span> <span class="cur">报送监控</span>
+      </div>
+      <div class="page-title">报送监控</div>
+    </div>
+    <div class="ph-r">
+      <a class="btn" href="wsdata-13.html"><i class="fa-solid fa-right-left"></i> 报送接口配置</a>
+    </div>
+  </div>
+
+  <!-- 今日报送总览：一眼看清今天报送成没成 -->
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-list-check"></i></div><div><div class="s-label">今日应报事项</div><div class="s-value">7 项</div><div class="s-trend text-3">日报 5 · 实时 1 · 事件触发 1</div></div></div>
+    <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div><div><div class="s-label">今日已报送成功</div><div class="s-value">4 项</div><div class="s-trend text-success">含上级回执确认</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-hourglass-half"></i></div><div><div class="s-label">已发送待回执</div><div class="s-value">1 项</div><div class="s-trend text-3">未回执不计为成功</div></div></div>
+    <div class="stat-card dc-alarm"><div class="s-icon red"><i class="fa-solid fa-circle-xmark"></i></div><div><div class="s-label">失败 / 逾期未报</div><div class="s-value">2 项</div><div class="s-trend text-danger">需立即重报处理</div></div></div>
+  </div>
+
+  <!-- 报送成败日历：行=报送事项，列=近 10 日，直接看每天报送成没成 -->
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-calendar-check"></i> 报送成败日历（近 10 日）</h3>
+      <span class="sub">按报送事项逐日呈现每天是否报送成功</span>
+    </div>
+    <div class="card-body">
+      <div class="table-wrap">
+        <table class="data-table compact rp-cal" data-static>
+          <thead><tr id="calHead"></tr></thead>
+          <tbody id="calBody"></tbody>
+        </table>
+      </div>
+      <div class="rp-legend mt-16">
+        <span><i class="fa-solid fa-circle-check text-success"></i> 报送成功（含回执）</span>
+        <span><i class="fa-solid fa-hourglass-half" style="color:var(--lv-blue)"></i> 已发送待回执</span>
+        <span><i class="fa-solid fa-circle-xmark text-danger"></i> 报送失败</span>
+        <span><i class="fa-solid fa-triangle-exclamation text-warning"></i> 逾期未报</span>
+        <span><i class="fa-solid fa-minus text-3"></i> 非报送日 / 未到报送时间</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2 mt-16">
+    <!-- 今日报送明细 -->
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-clipboard-list"></i> 今日报送明细</h3></div>
+      <div class="card-body">
+        <div class="table-wrap">
+          <table class="data-table compact" data-static>
+            <thead><tr><th class="cell-lg">报送事项</th><th>报送单位</th><th>应报时限</th><th>实报时间</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody id="todayBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <!-- 待处理：失败与逾期 -->
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-triangle-exclamation"></i> 待处理（失败 / 逾期）</h3><span class="sub">须立即重报</span></div>
+      <div class="card-body">
+        <div id="pendingList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 近 30 日报送成功率趋势 -->
+  <div class="card mt-16">
+    <div class="card-head"><h3><i class="fa-solid fa-chart-column"></i> 近 14 日每日报送成功情况</h3><span class="sub">应报事项中当日成功报送的项数</span></div>
+    <div class="card-body">
+      <div class="bar-chart" id="trendChart"></div>
+    </div>
+  </div>
+</main>
+
+<!-- 报送批次日志抽屉 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="logDrawer">
+  <div class="drawer-head"><h3 id="ldTitle">报送日志</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="table-wrap">
+      <table class="data-table compact" data-static>
+        <thead><tr><th>批次号</th><th>期间</th><th>发送时间</th><th class="num">条数</th><th>状态</th><th>回执时间</th></tr></thead>
+        <tbody id="ldBody"></tbody>
+      </table>
+    </div>
+    <p class="hint mt-16"><i class="fa-solid fa-circle-info"></i> <b>未收到上级回执不视为报送成功。</b>失败或逾期批次可在此发起重报，重报前须通过数据质量校验与上报数据核对。</p>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('已提交重报，正在校验并重新发送','success')"><i class="fa-solid fa-rotate"></i> 立即重报</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+  // 近 10 日日期（07-22 .. 07-31），最后一列为今日
+  var DAYS = ["07-22", "07-23", "07-24", "07-25", "07-26", "07-27", "07-28", "07-29", "07-30", "07-31"];
+  // 状态码：s 成功 / r 待回执 / f 失败 / o 逾期 / n 非报送日
+  var ITEMS = [
+    { name: "全国房屋网签备案联网上报", unit: "住建部", freq: "实时", limit: "备案后 24h", real: "持续", st: "s",
+      days: ["s", "s", "s", "s", "s", "s", "s", "s", "s", "s"] },
+    { name: "房地产市场监测数据上报", unit: "住建部", freq: "日", limit: "次日 10:00", real: "08:12", st: "s",
+      days: ["s", "s", "s", "s", "s", "s", "s", "s", "s", "s"] },
+    { name: "住建部住建厅日报报送", unit: "住建厅", freq: "日", limit: "次日 09:00", real: "08:42", st: "s",
+      days: ["s", "s", "s", "s", "s", "f", "s", "s", "s", "s"] },
+    { name: "一网共享数据报送", unit: "一体化平台", freq: "日", limit: "次日 09:00", real: "08:36", st: "s",
+      days: ["s", "s", "s", "s", "s", "s", "s", "s", "s", "s"] },
+    { name: "预售资金监管数据上报", unit: "住建厅", freq: "日", limit: "次日 10:00", real: "—", st: "f",
+      days: ["s", "s", "s", "s", "f", "f", "s", "s", "r", "f"] },
+    { name: "广西房地信息采集报送", unit: "住建厅", freq: "月", limit: "次月 25 日", real: "—", st: "o",
+      days: ["n", "n", "n", "n", "n", "n", "n", "n", "n", "o"] },
+    { name: "广西事项编码对接", unit: "住建厅", freq: "事件触发", limit: "变更后 24h", real: "—", st: "r",
+      days: ["s", "n", "s", "n", "n", "s", "n", "n", "s", "r"] }
+  ];
+
+  var ICON = {
+    s: '<i class="fa-solid fa-circle-check text-success" title="报送成功"></i>',
+    r: '<i class="fa-solid fa-hourglass-half" style="color:var(--lv-blue)" title="已发送待回执"></i>',
+    f: '<i class="fa-solid fa-circle-xmark text-danger" title="报送失败"></i>',
+    o: '<i class="fa-solid fa-triangle-exclamation text-warning" title="逾期未报"></i>',
+    n: '<i class="fa-solid fa-minus text-3" title="非报送日 / 未到报送时间"></i>'
+  };
+  var STATE = {
+    s: '<span class="badge green">报送成功</span>',
+    r: '<span class="badge blue">待回执</span>',
+    f: '<span class="badge red">报送失败</span>',
+    o: '<span class="badge orange">逾期未报</span>'
+  };
+
+  function renderCal() {
+    var head = '<th class="cell-lg">报送事项</th><th>报送单位</th>';
+    DAYS.forEach(function (d, i) {
+      var cls = i === DAYS.length - 1 ? 'day today' : 'day';
+      head += '<th class="' + cls + '">' + (i === DAYS.length - 1 ? '今日' : d) + '</th>';
+    });
+    document.getElementById("calHead").innerHTML = head;
+    var body = "";
+    ITEMS.forEach(function (it) {
+      var row = '<td class="cell-lg fw-600">' + it.name + '</td><td class="nowrap">' + it.unit + '</td>';
+      it.days.forEach(function (s, i) {
+        var cls = i === DAYS.length - 1 ? 'day today' : 'day';
+        row += '<td class="' + cls + '">' + ICON[s] + '</td>';
+      });
+      body += '<tr>' + row + '</tr>';
+    });
+    document.getElementById("calBody").innerHTML = body;
+  }
+
+  function renderToday() {
+    var body = "";
+    ITEMS.forEach(function (it, i) {
+      var op = (it.st === "f" || it.st === "o")
+        ? '<span class="link" onclick="viewLog(' + i + ')">重报</span> <span class="link" onclick="viewLog(' + i + ')">报文</span>'
+        : '<span class="link" onclick="viewLog(' + i + ')">报文</span>';
+      body += '<tr><td class="cell-lg fw-600">' + it.name + '</td><td class="nowrap">' + it.unit + '</td><td class="nowrap">' + it.limit + '</td><td class="nowrap">' + it.real + '</td><td>' + STATE[it.st] + '</td><td class="nowrap">' + op + '</td></tr>';
+    });
+    document.getElementById("todayBody").innerHTML = body;
+  }
+
+  function renderPending() {
+    var html = "";
+    ITEMS.forEach(function (it, i) {
+      if (it.st !== "f" && it.st !== "o") return;
+      var reason = it.st === "f" ? "银行对账未完成，前置条件未满足，报文未发送" : "月度采集报送已逾期，尚未发送本期报文";
+      html += '<div class="alert ' + (it.st === "f" ? "alert-danger" : "alert-warning") + '"><i class="fa-solid fa-triangle-exclamation"></i>'
+        + '<div><b>' + it.name + '</b>（' + it.unit + ' · ' + it.freq + '）<br>' + reason
+        + ' <a class="link" onclick="viewLog(' + i + ')">重报处理</a></div></div>';
+    });
+    document.getElementById("pendingList").innerHTML = html || '<div class="empty"><i class="fa-regular fa-face-smile"></i><div class="fw-700">今日无失败或逾期</div></div>';
+  }
+
+  function renderTrend() {
+    // 每日应报事项中成功报送的项数（应报 6，实时项持续成功）
+    var vals = [6, 6, 5, 6, 5, 4, 6, 6, 5, 4];
+    var labels = DAYS;
+    var max = 6;
+    var html = "";
+    for (var i = 0; i < vals.length; i++) {
+      var h = Math.round(vals[i] * 100 / max);
+      html += '<div class="bar-col"><span class="bar-val">' + vals[i] + '</span><div class="bar" style="height:' + h + '%"></div><span class="bar-label">' + labels[i] + '</span></div>';
+    }
+    document.getElementById("trendChart").innerHTML = html;
+  }
+
+  function viewLog(i) {
+    var it = ITEMS[i];
+    document.getElementById("ldTitle").innerHTML = "报送日志 · " + it.name;
+    var samples = [
+      ["B-20260731-001", "2026-07-30", "2026-07-31 08:42", "1,286", it.st, "—"],
+      ["B-20260730-001", "2026-07-29", "2026-07-30 08:38", "1,186", "s", "2026-07-30 08:46"],
+      ["B-20260729-001", "2026-07-28", "2026-07-29 08:40", "1,486", "s", "2026-07-29 08:48"],
+      ["B-20260728-001", "2026-07-27", "2026-07-28 08:36", "862", "s", "2026-07-28 08:44"]
+    ];
+    var body = "";
+    samples.forEach(function (s) {
+      body += '<tr><td class="nowrap">' + s[0] + '</td><td class="nowrap">' + s[1] + '</td><td class="nowrap">' + s[2] + '</td><td class="num">' + s[3] + '</td><td>' + (STATE[s[4]] || STATE.s) + '</td><td class="nowrap">' + s[5] + '</td></tr>';
+    });
+    document.getElementById("ldBody").innerHTML = body;
+    PMS.openDrawer("logDrawer");
+  }
+
+  renderCal();
+  renderToday();
+  renderPending();
+  renderTrend();
+</script>
+</body>
+</html>

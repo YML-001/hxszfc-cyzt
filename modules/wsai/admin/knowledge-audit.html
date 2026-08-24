@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>知识库更新审核 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="pt" data-active="knowledge-base" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>知识库管理</span>
+      <span class="sep">/</span><span class="cur">知识库更新审核</span>
+    </div>
+    <div class="page-actions">
+      <span class="node-tag"><i class="fa-solid fa-user-shield"></i>业务科室审核人</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-sitemap"></i>知识库管理 wsai-04</span>
+    <a href="knowledge-base.html?role=pt">政务知识库</a>
+    <a class="active" href="knowledge-audit.html?role=pt">更新审核</a>
+    <a href="graph-build.html?role=pt">图谱构建</a>
+    <a href="graph-explorer.html?role=pt">图谱可视化</a>
+    <a href="risk-path.html?role=pt">风险传导路径</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-clipboard-check"></i>
+    <span>知识库文档状态机为 <b>草稿 → 待审核 → 已生效 → 已废止</b>。政策法规与办事指南更新后必须经业务科室审核确认才生效；
+      <b>只有「已生效」的文档才能作为 AI 答复的有效引用</b>，驳回则退回草稿。</span>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">待我审核</div><div class="s-value" id="kPend">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">已通过</div><div class="s-value" id="kPass">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-circle-xmark"></i></div>
+      <div><div class="s-label">已驳回</div><div class="s-value" id="kBack">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-book"></i></div>
+      <div><div class="s-label">在库可引用</div><div class="s-value" id="kOn">—</div></div>
+    </div>
+  </div>
+
+  <!-- 待审核卡片：直接在卡上批 -->
+  <div class="card">
+    <div class="card-head">
+      <h3>待审核队列</h3>
+      <span class="sub" id="pendSub">—</span>
+    </div>
+    <div class="card-body">
+      <div id="pendList"></div>
+    </div>
+  </div>
+
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3>审核历史</h3>
+      <span class="sub">含通过与驳回记录</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tAudit" data-static>
+        <thead><tr>
+          <th>文档标题</th><th>版本</th><th>提交人</th><th>提交时间</th>
+          <th>审核结果</th><th class="cell-lg">审核意见</th><th>审核人</th><th>审核时间</th><th>当前状态</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  function paintKpi() {
+    var as = AI.get('kbAudits');
+    document.getElementById('kPend').textContent = as.filter(function (a) { return a.zt === '1'; }).length;
+    document.getElementById('kPass').textContent = as.filter(function (a) { return a.result === '通过'; }).length;
+    document.getElementById('kBack').textContent = as.filter(function (a) { return a.result === '驳回'; }).length;
+    document.getElementById('kOn').textContent = AI.stat('kbDocs');
+
+    var pend = AI.where('kbAudits', function (a) { return a.zt === '1'; });
+    document.getElementById('pendSub').textContent = pend.length
+      ? (pend.length + ' 份文档待审核，未通过前不参与检索增强')
+      : '没有待审核的文档';
+    document.getElementById('pendList').innerHTML = pend.length ? pend.map(function (a) {
+      var d = AI.byId('kbDocs', a.docId);
+      return '<div class="issue pending">' +
+        '<div class="is-h"><span class="is-f">' + AI.esc(a.title) + '</span>' +
+          '<span class="badge gray">' + AI.esc(a.ver) + '</span>' +
+          (d ? AI.badge(AI.dict('zsfl', d.cat), 'blue') : '') +
+          '<span class="text-3 text-sm" style="margin-left:auto">' + AI.esc(a.submitBy) + ' 提交于 ' +
+          AI.fmt.time(a.submitAt) + '</span></div>' +
+        '<div class="is-note"><b>条款原文：</b>' + (d ? AI.esc(d.clause) : '—') + '</div>' +
+        '<div class="mt-8 flex items-center gap-8" style="flex-wrap:wrap">' +
+          '<input type="text" id="op_' + a.id + '" placeholder="审核意见（驳回时必填）" style="width:340px;height:28px">' +
+          '<button class="btn btn-success btn-sm" onclick="pass(\'' + a.id + '\')"><i class="fa-solid fa-check"></i> 通过并生效</button>' +
+          '<button class="btn btn-danger btn-sm" onclick="back(\'' + a.id + '\')"><i class="fa-solid fa-xmark"></i> 驳回退回草稿</button>' +
+        '</div></div>';
+    }).join('') : '<div class="empty"><i class="fa-regular fa-circle-check"></i><div>没有待审核的文档</div></div>';
+  }
+
+  window.pass = function (id) {
+    var el = document.getElementById('op_' + id);
+    AI.act.auditDoc(id, true, el ? el.value : '');
+  };
+  window.back = function (id) {
+    var el = document.getElementById('op_' + id);
+    AI.act.auditDoc(id, false, el ? el.value : '');
+  };
+
+  AI.table({
+    id: 'tAudit', pageSize: 10,
+    rows: function () {
+      return AI.get('kbAudits').slice().sort(function (a, b) { return b.submitAt - a.submitAt; });
+    },
+    cells: function (a) {
+      var d = AI.byId('kbDocs', a.docId);
+      return [
+        '<td>' + AI.esc(a.title) + '</td>',
+        '<td>' + AI.esc(a.ver) + '</td>',
+        '<td>' + AI.esc(a.submitBy) + '</td>',
+        '<td>' + AI.fmt.time(a.submitAt) + '</td>',
+        '<td>' + (a.result
+          ? (a.result === '通过' ? '<span class="badge green">通过</span>' : '<span class="badge red">驳回</span>')
+          : '<span class="badge orange">待审核</span>') + '</td>',
+        '<td class="cell-lg">' + AI.esc(a.opinion || '—') + '</td>',
+        '<td>' + AI.esc(a.auditBy || '—') + '</td>',
+        '<td>' + (a.auditAt ? AI.fmt.time(a.auditAt) : '—') + '</td>',
+        '<td>' + (d ? AI.zskBadge(d.zskzt) : '—') + '</td>'
+      ];
+    },
+    empty: '暂无审核记录'
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () { paintKpi(); AI.repaintAll(); });
+  });
+})();
+</script>
+</body>
+</html>

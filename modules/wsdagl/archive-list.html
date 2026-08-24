@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>档案案卷台账 · 房屋交易档案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 全站统一：档案载体 / 密级 / 保管期限三套标识 */
+  .cr { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; white-space: nowrap; }
+  .cr.e { color: #2563eb; }
+  .cr.p { color: #a16207; }
+  .cr.d { color: #7c3aed; }
+  .ml { display: inline-flex; align-items: center; padding: 1px 6px; border-radius: 4px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+  .ml.m0 { background: #dcfce7; color: #15803d; }
+  .ml.m1 { background: #dbeafe; color: #1d4ed8; }
+  .ml.m2 { background: #fef3c7; color: #b45309; }
+  .ml.m3 { background: #fee2e2; color: #b91c1c; }
+  /* 本页特有：多维筛选分组折叠 */
+  .no-code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; }
+  .adv-wrap { display: none; border-top: 1px dashed var(--border); padding: 10px 14px 4px; }
+  .adv-wrap.open { display: block; }
+  .adv-grp { margin-bottom: 8px; }
+  .adv-grp > .gt {
+    font-size: 12.5px; font-weight: 700; color: var(--primary); margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .adv-grp > .gt::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+  .adv-row { display: flex; flex-wrap: wrap; gap: 10px 14px; }
+  .adv-row .filter-item { margin: 0; }
+  .data-table tbody tr.is-warn > td { background: #fff8ed; }
+  .data-table tbody tr.is-warn:hover > td { background: #fdf0d9; }
+  .data-table tbody tr.is-off > td { color: var(--text-3); }
+  .modal-head { display: flex; align-items: center; gap: 10px; }
+  .modal-head h3 { font-size: 16px; font-weight: 700; }
+  .modal-head .close { margin-left: auto; cursor: pointer; color: var(--text-3); font-size: 18px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: none; border: 0; }
+  .modal-head .close:hover { background: var(--bg-soft); color: var(--text-1); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdagl-02">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> <a class="link" href="index.html">房屋交易档案管理系统</a>
+        <span class="sep">/</span> 档案接收整理
+        <span class="sep">/</span> <span class="cur">档案案卷台账</span>
+      </div>
+      <div class="page-title">档案案卷台账</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn btn-primary" href="auto-collect.html"><i class="fa-solid fa-bolt"></i> 归集监控</a>
+      <button type="button" class="btn" onclick="PMS.openDrawer('drManual')"><i class="fa-solid fa-file-circle-plus"></i> 手工归档</button>
+      <button type="button" class="btn" onclick="PMS.openModal('mdImport')"><i class="fa-solid fa-file-import"></i> 批量导入</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《档案案卷目录》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出目录</button>
+      <button type="button" class="btn" onclick="PMS.toast('已打开案卷目录打印预览（A4 纵向）')"><i class="fa-solid fa-print"></i> 打印案卷目录</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-box-archive"></i></div>
+      <div><div class="s-label">馆藏案卷</div><div class="s-value">486,286</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">已归档在库</div><div class="s-value">472,486</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-spinner"></i></div>
+      <div><div class="s-label">归档中（含缺件）</div><div class="s-value">142</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-hand-holding-hand"></i></div>
+      <div><div class="s-label">已借出</div><div class="s-value">186</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-house-chimney-window"></i></div>
+      <div><div class="s-label">一房一档总卷</div><div class="s-value">128,462</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><div class="s-label">缺失待核查</div><div class="s-value">2</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>档案号 / 标识码</label>
+        <input type="text" placeholder="DA450204202600862 / AID…">
+      </div>
+      <div class="filter-item">
+        <label>档案名称</label>
+        <input type="text" placeholder="支持模糊匹配">
+      </div>
+      <div class="filter-item">
+        <label>档案类型</label>
+        <select>
+          <option value="">全部</option>
+          <option>商品房交易档案</option><option>存量房交易档案</option><option>房屋租赁档案</option>
+          <option>抵押登记档案</option><option>政策性住房档案</option><option>公有住房与房改档案</option>
+          <option>征收安置档案</option><option>房产测绘档案</option><option>资金监管档案</option>
+          <option>维修资金档案</option><option>项目开发建设档案</option><option>从业主体档案</option>
+          <option>一房一档（房屋总卷）</option><option>综合管理档案</option><option>其他档案</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>年度</label>
+        <select>
+          <option value="">全部</option>
+          <option>2026</option><option>2025</option><option>2024</option><option>2023</option>
+          <option>2021</option><option>2016</option><option>1998</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>档案载体</label>
+        <select><option value="">全部</option><option>纯电子</option><option>纯纸质</option><option>双套</option></select>
+      </div>
+      <div class="filter-item">
+        <label>保管期限</label>
+        <select>
+          <option value="">全部</option><option>永久</option><option>长期</option>
+          <option>定期 30 年</option><option>定期 10 年</option><option>定期 5 年</option><option>短期</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>密级</label>
+        <select><option value="">全部</option><option>公开</option><option>内部</option><option>秘密</option><option>机密</option></select>
+      </div>
+      <div class="filter-item">
+        <label>档案状态</label>
+        <select>
+          <option value="">全部</option><option>待归档</option><option>归档中</option><option>已归档在库</option>
+          <option>已借出</option><option>已数字化</option><option>已封存</option><option>待鉴定</option>
+          <option>已移交</option><option>已销毁</option><option>缺失</option>
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 486,286 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        <button type="button" class="btn btn-ghost" id="advBtn" onclick="toggleAdv()"><i class="fa-solid fa-sliders"></i> 多维检索</button>
+      </div>
+    </div>
+
+    <div class="adv-wrap" id="advWrap">
+      <div class="adv-grp">
+        <div class="gt"><i class="fa-solid fa-house"></i> 房屋维度</div>
+        <div class="adv-row">
+          <div class="filter-item"><label>不动产单元号</label><input type="text" placeholder="450202001005GB…"></div>
+          <div class="filter-item"><label>房屋坐落</label><input type="text" placeholder="彰泰滨江学府 12-2-1802"></div>
+          <div class="filter-item"><label>产权证号</label><input type="text" placeholder="桂(2023)柳州市不动产权第…"></div>
+        </div>
+      </div>
+      <div class="adv-grp">
+        <div class="gt"><i class="fa-solid fa-diagram-project"></i> 项目维度</div>
+        <div class="adv-row">
+          <div class="filter-item"><label>项目主键</label><input type="text" placeholder="XM4502020018"></div>
+          <div class="filter-item"><label>楼盘名称</label><input type="text" placeholder="彰泰滨江学府"></div>
+        </div>
+      </div>
+      <div class="adv-grp">
+        <div class="gt"><i class="fa-solid fa-user-group"></i> 当事人维度</div>
+        <div class="adv-row">
+          <div class="filter-item"><label>权利人姓名</label><input type="text" placeholder="周**"></div>
+          <div class="filter-item"><label>证件号码</label><input type="text" placeholder="450***********0028"></div>
+          <div class="filter-item"><label>义务人名称</label><input type="text" placeholder="陈**"></div>
+        </div>
+      </div>
+      <div class="adv-grp">
+        <div class="gt"><i class="fa-solid fa-file-signature"></i> 办件维度</div>
+        <div class="adv-row">
+          <div class="filter-item"><label>收件编号</label><input type="text" placeholder="SJ20260628016"></div>
+          <div class="filter-item"><label>事项代码</label><input type="text" placeholder="CFBA-001"></div>
+          <div class="filter-item"><label>分类号</label><input type="text" placeholder="02.03.01"></div>
+          <div class="filter-item">
+            <label>归档方式</label>
+            <select><option value="">全部</option><option>自动归集</option><option>人工归档</option><option>批量导入</option><option>历史迁移</option></select>
+          </div>
+        </div>
+      </div>
+      <div class="adv-grp">
+        <div class="gt"><i class="fa-regular fa-calendar"></i> 时间维度</div>
+        <div class="adv-row">
+          <div class="filter-item"><label>归档日期起</label><input type="date" value="2026-01-01"></div>
+          <div class="filter-item"><label>归档日期止</label><input type="date" value="2026-08-01"></div>
+          <div class="filter-item"><label>文件形成时间</label><input type="date"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblDa" data-static>
+        <thead>
+          <tr>
+            <th style="width:38px"><input type="checkbox" id="ckAll"></th>
+            <th>档案号</th>
+            <th>档案名称</th>
+            <th>档案类型</th>
+            <th>分类号</th>
+            <th>年度</th>
+            <th>房屋坐落</th>
+            <th>权利人</th>
+            <th class="num">件 / 页</th>
+            <th>档案载体</th>
+            <th>保管期限</th>
+            <th>密级</th>
+            <th>归档方式</th>
+            <th>归档日期</th>
+            <th>档案状态</th>
+            <th>库位</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="clickable" onclick="if(!event.target.closest('a,input'))location.href='archive-detail.html'">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600 no-code">DA450204202600862</td>
+            <td class="cell-lg">彰泰滨江学府12栋2单元1802存量房买卖合同网签备案</td>
+            <td class="nowrap"><span class="badge cyan">存量房交易档案</span></td>
+            <td class="nowrap no-code">02.03.01</td>
+            <td class="nowrap">2026</td>
+            <td class="cell-lg">柳州市城中区滨江东路8号彰泰滨江学府12栋2单元1802</td>
+            <td class="nowrap">周**<span class="text-3">（受让方）</span></td>
+            <td class="num">12 / 46</td>
+            <td><span class="cr d"><i class="fa-solid fa-layer-group"></i> 双套</span></td>
+            <td class="nowrap"><span class="badge red">永久</span></td>
+            <td class="nowrap"><span class="ml m1">内部</span></td>
+            <td class="nowrap">自动归集</td>
+            <td class="nowrap">2026-06-29</td>
+            <td class="nowrap"><span class="badge green">已归档在库</span></td>
+            <td class="nowrap no-code">KF01-J12-J3-C4-G2-H086</td>
+            <td class="col-ops">
+              <a class="link" href="archive-detail.html">详情</a>
+              <a class="link" href="archive-viewer.html">图文查看</a>
+              <a class="link" href="borrow-apply.html">借阅</a>
+            </td>
+          </tr>
+          <tr class="clickable" onclick="if(!event.target.closest('a,input'))location.href='archive-detail.html'">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600 no-code">DA450204202600908</td>
+            <td class="cell-lg">彰泰滨江学府12栋2单元1802带押过户抵押备案</td>
+            <td class="nowrap"><span class="badge orange">抵押登记档案</span></td>
+            <td class="nowrap no-code">04.02.01</td>
+            <td class="nowrap">2026</td>
+            <td class="cell-lg">柳州市城中区滨江东路8号彰泰滨江学府12栋2单元1802</td>
+            <td class="nowrap">柳州银行营业部</td>
+            <td class="num">10 / 32</td>
+            <td><span class="cr e"><i class="fa-solid fa-cloud"></i> 纯电子</span></td>
+            <td class="nowrap"><span class="badge red">永久</span></td>
+            <td class="nowrap"><span class="ml m1">内部</span></td>
+            <td class="nowrap">自动归集</td>
+            <td class="nowrap">2026-07-02</td>
+            <td class="nowrap"><span class="badge green">已归档在库</span></td>
+            <td class="nowrap text-3">电子档案，不占库位</td>
+            <td class="col-ops">
+              <a class="link" href="archive-detail.html">详情</a>
+              <a class="link" href="archive-viewer.html">图文查看</a>
+              <a class="link" href="borrow-apply.html">借阅</a>
+            </td>
+          </tr>
+          <tr class="clickable is-warn" onclick="if(!event.target.closest('a,input'))location.href='archive-detail.html'">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600 no-code">DA450204202600866</td>
+            <td class="cell-lg">荣和公园大道5栋1单元806存量房买卖合同网签备案</td>
+            <td class="nowrap"><span class="badge cyan">存量房交易档案</span></td>
+            <td class="nowrap no-code">02.03.01</td>
+            <td class="nowrap">2026</td>
+            <td class="cell-lg">柳州市柳南区柳石路168号荣和公园大道5栋1单元806</td>
+            <td class="nowrap">覃**<span class="text-3">（受让方）</span></td>
+            <td class="num">11 / 42</td>
+            <td><span class="cr d"><i class="fa-solid fa-layer-group"></i> 双套</span></td>
+            <td class="nowrap"><span class="badge red">永久</span></td>
+            <td class="nowrap"><span class="ml m1">内部</span></td>
+            <td class="nowrap">自动归集</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap"><span class="badge orange">归档中</span><br><span class="text-warning text-sm">缺测绘成果 1 件</span></td>
+            <td class="nowrap text-3">待分配库位</td>
+            <td class="col-ops">
+              <a class="link" href="auto-collect.html?task=GJ20260628038">补充材料</a>
+              <a class="link" href="archive-detail.html">详情</a>
+            </td>
+          </tr>
+          <tr class="clickable" onclick="if(!event.target.closest('a,input'))location.href='house-archive.html'">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600 no-code">DAFY450202001286</td>
+            <td class="cell-lg">彰泰滨江学府12栋2单元1802房屋总卷（一房一档）</td>
+            <td class="nowrap"><span class="badge purple">一房一档</span></td>
+            <td class="nowrap no-code">13.01</td>
+            <td class="nowrap">2021-2026</td>
+            <td class="cell-lg">柳州市城中区滨江东路8号彰泰滨江学府12栋2单元1802</td>
+            <td class="nowrap">周**<span class="text-3">（现权利人）</span></td>
+            <td class="num">81 / 269</td>
+            <td><span class="cr d"><i class="fa-solid fa-layer-group"></i> 双套</span></td>
+            <td class="nowrap"><span class="badge red">永久</span></td>
+            <td class="nowrap"><span class="ml m1">内部</span></td>
+            <td class="nowrap">自动归集</td>
+            <td class="nowrap">2026-07-02</td>
+            <td class="nowrap"><span class="badge green">已归档在库</span><br><span class="text-3 text-sm">聚合 9 卷，随新卷自动更新</span></td>
+            <td class="nowrap text-3">虚拟总卷，不占库位</td>
+            <td class="col-ops">
+              <a class="link" href="house-archive.html">房屋全景</a>
+              <a class="link" href="borrow-apply.html">借阅</a>
+            </td>
+          </tr>
+          <tr class="clickable" onclick="if(!event.target.closest('a,input'))location.href='archive-detail.html'">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600 no-code">DA450202202100862</td>
+            <td class="cell-lg">彰泰滨江学府12栋2单元1802商品房买卖合同网签备案</td>
+            <td class="nowrap"><span class="badge blue">商品房交易档案</span></td>
+            <td class="nowrap no-code">01.02.01</td>
+            <td class="nowrap">2021</td>
+            <td class="cell-lg">柳州市城中区滨江东路8号彰泰滨江学府12栋2单元1802</td>
+            <td class="nowrap">陈**<span class="text-3">（买受人）</span></td>
+            <td class="num">14 / 52</td>
+            <td><span class="cr d"><i class="fa-solid fa-layer-group"></i> 双套</span></td>
+            <td class="nowrap"><span class="badge red">永久</span></td>
+            <td class="nowrap"><span class="ml m2">秘密</span></td>
+            <td class="nowrap">自动归集</td>
+            <td class="nowrap">2021-05-12</td>
+            <td class="nowrap"><span class="badge orange">已借出</span><br><span class="text-3 text-sm">XXXX市中级人民法院</span></td>
+            <td class="nowrap no-code">KF01-J08-J2-C3-G6-H042 <span class="text-warning">（已借出）</span></td>
+            <td class="col-ops">
+              <a class="link" href="archive-detail.html">详情</a>
+              <a class="link" href="borrow-return.html">办理归还</a>
+            </td>
+          </tr>
+          <tr class="clickable" onclick="if(!event.target.closest('a,input'))location.href='archive-detail.html'">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600 no-code">DA450202202100486</td>
+            <td class="cell-lg">彰泰滨江学府12栋2单元1802商品房认购登记</td>
+            <td class="nowrap"><span class="badge blue">商品房交易档案</span></td>
+            <td class="nowrap no-code">01.02.01</td>
+            <td class="nowrap">2021</td>
+            <td class="cell-lg">柳州市城中区滨江东路8号彰泰滨江学府12栋2单元1802</td>
+            <td class="nowrap">陈**</td>
+            <td class="num">6 / 18</td>
+            <td><span class="cr e"><i class="fa-solid fa-cloud"></i> 纯电子</span></td>
+            <td class="nowrap"><span class="badge blue">定期 30 年</span></td>
+            <td class="nowrap"><span class="ml m1">内部</span></td>
+            <td class="nowrap">自动归集</td>
+            <td class="nowrap">2021-03-18</td>
+            <td class="nowrap"><span class="badge green">已归档在库</span></td>
+            <td class="nowrap text-3">电子档案，不占库位</td>
+            <td class="col-ops">
+              <a class="link" href="archive-detail.html">详情</a>
+              <a class="link" href="archive-viewer.html">图文查看</a>
+              <a class="link" href="borrow-apply.html">借阅</a>
+            </td>
+          </tr>
+          <tr class="clickable" onclick="if(!event.target.closest('a,input'))location.href='archive-detail.html'">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600 no-code">DA450202202400628</td>
+            <td class="cell-lg">彰泰滨江学府12栋2单元1802房屋租赁合同备案</td>
+            <td class="nowrap"><span class="badge green">房屋租赁档案</span></td>
+            <td class="nowrap no-code">03.01.02</td>
+            <td class="nowrap">2024</td>
+            <td class="cell-lg">柳州市城中区滨江东路8号彰泰滨江学府12栋2单元1802</td>
+            <td class="nowrap">陈**<span class="text-3">（出租人）</span></td>
+            <td class="num">7 / 21</td>
+            <td><span class="cr e"><i class="fa-solid fa-cloud"></i> 纯电子</span></td>
+            <td class="nowrap"><span class="badge cyan">定期 10 年</span></td>
+            <td class="nowrap"><span class="ml m0">公开</span></td>
+            <td class="nowrap">自动归集</td>
+            <td class="nowrap">2024-04-16</td>
+            <td class="nowrap"><span class="badge green">已归档在库</span></td>
+            <td class="nowrap text-3">电子档案，不占库位</td>
+            <td class="col-ops">
+              <a class="link" href="archive-detail.html">详情</a>
+              <a class="link" href="archive-viewer.html">图文查看</a>
+              <a class="link" href="borrow-apply.html">借阅</a>
+            </td>
+          </tr>
+          <tr class="clickable" onclick="if(!event.target.closest('a,input'))location.href='archive-detail.html'">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600 no-code">DA450202199800126</td>
+            <td class="cell-lg">XXXX市第二纺织厂宿舍3栋204房改售房档案</td>
+            <td class="nowrap"><span class="badge gray">公有住房与房改档案</span></td>
+            <td class="nowrap no-code">06.01.01</td>
+            <td class="nowrap">1998</td>
+            <td class="cell-lg">柳州市城中区解放北路22号第二纺织厂宿舍3栋204</td>
+            <td class="nowrap">莫**</td>
+            <td class="num">9 / 34</td>
+            <td><span class="cr d"><i class="fa-solid fa-layer-group"></i> 双套</span></td>
+            <td class="nowrap"><span class="badge red">永久</span></td>
+            <td class="nowrap"><span class="ml m1">内部</span></td>
+            <td class="nowrap">历史迁移</td>
+            <td class="nowrap">2026-07-28</td>
+            <td class="nowrap"><span class="badge cyan">已数字化</span><br><span class="text-3 text-sm">SZH2026Q3-018 待验收</span></td>
+            <td class="nowrap no-code">KF03-J02-J1-C2-G4-H018</td>
+            <td class="col-ops">
+              <a class="link" href="archive-detail.html">详情</a>
+              <a class="link" href="digitize-batch.html?pc=SZH2026Q3-018">数字化批次</a>
+              <a class="link" href="archive-viewer.html">图文查看</a>
+            </td>
+          </tr>
+          <tr class="clickable" onclick="if(!event.target.closest('a,input'))location.href='archive-detail.html'">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600 no-code">DA450203201600486</td>
+            <td class="cell-lg">阳光100城市广场商品房预售许可（2016年度）</td>
+            <td class="nowrap"><span class="badge blue">商品房交易档案</span></td>
+            <td class="nowrap no-code">01.01.01</td>
+            <td class="nowrap">2016</td>
+            <td class="cell-lg">柳州市鱼峰区文昌路66号阳光100城市广场</td>
+            <td class="nowrap">柳州阳光100置业有限公司</td>
+            <td class="num">16 / 62</td>
+            <td><span class="cr p"><i class="fa-solid fa-folder-open"></i> 纯纸质</span></td>
+            <td class="nowrap"><span class="badge cyan">定期 10 年</span></td>
+            <td class="nowrap"><span class="ml m1">内部</span></td>
+            <td class="nowrap">历史迁移</td>
+            <td class="nowrap">2016-09-22</td>
+            <td class="nowrap"><span class="badge orange">待鉴定</span><br><span class="text-warning text-sm">2026-09-22 到期</span></td>
+            <td class="nowrap no-code">KF02-J16-J4-C2-G8-H126</td>
+            <td class="col-ops">
+              <a class="link" href="archive-detail.html">详情</a>
+              <a class="link" href="appraise-destroy.html">鉴定</a>
+            </td>
+          </tr>
+          <tr class="clickable" onclick="if(!event.target.closest('a,input'))location.href='archive-detail.html'">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600 no-code">DA450205202300386</td>
+            <td class="cell-lg">桂中华府6栋2单元1104征收安置补偿协议档案</td>
+            <td class="nowrap"><span class="badge orange">征收安置档案</span></td>
+            <td class="nowrap no-code">07.02.01</td>
+            <td class="nowrap">2023</td>
+            <td class="cell-lg">柳州市柳北区跃进路33号桂中华府6栋2单元1104</td>
+            <td class="nowrap">吴**</td>
+            <td class="num">18 / 76</td>
+            <td><span class="cr d"><i class="fa-solid fa-layer-group"></i> 双套</span></td>
+            <td class="nowrap"><span class="badge red">永久</span></td>
+            <td class="nowrap"><span class="ml m3">机密</span></td>
+            <td class="nowrap">人工归档</td>
+            <td class="nowrap">2023-11-08</td>
+            <td class="nowrap"><span class="badge blue">已封存</span><br><span class="text-3 text-sm">长期不动用</span></td>
+            <td class="nowrap no-code">KF03-J01-J1-C1-G1-H002</td>
+            <td class="col-ops">
+              <a class="link" href="archive-detail.html">详情</a>
+              <a class="link" href="borrow-apply.html">借阅</a>
+            </td>
+          </tr>
+          <tr class="clickable" onclick="if(!event.target.closest('a,input'))location.href='archive-detail.html'">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600 no-code">DA450206202400218</td>
+            <td class="cell-lg">龙光玖誉城4栋1单元706房产测绘成果档案</td>
+            <td class="nowrap"><span class="badge gray">房产测绘档案</span></td>
+            <td class="nowrap no-code">08.01.01</td>
+            <td class="nowrap">2024</td>
+            <td class="cell-lg">柳州市柳江区江华路9号龙光玖誉城4栋1单元706</td>
+            <td class="nowrap">广西桂测房产测绘有限公司</td>
+            <td class="num">5 / 26</td>
+            <td><span class="cr e"><i class="fa-solid fa-cloud"></i> 纯电子</span></td>
+            <td class="nowrap"><span class="badge orange">长期</span></td>
+            <td class="nowrap"><span class="ml m1">内部</span></td>
+            <td class="nowrap">自动归集</td>
+            <td class="nowrap">2024-06-11</td>
+            <td class="nowrap"><span class="badge green">已归档在库</span></td>
+            <td class="nowrap text-3">电子档案，不占库位</td>
+            <td class="col-ops">
+              <a class="link" href="archive-detail.html">详情</a>
+              <a class="link" href="archive-viewer.html">图文查看</a>
+              <a class="link" href="borrow-apply.html">借阅</a>
+            </td>
+          </tr>
+          <tr class="clickable" onclick="if(!event.target.closest('a,input'))location.href='archive-detail.html'">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600 no-code">DA450204202500742</td>
+            <td class="cell-lg">万科城7栋1单元902存量房交易资金监管档案</td>
+            <td class="nowrap"><span class="badge cyan">资金监管档案</span></td>
+            <td class="nowrap no-code">09.01.02</td>
+            <td class="nowrap">2025</td>
+            <td class="cell-lg">柳州市鱼峰区屏山大道118号万科城7栋1单元902</td>
+            <td class="nowrap">黄**</td>
+            <td class="num">8 / 24</td>
+            <td><span class="cr e"><i class="fa-solid fa-cloud"></i> 纯电子</span></td>
+            <td class="nowrap"><span class="badge gray">定期 5 年</span></td>
+            <td class="nowrap"><span class="ml m1">内部</span></td>
+            <td class="nowrap">自动归集</td>
+            <td class="nowrap">2025-08-19</td>
+            <td class="nowrap"><span class="badge green">已归档在库</span></td>
+            <td class="nowrap text-3">电子档案，不占库位</td>
+            <td class="col-ops">
+              <a class="link" href="archive-detail.html">详情</a>
+              <a class="link" href="archive-viewer.html">图文查看</a>
+              <a class="link" href="borrow-apply.html">借阅</a>
+            </td>
+          </tr>
+          <tr class="clickable is-off" onclick="if(!event.target.closest('a,input'))location.href='archive-detail.html'">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600 no-code">DA450202201500186</td>
+            <td class="cell-lg">柳州市城中区2015年度房屋交易综合管理档案</td>
+            <td class="nowrap"><span class="badge gray">综合管理档案</span></td>
+            <td class="nowrap no-code">14.01.01</td>
+            <td class="nowrap">2015</td>
+            <td class="cell-lg text-3">—</td>
+            <td class="nowrap text-3">—</td>
+            <td class="num">22 / 108</td>
+            <td><span class="cr p"><i class="fa-solid fa-folder-open"></i> 纯纸质</span></td>
+            <td class="nowrap"><span class="badge orange">长期</span></td>
+            <td class="nowrap"><span class="ml m1">内部</span></td>
+            <td class="nowrap">历史迁移</td>
+            <td class="nowrap">2015-12-30</td>
+            <td class="nowrap"><span class="badge gray">已移交</span><br><span class="text-3 text-sm">YJ2026003 XXXX市档案馆</span></td>
+            <td class="nowrap text-3">已释放</td>
+            <td class="col-ops">
+              <a class="link" href="transfer.html?yj=YJ2026003">移交单</a>
+              <a class="link" href="archive-detail.html">详情</a>
+            </td>
+          </tr>
+          <tr class="clickable is-off" onclick="if(!event.target.closest('a,input'))location.href='archive-detail.html'">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600 no-code">DA450202201400086</td>
+            <td class="cell-lg">2014年度房屋交易日常事务性登记簿（短期）</td>
+            <td class="nowrap"><span class="badge gray">综合管理档案</span></td>
+            <td class="nowrap no-code">14.02.01</td>
+            <td class="nowrap">2014</td>
+            <td class="cell-lg text-3">—</td>
+            <td class="nowrap text-3">—</td>
+            <td class="num">4 / 12</td>
+            <td><span class="cr p"><i class="fa-solid fa-folder-open"></i> 纯纸质</span></td>
+            <td class="nowrap"><span class="badge gray">短期</span></td>
+            <td class="nowrap"><span class="ml m0">公开</span></td>
+            <td class="nowrap">历史迁移</td>
+            <td class="nowrap">2014-12-31</td>
+            <td class="nowrap"><span class="badge gray">已销毁</span><br><span class="text-3 text-sm">JD2025001 · 2025-06-18</span></td>
+            <td class="nowrap text-3">已释放</td>
+            <td class="col-ops">
+              <a class="link" href="appraise-destroy.html">销毁记录</a>
+              <a class="link" href="archive-detail.html">详情</a>
+            </td>
+          </tr>
+          <tr class="clickable" onclick="if(!event.target.closest('a,input'))location.href='archive-detail.html'">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600 no-code">DA450202202101024</td>
+            <td class="cell-lg">彰泰滨江学府12栋2单元1802预购商品房抵押预告登记</td>
+            <td class="nowrap"><span class="badge orange">抵押登记档案</span></td>
+            <td class="nowrap no-code">04.01.01</td>
+            <td class="nowrap">2021</td>
+            <td class="cell-lg">柳州市城中区滨江东路8号彰泰滨江学府12栋2单元1802</td>
+            <td class="nowrap">柳州银行营业部</td>
+            <td class="num">9 / 28</td>
+            <td><span class="cr d"><i class="fa-solid fa-layer-group"></i> 双套</span></td>
+            <td class="nowrap"><span class="badge blue">定期 30 年</span></td>
+            <td class="nowrap"><span class="ml m1">内部</span></td>
+            <td class="nowrap">自动归集</td>
+            <td class="nowrap">2021-06-08</td>
+            <td class="nowrap"><span class="badge green">已归档在库</span></td>
+            <td class="nowrap no-code">KF01-J08-J2-C3-G6-H044</td>
+            <td class="col-ops">
+              <a class="link" href="archive-detail.html">详情</a>
+              <a class="link" href="archive-viewer.html">图文查看</a>
+              <a class="link" href="borrow-apply.html">借阅</a>
+            </td>
+          </tr>
+          <tr class="clickable" onclick="if(!event.target.closest('a,input'))location.href='archive-detail.html'">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600 no-code">DA450205201800386</td>
+            <td class="cell-lg">柳北区公共租赁住房配租档案（2018年度）</td>
+            <td class="nowrap"><span class="badge green">政策性住房档案</span></td>
+            <td class="nowrap no-code">05.02.01</td>
+            <td class="nowrap">2018</td>
+            <td class="cell-lg">柳州市柳北区雅儒路18号安居苑</td>
+            <td class="nowrap">XXXX市住房保障中心</td>
+            <td class="num">26 / 142</td>
+            <td><span class="cr p"><i class="fa-solid fa-folder-open"></i> 纯纸质</span></td>
+            <td class="nowrap"><span class="badge blue">定期 30 年</span></td>
+            <td class="nowrap"><span class="ml m1">内部</span></td>
+            <td class="nowrap">批量导入</td>
+            <td class="nowrap">2018-12-26</td>
+            <td class="nowrap"><span class="badge red">缺失</span><br><span class="text-danger text-sm">PD2026008 盘点未找到</span></td>
+            <td class="nowrap no-code">KF01-J12-J5-C7-G3-H208</td>
+            <td class="col-ops">
+              <a class="link" href="inventory.html?pd=PD2026008">核查处理</a>
+              <a class="link" href="archive-detail.html">详情</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="drawer-mask"></div>
+  <div class="drawer" id="drManual">
+    <div class="drawer-head">
+      <h3>手工归档</h3>
+      <button type="button" class="close" onclick="PMS.closeDrawer('drManual')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-warning">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>正常业务办结由 wsbiz 触发自动归集，手工归档仅用于历史补归与无办件来源的综合管理档案，归档方式将记为「人工归档」。</div>
+      </div>
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>档案类型<span class="req">*</span></label>
+          <select>
+            <option>综合管理档案</option><option>商品房交易档案</option><option>存量房交易档案</option>
+            <option>房屋租赁档案</option><option>公有住房与房改档案</option><option>其他档案</option>
+          </select>
+        </div>
+        <div class="form-item">
+          <label>分类目录<span class="req">*</span></label>
+          <select><option>14.01.01 年度综合管理</option><option>06.01.01 房改售房</option><option>02.03.01 存量房备案</option></select>
+        </div>
+        <div class="form-item">
+          <label>档案名称<span class="req">*</span></label>
+          <input type="text" placeholder="按著录规范填写案卷题名">
+        </div>
+        <div class="form-item">
+          <label>年度<span class="req">*</span></label>
+          <input type="number" value="2026">
+        </div>
+        <div class="form-item">
+          <label>档案载体<span class="req">*</span></label>
+          <select><option>纯纸质</option><option>双套</option><option>纯电子</option></select>
+        </div>
+        <div class="form-item">
+          <label>保管期限<span class="req">*</span></label>
+          <select><option>永久</option><option>长期</option><option>定期 30 年</option><option>定期 10 年</option><option>定期 5 年</option><option>短期</option></select>
+        </div>
+        <div class="form-item">
+          <label>密级<span class="req">*</span></label>
+          <select><option>内部</option><option>公开</option><option>秘密</option><option>机密</option></select>
+        </div>
+        <div class="form-item">
+          <label>件数 / 页数<span class="req">*</span></label>
+          <input type="text" placeholder="如 12 / 46">
+        </div>
+        <div class="form-item col-full">
+          <label>房屋坐落</label>
+          <input type="text" placeholder="有对应房屋的填写，用于一房一档聚合">
+          <span class="hint">填写房屋信息后系统会按房源主键自动聚合到该房屋的一房一档总卷</span>
+        </div>
+        <div class="form-item col-full">
+          <label>卷内材料<span class="req">*</span></label>
+          <div class="file-up">
+            <input type="hidden" class="file-up-val" value="">
+            <div class="file-up-grid">
+              <div class="file-up-tile file-up-add" title="添加文件（可多选）">
+                <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.tif,.tiff">
+                <i class="fa-solid fa-plus"></i><span>上传</span>
+              </div>
+            </div>
+          </div>
+          <span class="hint">上传后文件存入 wssvc 文件服务，档案只登记文件主键与目录信息</span>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" onclick="PMS.closeDrawer('drManual')">取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer('drManual');PMS.toast('已生成案卷 DA450202202600942，状态「归档中」，请继续著录与上架','success')">
+        <i class="fa-solid fa-check"></i> 生成案卷
+      </button>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="mdImport">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>批量导入档案目录</h3>
+        <button type="button" class="close" onclick="PMS.closeModal('mdImport')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="import-drop" onclick="PMS.toast('已选择《档案目录导入模板_1998年度.xlsx》')">
+          <i class="fa-solid fa-file-excel" style="font-size:32px;color:var(--primary)"></i>
+          <div class="fw-600 mt-8">点击选择或拖拽 Excel 文件到此处</div>
+          <div class="text-3 text-sm mt-8">支持 .xlsx，单次不超过 5,000 条；需先下载模板按列填写</div>
+        </div>
+        <div class="mt-16">
+          <a class="link" onclick="PMS.toast('模板已下载')"><i class="fa-solid fa-download"></i> 下载导入模板</a>
+          <span class="text-3 text-sm" style="margin-left:12px">导入后归档方式记为「批量导入」，未数字化的自动纳入数字化加工计划</span>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="PMS.closeModal('mdImport')">取消</button>
+        <button type="button" class="btn btn-primary" onclick="PMS.closeModal('mdImport');PMS.toast('校验通过 486 条，已导入并生成案卷目录','success')">开始导入</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function toggleAdv() {
+  var w = document.getElementById('advWrap');
+  w.classList.toggle('open');
+  document.getElementById('advBtn').classList.toggle('btn-primary', w.classList.contains('open'));
+}
+(function () {
+  var table = document.getElementById('tblDa');
+  document.getElementById('ckAll').addEventListener('change', function () {
+    var on = this.checked;
+    table.querySelectorAll('tbody .ck').forEach(function (c) { c.checked = on; });
+  });
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 486286,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+</script>
+</body>
+</html>

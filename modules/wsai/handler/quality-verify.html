@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>好房子品质材料智能核验 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="jb" data-active="listing-verify" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>智能应用</span>
+      <span class="sep">/</span><span>智能核验</span>
+      <span class="sep">/</span><span class="cur">好房子品质材料智能核验</span>
+    </div>
+    <div class="page-actions">
+      <span class="node-tag"><i class="fa-solid fa-user-shield"></i>业务经办人</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-clipboard-check"></i>智能核验 wsai-07</span>
+    <a href="listing-verify.html?role=jb">房源真实性核验</a>
+    <a class="active" href="quality-verify.html?role=jb">好房子品质核验</a>
+    <a href="archive-catalog.html?role=jb">档案影像编目</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-award"></i>
+    <span>按《好房子品质认定指标体系》对隔声、通风采光、智能化、绿色建材、检测报告五类要件做识别与指标提取。
+      <b>本页依赖的「好房子品质核验模型」当前为草稿状态</b>，需先在<a class="link" href="../admin/model-deploy.html?role=pt">本地化部署</a>页发布后才能调用 ——
+      这正是「未发布模型不可调用」这条约束的实际体现。</span>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon ai"><i class="fa-solid fa-microchip"></i></div>
+      <div><div class="s-label">核验模型状态</div><div class="s-value" id="kModel" style="font-size:16px">—</div>
+        <div class="s-trend text-2" id="kModelSub">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-file-lines"></i></div>
+      <div><div class="s-label">申报项目</div><div class="s-value" id="kApp">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><div class="s-label">要件缺失项</div><div class="s-value" id="kMiss">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">已确认核验</div><div class="s-value" id="kDone">—</div></div>
+    </div>
+  </div>
+
+  <div id="apps"></div>
+  <div id="aiPushHint" class="mt-16"></div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  function model() {
+    return AI.where('models', function (m) { return m.mc.indexOf('QualityCheck') >= 0; })[0];
+  }
+
+  function paintKpi() {
+    var m = model();
+    document.getElementById('kModel').textContent = m ? AI.dict('mxzt', m.mxzt) : '未建';
+    document.getElementById('kModelSub').textContent = m
+      ? (m.mxzt === '3' ? '可正常调用' : '发布后才能调用')
+      : '模型不存在';
+    var as = AI.get('qualityApps');
+    document.getElementById('kApp').textContent = as.length;
+    var miss = 0;
+    as.forEach(function (a) { miss += a.items.filter(function (i) { return !i.ok; }).length; });
+    document.getElementById('kMiss').textContent = miss;
+    document.getElementById('kDone').textContent = as.filter(function (a) { return a.qrzt !== '0'; }).length;
+  }
+
+  function paint() {
+    var m = model();
+    document.getElementById('apps').innerHTML = AI.get('qualityApps').map(function (a) {
+      var o = a.outputId ? AI.byId('outputs', a.outputId) : null;
+      var miss = a.items.filter(function (i) { return !i.ok; });
+      return '<div class="card mt-16">' +
+        '<div class="card-head"><h3>' + AI.esc(a.xm) + '</h3>' +
+          '<span class="sub">申报主体：' + AI.esc(a.subject) + '</span>' +
+          (miss.length
+            ? '<span class="badge orange">' + miss.length + ' 项要件缺失</span>'
+            : '<span class="badge green">要件齐全</span>') +
+          '<div class="head-actions">' +
+            (!o
+              ? '<button class="btn btn-primary btn-sm" onclick="AI.act.verifyQuality(\'' + a.id + '\')">' +
+                '<i class="fa-solid fa-wand-magic-sparkles"></i> 智能核验</button>'
+              : '') +
+            (o && miss.length
+              ? '<button class="btn btn-sm" onclick="AI.act.pushQualityCorrection(\'' + a.id + '\')">' +
+                '<i class="fa-solid fa-paper-plane"></i> 缺项转补正</button>'
+              : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="card-body">' +
+          (o ? '<div class="mb-16 flex items-center gap-12" style="flex-wrap:wrap">' +
+                 AI.aiMark(o.qrzt) + AI.aiSource(o) + '</div>' : '') +
+          '<div class="table-wrap"><table class="data-table compact" data-static><thead><tr>' +
+            '<th>品质指标</th><th class="cell-lg">' + (o ? 'AI 提取结果' : '待核验') + '</th>' +
+            '<th>要件</th><th>识别置信度</th></tr></thead><tbody>' +
+          a.items.map(function (i) {
+            return '<tr><td class="fw-600">' + AI.esc(i.mc) + '</td>' +
+              '<td class="cell-lg">' + (o ? AI.esc(i.val) : '<span class="text-3">尚未执行核验</span>') + '</td>' +
+              '<td>' + (i.ok
+                ? '<span class="badge green">齐全</span>'
+                : '<span class="badge red">缺失</span>') + '</td>' +
+              '<td>' + (o ? AI.confidence(i.conf) : '<span class="text-3">—</span>') + '</td></tr>';
+          }).join('') + '</tbody></table></div>' +
+          (o && o.qrzt === '0'
+            ? '<div class="alert alert-warning mt-16"><i class="fa-solid fa-triangle-exclamation"></i>' +
+              '<span>核验结论未人工确认，不能转补正也不能用于认定审核。</span></div>' +
+              '<div class="mt-16">' + AI.actTriplet(o.id) + '</div>'
+            : '') +
+          (!o && (!m || m.mxzt !== '3')
+            ? '<div class="alert alert-danger mt-16"><i class="fa-solid fa-circle-exclamation"></i>' +
+              '<span>核验模型当前为「' + (m ? AI.dict('mxzt', m.mxzt) : '未建') + '」，点「智能核验」会被拦截。' +
+              '请先到<a class="link" href="../admin/model-deploy.html?role=pt">本地化部署</a>页把它部署并发布。</span></div>'
+            : '') +
+        '</div></div>';
+    }).join('');
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () { paintKpi(); paint(); });
+  });
+})();
+</script>
+</body>
+</html>

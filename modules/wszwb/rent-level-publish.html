@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>租金水平信息发布 · 房屋租赁网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：来源构成条、租金矩阵表 */
+  .card.list-card > .tab-panel.active > .card-body { flex: 1 1 auto; min-height: 0; overflow: auto; }
+
+  .src-bar { display: flex; height: 16px; border-radius: 8px; overflow: hidden; }
+  .src-bar i { display: block; height: 100%; }
+  .src-lg { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 10px; }
+  .src-lg span { font-size: 12.5px; color: var(--text-3); display: inline-flex; align-items: center; gap: 6px; }
+  .src-lg em { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+
+  .ov-card { border: 1px solid var(--border); border-radius: var(--radius); background: #fff; padding: 15px 17px; }
+  .ov-card.primary { border-color: #bfdbfe; background: #f5f9ff; }
+  .ov-card .oc-t { font-size: 13px; color: var(--text-3); }
+  .ov-card .oc-v { font-size: 28px; font-weight: 700; color: var(--text-1); letter-spacing: -1px; margin: 6px 0 3px; }
+  .ov-card .oc-v small { font-size: 13px; font-weight: 500; color: var(--text-3); margin-left: 4px; }
+  .ov-card .oc-d { font-size: 12.5px; }
+  .ov-card .oc-d .up { color: #d97706; font-weight: 600; }
+  .ov-card .oc-d .down { color: #16a34a; font-weight: 600; }
+
+  /* 租金矩阵是自绘表格，不走 app.js 的列表分页增强，故不用 .table-wrap 当滚动容器 */
+  .mx-wrap { overflow: auto; min-height: 0; }
+  .mx { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .mx th, .mx td { border: 1px solid var(--border); padding: 8px 10px; text-align: center; }
+  .mx thead th { background: var(--bg-soft); color: var(--text-3); font-weight: 600; }
+  .mx td.rg { text-align: left; background: #fbfcfe; color: var(--text-2); font-weight: 600; white-space: nowrap; }
+  .mx td .m-r { font-size: 13.5px; font-weight: 700; color: var(--text-1); }
+  .mx td .m-u { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
+  .mx td .m-c { font-size: 11.5px; margin-top: 2px; }
+  .mx td .m-c.up { color: #d97706; }
+  .mx td .m-c.down { color: #2563eb; }
+  .mx td.hot { background: #fff7ed; }
+  .mx td.cold { background: #eff6ff; }
+
+  .data-table tbody tr.is-thin > td { background: #f7f8fa; color: var(--text-3); }
+  .radio-line { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; min-height: 32px; }
+  .radio-line label { font-size: 14px; color: var(--text-2); font-weight: 400; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wszwb-04">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋租赁网签备案管理系统
+        <span class="sep">/</span> 租赁备案服务
+        <span class="sep">/</span> <span class="cur">租金水平信息发布</span>
+      </div>
+      <div class="page-title">租金水平信息发布</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="PMS.toast('已重新生成 2026 年 7 月期数据，有效样本 3,286 条','success')"><i class="fa-solid fa-rotate"></i> 生成本期数据</button>
+      <button type="button" class="btn" onclick="submitReview()"><i class="fa-solid fa-file-signature"></i> 提交审签</button>
+      <button type="button" class="btn btn-primary" onclick="publish()"><i class="fa-solid fa-bullhorn"></i> 发布</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      发布内容为分区域、分户型的聚合统计值，不含具体房源与个人信息。分组样本量低于 10 条的不对外发布，仅作内部参考。保障性租赁住房单独按指导租金标准列示。
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="tabs" data-tabs-scope>
+      <div class="tab active" data-tab="ov">本期概况</div>
+      <div class="tab" data-tab="mx">分区域分户型矩阵</div>
+      <div class="tab" data-tab="dt">采集明细</div>
+      <div class="tab" data-tab="pb">审签与发布</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="ov">
+      <div class="card-body">
+        <div class="section-title">本期概况 · 2026 年 7 月 <span class="badge orange">草稿</span></div>
+        <dl class="desc-list">
+          <div class="desc-item"><dt>统计周期</dt><dd class="fw-600">2026 年 7 月（月度）</dd></div>
+          <div class="desc-item"><dt>有效样本量</dt><dd>3,286 条</dd></div>
+          <div class="desc-item"><dt>剔除异常样本</dt><dd>128 条（占比 3.7%）</dd></div>
+          <div class="desc-item"><dt>发布状态</dt><dd><span class="badge orange">草稿</span></dd></div>
+          <div class="desc-item"><dt>数据生成时间</dt><dd>2026-08-01 06:00</dd></div>
+          <div class="desc-item"><dt>上期发布</dt><dd>2026 年 6 月期 · 2026-07-05 发布</dd></div>
+        </dl>
+
+        <div class="section-title mt-16">采集来源构成</div>
+        <div class="src-bar">
+          <i style="width:82.6%;background:#2563eb"></i>
+          <i style="width:12.4%;background:#60a5fa"></i>
+          <i style="width:3.6%;background:#f59e0b"></i>
+          <i style="width:1.4%;background:#cbd5e1"></i>
+        </div>
+        <div class="src-lg">
+          <span><em style="background:#2563eb"></em> 备案合同 82.6%（2,714 条）</span>
+          <span><em style="background:#60a5fa"></em> 挂牌房源 12.4%（408 条）</span>
+          <span><em style="background:#f59e0b"></em> 实地调查 3.6%（118 条）</span>
+          <span><em style="background:#cbd5e1"></em> 第三方平台 1.4%（46 条）</span>
+        </div>
+
+        <div class="section-title mt-16">全市租金水平概览</div>
+        <div class="grid-3">
+          <div class="ov-card primary">
+            <div class="oc-t">全市平均租金单价</div>
+            <div class="oc-v">24.6 <small>元/㎡·月</small></div>
+            <div class="oc-d">环比 <span class="up">+0.7%</span> · 上期 24.4 元/㎡·月</div>
+          </div>
+          <div class="ov-card">
+            <div class="oc-t">租金指数</div>
+            <div class="oc-v">102.8</div>
+            <div class="oc-d">同比 <span class="up">+2.6%</span> · 以 2025 年 1 月为基期 100</div>
+          </div>
+          <div class="ov-card">
+            <div class="oc-t">平均月租金</div>
+            <div class="oc-v">2,086 <small>元/月</small></div>
+            <div class="oc-d">环比 <span class="up">+0.9%</span> · 中位数 1,880 元/月</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="mx">
+      <div class="card-body">
+        <div class="section-title">分区域分户型租金矩阵 · 2026 年 7 月</div>
+        <div class="text-3 text-sm" style="margin-bottom:10px">
+          单元格自上而下依次为「平均租金（元/月）· 单价（元/㎡·月）· 环比」；涨幅超 +3% 标橙，跌幅超 -3% 标蓝。
+        </div>
+        <div class="mx-wrap">
+          <table class="mx">
+            <thead>
+              <tr><th style="width:110px">行政区划</th><th>一居</th><th>二居</th><th>三居</th><th>四居及以上</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="rg">城中区</td>
+                <td class="hot"><div class="m-r">1,620</div><div class="m-u">28.6 元/㎡·月</div><div class="m-c up">环比 +3.4%</div></td>
+                <td><div class="m-r">2,380</div><div class="m-u">27.9 元/㎡·月</div><div class="m-c up">环比 +1.2%</div></td>
+                <td><div class="m-r">3,180</div><div class="m-u">26.5 元/㎡·月</div><div class="m-c up">环比 +0.8%</div></td>
+                <td><div class="m-r">4,260</div><div class="m-u">24.8 元/㎡·月</div><div class="m-c">环比 0.0%</div></td>
+              </tr>
+              <tr>
+                <td class="rg">鱼峰区</td>
+                <td><div class="m-r">1,480</div><div class="m-u">26.4 元/㎡·月</div><div class="m-c up">环比 +1.6%</div></td>
+                <td><div class="m-r">2,180</div><div class="m-u">26.0 元/㎡·月</div><div class="m-c up">环比 +0.9%</div></td>
+                <td><div class="m-r">2,980</div><div class="m-u">24.6 元/㎡·月</div><div class="m-c up">环比 +0.6%</div></td>
+                <td><div class="m-r">3,860</div><div class="m-u">22.9 元/㎡·月</div><div class="m-c down">环比 -0.4%</div></td>
+              </tr>
+              <tr>
+                <td class="rg">柳北区</td>
+                <td><div class="m-r">1,180</div><div class="m-u">22.6 元/㎡·月</div><div class="m-c up">环比 +0.8%</div></td>
+                <td><div class="m-r">1,760</div><div class="m-u">22.0 元/㎡·月</div><div class="m-c">环比 +0.2%</div></td>
+                <td><div class="m-r">2,420</div><div class="m-u">21.2 元/㎡·月</div><div class="m-c down">环比 -0.6%</div></td>
+                <td><div class="m-r">3,180</div><div class="m-u">19.8 元/㎡·月</div><div class="m-c down">环比 -1.2%</div></td>
+              </tr>
+              <tr>
+                <td class="rg">柳南区</td>
+                <td><div class="m-r">1,260</div><div class="m-u">23.8 元/㎡·月</div><div class="m-c up">环比 +1.1%</div></td>
+                <td><div class="m-r">1,880</div><div class="m-u">23.2 元/㎡·月</div><div class="m-c up">环比 +0.7%</div></td>
+                <td><div class="m-r">2,620</div><div class="m-u">22.4 元/㎡·月</div><div class="m-c">环比 +0.3%</div></td>
+                <td><div class="m-r">3,420</div><div class="m-u">21.0 元/㎡·月</div><div class="m-c down">环比 -0.8%</div></td>
+              </tr>
+              <tr>
+                <td class="rg">柳东新区</td>
+                <td class="hot"><div class="m-r">1,420</div><div class="m-u">27.2 元/㎡·月</div><div class="m-c up">环比 +4.6%</div></td>
+                <td class="hot"><div class="m-r">2,080</div><div class="m-u">26.6 元/㎡·月</div><div class="m-c up">环比 +3.8%</div></td>
+                <td><div class="m-r">2,760</div><div class="m-u">24.2 元/㎡·月</div><div class="m-c up">环比 +2.1%</div></td>
+                <td><div class="m-r">3,520</div><div class="m-u">22.0 元/㎡·月</div><div class="m-c up">环比 +1.4%</div></td>
+              </tr>
+              <tr>
+                <td class="rg">柳江区</td>
+                <td><div class="m-r">920</div><div class="m-u">19.6 元/㎡·月</div><div class="m-c down">环比 -1.8%</div></td>
+                <td class="cold"><div class="m-r">1,340</div><div class="m-u">18.8 元/㎡·月</div><div class="m-c down">环比 -3.2%</div></td>
+                <td><div class="m-r">1,860</div><div class="m-u">17.6 元/㎡·月</div><div class="m-c down">环比 -2.4%</div></td>
+                <td><div class="m-r">2,420</div><div class="m-u">16.4 元/㎡·月</div><div class="m-c down">环比 -1.6%</div></td>
+              </tr>
+              <tr>
+                <td class="rg">鹿寨县</td>
+                <td><div class="m-r">760</div><div class="m-u">16.2 元/㎡·月</div><div class="m-c">环比 +0.2%</div></td>
+                <td><div class="m-r">1,080</div><div class="m-u">15.4 元/㎡·月</div><div class="m-c down">环比 -0.6%</div></td>
+                <td><div class="m-r">1,460</div><div class="m-u">14.2 元/㎡·月</div><div class="m-c down">环比 -1.1%</div></td>
+                <td class="cold"><div class="m-r">1,820</div><div class="m-u">12.8 元/㎡·月</div><div class="m-c down">环比 -3.6%</div></td>
+              </tr>
+              <tr>
+                <td class="rg">融安县</td>
+                <td><div class="m-r">680</div><div class="m-u">15.1 元/㎡·月</div><div class="m-c">环比 +0.4%</div></td>
+                <td><div class="m-r">960</div><div class="m-u">14.2 元/㎡·月</div><div class="m-c">环比 +0.1%</div></td>
+                <td><div class="m-r">1,280</div><div class="m-u">13.0 元/㎡·月</div><div class="m-c down">环比 -0.8%</div></td>
+                <td class="text-3">样本不足</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="dt">
+      <div class="filter-bar">
+        <div class="filter-item"><label>关键词</label><input type="text" placeholder="采集编号 / 片区 / 楼盘名称"></div>
+        <div class="filter-item">
+          <label>行政区划</label>
+          <select><option value="">全部</option><option>城中区</option><option>鱼峰区</option><option>柳北区</option><option>柳南区</option><option>柳东新区</option><option>柳江区</option></select>
+        </div>
+        <div class="filter-item">
+          <label>户型类型</label>
+          <select><option value="">全部</option><option>一居</option><option>二居</option><option>三居</option><option>四居及以上</option></select>
+        </div>
+        <div class="filter-item">
+          <label>采集来源</label>
+          <select><option value="">全部</option><option>备案合同</option><option>挂牌房源</option><option>实地调查</option><option>第三方平台</option></select>
+        </div>
+        <div class="filter-item">
+          <label>是否超指导价</label>
+          <select><option value="">全部</option><option>是</option><option>否</option></select>
+        </div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 386 组')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table" id="tblZj" data-static>
+          <thead>
+            <tr>
+              <th>采集编号</th><th>采集日期</th><th>行政区划</th><th>片区名称</th><th>楼盘名称</th><th>房屋类型</th><th>户型类型</th>
+              <th>面积区间</th><th class="num">样本量</th><th class="num">平均租金</th><th class="num">平均单价</th><th class="num">中位数租金</th>
+              <th class="num">最高/最低</th><th class="num">环比</th><th class="num">同比</th><th>采集来源</th><th class="num">指导租金</th><th>超指导价</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="nowrap fw-600">CJ202607000186</td>
+              <td class="nowrap">2026-07-31</td>
+              <td class="nowrap">城中区</td>
+              <td class="nowrap">文昌片区</td>
+              <td class="nowrap">阳光 100 城市广场</td>
+              <td class="nowrap">商品住房</td>
+              <td class="nowrap">二居</td>
+              <td class="nowrap">80-90 ㎡</td>
+              <td class="num">86</td>
+              <td class="num">2,380</td>
+              <td class="num">27.90</td>
+              <td class="num">2,300</td>
+              <td class="num">3,200 / 1,980</td>
+              <td class="num text-warning">+1.2%</td>
+              <td class="num text-warning">+3.6%</td>
+              <td class="nowrap">备案合同</td>
+              <td class="num text-3">—</td>
+              <td class="nowrap"><span class="badge gray">不适用</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已展开该分组的 86 条样本明细')">查看样本</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">CJ202607000174</td>
+              <td class="nowrap">2026-07-31</td>
+              <td class="nowrap">城中区</td>
+              <td class="nowrap">解放片区</td>
+              <td class="nowrap">天湖国际</td>
+              <td class="nowrap">保障性租赁住房</td>
+              <td class="nowrap">一居</td>
+              <td class="nowrap">50-60 ㎡</td>
+              <td class="num">42</td>
+              <td class="num">1,180</td>
+              <td class="num">20.86</td>
+              <td class="num">1,150</td>
+              <td class="num">1,420 / 1,080</td>
+              <td class="num text-warning">+0.6%</td>
+              <td class="num text-warning">+1.8%</td>
+              <td class="nowrap">备案合同</td>
+              <td class="num">19.93</td>
+              <td class="nowrap"><span class="badge orange">是</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="PMS.toast('已展开该分组的 42 条样本明细')">查看样本</span>
+                <a class="link" href="affordable-housing.html">指导租金</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">CJ202607000162</td>
+              <td class="nowrap">2026-07-31</td>
+              <td class="nowrap">柳东新区</td>
+              <td class="nowrap">花岭片区</td>
+              <td class="nowrap">人才驿站 A 座</td>
+              <td class="nowrap">宿舍型租赁住房</td>
+              <td class="nowrap">一居</td>
+              <td class="nowrap">30-40 ㎡</td>
+              <td class="num">128</td>
+              <td class="num">1,420</td>
+              <td class="num">27.20</td>
+              <td class="num">1,380</td>
+              <td class="num">1,680 / 1,180</td>
+              <td class="num text-warning">+4.6%</td>
+              <td class="num text-warning">+8.2%</td>
+              <td class="nowrap">备案合同</td>
+              <td class="num">24.60</td>
+              <td class="nowrap"><span class="badge orange">是</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="PMS.toast('已展开该分组的 128 条样本明细')">查看样本</span>
+                <a class="link" href="rent-fluctuation.html">波动监测</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">CJ202607000148</td>
+              <td class="nowrap">2026-07-31</td>
+              <td class="nowrap">鱼峰区</td>
+              <td class="nowrap">屏山片区</td>
+              <td class="nowrap">万科城</td>
+              <td class="nowrap">商品住房</td>
+              <td class="nowrap">三居</td>
+              <td class="nowrap">110-130 ㎡</td>
+              <td class="num">64</td>
+              <td class="num">2,980</td>
+              <td class="num">24.60</td>
+              <td class="num">2,900</td>
+              <td class="num">3,600 / 2,480</td>
+              <td class="num text-warning">+0.6%</td>
+              <td class="num text-warning">+2.2%</td>
+              <td class="nowrap">备案合同</td>
+              <td class="num text-3">—</td>
+              <td class="nowrap"><span class="badge gray">不适用</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已展开该分组的 64 条样本明细')">查看样本</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">CJ202607000131</td>
+              <td class="nowrap">2026-07-30</td>
+              <td class="nowrap">柳江区</td>
+              <td class="nowrap">拉堡片区</td>
+              <td class="nowrap">柳江新城</td>
+              <td class="nowrap">商品住房</td>
+              <td class="nowrap">二居</td>
+              <td class="nowrap">70-80 ㎡</td>
+              <td class="num">38</td>
+              <td class="num">1,340</td>
+              <td class="num">18.80</td>
+              <td class="num">1,320</td>
+              <td class="num">1,600 / 1,080</td>
+              <td class="num text-success">-3.2%</td>
+              <td class="num text-success">-1.4%</td>
+              <td class="nowrap">备案合同</td>
+              <td class="num text-3">—</td>
+              <td class="nowrap"><span class="badge gray">不适用</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已展开该分组的 38 条样本明细')">查看样本</span></td>
+            </tr>
+            <tr class="is-thin">
+              <td class="nowrap fw-600">CJ202607000118</td>
+              <td class="nowrap">2026-07-30</td>
+              <td class="nowrap">融安县</td>
+              <td class="nowrap">长安片区</td>
+              <td class="nowrap">长安嘉苑</td>
+              <td class="nowrap">商品住房</td>
+              <td class="nowrap">四居及以上</td>
+              <td class="nowrap">130 ㎡以上</td>
+              <td class="num">6</td>
+              <td class="num">1,820</td>
+              <td class="num">12.80</td>
+              <td class="num">1,800</td>
+              <td class="num">2,100 / 1,600</td>
+              <td class="num">-3.6%</td>
+              <td class="num">-2.1%</td>
+              <td class="nowrap">实地调查</td>
+              <td class="num text-3">—</td>
+              <td class="nowrap"><span class="badge gray">样本不足不发布</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('样本量不足 10 条，仅作内部参考')">查看样本</span></td>
+            </tr>
+            <tr class="is-thin">
+              <td class="nowrap fw-600">CJ202607000106</td>
+              <td class="nowrap">2026-07-30</td>
+              <td class="nowrap">三江县</td>
+              <td class="nowrap">古宜片区</td>
+              <td class="nowrap">侗乡明珠</td>
+              <td class="nowrap">商品住房</td>
+              <td class="nowrap">三居</td>
+              <td class="nowrap">100-110 ㎡</td>
+              <td class="num">4</td>
+              <td class="num">1,180</td>
+              <td class="num">11.40</td>
+              <td class="num">1,200</td>
+              <td class="num">1,300 / 1,050</td>
+              <td class="num">+1.2%</td>
+              <td class="num">+2.6%</td>
+              <td class="nowrap">第三方平台</td>
+              <td class="num text-3">—</td>
+              <td class="nowrap"><span class="badge gray">样本不足不发布</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('样本量不足 10 条，仅作内部参考')">查看样本</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="pb">
+      <div class="card-body">
+        <div class="section-title">审签</div>
+        <div class="form-grid form-align">
+          <div class="form-item"><label>审签人<span class="req">*</span></label><select><option selected>周建华（市场监测科科长）</option><option>李冬梅（住房保障科科长）</option><option>韦国强（分管副局长）</option></select></div>
+          <div class="form-item"><label>审签时间</label><input type="datetime-local" value="2026-08-03T10:00"></div>
+          <div class="form-item col-full">
+            <label>审签意见</label>
+            <textarea rows="3">本期样本量 3,286 条，来源以备案合同为主，剔除异常样本 128 条，统计口径与上期一致。柳东新区一居环比上涨 4.6%，已同步纳入租金波动监测核查。同意按分区域分户型口径对外发布。</textarea>
+          </div>
+        </div>
+
+        <div class="section-title mt-16">发布渠道</div>
+        <div class="radio-line">
+          <label><input type="checkbox" checked> 统一服务门户</label>
+          <label><input type="checkbox" checked> 微信小程序</label>
+          <label><input type="checkbox" checked> 政府网站</label>
+          <label><input type="checkbox"> 新闻通稿</label>
+        </div>
+
+        <div class="flex gap-8 mt-16">
+          <button type="button" class="btn" onclick="submitReview()"><i class="fa-solid fa-paper-plane"></i> 提交审签</button>
+          <button type="button" class="btn btn-primary" onclick="publish()"><i class="fa-solid fa-bullhorn"></i> 审签通过并发布</button>
+        </div>
+
+        <div class="section-title mt-16">历史发布版本</div>
+        <div class="table-wrap">
+          <table class="data-table" data-static>
+            <thead><tr><th>期次</th><th>发布时间</th><th>审签人</th><th class="num">有效样本</th><th class="num">平均单价</th><th class="num">租金指数</th><th>发布渠道</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td>2026 年 6 月期</td><td>2026-07-05</td><td>周建华</td><td class="num">3,142</td><td class="num">24.4</td><td class="num">102.1</td><td>门户 / 小程序 / 政府网站</td><td class="col-ops"><span class="link" onclick="PMS.toast('已打开该期发布快照')">查看快照</span></td></tr>
+              <tr><td>2026 年 5 月期</td><td>2026-06-04</td><td>周建华</td><td class="num">3,086</td><td class="num">24.2</td><td class="num">101.6</td><td>门户 / 小程序 / 政府网站</td><td class="col-ops"><span class="link" onclick="PMS.toast('已打开该期发布快照')">查看快照</span></td></tr>
+              <tr><td>2026 年 4 月期</td><td>2026-05-06</td><td>李冬梅</td><td class="num">2,986</td><td class="num">24.1</td><td class="num">101.2</td><td>门户 / 小程序</td><td class="col-ops"><span class="link" onclick="PMS.toast('已打开该期发布快照')">查看快照</span></td></tr>
+              <tr><td>2026 年 1 季度</td><td>2026-04-10</td><td>韦国强</td><td class="num">8,642</td><td class="num">23.9</td><td class="num">100.8</td><td>门户 / 小程序 / 政府网站 / 新闻通稿</td><td class="col-ops"><span class="link" onclick="PMS.toast('已打开该期发布快照')">查看快照</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function submitReview() {
+  PMS.confirm({
+    title: '提交审签',
+    message: '将 2026 年 7 月期租金水平数据提交审签？',
+    detail: '提交后进入待审签状态，审签期间不可再重新生成数据。',
+    type: 'info',
+    okText: '提交',
+    onOk: function () { PMS.toast('已提交审签，待审签人周建华处理', 'success'); }
+  });
+}
+
+function publish() {
+  PMS.confirm({
+    title: '审签通过并发布',
+    message: '发布 2026 年 7 月期租金水平信息？',
+    detail: '发布内容为聚合统计值，样本量低于 10 条的分组不对外发布。发布后同步推送至统一服务门户、微信小程序与政府网站。',
+    type: 'info',
+    okText: '发布',
+    onOk: function () { PMS.toast('2026 年 7 月期租金水平信息已发布', 'success'); }
+  });
+}
+
+(function () {
+  PMS.renderPager(document.getElementById('tblZj'), {
+    pageNum: 1, pageSize: 20, total: 386,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+</script>
+</body>
+</html>

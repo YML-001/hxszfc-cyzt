@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>办结件更正与撤销 · 统一工作门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="biz" data-active="intake-register">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 收件受理
+        <span class="sep">/</span> <a class="link" href="intake-register.html?role=biz">收件登记</a>
+        <span class="sep">/</span> <span class="cur">办结件更正与撤销</span>
+      </div>
+      <div class="page-title">办结件更正与撤销</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="intake-register.html?role=biz"><i class="fa-solid fa-arrow-left"></i> 返回收件登记</a>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-rotate-left"></i>
+    <span>更正与撤销<b>本身也是一次办件</b>，走同一套办件骨架：在办件主表生成新记录并置更正标识，原办件收件编号记入 ygzsjbh，按<b>原业务审批链</b>复核。复核办结后，更正结果需同步<b>业务库、房产档案、上级报送库</b>三处。</span>
+  </div>
+
+  <div id="root"></div>
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/flow-data.js"></script>
+<script src="../assets/js/flow.js"></script>
+<script>
+(function () {
+  var origId = null;
+
+  function render() {
+    var root = document.getElementById('root');
+    var orig = origId ? FLOW.byId('cases', origId) : null;
+    /* 已生成的更正撤销件 */
+    var gzList = FLOW.where('cases', function (c) { return c.gzbs === '1' || c.gzbs === '2'; })
+      .sort(function (a, b) { return b.sjsj - a.sjsj; });
+
+    var html = '<div class="grid-2">';
+
+    /* 左：选择原办结件 + 填写更正申请 */
+    html += '<div><div class="card"><div class="card-head"><h3>第一步 · 核对原办结件</h3>' +
+      '<div class="head-actions"><span class="node-tag"><i class="fa-solid fa-user-shield"></i>窗口受理员</span></div></div>' +
+      '<div class="card-body">' +
+      '<div class="form-grid"><div class="form-item col-full">' +
+        '<label>原办结件<span class="req">*</span></label>' +
+        '<select id="origSel" onchange="pickOrig(this.value)">' +
+          '<option value="">请选择已办结的办件</option>' +
+          FLOW.where('cases', function (c) { return c.blzt === '2'; }).map(function (c) {
+            return '<option value="' + c.id + '"' + (origId === c.id ? ' selected' : '') + '>' +
+              FLOW.esc(c.sjbh) + '　' + FLOW.esc(c.sxmc) + '　' + FLOW.esc(c.sqr) + '</option>';
+          }).join('') +
+        '</select>' +
+        '<span class="hint">只有办理状态为「已办结」的办件才能申请更正或撤销</span>' +
+      '</div></div>';
+
+    if (orig) {
+      html += '<dl class="desc-list mt-16">' +
+        row('收件编号', orig.sjbh) + row('办理事项', orig.sxmc) +
+        row('申请人', orig.sqr) + row('证件号', orig.sqrzjh) +
+        row('房屋坐落', orig.fw) + row('合同编号', orig.htbh) +
+        row('办结时间', FLOW.fmt.time(orig.bjsj)) + row('原经办人', orig.jbrmc) +
+      '</dl>';
+    }
+    html += '</div></div>';
+
+    html += '<div class="card"><div class="card-head"><h3>第二步 · 填写更正或撤销申请</h3></div><div class="card-body">' +
+      '<div class="form-grid">' +
+        '<div class="form-item"><label>更正类型<span class="req">*</span></label>' +
+          '<select id="gzlx" data-dict="gzlx" onchange="syncType()"></select></div>' +
+        '<div class="form-item"><label>证明材料</label><input type="text" id="proof" placeholder="上传证明材料附件"></div>' +
+        '<div class="form-item"><label>更正前内容</label><input type="text" id="before" placeholder="如：韦志强"></div>' +
+        '<div class="form-item"><label>更正后内容</label><input type="text" id="after" placeholder="如：韦治强"></div>' +
+        '<div class="form-item col-full"><label>更正或撤销事由<span class="req">*</span></label>' +
+          '<textarea id="reason" rows="3" placeholder="如：当事人姓名录入有误，经核对身份证原件确认"></textarea></div>' +
+      '</div>' +
+      '<div class="alert alert-info mt-16" id="typeTip"><i class="fa-solid fa-circle-info"></i>' +
+        '<span>选择「整件撤销」时，原办件的备案效力一并撤销，需同步撤回已出具的备案证明。</span></div>' +
+      '<div class="btn-row mt-16">' +
+        '<button class="btn btn-primary" onclick="submitApply()"><i class="fa-solid fa-paper-plane"></i> 受理并生成更正件</button>' +
+        '<button class="btn" onclick="clearForm()">清空</button>' +
+      '</div></div></div></div>';
+
+    /* 右：已生成的更正撤销件与三处同步 */
+    html += '<div><div class="card"><div class="card-head"><h3>更正与撤销件</h3>' +
+      '<span class="sub">共 ' + gzList.length + ' 件</span></div><div class="card-body" style="padding-top:6px">' +
+      (gzList.length ? '<div class="home-todo">' + gzList.map(function (c) {
+        var sync = c.gz ? c.gz.sync : { biz: 0, archive: 0, report: 0 };
+        var n = (sync.biz ? 1 : 0) + (sync.archive ? 1 : 0) + (sync.report ? 1 : 0);
+        return '<a class="todo-row" href="javascript:void(0)" onclick="showSync(\'' + c.id + '\')">' +
+          FLOW.badge(c.gzbs === '1' ? '更正件' : '撤销件', c.gzbs === '1' ? 'orange' : 'red') +
+          '<span class="todo-text">' + FLOW.esc(c.sjbh) + '　原件 ' + FLOW.esc(c.ygzsjbh) + '</span>' +
+          '<span class="todo-time">' + FLOW.dict('blzt', c.blzt) + ' · 同步 ' + n + '/3</span></a>';
+      }).join('') + '</div>'
+        : '<div class="empty"><i class="fa-regular fa-rectangle-list"></i><div>还没有更正或撤销件</div></div>') +
+      '</div></div>';
+
+    html += '<div class="card" id="syncCard"><div class="card-head"><h3>第三步 · 三处同步</h3>' +
+      '<span class="sub" id="syncSub">选择左侧的更正件查看</span></div>' +
+      '<div class="card-body" id="syncBody">' +
+      '<div class="empty"><i class="fa-regular fa-circle-dot"></i><div>请先在上方选择一件更正或撤销件</div></div>' +
+      '</div></div></div>';
+
+    html += '</div>';
+    root.innerHTML = html;
+    /* 本页整块重绘，动态插入的 data-dict 下拉需要手动触发字典填充 */
+    PMS.populateDicts(root);
+    if (window._syncId) renderSync(window._syncId);
+  }
+
+  function renderSync(id) {
+    var c = FLOW.byId('cases', id);
+    var body = document.getElementById('syncBody');
+    if (!c || !c.gz) return;
+    document.getElementById('syncSub').textContent = c.sjbh;
+    var TARGETS = [
+      ['biz', '业务库', 'fa-database', '同步更正后的合同与房屋信息到对应业务专有表'],
+      ['archive', '房产档案', 'fa-box-archive', '同步更正结果与证明材料影像到档案库'],
+      ['report', '上级报送库', 'fa-cloud-arrow-up', '按全国网签备案联网上报口径重新报送']
+    ];
+    var canSync = (c.blzt === '2');
+    body.innerHTML =
+      '<dl class="desc-list">' +
+        row('更正类型', FLOW.dict('gzlx', c.gz.gzlx)) +
+        row('办理状态', FLOW.dict('blzt', c.blzt)) +
+        row('更正前', c.gz.before) + row('更正后', c.gz.after) +
+        '<div class="desc-item full"><dt>更正事由</dt><dd>' + FLOW.esc(c.gz.reason) + '</dd></div>' +
+      '</dl>' +
+      (canSync ? '' : '<div class="alert alert-warning mt-16"><i class="fa-solid fa-clock"></i>' +
+        '<span>更正件需先按原审批链<a class="link" href="my-approval.html?role=biz">复核办结</a>，才能执行三处同步。</span></div>') +
+      '<div class="mt-16">' + TARGETS.map(function (t) {
+        var done = c.gz.sync[t[0]];
+        return '<div class="flex items-center gap-12" style="padding:12px 4px;border-bottom:1px solid var(--row-line)">' +
+          '<span style="width:34px;height:34px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;' +
+            'background:' + (done ? 'var(--success-light)' : 'var(--bg-soft)') + ';color:' + (done ? 'var(--success)' : 'var(--text-3)') + '">' +
+            '<i class="fa-solid ' + t[2] + '"></i></span>' +
+          '<div style="flex:1;min-width:0">' +
+            '<div class="fw-600">' + t[1] + (done ? ' ' + FLOW.badge('已同步', 'green') : ' ' + FLOW.badge('待同步', 'gray')) + '</div>' +
+            '<div class="text-3 text-sm">' + t[3] + (done ? '　' + FLOW.fmt.time(done) : '') + '</div>' +
+          '</div>' +
+          (done ? '' : '<button class="btn btn-sm btn-primary" ' + (canSync ? '' : 'disabled') +
+            ' onclick="doSync(\'' + c.id + '\',\'' + t[0] + '\')">执行同步</button>') +
+          '</div>';
+      }).join('') + '</div>' +
+      ((c.gz.sync.biz && c.gz.sync.archive && c.gz.sync.report)
+        ? '<div class="alert alert-success mt-16"><i class="fa-solid fa-circle-check"></i><span>三处同步全部完成，本次' +
+          (c.gzbs === '1' ? '更正' : '撤销') + '已闭环。</span></div>' : '');
+  }
+
+  function row(label, value) {
+    return '<div class="desc-item"><dt>' + label + '</dt><dd>' + FLOW.esc(value == null || value === '' ? '—' : value) + '</dd></div>';
+  }
+  function v(id) { var e = document.getElementById(id); return e ? e.value.trim() : ''; }
+
+  window.pickOrig = function (id) { origId = id; render(); };
+  window.syncType = function () {
+    var isRevoke = v('gzlx') === '4';
+    document.getElementById('typeTip').innerHTML = '<i class="fa-solid fa-circle-info"></i><span>' +
+      (isRevoke
+        ? '整件撤销将一并撤销原办件的备案效力，并同步撤回已出具的备案证明。'
+        : '信息更正只更正指定字段，原办件备案效力保留，更正痕迹全程留存。') + '</span>';
+  };
+  window.clearForm = function () {
+    ['proof', 'before', 'after', 'reason'].forEach(function (id) { document.getElementById(id).value = ''; });
+    PMS.toast('已清空表单');
+  };
+  window.submitApply = function () {
+    var c = FLOW.act.submitCorrectionCase({
+      origId: origId, gzlx: v('gzlx'), reason: v('reason'), before: v('before'), after: v('after')
+    });
+    if (c) { window._syncId = c.id; render(); }
+  };
+  window.showSync = function (id) { window._syncId = id; renderSync(id); };
+  window.doSync = function (id, target) { FLOW.act.syncCorrection(id, target); };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    origId = FLOW.param('id');
+    FLOW.on(render);
+  });
+})();
+</script>
+</body>
+</html>

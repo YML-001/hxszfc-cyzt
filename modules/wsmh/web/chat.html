@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能客服会话 · 统一服务门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  /* 本页专属：左会话区 + 右辅助栏 */
+  .chat-layout { display: grid; grid-template-columns: 1fr 300px; gap: 18px; align-items: start; padding-bottom: 34px; }
+  .chat-main { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden; }
+  .chat-head {
+    display: flex; align-items: center; gap: 12px; padding: 12px 18px;
+    border-bottom: 1px solid var(--border); background: linear-gradient(90deg, var(--primary-light-2), #fff);
+  }
+  .chat-av {
+    width: 42px; height: 42px; border-radius: 12px; flex: none; color: #fff; font-size: 19px;
+    background: linear-gradient(135deg, #4a7fe0, var(--primary)); display: flex; align-items: center; justify-content: center;
+  }
+  .chat-hn { font-size: 15.5px; font-weight: 700; }
+  .chat-hs { font-size: 12.5px; color: var(--text-3); margin-top: 2px; display: flex; align-items: center; gap: 6px; }
+  .chat-hs .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); display: inline-block; }
+  .chat-ha { margin-left: auto; display: flex; gap: 8px; }
+
+  .chat-body { height: 460px; overflow-y: auto; padding: 18px; background: var(--bg-soft); }
+  .chat-msg { display: flex; gap: 10px; margin-bottom: 16px; }
+  .chat-msg.me { flex-direction: row-reverse; }
+  .cm-av { width: 34px; height: 34px; border-radius: 9px; flex: none; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+  .cm-av.bot { background: var(--primary-light); color: var(--primary); }
+  .cm-av.man { background: var(--warning-light); color: #b45309; }
+  .cm-av.me { background: var(--accent-soft); color: var(--accent); }
+  .cm-c { max-width: 76%; min-width: 0; }
+  .chat-msg.me .cm-c { display: flex; flex-direction: column; align-items: flex-end; }
+  .cm-bub {
+    background: #fff; border: 1px solid var(--border); border-radius: 2px 10px 10px 10px; padding: 11px 14px;
+    font-size: 14px; line-height: 1.85; color: var(--text-1); box-shadow: var(--shadow-sm); word-break: break-word;
+  }
+  .chat-msg.me .cm-bub { background: var(--primary); border-color: var(--primary); color: #fff; border-radius: 10px 2px 10px 10px; }
+  .cm-bub .cm-note { margin-top: 9px; padding-top: 8px; border-top: 1px dashed var(--row-line); font-size: 12px; color: var(--text-3); line-height: 1.7; }
+  .cm-bub .cm-go { margin-top: 11px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .cm-fb { margin-top: 6px; display: flex; align-items: center; gap: 12px; font-size: 12.5px; color: var(--text-3); }
+  .cm-fb a { color: var(--text-3); cursor: pointer; }
+  .cm-fb a:hover { color: var(--primary); }
+  .cm-fb a.done { color: var(--success); cursor: default; }
+  .cm-t { font-size: 11.5px; color: var(--text-3); margin-top: 5px; }
+  .chat-sys { text-align: center; margin-bottom: 16px; }
+  .chat-sys span { display: inline-block; background: rgba(31, 35, 41, .07); color: var(--text-3); font-size: 12.5px; padding: 4px 14px; border-radius: 20px; }
+  .cm-load span { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); margin-right: 5px; animation: cmb 1s infinite; }
+  .cm-load span:nth-child(2) { animation-delay: .16s; }
+  .cm-load span:nth-child(3) { animation-delay: .32s; }
+  @keyframes cmb { 0%, 60%, 100% { opacity: .25; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-4px); } }
+
+  .tel-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
+  .tel-i { border: 1px solid var(--primary-soft); background: var(--primary-light-2); border-radius: 5px; padding: 7px 10px; font-size: 12.5px; }
+  .tel-i b { display: block; color: var(--primary); font-size: 14px; font-family: "DIN Alternate", var(--font); }
+  .qx-tel { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 12px; margin-top: 6px; font-size: 12.5px; color: var(--text-2); }
+
+  .chat-in { border-top: 1px solid var(--border); padding: 12px 18px 14px; background: #fff; }
+  .chat-in .ci-box { display: flex; gap: 10px; align-items: stretch; }
+  .chat-in textarea { flex: 1; min-height: 62px; height: 62px; }
+  .chat-in .ci-btns { width: 118px; flex: none; display: flex; flex-direction: column; gap: 7px; }
+  .chat-in .ci-tip { font-size: 12px; color: var(--text-3); margin-top: 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+  .chat-side .card { margin-bottom: 14px; }
+  .chat-side .card:last-child { margin-bottom: 0; }
+  .qa-list { display: flex; flex-direction: column; gap: 7px; }
+  .qa-list a {
+    border: 1px solid var(--border); border-radius: 16px; padding: 6px 12px; font-size: 13px;
+    color: var(--text-2); cursor: pointer; background: var(--bg-soft); line-height: 1.6;
+  }
+  .qa-list a:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light-2); }
+  .rec-card { border: 1px solid var(--primary-soft); background: var(--primary-light-2); border-radius: var(--radius); padding: 11px 12px; margin-bottom: 10px; }
+  .rec-card:last-child { margin-bottom: 0; }
+  .rec-card .rc-t { font-size: 14px; font-weight: 700; color: var(--text-1); line-height: 1.5; }
+  .rec-card .rc-m { font-size: 12px; color: var(--text-3); margin-top: 5px; line-height: 1.8; }
+  .rec-card .rc-m b { color: var(--accent); font-family: "DIN Alternate", var(--font); }
+  .his-i { padding: 8px 0; border-bottom: 1px dashed var(--row-line); cursor: pointer; }
+  .his-i:last-child { border-bottom: 0; }
+  .his-i .hi-q { font-size: 13px; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .his-i:hover .hi-q { color: var(--primary); }
+  .his-i .hi-d { font-size: 11.5px; color: var(--text-3); margin-top: 3px; display: flex; align-items: center; gap: 6px; }
+  .st-row { display: flex; align-items: center; padding: 7px 0; font-size: 13px; border-bottom: 1px dashed var(--row-line); }
+  .st-row:last-child { border-bottom: 0; }
+  .st-row span { color: var(--text-3); }
+  .st-row b { margin-left: auto; font-size: 16px; color: var(--primary); font-family: "DIN Alternate", var(--font); }
+  .st-row b em { font-style: normal; font-size: 12px; color: var(--text-3); font-weight: 400; margin-left: 2px; }
+
+  .star-pick { display: flex; gap: 8px; font-size: 30px; color: var(--border-strong); cursor: pointer; }
+  .star-pick i.on { color: #f5a623; }
+</style>
+</head>
+<body data-nav="home">
+
+<div class="wrap">
+  <div class="crumb"><a href="home.html">首页</a><i class="fa-solid fa-angle-right"></i>智能客服会话</div>
+</div>
+
+<div class="wrap" style="padding-bottom:10px">
+  <div class="col-head">
+    <h2>智能客服</h2><span class="ch-en">Smart Service</span>
+    <span class="ch-more" style="cursor:default">门户、微信小程序与自助终端共用同一知识库、同一会话记录</span>
+  </div>
+
+  <div class="chat-layout">
+    <!-- ============ 左：会话区 ============ -->
+    <div class="chat-main">
+      <div class="chat-head">
+        <span class="chat-av"><i class="fa-solid fa-headset"></i></span>
+        <div>
+          <div class="chat-hn">柳州房产智能客服</div>
+          <div class="chat-hs"><span class="dot"></span><span id="chat-state">在线服务中</span>
+            <span class="gb-sp" style="width:1px;height:11px;background:var(--border-strong)"></span>
+            <span id="chat-ctx">7×24 小时自助应答，人工坐席 9:00-17:00</span></div>
+        </div>
+        <div class="chat-ha">
+          <button class="btn btn-sm" id="btn-man" data-fp="wsmh-31-03"><i class="fa-solid fa-user-tie"></i> 转人工</button>
+          <button class="btn btn-sm" id="btn-his" data-fp="wsmh-31-04"><i class="fa-solid fa-clock-rotate-left"></i> 历史会话</button>
+          <button class="btn btn-sm btn-primary" id="btn-end" data-fp="wsmh-31-04"><i class="fa-solid fa-star"></i> 结束并评价</button>
+        </div>
+      </div>
+
+      <div class="chat-body" id="chat-body"></div>
+
+      <div class="chat-in">
+        <div class="ci-box">
+          <textarea class="textarea" id="ci-text" placeholder="请描述您的问题，例如：二手房网签备案要什么材料？（回车发送，Shift + 回车换行）"></textarea>
+          <div class="ci-btns">
+            <button class="btn btn-primary flex-1" id="btn-send" data-fp="wsmh-31-01"><i class="fa-solid fa-paper-plane"></i> 发送</button>
+            <button class="btn" id="btn-clear" data-fp="wsmh-31-01"><i class="fa-solid fa-eraser"></i> 清空</button>
+          </div>
+        </div>
+        <div class="ci-tip">
+          <span><i class="fa-solid fa-circle-info"></i> 智能客服基于办事指南知识库应答，答复仅供参考，以正式办事指南与窗口答复为准。</span>
+          <a href="help.html" data-fp="wsmh-31-01">查看常见问题</a>
+          <a href="complaint.html" data-fp="wsmh-31-01">咨询投诉</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 右：辅助栏 ============ -->
+    <div class="chat-side">
+      <div class="card">
+        <div class="card-head"><h3><i class="fa-solid fa-bolt text-accent"></i> 快捷问题</h3>
+          <span class="sub">点击直接提问</span></div>
+        <div class="card-body" style="padding:14px">
+          <div class="qa-list" id="qa-list"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3><i class="fa-solid fa-compass text-primary"></i> 智能导办</h3>
+          <span class="sub">不知道办哪项？</span></div>
+        <div class="card-body" style="padding:14px">
+          <textarea class="textarea" id="gd-desc" style="min-height:74px"
+            placeholder="用一句话描述您的情形，例如：我买了一套二手房，想办网签备案和资金监管"></textarea>
+          <button class="btn btn-primary btn-block mt-12" id="btn-guide" data-fp="wsmh-31-02">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> 推荐办理方式</button>
+          <div id="gd-result" class="mt-12"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3><i class="fa-solid fa-clock-rotate-left text-primary"></i> 历史会话</h3>
+          <span class="sub" id="his-n">最近 5 条</span></div>
+        <div class="card-body" style="padding:6px 14px 12px"><div id="his-list"></div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3><i class="fa-solid fa-chart-simple text-primary"></i> 服务统计</h3></div>
+        <div class="card-body" style="padding:6px 14px 12px"><div id="kb-stat"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="src-note"></div>
+</div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+/* 快捷问题：均可命中 portal-flow.js 的 KB_RULES 知识库规则 */
+var QUICK = [
+  '房源核验码在哪里查？',
+  '二手房网签备案要什么材料？',
+  '购房款要交到哪个监管账户？',
+  '租赁备案证明有什么用？',
+  '一房一价怎么看？',
+  '办件进度怎么查？',
+  '好房子有什么标准？',
+  '房票怎么用？',
+  '交易税费怎么算？',
+  '窗口排队情况怎么看？',
+  '房贷月供怎么计算？',
+  '高效办成一件事怎么联办？'
+];
+
+/* 各业务咨询电话（wsmh-31-03） */
+var TELS = [
+  ['商品房备案咨询', '0772-2822168'],
+  ['存量房交易咨询', '0772-2822178'],
+  ['住房租赁咨询', '0772-2822188'],
+  ['资金监管咨询', '0772-2822198']
+];
+
+/* 智能导办关键词 → 事项（wsmh-31-02） */
+var GUIDE_RULES = [
+  { k: ['二手房', '存量房', '过户', '买房', '卖房'], codes: ['SX0201', 'SX0202', 'SX0203'] },
+  { k: ['资金监管', '监管账户', '打款', '付款'], codes: ['SX0202', 'SX0801'] },
+  { k: ['新房', '商品房', '预售', '开发商', '认购'], codes: ['SX0101', 'SX0901'] },
+  { k: ['租', '出租', '承租', '房东', '租客'], codes: ['SX0301', 'SX0303', 'SX1101'] },
+  { k: ['抵押', '贷款', '按揭', '银行'], codes: ['SX0401', 'SX0402'] },
+  { k: ['维修资金', '专项维修'], codes: ['SX0901'] },
+  { k: ['查询', '证明', '档案', '出证', '打印'], codes: ['SX0701'] },
+  { k: ['房票', '安置'], codes: ['SX0502', 'SX0501'] },
+  { k: ['退房', '撤销', '作废'], codes: ['SX0105', 'SX0104'] },
+  { k: ['测绘', '面积'], codes: ['SX0601'] },
+  { k: ['保障', '公租', '人才房'], codes: ['SX1101'] },
+  { k: ['企业', '入网', '经纪机构', '从业人员'], codes: ['SX1001', 'SX1002'] }
+];
+
+/* 事项在线办理入口（与网上办事大厅一致） */
+var APPLY_MAP = {
+  SX0201: 'second-hand-apply.html', SX0202: 'second-hand-apply.html', SX0203: 'second-hand-apply.html',
+  SX0301: 'rent-sign.html', SX0303: 'rent-sign.html', SX0304: 'rent-sign.html',
+  SX0101: 'select-room.html', SX1101: 'rent-public.html', SX0105: 'buy-service.html',
+  SX0701: 'cert-print.html', SX0502: 'voucher-house.html'
+};
+
+var msgSeq = 0, lastQ = '', manOn = 0;
+
+function pageInit() {
+  /* 快捷问题气泡（wsmh-31-01） */
+  var box = document.getElementById('qa-list');
+  box.innerHTML = QUICK.map(function (q, i) {
+    return '<a data-q="' + UI.esc(q) + '" data-fp="wsmh-31-01">' + UI.esc(q) + '</a>';
+  }).join('');
+  box.querySelectorAll('[data-q]').forEach(function (a) {
+    a.onclick = function () { send(a.getAttribute('data-q')); };
+  });
+
+  document.getElementById('btn-send').onclick = function () { send(document.getElementById('ci-text').value); };
+  document.getElementById('btn-clear').onclick = function () {
+    document.getElementById('ci-text').value = '';
+    UI.toast('输入框已清空', 'info');
+  };
+  document.getElementById('ci-text').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(this.value); }
+  });
+  document.getElementById('btn-man').onclick = toMan;
+  document.getElementById('btn-his').onclick = showHistory;
+  document.getElementById('btn-end').onclick = endAndRate;
+  document.getElementById('btn-guide').onclick = doGuide;
+
+  /* 会话区事件委托 */
+  document.getElementById('chat-body').addEventListener('click', onChatClick);
+
+  welcome();
+  renderHistory();
+  renderStat();
+  PORTAL.on(function () { renderHistory(); renderStat(); });
+
+  document.getElementById('src-note').innerHTML = UI.sourceNote(
+    '智能客服知识库与办事指南、常见问题同源维护；未命中的问题自动进入知识缺口清单，由门户运营在后台补充后即时生效。');
+}
+
+/* ---------------- 会话渲染 ---------------- */
+function elBody() { return document.getElementById('chat-body'); }
+function scrollEnd() { var b = elBody(); b.scrollTop = b.scrollHeight; }
+function nowHM() { var d = new Date(); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+var NOTE = '以上答复仅供参考，以正式办事指南与窗口答复为准。';
+
+function addSys(text) {
+  var d = document.createElement('div');
+  d.className = 'chat-sys';
+  d.innerHTML = '<span>' + text + '</span>';
+  elBody().appendChild(d); scrollEnd();
+}
+function addMe(text) {
+  var d = document.createElement('div');
+  d.className = 'chat-msg me';
+  d.innerHTML = '<span class="cm-av me"><i class="fa-solid fa-user"></i></span>'
+    + '<div class="cm-c"><div class="cm-bub">' + UI.esc(text) + '</div>'
+    + '<div class="cm-t">' + nowHM() + '</div></div>';
+  elBody().appendChild(d); scrollEnd();
+}
+/* o = { q 提问, go [路径,文案], fb 是否显示有帮助/没帮助, man 人工坐席, note 是否加免责小字 } */
+function addBot(html, o) {
+  o = o || {};
+  msgSeq++;
+  var id = 'bm' + msgSeq;
+  var inner = html;
+  if (o.go && o.go.length === 2) {
+    inner += '<div class="cm-go"><button class="btn btn-sm btn-primary" data-cact="go" data-path="'
+      + UI.esc(o.go[0]) + '" data-fp="wsmh-31-01"><i class="fa-solid fa-arrow-right"></i> ' + UI.esc(o.go[1]) + '</button></div>';
+  }
+  if (o.note !== 0) inner += '<div class="cm-note"><i class="fa-solid fa-circle-info"></i> ' + NOTE + '</div>';
+
+  var d = document.createElement('div');
+  d.className = 'chat-msg';
+  d.id = id;
+  d.innerHTML = '<span class="cm-av ' + (o.man ? 'man' : 'bot') + '"><i class="fa-solid '
+    + (o.man ? 'fa-user-tie' : 'fa-headset') + '"></i></span>'
+    + '<div class="cm-c"><div class="cm-bub">' + inner + '</div>'
+    + (o.fb ? '<div class="cm-fb" data-fbq="' + UI.esc(o.q || '') + '">这条回答有帮助吗？'
+      + '<a data-cact="fb-yes" data-fp="wsmh-31-01"><i class="fa-regular fa-thumbs-up"></i> 有帮助</a>'
+      + '<a data-cact="fb-no" data-fp="wsmh-31-05"><i class="fa-regular fa-thumbs-down"></i> 没帮助</a></div>' : '')
+    + '<div class="cm-t">' + (o.man ? '人工坐席 · ' : '智能客服 · ') + nowHM() + '</div></div>';
+  elBody().appendChild(d); scrollEnd();
+  return id;
+}
+function addLoading() {
+  msgSeq++;
+  var id = 'lm' + msgSeq;
+  var d = document.createElement('div');
+  d.className = 'chat-msg'; d.id = id;
+  d.innerHTML = '<span class="cm-av bot"><i class="fa-solid fa-headset"></i></span>'
+    + '<div class="cm-c"><div class="cm-bub cm-load"><span></span><span></span><span></span> 正在思考…</div></div>';
+  elBody().appendChild(d); scrollEnd();
+  return id;
+}
+function removeEl(id) { var e = document.getElementById(id); if (e) e.parentNode.removeChild(e); }
+
+/* 首条欢迎语 + 上下文（wsmh-31-06） */
+function welcome() {
+  var u = UI.user();
+  addBot('您好' + (UI.isLogin() ? '，' + UI.esc(u.name.length > 10 ? u.name.slice(0, 10) + '…' : u.name) : '')
+    + '！我是柳州房产智能客服，可以回答这些问题：<br>'
+    + '<b>找房</b>：房源核验码、一房一价、房票房源、好房子标准；<br>'
+    + '<b>办事</b>：二手房网签备案、租赁备案、抵押备案、维修资金、一件事联办的材料与时限；<br>'
+    + '<b>查询</b>：办件进度、备案证明验真、窗口排队与网点导航；<br>'
+    + '<b>安全</b>：预售资金监管账户核对、虚假房源举报、交易风险提示。<br>'
+    + '直接输入问题，或点击右侧快捷问题气泡开始。', { note: 1 });
+
+  var ctx = UI.param('ctx'), from = UI.param('from');
+  if (from) {
+    document.getElementById('chat-ctx').innerHTML = '来自「' + UI.esc(String(from).split(' · ')[0]) + '」页面';
+  }
+  if (ctx) {
+    addSys('已带入上下文：您正在咨询「' + UI.esc(ctx) + '」');
+    var it = PORTAL.items({ kw: ctx })[0];
+    var tip = '我看到您正在了解「<b>' + UI.esc(ctx) + '</b>」。';
+    if (it) {
+      tip += '该事项由<b>' + UI.esc(it.dept) + '</b>承办，承诺办结 <b>' + it.nsrq + '</b> 个工作日，需提交材料 <b>'
+        + it.clnum + '</b> 份，' + (it.wb ? '支持<b>全程网办</b>' : '需到窗口提交') + '。';
+    }
+    tip += '您可以直接问材料清单、办理时限、办理入口，我已为您预填了一个问题。';
+    addBot(tip, { go: it ? ['web/item-detail.html?code=' + it.code, '看办事指南'] : ['web/guide.html', '看办事指南'], note: 1 });
+    document.getElementById('ci-text').value = ctx + '需要哪些材料，办理要多久？';
+    document.getElementById('ci-text').focus();
+  }
+}
+
+/* ---------------- 提问（wsmh-31-01 / 31-05） ---------------- */
+function send(q) {
+  q = String(q || '').replace(/^\s+|\s+$/g, '');
+  if (!q) { UI.toast('请先输入您要咨询的问题', 'warning'); return; }
+  addMe(q);
+  lastQ = q;
+  document.getElementById('ci-text').value = '';
+  var loadId = addLoading();
+  setTimeout(function () {
+    removeEl(loadId);
+    var r = PORTAL.act('chat.ask', { q: q });
+    if (r && r.ok) {
+      addBot(UI.esc(r.a), { q: q, go: r.go, fb: 1, note: 1 });
+    } else {
+      addBot('这个问题我暂时没能准确回答。已把它记入<b>知识缺口清单</b>，门户运营会尽快补充答复口径。'
+        + '在此之前，您可以选择下面任一方式继续：'
+        + '<div class="cm-go">'
+        + '<button class="btn btn-sm btn-primary" data-cact="man" data-fp="wsmh-31-03"><i class="fa-solid fa-user-tie"></i> 转人工坐席</button>'
+        + '<button class="btn btn-sm" data-cact="scene" data-fp="wsmh-31-05"><i class="fa-solid fa-compass"></i> 按情形找入口</button>'
+        + '<button class="btn btn-sm" data-cact="faq" data-fp="wsmh-31-05"><i class="fa-solid fa-circle-question"></i> 查看常见问题</button>'
+        + '</div>', { q: q, fb: 1, note: 1 });
+      UI.toast('问题已记入知识缺口清单，我们会尽快补充', 'warning');
+    }
+    renderHistory(); renderStat();
+  }, 500);
+}
+
+function onChatClick(e) {
+  var el = e.target.closest('[data-cact]'); if (!el) return;
+  var act = el.getAttribute('data-cact');
+  if (act === 'go') { UI.go(el.getAttribute('data-path')); return; }
+  if (act === 'man') { toMan(); return; }
+  if (act === 'scene') { UI.toast('正在打开办事情形引导，按您的情形逐步找到对应入口', 'info'); setTimeout(function () { UI.go('web/scene-guide.html'); }, 500); return; }
+  if (act === 'faq') { UI.toast('正在打开帮助中心常见问题', 'info'); setTimeout(function () { UI.go('web/help.html'); }, 500); return; }
+  if (act === 'fb-yes' || act === 'fb-no') {
+    var wrap = el.closest('.cm-fb');
+    var q = wrap.getAttribute('data-fbq');
+    if (act === 'fb-yes') {
+      wrap.innerHTML = '<a class="done"><i class="fa-solid fa-circle-check"></i> 感谢反馈，已计入知识库命中评价</a>';
+      UI.toast('感谢您的反馈，该答复已计入知识库有效命中', 'success');
+    } else {
+      PORTAL.act('chat.unsolved', { q: q || lastQ });
+      wrap.innerHTML = '<a class="done"><i class="fa-solid fa-circle-check"></i> 已记入知识缺口清单，我们会补充答复口径</a>';
+      UI.toast('已标记「没帮助」，问题回流知识缺口清单，可在门户运营后台查看并补充', 'warning');
+      renderStat();
+    }
+  }
+}
+
+/* ---------------- 转人工（wsmh-31-03） ---------------- */
+function toMan() {
+  if (manOn) { UI.toast('您已在人工坐席会话中，坐席工号 A0326', 'info'); return; }
+  UI.toast('正在为您接入人工坐席…当前排队 0 人，预计等待 15 秒', 'info');
+  document.getElementById('chat-state').textContent = '正在接入人工坐席…';
+  setTimeout(function () {
+    manOn = 1;
+    document.getElementById('chat-state').textContent = '人工坐席服务中';
+    addSys('已接入人工坐席 03 号（工号 A0326）· ' + nowHM());
+    var s = PORTAL.site();
+    var chans = (s.channels || []).filter(function (c) { return c.on; });
+    addBot('您好，我是人工坐席 <b>03 号（工号 A0326）</b>，很高兴为您服务。您可以继续在会话中描述问题，'
+      + '也可以按业务类别直接拨打下列咨询电话：'
+      + '<div class="tel-grid">' + TELS.map(function (t) {
+        return '<div class="tel-i">' + UI.esc(t[0]) + '<b>' + t[1] + '</b></div>';
+      }).join('') + '</div>'
+      + '<div class="cm-note" style="border-top:0;padding-top:10px;margin-top:10px">'
+      + '<i class="fa-solid fa-clock"></i> 工作时间：' + UI.esc(s.gzsj) + '<br>'
+      + '<i class="fa-solid fa-location-dot"></i> 办公地址：' + UI.esc(s.addr) + '</div>'
+      + '<div style="margin-top:10px;font-size:13px"><b>各县区分中心咨询电话</b>'
+      + '<div class="qx-tel">' + chans.map(function (c) {
+        return '<span>' + UI.esc(c.name) + '　' + UI.esc(c.tel) + '</span>';
+      }).join('') + '</div></div>', { man: 1, note: 0 });
+    addBot('人工坐席答复与智能客服会话记录同源留存，您可以随时点击「结束并评价」为本次服务打分。'
+      + '如需提交正式投诉，可到<b>咨询投诉</b>页面提交，系统按类别自动分派到责任科室或属地住建部门。',
+      { man: 1, go: ['web/complaint.html', '去咨询投诉'], note: 1 });
+  }, 1500);
+}
+
+/* ---------------- 历史会话与评价（wsmh-31-04） ---------------- */
+function renderHistory() {
+  var chats = (PORTAL.db().chats || []).slice(0, 5);
+  var box = document.getElementById('his-list');
+  document.getElementById('his-n').textContent = '共 ' + (PORTAL.db().chats || []).length + ' 条';
+  if (!chats.length) {
+    box.innerHTML = '<div class="text-3 text-xs" style="padding:10px 0;line-height:1.9">'
+      + '本次会话暂无记录。提问后，问答摘要会保存在这里，点击可重新提问；'
+      + '门户与微信小程序的会话记录同源。</div>';
+    return;
+  }
+  box.innerHTML = chats.map(function (c, i) {
+    return '<div class="his-i" data-hq="' + UI.esc(c.q) + '" data-fp="wsmh-31-04">'
+      + '<div class="hi-q"><i class="fa-solid fa-quote-left text-3" style="font-size:10px"></i> ' + UI.esc(c.q) + '</div>'
+      + '<div class="hi-d">' + UI.esc(c.d) + (c.ok ? PORTAL.badge('已命中', 'green') : PORTAL.badge('知识缺口', 'orange')) + '</div></div>';
+  }).join('');
+  box.querySelectorAll('[data-hq]').forEach(function (el) {
+    el.onclick = function () { send(el.getAttribute('data-hq')); };
+  });
+}
+
+function showHistory() {
+  var chats = PORTAL.db().chats || [];
+  if (!chats.length) {
+    UI.modal('<i class="fa-solid fa-clock-rotate-left text-primary"></i> 历史会话',
+      UI.empty('暂无历史会话记录', '本次会话的问答会实时入库，门户、小程序与自助终端共用同一份记录'));
+    return;
+  }
+  var html = '<div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>'
+    + '<span>共 <b>' + chats.length + '</b> 条问答记录，其中命中知识库 <b>'
+    + chats.filter(function (c) { return c.ok; }).length + '</b> 条。点击「重新提问」可把问题再发一次。</span></div>'
+    + '<table class="pub-table"><thead><tr><th>提问</th><th style="width:88px">结果</th>'
+    + '<th style="width:130px">时间</th><th style="width:92px">操作</th></tr></thead><tbody>'
+    + chats.map(function (c) {
+      return '<tr><td class="strong">' + UI.esc(c.q) + '</td>'
+        + '<td>' + (c.ok ? PORTAL.badge('已命中', 'green') : PORTAL.badge('知识缺口', 'orange')) + '</td>'
+        + '<td>' + UI.esc(c.d) + '</td>'
+        + '<td class="acts"><a href="javascript:;" data-again="' + UI.esc(c.q) + '" data-fp="wsmh-31-04">重新提问</a></td></tr>';
+    }).join('') + '</tbody></table>';
+  UI.modal('<i class="fa-solid fa-clock-rotate-left text-primary"></i> 历史会话记录', html,
+    '<button class="btn" data-act="close-modal">关闭</button>', 1);
+  document.querySelectorAll('[data-again]').forEach(function (a) {
+    a.onclick = function () { UI.closeModal(); send(a.getAttribute('data-again')); };
+  });
+}
+
+var pickStar = 5, pickTags = [];
+function endAndRate() {
+  pickStar = 5; pickTags = [];
+  var TAGS = ['回答准确', '响应及时', '解决问题', '态度友好'];
+  UI.modal('<i class="fa-solid fa-star" style="color:#f5a623"></i> 结束会话并评价',
+    '<div class="center" style="padding:4px 0 14px">'
+    + '<div class="text-2" style="font-size:14.5px">请为本次' + (manOn ? '人工坐席' : '智能客服') + '服务打分</div>'
+    + '<div class="star-pick center" id="rt-stars" style="justify-content:center;margin:12px 0 6px">'
+    + [1, 2, 3, 4, 5].map(function (i) {
+      return '<i class="fa-solid fa-star on" data-star="' + i + '" data-fp="wsmh-31-04"></i>';
+    }).join('') + '</div>'
+    + '<div class="text-3 text-xs" id="rt-word">非常满意</div></div>'
+    + '<div class="form-item"><label>评价标签（可多选）</label><div class="check-row" id="rt-tags">'
+    + TAGS.map(function (t) {
+      return '<label><input type="checkbox" value="' + t + '" data-fp="wsmh-31-04"> ' + t + '</label>';
+    }).join('') + '</div></div>'
+    + '<div class="form-item mt-12"><label>补充说明（选填）</label>'
+    + '<textarea class="textarea" id="rt-text" placeholder="请写下您的意见或未被解答的问题，我们会据此优化知识库"></textarea></div>'
+    + '<div class="text-3 text-xs mt-8"><i class="fa-solid fa-circle-info"></i> '
+    + '评价计入服务质量统计；<b>低于 3 星</b>的会话，其最后一个问题会自动回流知识库优化清单。</div>',
+    '<button class="btn" data-act="close-modal">暂不评价</button>'
+    + '<button class="btn btn-primary" id="rt-ok" data-fp="wsmh-31-04">提交评价</button>');
+
+  var WORDS = { 1: '很不满意', 2: '不满意', 3: '一般', 4: '满意', 5: '非常满意' };
+  document.querySelectorAll('#rt-stars [data-star]').forEach(function (s) {
+    s.onclick = function () {
+      pickStar = Number(s.getAttribute('data-star'));
+      document.querySelectorAll('#rt-stars [data-star]').forEach(function (x) {
+        x.classList.toggle('on', Number(x.getAttribute('data-star')) <= pickStar);
+      });
+      document.getElementById('rt-word').textContent = WORDS[pickStar];
+    };
+  });
+  document.getElementById('rt-ok').onclick = function () {
+    pickTags = [];
+    document.querySelectorAll('#rt-tags input:checked').forEach(function (c) { pickTags.push(c.value); });
+    var txt = document.getElementById('rt-text').value.replace(/^\s+|\s+$/g, '');
+    var full = (pickTags.length ? pickTags.join('、') : '') + (txt ? (pickTags.length ? '；' : '') + txt : '');
+    PORTAL.act('chat.rate', { star: pickStar, text: full, q: lastQ });
+    UI.closeModal();
+    addSys('本次会话已结束，感谢您的 ' + pickStar + ' 星评价');
+    UI.toast('评价已提交，感谢您对本次服务的 ' + pickStar + ' 星评价', 'success');
+    if (pickStar < 3) {
+      setTimeout(function () {
+        UI.toast('问题已回流知识库优化清单，门户运营会尽快补充答复口径', 'warning');
+      }, 900);
+    }
+    document.getElementById('chat-state').textContent = '会话已结束，可继续提问开启新会话';
+    manOn = 0;
+    renderStat();
+  };
+}
+
+/* ---------------- 智能导办（wsmh-31-02） ---------------- */
+function doGuide() {
+  var d = document.getElementById('gd-desc').value.replace(/^\s+|\s+$/g, '');
+  if (!d) { UI.toast('请先用一句话描述您的情形', 'warning'); return; }
+  var codes = [], seen = {};
+  GUIDE_RULES.forEach(function (r) {
+    for (var i = 0; i < r.k.length; i++) {
+      if (d.indexOf(r.k[i]) >= 0) {
+        r.codes.forEach(function (c) { if (!seen[c]) { seen[c] = 1; codes.push(c); } });
+        break;
+      }
+    }
+  });
+  var items = [];
+  codes.forEach(function (c) { var it = PORTAL.item(c); if (it) items.push(it); });
+  var matched = items.length > 0;
+  if (!matched) items = PORTAL.items({ hot: 1 }).slice(0, 3);
+  items = items.slice(0, 3);
+
+  document.getElementById('gd-result').innerHTML =
+    '<div class="text-xs text-3 mb-8"><i class="fa-solid fa-' + (matched ? 'circle-check text-success' : 'circle-info') + '"></i> '
+    + (matched ? '按您描述的情形推荐 ' + items.length + ' 个事项：' : '未匹配到明确情形，先为您推荐 ' + items.length + ' 个高频事项：') + '</div>'
+    + items.map(function (it) {
+      var mats = (it.cl || []).slice(0, 3).map(function (m) { return m.mc; });
+      return '<div class="rec-card">'
+        + '<div class="rc-t">' + UI.esc(it.name) + '</div>'
+        + '<div class="rc-m">承办 ' + UI.esc(it.dept) + '　承诺 <b>' + it.nsrq + '</b> 个工作日<br>'
+        + '主要材料：' + UI.esc(mats.join('、') || '详见办事指南')
+        + (it.clnum > 3 ? ' 等 ' + it.clnum + ' 份' : '') + '<br>'
+        + (it.wb ? '<span class="badge green">全程网办</span>' : '<span class="badge orange">需到窗口</span>') + '</div>'
+        + '<div class="flex gap-8 mt-8">'
+        + '<button class="btn btn-sm btn-primary flex-1" data-goitem="' + it.code + '" data-fp="wsmh-31-02">去办理</button>'
+        + '<a class="btn btn-sm" href="item-detail.html?code=' + it.code + '" data-fp="wsmh-31-02">指南</a>'
+        + '</div></div>';
+    }).join('');
+
+  document.querySelectorAll('[data-goitem]').forEach(function (b) {
+    b.onclick = function () {
+      var code = b.getAttribute('data-goitem');
+      var it = PORTAL.item(code);
+      PORTAL.act('prefs.recent', { code: code, name: it ? it.name : code });
+      var target = APPLY_MAP[code] || ('item-detail.html?code=' + code);
+      UI.toast('已按您的情形推荐「' + UI.esc(it ? it.name : code) + '」，正在打开办理入口', 'success');
+      setTimeout(function () { UI.go('web/' + target); }, 600);
+    };
+  });
+
+  addSys('智能导办已按情形「' + UI.esc(d.length > 24 ? d.slice(0, 24) + '…' : d) + '」推荐 ' + items.length + ' 个事项');
+  UI.toast(matched ? '已按您描述的情形推荐对应事项与材料清单，见右侧智能导办卡'
+    : '未匹配到明确情形，已推荐高频事项，也可以直接在会话中描述问题', matched ? 'success' : 'info');
+}
+
+/* ---------------- 服务统计 ---------------- */
+function renderStat() {
+  var kb = PORTAL.kb();
+  var rs = PORTAL.ratings({ lx: '客服' });
+  var avg = 0;
+  rs.forEach(function (r) { avg += Number(r.star); });
+  avg = rs.length ? (avg / rs.length).toFixed(1) : 0;
+  var rate = kb.total ? Math.round(kb.hit / kb.total * 100) : 0;
+  document.getElementById('kb-stat').innerHTML =
+    '<div class="st-row"><span>累计提问</span><b>' + kb.total + '<em>次</em></b></div>'
+    + '<div class="st-row"><span>知识库命中</span><b>' + kb.hit + '<em>次</em></b></div>'
+    + '<div class="st-row"><span>命中率</span><b>' + (kb.total ? rate + '<em>%</em>' : '—') + '</b></div>'
+    + '<div class="st-row"><span>知识缺口</span><b style="color:var(--accent)">' + kb.gaps.length + '<em>条</em></b></div>'
+    + '<div class="st-row"><span>客服满意度</span><b>' + (rs.length ? avg + '<em>星 / ' + rs.length + ' 人</em>' : '—<em>暂无评价</em>') + '</b></div>'
+    + '<div class="text-3 text-xs mt-8" style="line-height:1.8">未命中问题与「没帮助」标记会实时回流知识缺口清单，'
+    + '在<a href="../admin/index.html" data-fp="wsmh-31-05">门户运营后台</a>可标记已补充。</div>';
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>在线选房认购 · 新建商品房网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：简化版销控选房网格（沿用楼盘表六色口径）与前置校验卡 */
+  .xk-grid { overflow: auto; max-height: 420px; border: 1px solid var(--border); border-radius: var(--radius); }
+  .xk-row { display: flex; border-bottom: 1px solid var(--row-line); }
+  .xk-row:last-child { border-bottom: 0; }
+  .xk-floor {
+    width: 52px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 12.5px; font-weight: 600; color: var(--text-2); background: var(--bg-soft);
+    border-right: 1px solid var(--border); position: sticky; left: 0; z-index: 2;
+  }
+  .xk-cell {
+    flex: 1 1 0; min-width: 96px; padding: 6px 8px; border-right: 1px solid var(--row-line);
+    position: relative; line-height: 1.5;
+  }
+  .xk-cell:last-child { border-right: 0; }
+  .xk-cell.pick { cursor: pointer; }
+  .xk-cell.pick:hover { outline: 2px solid var(--primary); outline-offset: -2px; }
+  .xk-cell.on { outline: 2px solid var(--primary); outline-offset: -2px; box-shadow: inset 0 0 0 999px rgba(37, 99, 235, .08); }
+  .xk-cell.lock { opacity: .58; cursor: not-allowed; }
+  .xk-cell .rm { font-size: 12.5px; font-weight: 700; }
+  .xk-cell .ar, .xk-cell .pr { font-size: 11px; opacity: .82; }
+  .s0 { background: #eafaf0; color: #14683c; }
+  .s1 { background: #fff4e2; color: #92500c; }
+  .s2 { background: #e8f0ff; color: #1d4ed8; }
+  .s3 { background: #e6f7fb; color: #0e6f86; }
+  .s4 { background: #eef1f6; color: #4b5563; }
+  .s5 { background: #fdeaea; color: #b91c1c; }
+
+  .cond-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 13px 15px; background: #fff; }
+  .cond-card.ok { border-left: 3px solid var(--success); }
+  .cond-card.bad { border-left: 3px solid var(--danger); }
+  .cond-card .cc-t { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .cond-card .cc-t .badge { margin-left: auto; }
+  .cond-card .cc-r { display: flex; font-size: 13px; padding: 3px 0; }
+  .cond-card .cc-r > span:first-child { width: 74px; flex-shrink: 0; color: var(--text-3); }
+  .cond-card .cc-r > span:last-child { color: var(--text-2); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsswb-11">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房网签备案管理系统
+        <span class="sep">/</span> <a class="link" href="subscribe-list.html">选房认购</a>
+        <span class="sep">/</span> <span class="cur">在线选房认购</span>
+      </div>
+      <div class="page-title">在线选房认购</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="location.href='building-table.html'"><i class="fa-solid fa-table-cells"></i> 查看楼盘表</button>
+      <button type="button" class="btn" onclick="location.href='subscribe-list.html'"><i class="fa-solid fa-arrow-left"></i> 返回台账</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <div class="wizard" id="wz">
+        <div class="w-step active" data-step="1"><span class="w-num">1</span><span class="w-label">选房</span></div>
+        <div class="w-line"></div>
+        <div class="w-step" data-step="2"><span class="w-num">2</span><span class="w-label">前置校验</span></div>
+        <div class="w-line"></div>
+        <div class="w-step" data-step="3"><span class="w-num">3</span><span class="w-label">填写认购信息</span></div>
+      </div>
+
+      <!-- 第一步：销控图选房 -->
+      <div class="wz-panel active" data-panel="1">
+        <div class="grid-2">
+          <div>
+            <div class="section-title">销控图选房（仅可售房源可点选）</div>
+            <div class="form-grid form-align mb-16" style="grid-template-columns:repeat(2,1fr)">
+              <div class="form-item">
+                <label>项目</label>
+                <select><option>彰泰江湾城（三期）</option><option>华润置地柳州万象天地</option><option>保利柳江府（二期）</option></select>
+              </div>
+              <div class="form-item">
+                <label>幢 / 单元</label>
+                <select onchange="renderGrid(this.selectedIndex)">
+                  <option>11# 幢 · 1 单元</option>
+                  <option>11# 幢 · 2 单元</option>
+                  <option>12# 幢 · 1 单元</option>
+                </select>
+              </div>
+            </div>
+            <div class="xk-grid" id="xkGrid"></div>
+            <p class="text-3 text-sm mt-8">
+              <i class="fa-solid fa-circle-info"></i>
+              绿色为可售，其余状态不可点选；未完成一房一价备案的房号同样不可点选。
+            </p>
+          </div>
+          <div>
+            <div class="section-title">已选房屋</div>
+            <dl class="desc-list" style="grid-template-columns:1fr">
+              <div class="desc-item"><dt>房号</dt><dd id="pRm">请在左侧点选房源</dd></div>
+              <div class="desc-item"><dt>幢 / 单元 / 层</dt><dd id="pPos">—</dd></div>
+              <div class="desc-item"><dt>建筑面积（㎡）</dt><dd id="pArea">—</dd></div>
+              <div class="desc-item"><dt>套内面积（㎡）</dt><dd id="pIn">—</dd></div>
+              <div class="desc-item"><dt>分摊面积（㎡）</dt><dd id="pShare">—</dd></div>
+              <div class="desc-item"><dt>房屋用途</dt><dd>成套住宅</dd></div>
+              <div class="desc-item"><dt>朝向</dt><dd id="pFace">—</dd></div>
+              <div class="desc-item"><dt>装修情况</dt><dd>精装（含中央新风、全屋净水）</dd></div>
+              <div class="desc-item"><dt>所属预售许可证</dt><dd>柳房预售证第〔2026〕0087 号</dd></div>
+              <div class="desc-item"><dt>备案单价（元/㎡）</dt><dd id="pUnit">—</dd></div>
+              <div class="desc-item"><dt>备案总价（万元）</dt><dd id="pTotal">—</dd></div>
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      <!-- 第二步：五项前置校验 -->
+      <div class="wz-panel" data-panel="2">
+        <div class="section-title">五项前置校验</div>
+        <div class="grid-2">
+          <div class="cond-card ok">
+            <div class="cc-t"><i class="fa-solid fa-certificate text-primary"></i> 房源在许可范围内 <span class="badge green">通过</span></div>
+            <div class="cc-r"><span>要求</span><span>房号须在某张有效预售许可证或现售备案的房间清单内</span></div>
+            <div class="cc-r"><span>实际</span><span id="c1">命中 柳房预售证第〔2026〕0087 号 房间清单</span></div>
+            <div class="cc-r"><span>数据来源</span><span>本系统许可房间清单 · 取数 2026-07-31 09:26</span></div>
+          </div>
+          <div class="cond-card ok">
+            <div class="cc-t"><i class="fa-solid fa-house-circle-check text-primary"></i> 销控状态为可售 <span class="badge green">通过</span></div>
+            <div class="cc-r"><span>要求</span><span>房屋销控状态 = 可售</span></div>
+            <div class="cc-r"><span>实际</span><span>可售</span></div>
+            <div class="cc-r"><span>数据来源</span><span>楼盘表销控 · 实时</span></div>
+          </div>
+          <div class="cond-card ok">
+            <div class="cc-t"><i class="fa-solid fa-tags text-primary"></i> 已完成一房一价备案 <span class="badge green">通过</span></div>
+            <div class="cc-r"><span>要求</span><span>本房号已登记备案价且在公示期内</span></div>
+            <div class="cc-r"><span>实际</span><span id="c3">批次 PF2026073101 · 备案单价 13,176 元/㎡</span></div>
+            <div class="cc-r"><span>数据来源</span><span>一房一价备案 · 2026-07-31</span></div>
+          </div>
+          <div class="cond-card ok">
+            <div class="cc-t"><i class="fa-solid fa-ban text-primary"></i> 未处于暂停销售 <span class="badge green">通过</span></div>
+            <div class="cc-r"><span>要求</span><span>项目 / 楼栋 / 房间三级均无暂停销售记录</span></div>
+            <div class="cc-r"><span>实际</span><span>无暂停记录</span></div>
+            <div class="cc-r"><span>数据来源</span><span>暂停销售管理 · 实时</span></div>
+          </div>
+          <div class="cond-card ok">
+            <div class="cc-t"><i class="fa-solid fa-user-check text-primary"></i> 认购人实名核验 <span class="badge green">通过</span></div>
+            <div class="cc-r"><span>要求</span><span>已完成实名核验且核验结果有效</span></div>
+            <div class="cc-r"><span>实际</span><span>人脸核验 相似度 98.6% · 2026-07-31 09:26</span></div>
+            <div class="cc-r"><span>数据来源</span><span>统一身份认证 · 公安人口库比对</span></div>
+          </div>
+        </div>
+        <div class="alert alert-success mt-16">
+          <i class="fa-solid fa-circle-check"></i>
+          <div>五项前置校验全部通过，可继续填写认购信息。任一项不通过时该卡标红，并在此处汇总列出全部拦截原因，禁止提交认购。</div>
+        </div>
+      </div>
+
+      <!-- 第三步：认购信息 -->
+      <div class="wz-panel" data-panel="3">
+        <div class="section-title">认购人信息</div>
+        <div class="form-grid form-align">
+          <div class="form-item">
+            <label>认购人姓名<span class="req">*</span></label>
+            <input type="text" value="李婉婷">
+          </div>
+          <div class="form-item">
+            <label>证件类型<span class="req">*</span></label>
+            <select><option>居民身份证</option><option>港澳居民来往内地通行证</option><option>台湾居民来往大陆通行证</option><option>护照</option></select>
+          </div>
+          <div class="form-item">
+            <label>证件号码<span class="req">*</span></label>
+            <input type="text" value="4502**********2246">
+          </div>
+          <div class="form-item">
+            <label>联系电话<span class="req">*</span></label>
+            <input type="text" value="137****5566">
+          </div>
+          <div class="form-item">
+            <label>实名核验结果</label>
+            <input type="text" value="已核验（人脸核验 相似度 98.6%）" readonly>
+          </div>
+          <div class="form-item">
+            <label>是否共有</label>
+            <select><option>否</option><option>是（共同共有）</option><option>是（按份共有）</option></select>
+          </div>
+        </div>
+
+        <div class="section-title mt-16">认购信息</div>
+        <div class="form-grid form-align">
+          <div class="form-item">
+            <label>认购房号<span class="req">*</span></label>
+            <input type="text" id="fRm" value="11-1-2801" readonly>
+          </div>
+          <div class="form-item">
+            <label>认购日期<span class="req">*</span></label>
+            <input type="date" value="2026-07-31">
+          </div>
+          <div class="form-item">
+            <label>备案单价（元/㎡）</label>
+            <input type="text" id="fBase" value="13,176" readonly>
+          </div>
+          <div class="form-item">
+            <label>认购单价（元/㎡）<span class="req">*</span></label>
+            <input type="number" id="fUnit" value="13176" oninput="checkPrice()">
+          </div>
+          <div class="form-item">
+            <label>认购总价（万元）</label>
+            <input type="text" id="fTotal" value="156.33" readonly>
+          </div>
+          <div class="form-item">
+            <label>定金金额（万元）<span class="req">*</span></label>
+            <input type="number" value="10">
+          </div>
+          <div class="form-item">
+            <label>定金支付方式<span class="req">*</span></label>
+            <select><option>银行转账</option><option>POS 刷卡</option><option>电子支付</option><option>现金</option></select>
+          </div>
+          <div class="form-item">
+            <label>约定网签日期<span class="req">*</span></label>
+            <input type="date" value="2026-08-30">
+          </div>
+          <div class="form-item">
+            <label>付款方式意向</label>
+            <select><option>商业贷款</option><option>一次性付款</option><option>公积金贷款</option><option>组合贷款</option><option>分期付款</option></select>
+          </div>
+          <div class="form-item col-full">
+            <label>认购协议附件<span class="req">*</span></label>
+            <div class="file-up">
+              <input type="hidden" class="file-up-val" value="认购协议.pdf">
+              <div class="file-up-grid">
+                <div class="file-up-tile file-up-add"><input type="file" accept=".pdf,.jpg,.png"><i class="fa-solid fa-plus"></i><span>上传</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="form-item col-full">
+            <label>备注</label>
+            <textarea placeholder="如：买受人要求保留 3 天贷款预审时间"></textarea>
+          </div>
+        </div>
+
+        <div class="alert alert-success mt-16" id="pcBox">
+          <i class="fa-solid fa-circle-check"></i>
+          <div id="pcTxt">认购单价与备案单价一致，价格校验通过。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="navCard">
+    <div class="card-body">
+      <div class="btn-row">
+        <button type="button" class="btn" id="btnPrev" onclick="goto(step - 1)"><i class="fa-solid fa-angle-left"></i> 上一步</button>
+        <button type="button" class="btn btn-primary" id="btnNext" onclick="next()">下一步 <i class="fa-solid fa-angle-right"></i></button>
+        <button type="button" class="btn" onclick="PMS.toast('认购草稿已保存','success')"><i class="fa-regular fa-floppy-disk"></i> 保存草稿</button>
+        <button type="button" class="btn btn-primary hidden" id="btnSubmit" onclick="submitRg()"><i class="fa-solid fa-paper-plane"></i> 提交认购</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>认购价格须与备案价校验通过：偏离幅度超出允许浮动范围（±3%）的直接阻断，需要调价的先办理价格调整备案。</div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+var UNITS = [
+  { key: '11-1', label: '11# 幢 · 1 单元', floors: 28 },
+  { key: '11-2', label: '11# 幢 · 2 单元', floors: 28 },
+  { key: '12-1', label: '12# 幢 · 1 单元', floors: 26 }
+];
+var AREAS = [118.65, 96.42, 142.80, 89.36];
+var FACES = ['南北通透', '朝南', '东南', '西南'];
+var ST_NAME = ['可售', '已认购', '已签约', '已备案', '已抵押', '限制销售'];
+var picked = null, curUnit = 0, step = 1;
+
+function statusOf(ui, f, r) {
+  var seed = (ui * 29 + f * 7 + r * 13) % 100;
+  if (f >= 22) return 0;
+  if (seed < 4) return 5;
+  if (seed < 18) return 4;
+  if (seed < 42) return 3;
+  if (seed < 56) return 2;
+  if (seed < 66) return 1;
+  return 0;
+}
+function noPrice(ui, f, r) { return (ui * 11 + f * 3 + r) % 23 === 0; }
+function unitPrice(f) { return 12000 + f * 42; }
+
+function renderGrid(ui) {
+  curUnit = ui;
+  var u = UNITS[ui], html = '';
+  for (var f = u.floors; f >= 1; f--) {
+    html += '<div class="xk-row"><div class="xk-floor">' + f + ' 层</div>';
+    for (var r = 1; r <= 4; r++) {
+      var st = statusOf(ui, f, r);
+      var np = noPrice(ui, f, r);
+      var can = st === 0 && !np;
+      var area = AREAS[(r - 1) % AREAS.length];
+      var no = u.key + '-' + (f < 10 ? '0' + f : f) + '0' + r;
+      html += '<div class="xk-cell s' + st + ' ' + (can ? 'pick' : 'lock') + '"' +
+        (can ? ' onclick="pick(this,\'' + no + '\',' + f + ',' + r + ')"' : ' title="' + (np ? '未完成一房一价备案，不可认购' : ST_NAME[st] + '，不可认购') + '"') + '>' +
+        '<div class="rm">' + no + '</div>' +
+        '<div class="ar">' + area.toFixed(2) + ' ㎡</div>' +
+        '<div class="pr">' + (np ? '未备案价' : unitPrice(f).toLocaleString('en-US') + ' 元/㎡') + '</div>' +
+        '</div>';
+    }
+    html += '</div>';
+  }
+  document.getElementById('xkGrid').innerHTML = html;
+}
+
+function pick(el, no, f, r) {
+  document.querySelectorAll('.xk-cell.on').forEach(function (c) { c.classList.remove('on'); });
+  el.classList.add('on');
+  var area = AREAS[(r - 1) % AREAS.length], unit = unitPrice(f);
+  picked = { no: no, f: f, r: r, area: area, unit: unit };
+  document.getElementById('pRm').textContent = no;
+  document.getElementById('pPos').textContent = UNITS[curUnit].label + ' · ' + f + ' 层 · ' + r + ' 号房';
+  document.getElementById('pArea').textContent = area.toFixed(2);
+  document.getElementById('pIn').textContent = (area * 0.78).toFixed(2);
+  document.getElementById('pShare').textContent = (area * 0.22).toFixed(2);
+  document.getElementById('pFace').textContent = FACES[(r - 1) % FACES.length];
+  document.getElementById('pUnit').textContent = unit.toLocaleString('en-US');
+  document.getElementById('pTotal').textContent = (area * unit / 10000).toFixed(2);
+}
+
+function next() {
+  if (step === 1 && !picked) { PMS.toast('请先在销控图上点选一套可售房源', 'error'); return; }
+  if (step === 2) syncForm();
+  goto(step + 1);
+}
+
+/* 第一步选中的房源带入第三步表单，避免重复录入 */
+function syncForm() {
+  if (!picked) return;
+  document.getElementById('fRm').value = picked.no;
+  document.getElementById('fBase').value = picked.unit.toLocaleString('en-US');
+  document.getElementById('fUnit').value = picked.unit;
+  document.getElementById('c1').textContent = '命中 柳房预售证第〔2026〕0087 号 房间清单（' + picked.no + '）';
+  document.getElementById('c3').textContent = '批次 PF2026073101 · 备案单价 ' + picked.unit.toLocaleString('en-US') + ' 元/㎡';
+  checkPrice();
+}
+
+function goto(n) {
+  if (n < 1 || n > 3) return;
+  step = n;
+  document.querySelectorAll('.w-step').forEach(function (s) {
+    var i = parseInt(s.getAttribute('data-step'), 10);
+    s.classList.toggle('active', i === n);
+    s.classList.toggle('done', i < n);
+  });
+  document.querySelectorAll('.wz-panel').forEach(function (p) {
+    p.classList.toggle('active', p.getAttribute('data-panel') === String(n));
+  });
+  document.getElementById('btnPrev').disabled = n === 1;
+  document.getElementById('btnNext').classList.toggle('hidden', n === 3);
+  document.getElementById('btnSubmit').classList.toggle('hidden', n !== 3);
+  window.scrollTo(0, 0);
+}
+
+/* 认购价校验：偏离备案价 ±3% 以内放行，超出直接阻断 */
+function checkPrice() {
+  if (!picked) return;
+  var unit = parseFloat(document.getElementById('fUnit').value) || 0;
+  document.getElementById('fTotal').value = (picked.area * unit / 10000).toFixed(2);
+  var dev = (unit - picked.unit) / picked.unit * 100;
+  var box = document.getElementById('pcBox'), txt = document.getElementById('pcTxt');
+  if (Math.abs(dev) < 0.01) {
+    box.className = 'alert alert-success mt-16';
+    txt.textContent = '认购单价与备案单价一致，价格校验通过。';
+  } else if (Math.abs(dev) <= 3) {
+    box.className = 'alert alert-warning mt-16';
+    txt.innerHTML = '认购单价偏离备案价 <b>' + (dev >= 0 ? '+' : '') + dev.toFixed(2) + '%</b>，在允许浮动范围（±3%）内，系统记录但不阻断。';
+  } else {
+    box.className = 'alert alert-danger mt-16';
+    txt.innerHTML = '认购单价偏离备案价 <b>' + (dev >= 0 ? '+' : '') + dev.toFixed(2) + '%</b>，<b>超出允许浮动范围（±3%），已阻断</b>；如需调整请先办理价格调整备案。';
+  }
+}
+
+function submitRg() {
+  var unit = parseFloat(document.getElementById('fUnit').value) || 0;
+  if (picked && Math.abs((unit - picked.unit) / picked.unit) > 0.03) {
+    PMS.toast('认购价超出备案价允许浮动范围，不予提交', 'error');
+    return;
+  }
+  PMS.confirm({
+    title: '提交认购',
+    message: '确认为 ' + document.getElementById('fRm').value + ' 提交认购？',
+    detail: '提交后房源立即锁定，销控状态置为已认购，其他买受人不可再认购该房源。',
+    okText: '确认提交',
+    onOk: function () {
+      PMS.toast('认购成功，房源已锁定，销控状态置为已认购', 'success');
+      setTimeout(function () { location.href = 'subscribe-list.html'; }, 900);
+    }
+  });
+}
+
+renderGrid(0);
+goto(1);
+</script>
+</body>
+</html>

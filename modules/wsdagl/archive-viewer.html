@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>图文一体化查看 · 房屋交易档案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  .no-code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; }
+  /* 本页特有：查看器工具条 */
+  .vw-bar {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 8px 12px; background: #fff; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px;
+  }
+  .vw-bar .sp { width: 1px; height: 20px; background: var(--border); }
+  .vw-bar .ib {
+    width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--border); background: #fff;
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-2); font-size: 13px;
+  }
+  .vw-bar .ib:hover { border-color: var(--primary); color: var(--primary); }
+  .vw-bar .ib.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .vw-bar .pg { font-size: 13px; color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .vw-bar .pg input { width: 46px; text-align: center; padding: 3px 4px; }
+  .ocr-search { position: relative; }
+  .ocr-search input { width: 190px; padding-left: 28px; }
+  .ocr-search > i { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--text-3); font-size: 12px; }
+  /* 本页特有：卷内文件标签页 */
+  .wj-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; margin-bottom: 10px; }
+  .wj-tab {
+    flex-shrink: 0; padding: 6px 12px; border-radius: 7px 7px 0 0; border: 1px solid var(--border); border-bottom: none;
+    background: var(--bg-soft); font-size: 12.5px; cursor: pointer; color: var(--text-2); white-space: nowrap;
+  }
+  .wj-tab:hover { color: var(--primary); }
+  .wj-tab.on { background: #fff; color: var(--primary); font-weight: 600; box-shadow: inset 0 2px 0 var(--primary); }
+  /* 本页特有：主体分栏 */
+  .vw-layout { display: grid; grid-template-columns: 1fr 396px; gap: 12px; align-items: start; }
+  @media (max-width: 1180px) { .vw-layout { grid-template-columns: 1fr; } }
+  .vw-left { border: 1px solid var(--border); border-radius: 10px; background: #eef2f7; overflow: hidden; }
+  .vw-stage { display: grid; grid-template-columns: 84px 1fr; }
+  .vw-stage.dual { grid-template-columns: 84px 1fr 1fr; }
+  /* 缩略图导航 */
+  .thumbs { background: #e6ebf2; padding: 8px 6px; overflow-y: auto; max-height: 720px; display: flex; flex-direction: column; gap: 7px; }
+  .thumb {
+    background: #fff; border: 2px solid transparent; border-radius: 4px; padding: 5px 4px; cursor: pointer;
+    position: relative; height: 86px; overflow: hidden;
+  }
+  .thumb.on { border-color: var(--primary); }
+  .thumb .tl { height: 4px; background: #cbd5e1; border-radius: 2px; margin-bottom: 4px; width: 70%; }
+  .thumb .ln { height: 2.5px; background: #e2e8f0; border-radius: 2px; margin-bottom: 3px; }
+  .thumb .ln.s { width: 58%; }
+  .thumb .pn {
+    position: absolute; right: 2px; bottom: 2px; background: rgba(15, 23, 42, .6); color: #fff;
+    font-size: 10px; border-radius: 3px; padding: 0 4px;
+  }
+  /* 影像画布 */
+  .pane { padding: 16px; overflow: auto; max-height: 720px; position: relative; }
+  .pane + .pane { border-left: 1px dashed #c6d0dc; }
+  .pane-h {
+    display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-2);
+    background: #fff; border: 1px solid var(--border); border-radius: 7px; padding: 5px 10px; margin-bottom: 12px;
+  }
+  .pane-h select { padding: 2px 6px; font-size: 12.5px; }
+  .sheet-wrap { display: flex; justify-content: center; }
+  .doc-sheet {
+    width: 520px; min-height: 700px; background: #fff; box-shadow: 0 2px 14px rgba(15, 23, 42, .16);
+    padding: 42px 46px; position: relative; transform-origin: top center; transition: transform .2s;
+  }
+  .doc-sheet .dt { text-align: center; font-size: 19px; font-weight: 700; letter-spacing: 3px; margin-bottom: 6px; color: #1e293b; }
+  .doc-sheet .dsub { text-align: center; font-size: 12px; color: #64748b; margin-bottom: 22px; }
+  .doc-sheet .dline { height: 8px; background: #e8edf3; border-radius: 3px; margin-bottom: 10px; }
+  .doc-sheet .dline.s { width: 64%; }
+  .doc-sheet .dline.m { width: 82%; }
+  .doc-sheet .dgrid { display: grid; grid-template-columns: repeat(2, 1fr); border: 1px solid #cbd5e1; margin: 18px 0; }
+  .doc-sheet .dgrid > div {
+    border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; padding: 7px 9px; font-size: 12px; color: #475569;
+  }
+  .doc-sheet .dgrid > div b { color: #1e293b; }
+  .doc-sheet .seal {
+    position: absolute; right: 54px; bottom: 96px; width: 92px; height: 92px; border-radius: 50%;
+    border: 3px solid #d64545; color: #d64545; opacity: .72; display: flex; align-items: center; justify-content: center;
+    text-align: center; font-size: 12px; line-height: 1.3; transform: rotate(-14deg); font-weight: 700;
+  }
+  .doc-sheet .sign { position: absolute; left: 46px; bottom: 66px; font-size: 12px; color: #475569; }
+  .doc-sheet .sign .sl { width: 120px; border-bottom: 1px solid #94a3b8; height: 22px; }
+  .doc-sheet .wm {
+    position: absolute; inset: 0; pointer-events: none; overflow: hidden; display: flex; flex-wrap: wrap;
+    align-content: center; justify-content: center; gap: 26px; transform: rotate(-24deg);
+  }
+  .doc-sheet .wm span { font-size: 12.5px; color: rgba(30, 64, 124, .10); white-space: nowrap; font-weight: 700; }
+  .doc-sheet .hl {
+    position: absolute; background: rgba(250, 204, 21, .55); border-radius: 2px; display: none;
+    box-shadow: 0 0 0 1px rgba(202, 138, 4, .5);
+  }
+  .doc-sheet.hit .hl { display: block; }
+  .pane-foot {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-3);
+    background: #fff; border-top: 1px solid var(--border); padding: 7px 12px;
+  }
+  /* 中缝要素对照表 */
+  .cmp-mid { display: none; border-top: 1px solid var(--border); background: #fff; padding: 12px 14px; }
+  .cmp-mid.on { display: block; }
+  .cmp-tb { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .cmp-tb th, .cmp-tb td { border: 1px solid var(--border); padding: 7px 10px; text-align: left; }
+  .cmp-tb thead th { background: var(--bg-soft); font-weight: 700; }
+  .cmp-tb td.k { background: #fafbfd; color: var(--text-3); width: 110px; }
+  .cmp-tb tr.diff td:not(.k) { background: #fffbeb; font-weight: 600; }
+  .cmp-tb tr.diff td.k { box-shadow: inset 3px 0 0 var(--warning); }
+  /* 右侧数据区 */
+  .vw-right { border: 1px solid var(--border); border-radius: 10px; background: #fff; overflow: hidden; }
+  .vw-right .card-body { max-height: 660px; overflow-y: auto; }
+  .kv { display: flex; gap: 8px; font-size: 13px; padding: 5px 0; border-bottom: 1px dashed var(--border); }
+  .kv:last-child { border-bottom: none; }
+  .kv .k { width: 84px; flex-shrink: 0; color: var(--text-3); }
+  .kv .v { flex: 1; }
+  .kv .v.hi { background: #fffbeb; border-radius: 3px; padding: 0 3px; }
+  .tagx { display: inline-block; background: var(--primary-light); color: var(--primary); border-radius: 4px; padding: 1px 7px; font-size: 12px; margin: 0 5px 5px 0; }
+  .jn-li {
+    display: flex; align-items: center; gap: 8px; padding: 7px 8px; border: 1px solid var(--border);
+    border-radius: 7px; margin-bottom: 6px; font-size: 12.5px; cursor: pointer;
+  }
+  .jn-li:hover { border-color: var(--primary); background: var(--primary-bg); }
+  .jn-li.on { border-color: var(--primary); background: var(--primary-bg); }
+  .jn-li .ix {
+    width: 22px; height: 22px; border-radius: 5px; background: var(--bg-soft); color: var(--text-2);
+    display: flex; align-items: center; justify-content: center; font-size: 11.5px; flex-shrink: 0; font-weight: 700;
+  }
+  .jn-li.on .ix { background: var(--primary); color: #fff; }
+  .jn-li .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* OCR 命中列表 */
+  .hit-box { border: 1px solid #f4d39a; background: #fffaf0; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; display: none; }
+  .hit-box.on { display: block; }
+  .hit-li { font-size: 12.5px; padding: 5px 0; border-bottom: 1px dashed #f0dcba; cursor: pointer; }
+  .hit-li:last-child { border-bottom: none; }
+  .hit-li:hover { color: var(--primary); }
+  .hit-li b { background: rgba(250, 204, 21, .6); border-radius: 2px; padding: 0 2px; }
+  .trace-bar { font-size: 12px; color: var(--text-3); text-align: center; padding: 10px 0 2px; }
+  .modal-head { display: flex; align-items: center; gap: 10px; }
+  .modal-head h3 { font-size: 16px; font-weight: 700; }
+  .modal-head .close { margin-left: auto; cursor: pointer; color: var(--text-3); font-size: 18px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: none; border: 0; }
+  .modal-head .close:hover { background: var(--bg-soft); color: var(--text-1); }
+  .form-static { display: flex; align-items: center; gap: 8px; min-height: 34px; font-size: 13.5px; }
+  .form-static input[type="checkbox"] { width: auto; height: auto; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdagl-17">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> <a class="link" href="index.html">房屋交易档案管理系统</a>
+        <span class="sep">/</span> 档案保管利用
+        <span class="sep">/</span> <span class="cur">图文一体化查看</span>
+      </div>
+      <div class="page-title">
+        图文一体化查看
+        <span class="badge blue no-code" id="tagDa">DA450204202600862</span>
+      </div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="archive-detail.html"><i class="fa-solid fa-file-lines"></i> 案卷详情</a>
+      <a class="btn" href="house-archive.html"><i class="fa-solid fa-house-chimney-window"></i> 一房一档</a>
+      <a class="btn" href="borrow-apply.html"><i class="fa-solid fa-hand-holding-hand"></i> 发起借阅</a>
+    </div>
+  </div>
+
+  <div class="vw-bar">
+    <label class="text-sm text-3">案卷</label>
+    <select id="selDa" style="width:250px" onchange="PMS.toast('已切换到 ' + this.value)">
+      <option>DA450204202600862 存量房买卖合同网签备案</option>
+      <option>DA450202202100862 商品房买卖合同网签备案</option>
+      <option>DA450202202300186 不动产转移登记归档</option>
+    </select>
+    <span class="sp"></span>
+    <button type="button" class="ib" title="上一页" onclick="turn(-1)"><i class="fa-solid fa-angle-left"></i></button>
+    <span class="pg">第 <input type="text" id="pgNow" value="3" onchange="jump(this.value)"> 页 / 共 12 页</span>
+    <button type="button" class="ib" title="下一页" onclick="turn(1)"><i class="fa-solid fa-angle-right"></i></button>
+    <span class="sp"></span>
+    <button type="button" class="ib" title="放大" onclick="zoom(0.1)"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+    <button type="button" class="ib" title="缩小" onclick="zoom(-0.1)"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+    <button type="button" class="ib" title="适应窗口" onclick="fitWin()"><i class="fa-solid fa-expand"></i></button>
+    <button type="button" class="ib" title="旋转" onclick="rotate()"><i class="fa-solid fa-rotate-right"></i></button>
+    <button type="button" class="ib" title="全屏" onclick="PMS.toast('已进入全屏阅览模式')"><i class="fa-solid fa-maximize"></i></button>
+    <span class="sp"></span>
+    <button type="button" class="ib" id="btnDual" title="双卷对照" onclick="toggleDual()"><i class="fa-solid fa-table-columns"></i></button>
+    <span class="text-sm text-3">双卷对照</span>
+    <span class="sp"></span>
+    <span class="ocr-search">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input type="text" id="ocrKey" placeholder="OCR 全文检索，如 周**" onkeydown="if(event.key==='Enter')doOcr()">
+    </span>
+    <button type="button" class="btn btn-sm" onclick="doOcr()">检索</button>
+    <span style="margin-left:auto"></span>
+    <button type="button" class="btn btn-sm" onclick="authAct('下载')"><i class="fa-solid fa-download"></i> 下载</button>
+    <button type="button" class="btn btn-sm" onclick="authAct('打印')"><i class="fa-solid fa-print"></i> 打印</button>
+  </div>
+
+  <div class="wj-tabs" id="wjTabs">
+    <div class="wj-tab" onclick="pickWj(this,1)">1 网签备案申请表</div>
+    <div class="wj-tab" onclick="pickWj(this,2)">2 转让方身份证明</div>
+    <div class="wj-tab" onclick="pickWj(this,3)">3 受让方身份证明</div>
+    <div class="wj-tab" onclick="pickWj(this,4)">4 不动产权证书</div>
+    <div class="wj-tab on" onclick="pickWj(this,5)">5 存量房买卖合同</div>
+    <div class="wj-tab" onclick="pickWj(this,6)">6 房源核验单</div>
+    <div class="wj-tab" onclick="pickWj(this,7)">7 交易限制校验结果单</div>
+    <div class="wj-tab" onclick="pickWj(this,8)">8 资金监管协议</div>
+    <div class="wj-tab" onclick="pickWj(this,9)">9 购房款支付凭证</div>
+    <div class="wj-tab" onclick="pickWj(this,10)">10 网签备案证明</div>
+    <div class="wj-tab" onclick="pickWj(this,11)">11 契税完税凭证</div>
+    <div class="wj-tab" onclick="pickWj(this,12)">12 经纪服务合同</div>
+  </div>
+
+  <div class="vw-layout">
+    <div class="vw-left">
+      <div class="vw-stage" id="stage">
+        <div class="thumbs" id="thumbs"></div>
+
+        <div class="pane">
+          <div class="pane-h">
+            <i class="fa-solid fa-file-lines text-primary"></i>
+            <b>左栏</b>
+            <select id="selL" onchange="switchPane('L', this.value)">
+              <option value="2026">2026 存量房买卖合同（DA450204202600862）</option>
+              <option value="2021">2021 商品房买卖合同（DA450202202100862）</option>
+            </select>
+            <span style="margin-left:auto" class="text-3">第 5 件 · 第 3 页</span>
+          </div>
+          <div class="sheet-wrap">
+            <div class="doc-sheet" id="sheetL">
+              <div class="wm">
+                <span>XXXX市房产交易所 · 韦国强 · 2026-08-01 19:16</span>
+                <span>XXXX市房产交易所 · 韦国强 · 2026-08-01 19:16</span>
+                <span>XXXX市房产交易所 · 韦国强 · 2026-08-01 19:16</span>
+                <span>XXXX市房产交易所 · 韦国强 · 2026-08-01 19:16</span>
+                <span>XXXX市房产交易所 · 韦国强 · 2026-08-01 19:16</span>
+                <span>XXXX市房产交易所 · 韦国强 · 2026-08-01 19:16</span>
+              </div>
+              <div class="dt" id="dtL">存量房买卖合同</div>
+              <div class="dsub" id="dsubL">合同编号：CFBA450200202600512　（XXXX市存量房买卖合同示范文本）</div>
+              <div class="dline"></div>
+              <div class="dline m"></div>
+              <div class="dline"></div>
+              <div class="dline s"></div>
+              <div class="dgrid" id="gridL">
+                <div>出让方：<b>陈**</b></div>
+                <div>证件号码：<b>450***********0028</b></div>
+                <div>受让方：<b>周**</b></div>
+                <div>证件号码：<b>450***********0017</b></div>
+                <div>房屋坐落：<b>滨江东路8号彰泰滨江学府12栋2单元1802</b></div>
+                <div>不动产单元号：<b>450202001005GB00123F00020017</b></div>
+                <div>建筑面积：<b>118.65 ㎡</b></div>
+                <div>成交价格：<b>1,486,000.00 元</b></div>
+                <div>付款方式：<b>组合贷款</b></div>
+                <div>签订日期：<b>2026-06-28</b></div>
+              </div>
+              <div class="dline"></div>
+              <div class="dline m"></div>
+              <div class="dline"></div>
+              <div class="dline m"></div>
+              <div class="dline s"></div>
+              <div class="dline"></div>
+              <div class="dline m"></div>
+              <div class="seal">XXXX市<br>房产交易所<br>合同专用章</div>
+              <div class="sign">
+                出让方（签字）：<div class="sl"></div>
+                <div style="margin-top:8px">受让方（签字）：</div><div class="sl"></div>
+              </div>
+              <span class="hl" id="hlL" style="left:46px;top:196px;width:76px;height:17px"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pane" id="paneR" style="display:none">
+          <div class="pane-h">
+            <i class="fa-solid fa-file-lines text-primary"></i>
+            <b>右栏</b>
+            <select id="selR" onchange="switchPane('R', this.value)">
+              <option value="2021">2021 商品房买卖合同（DA450202202100862）</option>
+              <option value="2026">2026 存量房买卖合同（DA450204202600862）</option>
+            </select>
+            <span style="margin-left:auto" class="text-3">第 6 件 · 第 3 页</span>
+          </div>
+          <div class="sheet-wrap">
+            <div class="doc-sheet" id="sheetR">
+              <div class="wm">
+                <span>XXXX市房产交易所 · 韦国强 · 2026-08-01 19:16</span>
+                <span>XXXX市房产交易所 · 韦国强 · 2026-08-01 19:16</span>
+                <span>XXXX市房产交易所 · 韦国强 · 2026-08-01 19:16</span>
+                <span>XXXX市房产交易所 · 韦国强 · 2026-08-01 19:16</span>
+                <span>XXXX市房产交易所 · 韦国强 · 2026-08-01 19:16</span>
+                <span>XXXX市房产交易所 · 韦国强 · 2026-08-01 19:16</span>
+              </div>
+              <div class="dt" id="dtR">商品房买卖合同</div>
+              <div class="dsub" id="dsubR">合同编号：SPFBA450200202100862　（广西壮族自治区商品房买卖合同示范文本）</div>
+              <div class="dline"></div>
+              <div class="dline m"></div>
+              <div class="dline"></div>
+              <div class="dline s"></div>
+              <div class="dgrid" id="gridR">
+                <div>出让方：<b>柳州彰泰置业有限公司</b></div>
+                <div>统一社会信用代码：<b>91450200MA5*******8K</b></div>
+                <div>受让方：<b>陈**</b></div>
+                <div>证件号码：<b>450***********0028</b></div>
+                <div>房屋坐落：<b>滨江东路8号彰泰滨江学府12栋2单元1802</b></div>
+                <div>预售许可证号：<b>柳房预售证第 2021086 号</b></div>
+                <div>建筑面积：<b>118.65 ㎡</b></div>
+                <div>成交价格：<b>1,186,000.00 元</b></div>
+                <div>付款方式：<b>按揭贷款</b></div>
+                <div>签订日期：<b>2021-05-06</b></div>
+              </div>
+              <div class="dline"></div>
+              <div class="dline m"></div>
+              <div class="dline"></div>
+              <div class="dline m"></div>
+              <div class="dline s"></div>
+              <div class="dline"></div>
+              <div class="dline m"></div>
+              <div class="seal">XXXX市<br>房产交易所<br>合同专用章</div>
+              <div class="sign">
+                出让方（盖章）：<div class="sl"></div>
+                <div style="margin-top:8px">受让方（签字）：</div><div class="sl"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cmp-mid" id="cmpMid">
+        <div class="section-title">两卷关键要素对照</div>
+        <table class="cmp-tb">
+          <thead>
+            <tr><th style="width:110px">要素</th><th>2021 商品房买卖合同</th><th>2026 存量房买卖合同</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="k">档案号</td><td class="no-code">DA450202202100862</td><td class="no-code">DA450204202600862</td></tr>
+            <tr class="diff"><td class="k">出让方</td><td>柳州彰泰置业有限公司</td><td>陈**</td></tr>
+            <tr class="diff"><td class="k">受让方</td><td>陈**</td><td>周**</td></tr>
+            <tr><td class="k">建筑面积</td><td>118.65 ㎡</td><td>118.65 ㎡</td></tr>
+            <tr class="diff"><td class="k">成交价格</td><td>1,186,000.00 元</td><td>1,486,000.00 元</td></tr>
+            <tr class="diff"><td class="k">签订日期</td><td>2021-05-06</td><td>2026-06-28</td></tr>
+          </tbody>
+        </table>
+        <p class="text-3 text-sm mt-8">
+          <i class="fa-solid fa-circle-info"></i>
+          同一套房两次交易，面积一致、当事人与价格发生变化；差异项以浅黄底与橙色竖线标注。
+        </p>
+      </div>
+
+      <div class="pane-foot">
+        <span>当前第 <b id="ftPage">3</b> 页 / 共 12 页</span>
+        <span class="sp" style="width:1px;height:14px;background:var(--border)"></span>
+        <span>缩放 <b id="ftZoom">100%</b></span>
+        <span class="sp" style="width:1px;height:14px;background:var(--border)"></span>
+        <span>PDF · 300 DPI · 灰度 · 2.86 MB</span>
+        <span class="sp" style="width:1px;height:14px;background:var(--border)"></span>
+        <span>影像来源 wssvc 文件服务　文件主键 <span class="no-code">FS2026062800086421</span></span>
+      </div>
+    </div>
+
+    <div class="vw-right" data-tabs-scope>
+      <div class="tabs">
+        <div class="tab active" data-tab="zl">著录信息</div>
+        <div class="tab" data-tab="bj">办件数据</div>
+        <div class="tab" data-tab="fw">房屋信息</div>
+        <div class="tab" data-tab="jn">卷内清单</div>
+      </div>
+
+      <div class="tab-panel active" data-panel="zl">
+        <div class="card-body">
+          <div class="hit-box" id="hitBox">
+            <div class="flex items-center justify-between mb-8">
+              <b class="text-sm">OCR 命中 <span id="hitCnt">3</span> 处</b>
+              <a class="link text-sm" onclick="clearOcr()">清除</a>
+            </div>
+            <div class="hit-li" onclick="gotoHit(3)">第 3 页 第 1 处：受让方：<b>周**</b>　证件号码 450***********0017</div>
+            <div class="hit-li" onclick="gotoHit(5)">第 5 页 第 1 处：兹有<b>周**</b>与陈**就上述房屋达成买卖…</div>
+            <div class="hit-li" onclick="gotoHit(9)">第 9 页 第 1 处：付款人<b>周**</b>，转账金额 1,486,000.00 元</div>
+          </div>
+          <div class="kv"><span class="k">题名</span><span class="v">柳州市城中区滨江东路8号彰泰滨江学府12栋2单元1802存量房买卖合同网签备案案卷</span></div>
+          <div class="kv"><span class="k">责任者</span><span class="v">XXXX市房产交易所</span></div>
+          <div class="kv"><span class="k">文件形成者</span><span class="v">XXXX市房产交易所存量房科</span></div>
+          <div class="kv"><span class="k">成文日期</span><span class="v">2026-06-28</span></div>
+          <div class="kv"><span class="k">起止时间</span><span class="v">2026-06-20 至 2026-06-29</span></div>
+          <div class="kv"><span class="k">摘要</span><span class="v">
+            本案卷为陈** 将其位于柳州市城中区滨江东路 8 号彰泰滨江学府 12 栋 2 单元 1802 号房屋
+            （建筑面积 118.65 ㎡）转让给周** 的存量房买卖合同网签备案全套材料，
+            成交价格 1,486,000.00 元，采用组合贷款付款并纳入资金监管，于 2026-06-29 完成网签备案。
+          </span></div>
+          <div class="kv"><span class="k">主题词</span><span class="v">
+            <span class="tagx">存量房</span><span class="tagx">买卖合同</span><span class="tagx">网签备案</span>
+            <span class="tagx">资金监管</span><span class="tagx">城中区</span>
+          </span></div>
+          <div class="kv"><span class="k">关键词</span><span class="v">
+            <span class="tagx">彰泰滨江学府</span><span class="tagx">周**</span><span class="tagx">陈**</span>
+            <span class="tagx">118.65㎡</span><span class="tagx">组合贷款</span>
+          </span></div>
+          <div class="kv"><span class="k">著录方式</span><span class="v">自动提取 82.4% + AI 辅助摘要</span></div>
+          <div class="kv"><span class="k">著录质量</span><span class="v"><b class="text-success">88 分</b>　已校验</span></div>
+          <div class="btn-row mt-16">
+            <a class="btn btn-sm" href="catalog-entry.html"><i class="fa-solid fa-pen"></i> 查看著录</a>
+            <a class="btn btn-sm" href="archive-correct.html"><i class="fa-solid fa-wrench"></i> 发起勘误</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-panel" data-panel="bj">
+        <div class="card-body">
+          <div class="alert alert-info">
+            <i class="fa-solid fa-circle-info"></i>
+            <div>右侧为该案卷对应办件的结构化数据，可与左侧影像逐项对照核验。</div>
+          </div>
+          <div class="kv"><span class="k">收件编号</span><span class="v no-code">SJ20260628016</span></div>
+          <div class="kv"><span class="k">事项名称</span><span class="v">存量房买卖合同网签备案</span></div>
+          <div class="kv"><span class="k">事项代码</span><span class="v no-code">CFBA-001</span></div>
+          <div class="kv"><span class="k">网签编号</span><span class="v no-code">CFBA450200202600512</span></div>
+          <div class="kv"><span class="k">合同编号</span><span class="v hi">CFBA450200202600512</span></div>
+          <div class="kv"><span class="k">出让方</span><span class="v hi">陈**　450***********0028</span></div>
+          <div class="kv"><span class="k">受让方</span><span class="v hi">周**　450***********0017</span></div>
+          <div class="kv"><span class="k">建筑面积</span><span class="v hi">118.65 ㎡</span></div>
+          <div class="kv"><span class="k">成交价格</span><span class="v hi">1,486,000.00 元（单价 12,524 元 / ㎡）</span></div>
+          <div class="kv"><span class="k">付款方式</span><span class="v">组合贷款（首付 45 万，商贷 68 万，公积金 30.6 万）</span></div>
+          <div class="kv"><span class="k">资金监管</span><span class="v">已纳入监管　监管协议号 ZJJG202606280086</span></div>
+          <div class="kv"><span class="k">签订日期</span><span class="v hi">2026-06-28</span></div>
+          <div class="kv"><span class="k">备案日期</span><span class="v">2026-06-29</span></div>
+          <div class="kv"><span class="k">经办人</span><span class="v">覃**　XXXX市房产交易所存量房科</span></div>
+          <p class="text-3 text-sm mt-8">
+            <i class="fa-solid fa-highlighter"></i>
+            浅黄底字段为与左侧影像可逐项对照的要素。
+          </p>
+        </div>
+      </div>
+
+      <div class="tab-panel" data-panel="fw">
+        <div class="card-body">
+          <div class="kv"><span class="k">房屋坐落</span><span class="v">柳州市城中区滨江东路 8 号彰泰滨江学府 12 栋 2 单元 1802</span></div>
+          <div class="kv"><span class="k">房源主键</span><span class="v no-code">FY450202001286</span></div>
+          <div class="kv"><span class="k">不动产单元号</span><span class="v no-code">450202001005GB00123F00020017</span></div>
+          <div class="kv"><span class="k">产权证号</span><span class="v">桂(2023)柳州市不动产权第 0086421 号</span></div>
+          <div class="kv"><span class="k">建筑面积</span><span class="v">118.65 ㎡（套内 96.28 ㎡）</span></div>
+          <div class="kv"><span class="k">房屋用途</span><span class="v">成套住宅</span></div>
+          <div class="kv"><span class="k">建成年份</span><span class="v">2021 年</span></div>
+          <div class="kv"><span class="k">当前权利人</span><span class="v">周**（2026 至今）</span></div>
+          <div class="kv"><span class="k">历任权利人</span><span class="v">
+            柳州彰泰置业有限公司（2021 ~ 2023）→ 陈**（2023 ~ 2026）→ 周**（2026 至今）
+          </span></div>
+          <div class="kv"><span class="k">一房一档</span><span class="v no-code">DAFY450202001286　共 9 卷 81 件 269 页</span></div>
+          <div class="btn-row mt-16">
+            <a class="btn btn-sm btn-primary" href="house-archive.html"><i class="fa-solid fa-timeline"></i> 查看一房一档全景</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-panel" data-panel="jn">
+        <div class="card-body">
+          <p class="text-3 text-sm mb-8">本卷共 12 件 46 页，点击切换查看。</p>
+          <div id="jnList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="trace-bar">
+    本次查看已记录：韦国强 2026-08-01 19:16 阅览 <span class="no-code">DA450204202600862</span> 第 3 页，用途：日常查询　
+    <a class="link" href="access-audit.html">查看利用留痕</a>
+  </div>
+
+  <div class="modal-mask" id="mdAuth">
+    <div class="modal modal-sm">
+      <div class="modal-head">
+        <h3 id="authTitle">下载授权确认</h3>
+        <button type="button" class="close" onclick="PMS.closeModal('mdAuth')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>档案影像的下载与打印须单独授权，须填写用途后方可执行；本次操作将全量写入档案利用记录。</div>
+        </div>
+        <div class="form-grid form-align">
+          <div class="form-item col-full">
+            <label>档案与范围</label>
+            <div class="form-static"><span class="no-code">DA450204202600862</span>　第 5 件《存量房买卖合同》共 6 页</div>
+          </div>
+          <div class="form-item">
+            <label>操作类型</label>
+            <input type="text" id="authType" value="下载" readonly>
+          </div>
+          <div class="form-item">
+            <label>业务关联类型<span class="req">*</span></label>
+            <select><option>日常查询</option><option>档案借阅</option><option>办件办理</option><option>查档出证</option></select>
+          </div>
+          <div class="form-item col-full">
+            <label>用途说明<span class="req">*</span></label>
+            <textarea rows="3" placeholder="填写用途，不少于 15 字">用于核对该房屋 2026 年存量房交易合同当事人与成交价格，支撑不动产转移登记办件审核。</textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="PMS.closeModal('mdAuth')">取消</button>
+        <button type="button" class="btn btn-primary" onclick="PMS.closeModal('mdAuth');PMS.toast('授权通过，操作已执行并写入利用记录','success')">确认并执行</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+var page = 3, zoomV = 1, rot = 0, dual = false;
+
+(function () {
+  var t = '', j = '';
+  var names = ['网签备案申请表', '转让方身份证明', '受让方身份证明', '不动产权证书', '存量房买卖合同',
+    '房源核验单', '交易限制校验结果单', '资金监管协议', '购房款支付凭证', '网签备案证明',
+    '契税完税凭证', '经纪服务合同'];
+  var pages = [2, 2, 2, 3, 6, 2, 2, 8, 1, 2, 1, 15];
+  for (var i = 1; i <= 12; i++) {
+    t += '<div class="thumb' + (i === page ? ' on' : '') + '" onclick="jump(' + i + ')">' +
+      '<div class="tl"></div><div class="ln"></div><div class="ln s"></div><div class="ln"></div>' +
+      '<div class="ln"></div><div class="ln s"></div><div class="ln"></div>' +
+      '<span class="pn">' + i + '</span></div>';
+  }
+  document.getElementById('thumbs').innerHTML = t;
+  for (var k = 0; k < 12; k++) {
+    j += '<div class="jn-li' + (k === 4 ? ' on' : '') + '" onclick="pickJn(this,' + (k + 1) + ')">' +
+      '<span class="ix">' + (k + 1) + '</span><span class="nm">' + names[k] + '</span>' +
+      '<span class="text-3">' + pages[k] + ' 页</span></div>';
+  }
+  document.getElementById('jnList').innerHTML = j;
+})();
+
+function jump(n) {
+  n = parseInt(n, 10);
+  if (isNaN(n) || n < 1 || n > 12) { PMS.toast('页码超出范围（1 ~ 12）', 'error'); return; }
+  page = n;
+  document.getElementById('pgNow').value = n;
+  document.getElementById('ftPage').textContent = n;
+  document.querySelectorAll('#thumbs .thumb').forEach(function (el, i) {
+    el.classList.toggle('on', i + 1 === n);
+  });
+}
+function turn(d) { jump(page + d); }
+function zoom(d) {
+  zoomV = Math.min(2, Math.max(0.5, zoomV + d));
+  applyTf();
+  document.getElementById('ftZoom').textContent = Math.round(zoomV * 100) + '%';
+}
+function fitWin() { zoomV = 1; rot = 0; applyTf(); document.getElementById('ftZoom').textContent = '100%'; PMS.toast('已适应窗口'); }
+function rotate() { rot = (rot + 90) % 360; applyTf(); }
+function applyTf() {
+  document.querySelectorAll('.doc-sheet').forEach(function (s) {
+    s.style.transform = 'scale(' + zoomV + ') rotate(' + rot + 'deg)';
+  });
+}
+function toggleDual() {
+  dual = !dual;
+  document.getElementById('stage').classList.toggle('dual', dual);
+  document.getElementById('paneR').style.display = dual ? '' : 'none';
+  document.getElementById('cmpMid').classList.toggle('on', dual);
+  document.getElementById('btnDual').classList.toggle('on', dual);
+  PMS.toast(dual ? '已开启双卷对照：左 2026 存量房合同，右 2021 商品房合同' : '已关闭双卷对照');
+}
+function switchPane(side, v) {
+  PMS.toast((side === 'L' ? '左栏' : '右栏') + '已切换到 ' + (v === '2026' ? '2026 存量房买卖合同' : '2021 商品房买卖合同'));
+}
+function pickWj(el, n) {
+  el.parentNode.querySelectorAll('.wj-tab').forEach(function (t) { t.classList.remove('on'); });
+  el.classList.add('on');
+  document.querySelectorAll('#jnList .jn-li').forEach(function (li, i) { li.classList.toggle('on', i + 1 === n); });
+  PMS.toast('已切换到第 ' + n + ' 件');
+}
+function pickJn(el, n) {
+  document.querySelectorAll('#jnList .jn-li').forEach(function (li) { li.classList.remove('on'); });
+  el.classList.add('on');
+  document.querySelectorAll('.wj-tab').forEach(function (t, i) { t.classList.toggle('on', i + 1 === n); });
+  PMS.toast('已切换到第 ' + n + ' 件');
+}
+function doOcr() {
+  var k = document.getElementById('ocrKey').value.trim();
+  if (!k) { PMS.toast('请输入检索关键词', 'error'); return; }
+  document.getElementById('hitBox').classList.add('on');
+  document.getElementById('sheetL').classList.add('hit');
+  document.querySelector('.tabs .tab[data-tab="zl"]').click();
+  PMS.toast('基于 OCR 全文命中 3 处，影像上已高亮');
+}
+function clearOcr() {
+  document.getElementById('hitBox').classList.remove('on');
+  document.getElementById('sheetL').classList.remove('hit');
+  document.getElementById('ocrKey').value = '';
+}
+function gotoHit(p) { jump(p); PMS.toast('已定位到第 ' + p + ' 页命中位置'); }
+function authAct(t) {
+  document.getElementById('authTitle').textContent = t + '授权确认';
+  document.getElementById('authType').value = t;
+  PMS.openModal('mdAuth');
+}
+(function () {
+  var q = new URLSearchParams(location.search);
+  var da = q.get('da');
+  if (da) document.getElementById('tagDa').textContent = da;
+  if (q.get('dual') === '1') toggleDual();
+})();
+</script>
+</body>
+</html>

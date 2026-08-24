@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>协助执行备案 · 房屋交易备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：办理时限倒计时与强制处分提示 */
+  .dl { font-weight: 700; white-space: nowrap; }
+  .dl.g { color: #059669; } .dl.o { color: #d97706; } .dl.r { color: #dc2626; }
+  .force {
+    display: flex; align-items: flex-start; gap: 11px; background: var(--primary-light);
+    border: 1px solid var(--primary); border-radius: var(--radius); padding: 13px 16px; font-size: 13.5px;
+  }
+  .force .fi {
+    width: 30px; height: 30px; border-radius: 8px; background: var(--primary); color: #fff;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .radio-line { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; min-height: 32px; }
+  .radio-line label { font-size: 14px; color: var(--text-2); font-weight: 400; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+  .tbl-box { overflow: auto; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdwb-14">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易备案管理系统
+        <span class="sep">/</span> 交易限制管理
+        <span class="sep">/</span> <span class="cur">协助执行备案</span>
+      </div>
+      <div class="page-title">协助执行备案</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="location.href='seal-release.html'"><i class="fa-solid fa-unlock"></i> 关联解封办理</button>
+      <button type="button" class="btn" onclick="PMS.toast('《协助执行事项台账》Excel 已生成，正在下载','success')"><i class="fa-solid fa-download"></i> 导出台账</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-inbox"></i></div>
+      <div><div class="s-label">待办理事项</div><div class="s-value">6</div><div class="s-trend text-warning">临期 2 件</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-gavel"></i></div>
+      <div><div class="s-label">本月受理</div><div class="s-value">28</div><div class="s-trend text-3">司法拍卖 12 · 裁决过户 9</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">本月办结</div><div class="s-value">22</div><div class="s-trend text-success">按期办结率 100%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-stopwatch"></i></div>
+      <div><div class="s-label">平均办理时长</div><div class="s-value">2.1 天</div><div class="s-trend text-3">法定时限 7 个工作日</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>协助执行事项类型</label>
+        <select><option value="">全部</option><option>法院裁决过户</option><option>司法拍卖成交</option><option>以物抵债</option><option>执行和解</option><option>破产受理</option><option>遗产未析产</option></select>
+      </div>
+      <div class="filter-item"><label>法院名称</label><input type="text" placeholder="如 柳南区人民法院"></div>
+      <div class="filter-item"><label>案件编号</label><input type="text" placeholder="如 (2026)桂0204执1276号"></div>
+      <div class="filter-item"><label>通知书编号</label><input type="text" placeholder="协助执行通知书编号"></div>
+      <div class="filter-item"><label>涉及房屋</label><input type="text" placeholder="小区 / 房号 / 单元号"></div>
+      <div class="filter-item">
+        <label>办理结果</label>
+        <select><option value="">全部</option><option>待办理</option><option>已办结</option><option>不予协助</option><option>部分协助</option></select>
+      </div>
+      <div class="filter-item"><label>送达时间起</label><input type="date" value="2026-07-01"></div>
+      <div class="filter-item"><label>送达时间止</label><input type="date" value="2026-08-01"></div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 28 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tbl-box" style="max-height:300px">
+      <table class="data-table" id="tblAe" data-static>
+        <thead>
+          <tr>
+            <th>协助执行通知书编号</th><th>事项类型</th><th>法院名称</th><th>案件编号</th>
+            <th>涉及房屋</th><th>权利人</th><th>义务人</th><th>送达时间</th>
+            <th>办理时限</th><th>办理结果</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="nowrap fw-600">(2026)桂0204执1276号之三</td>
+            <td class="nowrap"><span class="badge red">司法拍卖成交</span></td>
+            <td class="nowrap">XXXX市柳南区人民法院</td>
+            <td class="nowrap">(2026)桂0204执1276号</td>
+            <td>万科城 5-2-803</td>
+            <td class="nowrap">周**（买受人）</td>
+            <td class="nowrap">黄**</td>
+            <td class="nowrap">2026-07-30</td>
+            <td class="nowrap">2026-08-06 <span class="dl o">剩 5 天</span></td>
+            <td class="nowrap"><span class="badge orange">待办理</span></td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('下方办理表单即为该事项')">办理</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">(2026)桂0202执0918号之二</td>
+            <td class="nowrap"><span class="badge purple">法院裁决过户</span></td>
+            <td class="nowrap">XXXX市城中区人民法院</td>
+            <td class="nowrap">(2026)桂0202执0918号</td>
+            <td>荣和公园大道 12-1-703</td>
+            <td class="nowrap">覃**</td>
+            <td class="nowrap">莫**</td>
+            <td class="nowrap">2026-07-28</td>
+            <td class="nowrap">2026-08-04 <span class="dl r">剩 3 天</span></td>
+            <td class="nowrap"><span class="badge orange">待办理</span></td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('演示数据仅提供首条事项的办理表单')">办理</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">(2026)桂02破申12号之一</td>
+            <td class="nowrap"><span class="badge orange">破产受理</span></td>
+            <td class="nowrap">XXXX市中级人民法院</td>
+            <td class="nowrap">(2026)桂02破申12号</td>
+            <td>恒兴时代广场 A 座 8 ~ 12 层</td>
+            <td class="nowrap">管理人（柳州立信）</td>
+            <td class="nowrap">柳州某置业有限公司</td>
+            <td class="nowrap">2026-07-24</td>
+            <td class="nowrap">2026-07-31 <span class="dl g">已办结</span></td>
+            <td class="nowrap"><span class="badge green">已办结</span></td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('办理结果：已办理破产受理限制登记 XZ20260724003，房屋处分须经管理人同意')">详情</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">(2026)桂0203执0642号之一</td>
+            <td class="nowrap"><span class="badge cyan">以物抵债</span></td>
+            <td class="nowrap">XXXX市鱼峰区人民法院</td>
+            <td class="nowrap">(2026)桂0203执0642号</td>
+            <td>保利花园 3-1-1601</td>
+            <td class="nowrap">柳州某建材有限公司</td>
+            <td class="nowrap">梁**</td>
+            <td class="nowrap">2026-07-18</td>
+            <td class="nowrap">2026-07-25 <span class="dl g">已办结</span></td>
+            <td class="nowrap"><span class="badge green">已办结</span></td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('办理结果：已协助办理以物抵债过户备案，先行解除查封 CF45020320260066')">详情</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">(2026)桂0205民初1862号之一</td>
+            <td class="nowrap"><span class="badge gray">遗产未析产</span></td>
+            <td class="nowrap">XXXX市柳江区人民法院</td>
+            <td class="nowrap">(2026)桂0205民初1862号</td>
+            <td>南亚国际城 2-3-1103</td>
+            <td class="nowrap">莫**等 3 人</td>
+            <td class="nowrap">莫**（被继承人）</td>
+            <td class="nowrap">2026-07-12</td>
+            <td class="nowrap">2026-07-19 <span class="dl g">已办结</span></td>
+            <td class="nowrap"><span class="badge green">已办结</span></td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('办理结果：已办理遗产未析产限制登记 XZ20260712006，析产完成前不得单方处分')">详情</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="table-foot" id="aeFoot"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-gavel"></i> 办理 · (2026)桂0204执1276号之三</h3>
+      <span class="sub">司法拍卖成交确认书 · XXXX市柳南区人民法院</span>
+    </div>
+    <div class="card-body">
+      <div class="force">
+        <span class="fi"><i class="fa-solid fa-shield-halved"></i></span>
+        <div>
+          <b>法院裁决过户与司法拍卖属强制处分，不受一般交易限制约束</b>，但须先办理相应解封手续后方可办理过户备案。
+          本案房屋存在查封 1 笔、轮候查封 1 笔，请先完成解封登记。
+          <a class="link" href="seal-release.html">前往解封办理 <i class="fa-solid fa-arrow-right"></i></a>
+        </div>
+      </div>
+
+      <div class="section-title mt-16" style="margin-top:18px">协助事项内容</div>
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>事项类型<span class="req">*</span></label>
+          <select><option selected>司法拍卖成交</option><option>法院裁决过户</option><option>以物抵债</option><option>执行和解</option><option>破产受理</option><option>遗产未析产</option></select>
+        </div>
+        <div class="form-item"><label>法院名称<span class="req">*</span></label><input type="text" value="XXXX市柳南区人民法院"></div>
+        <div class="form-item"><label>案件编号<span class="req">*</span></label><input type="text" value="(2026)桂0204执1276号"></div>
+        <div class="form-item"><label>通知书编号<span class="req">*</span></label><input type="text" value="(2026)桂0204执1276号之三"></div>
+        <div class="form-item"><label>权利人（买受人）<span class="req">*</span></label><input type="text" value="周**"></div>
+        <div class="form-item"><label>义务人（被执行人）<span class="req">*</span></label><input type="text" value="黄**"></div>
+        <div class="form-item"><label>成交价（元）<span class="req">*</span></label><input type="text" value="786,000.00"></div>
+        <div class="form-item"><label>送达时间<span class="req">*</span></label><input type="date" value="2026-07-30"></div>
+        <div class="form-item"><label>办理时限</label><input type="text" value="2026-08-06（剩 5 天）" readonly></div>
+        <div class="form-item" style="grid-column:span 2">
+          <label>文书要点<span class="req">*</span></label>
+          <textarea rows="3">被执行人黄**名下柳州市柳南区万科城 5 栋 2 单元 803 房屋经本院委托拍卖，由周**以 786,000 元竞得，本院已作出执行裁定书确认成交并裁定该房屋所有权自裁定送达买受人时转移。请你单位协助办理该房屋的交易备案手续，并配合办理原查封的解除。</textarea>
+        </div>
+      </div>
+
+      <div class="section-title mt-16" style="margin-top:18px">涉及房屋核验</div>
+      <dl class="desc-list">
+        <div class="desc-item"><dt>房屋坐落</dt><dd>柳州市柳南区万科城 5 栋 2 单元 803</dd></div>
+        <div class="desc-item"><dt>不动产单元号</dt><dd>450204001008GB00256F00020009</dd></div>
+        <div class="desc-item"><dt>产权人</dt><dd>黄**</dd></div>
+        <div class="desc-item"><dt>建筑面积</dt><dd>96.40 ㎡</dd></div>
+        <div class="desc-item"><dt>当前可交易标识</dt><dd><span class="badge red">不可交易</span></dd></div>
+        <div class="desc-item"><dt>现有限制情形</dt><dd>查封 1 笔 · 轮候查封 1 笔 · 抵押 1 笔 · 限售至 2027-03-15</dd></div>
+        <div class="desc-item span-2"><dt>限制状态链接</dt><dd><a class="link" href="restriction-status.html?code=B">查看限制状态总览</a> · <a class="link" href="seal-list.html">查看查封台账</a></dd></div>
+      </dl>
+
+      <div class="section-title mt-16" style="margin-top:18px">文书附件</div>
+      <table class="data-table compact" data-static>
+        <thead><tr><th>材料名称</th><th>必要性</th><th>来源</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr><td>协助执行通知书</td><td><span class="badge red">必要</span></td><td>法院直连推送</td><td><span class="badge green">已接收</span></td><td><span class="link" onclick="PMS.toast('预览：协助执行通知书.pdf')">预览</span></td></tr>
+          <tr><td>拍卖成交确认书</td><td><span class="badge red">必要</span></td><td>法院直连推送</td><td><span class="badge green">已接收</span></td><td><span class="link" onclick="PMS.toast('预览：拍卖成交确认书.pdf')">预览</span></td></tr>
+          <tr><td>执行裁定书</td><td><span class="badge red">必要</span></td><td>法院直连推送</td><td><span class="badge green">已接收</span></td><td><span class="link" onclick="PMS.toast('预览：执行裁定书.pdf')">预览</span></td></tr>
+          <tr><td>买受人身份证明</td><td><span class="badge gray">可选</span></td><td>窗口补录</td><td><span class="badge gray">未上传</span></td><td><span class="link" onclick="PMS.toast('已打开上传窗口')">上传</span></td></tr>
+        </tbody>
+      </table>
+
+      <div class="section-title mt-16" style="margin-top:18px">办理结果</div>
+      <div class="form-grid form-align">
+        <div class="form-item" style="grid-column:span 2">
+          <label>办理结果<span class="req">*</span></label>
+          <div class="radio-line">
+            <label><input type="radio" name="jg" checked> 已协助办理</label>
+            <label><input type="radio" name="jg"> 部分协助</label>
+            <label><input type="radio" name="jg"> 不予协助</label>
+          </div>
+        </div>
+        <div class="form-item"><label>办理时间<span class="req">*</span></label><input type="text" value="2026-08-01 09:46" readonly></div>
+        <div class="form-item"><label>经办人</label><input type="text" value="韦国强" readonly></div>
+        <div class="form-item" style="grid-column:span 2">
+          <label>办理说明<span class="req">*</span></label>
+          <textarea rows="2">已协助办理司法拍卖成交房屋的交易备案手续；同步办理原查封 CF45020420260126 的解除登记，轮候查封 CF45020420260196 按规定自动接续，过户完成后由法院另行出具解除文书。</textarea>
+        </div>
+      </div>
+
+      <div class="btn-row justify-between" style="margin-top:16px">
+        <span class="text-3 text-sm"><i class="fa-solid fa-circle-info"></i> 办理结果将回执法院，并在房屋交易备案簿新增一条协助执行记事。</span>
+        <span class="flex gap-8">
+          <button type="button" class="btn" onclick="PMS.toast('办理草稿已保存','success')"><i class="fa-regular fa-floppy-disk"></i> 保存草稿</button>
+          <button type="button" class="btn btn-primary" onclick="doSubmit()"><i class="fa-solid fa-paper-plane"></i> 提交办理结果</button>
+        </span>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function doSubmit() {
+  PMS.confirm({
+    title: '确认提交办理结果',
+    message: '提交后将回执法院并写入房屋交易备案簿，是否确认？',
+    detail: '司法拍卖成交属强制处分，本次协助办理不受一般交易限制约束，但原查封须同步解除。',
+    type: 'info',
+    okText: '确认提交',
+    onOk: function () { PMS.toast('办理结果已提交并回执法院，备案簿已新增协助执行记事', 'success'); }
+  });
+}
+
+PMS.renderPager(document.getElementById('aeFoot'), {
+  pageNum: 1, pageSize: 20, total: 28,
+  onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+});
+</script>
+</body>
+</html>

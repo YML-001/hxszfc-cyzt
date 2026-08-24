@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>二手房专区 · 统一服务门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  /* 二手房专区专属布局 */
+  .sh-main { display: grid; grid-template-columns: 1fr 296px; gap: 20px; align-items: start; }
+  .hr-flag {
+    position: absolute; left: 8px; top: 8px; background: rgba(22, 163, 74, .94); color: #fff;
+    font-size: 12px; padding: 2px 9px; border-radius: 3px;
+  }
+  .hr-flag.blue { background: rgba(38, 86, 187, .94); }
+  .hym-code { font-family: Menlo, Consolas, monospace; letter-spacing: .5px; }
+  .hr-src { font-size: 12px; color: var(--text-3); margin-top: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sh-side .card { margin-bottom: 16px; }
+  .sh-side .card:last-child { margin-bottom: 0; }
+  .side-link { display: flex; align-items: center; gap: 9px; padding: 9px 0; border-bottom: 1px dashed var(--row-line); font-size: 13.5px; color: var(--text-2); }
+  .side-link:last-child { border-bottom: 0; }
+  .side-link i { width: 18px; text-align: center; color: var(--primary); }
+  .side-link:hover { color: var(--primary); }
+  .vf-box { max-width: 640px; margin: 0 auto; }
+  .vf-in { display: flex; gap: 10px; }
+  .vf-in .input { height: 44px; font-size: 16px; letter-spacing: 1px; font-family: Menlo, Consolas, monospace; }
+  .st-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+  .adj-up { color: var(--accent); } .adj-down { color: var(--success); }
+</style>
+</head>
+<body data-nav="house">
+
+<div class="wrap">
+  <div class="crumb">
+    <a href="home.html">首页</a><i class="fa-solid fa-angle-right"></i>
+    <a href="house-market.html">房源超市</a><i class="fa-solid fa-angle-right"></i>二手房专区
+  </div>
+</div>
+
+<div class="wrap" style="padding-bottom:36px">
+
+  <div class="col-head">
+    <h2>二手房专区</h2><span class="ch-en">Second-hand House</span>
+    <span class="ch-more" style="cursor:default">存量房核验房源展示 · 挂牌与调价客观公示 · 核验码验真</span>
+  </div>
+
+  <div class="tabs" data-tabs data-scope="sh-box">
+    <a class="on" data-tab="sh-list" data-fp="wsmh-09-01"><i class="fa-solid fa-list-ul"></i> 核验房源</a>
+    <a data-tab="sh-stat" data-fp="wsmh-09-04"><i class="fa-solid fa-chart-column"></i> 挂牌与调价统计</a>
+    <a data-tab="sh-verify" data-fp="wsmh-09-02"><i class="fa-solid fa-shield-halved"></i> 核验码验真</a>
+  </div>
+
+  <div id="sh-box">
+
+    <!-- ============ Tab 1：核验房源（wsmh-09-01 / 09-03 / 09-05） ============ -->
+    <div class="tab-pane on" id="sh-list">
+
+      <div class="alert alert-success">
+        <i class="fa-solid fa-shield-halved"></i>
+        <span>本专区<b>只展示权属核验通过的存量房源</b>，每套房源均标注核验码、核验有效期、房源来源与委托机构。
+          核验有效期剩余 7 天内的房源标注「临期」，逾期自动下架；一律不展示权利人姓名、身份证号与联系方式，房号按规定截断。</span>
+      </div>
+
+      <div class="filter-panel" id="sh-filter"></div>
+      <div class="filter-chosen" id="filter-chosen"></div>
+
+      <div class="sort-bar">
+        <span class="text-3">排序：</span>
+        <a class="on" data-sort="default" data-fp="wsmh-09-01">默认</a>
+        <a data-sort="zj" data-fp="wsmh-09-01">总价 <i class="fa-solid fa-arrow-down-short-wide"></i></a>
+        <a data-sort="dj" data-fp="wsmh-09-01">单价 <i class="fa-solid fa-arrow-down-short-wide"></i></a>
+        <a data-sort="mj" data-fp="wsmh-09-01">面积 <i class="fa-solid fa-arrow-down-wide-short"></i></a>
+        <a data-sort="gx" data-fp="wsmh-09-01">最近更新</a>
+        <span class="sb-r">共 <b id="sh-total">0</b> 套核验房源　临期 <b id="sh-near">0</b> 套</span>
+      </div>
+
+      <div class="sh-main">
+        <div>
+          <div id="sh-rows"></div>
+          <div id="sh-pager"></div>
+        </div>
+
+        <div class="sh-side">
+          <div class="card">
+            <div class="card-head"><h3><i class="fa-solid fa-circle-info text-primary"></i> 房源状态说明</h3></div>
+            <div class="card-body" id="sh-dict" style="padding:12px 16px"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3><i class="fa-solid fa-hourglass-half text-warning"></i> 核验有效期提醒</h3></div>
+            <div class="card-body" id="sh-near-box" style="padding:14px 16px"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3><i class="fa-solid fa-ranking-star text-accent"></i> 小区挂牌量 TOP5</h3></div>
+            <div class="card-body" id="sh-top" style="padding:10px 16px 14px"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3><i class="fa-solid fa-link text-primary"></i> 相关服务</h3></div>
+            <div class="card-body" style="padding:6px 16px 12px">
+              <a class="side-link" href="house-search.html?lx=2" data-fp="wsmh-09-01"><i class="fa-solid fa-magnifying-glass"></i> 房源综合检索</a>
+              <a class="side-link" href="house-map.html?lx=2" data-fp="wsmh-09-01"><i class="fa-solid fa-map-location-dot"></i> 地图找房 / 小区找房</a>
+              <a class="side-link" href="listing-publish.html" data-fp="wsmh-14-01"><i class="fa-solid fa-upload"></i> 我要挂牌（个人自主发布）</a>
+              <a class="side-link" href="second-hand-apply.html" data-fp="wsmh-09-01"><i class="fa-solid fa-file-signature"></i> 二手房自助办理</a>
+              <a class="side-link" href="query-verify.html" data-fp="wsmh-09-02"><i class="fa-solid fa-qrcode"></i> 扫码验真与电子亮证</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Tab 2：挂牌与调价统计（wsmh-09-04） ============ -->
+    <div class="tab-pane" id="sh-stat">
+      <div class="alert alert-info">
+        <i class="fa-solid fa-circle-info"></i>
+        <span><b>本栏目只作客观呈现，不发布房价指数。</b>挂牌量、挂牌价区间与调价记录均按核验通过房源的挂牌信息统计，
+          挂牌价为业主报价，不代表成交价格，也不构成任何价格预期或投资建议。本站不设付费排序与广告位。</span>
+      </div>
+
+      <div class="st-grid">
+        <div class="card">
+          <div class="card-head"><h3><i class="fa-solid fa-location-dot text-primary"></i> 分区域挂牌情况</h3>
+            <span class="sub">按行政区统计</span></div>
+          <div class="card-body np">
+            <div class="table-wrap" style="border:0;border-radius:0">
+              <table class="pub-table">
+                <thead><tr><th>区域</th><th style="width:150px">挂牌量</th><th>挂牌单价区间（元/㎡）</th><th style="width:96px">调价房源</th></tr></thead>
+                <tbody id="st-qx-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3><i class="fa-solid fa-building text-primary"></i> 分小区挂牌情况</h3>
+            <div class="ca"><select class="select" id="st-qx" style="width:150px;height:30px;font-size:13px"></select></div>
+          </div>
+          <div class="card-body np">
+            <div class="table-wrap" style="border:0;border-radius:0;max-height:392px;overflow:auto">
+              <table class="pub-table">
+                <thead><tr><th>小区</th><th style="width:88px">区域</th><th style="width:76px">挂牌量</th><th>挂牌总价区间（万元）</th></tr></thead>
+                <tbody id="st-xq-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-16">
+        <div class="card-head"><h3><i class="fa-solid fa-arrow-right-arrow-left text-accent"></i> 挂牌调价记录公示</h3>
+          <span class="sub">仅记录挂牌报价的调整，不含成交价格</span></div>
+        <div class="card-body np">
+          <div class="table-wrap" style="border:0;border-radius:0">
+            <table class="pub-table">
+              <thead><tr><th>房源</th><th style="width:120px">小区</th><th style="width:88px">区域</th><th style="width:110px">调价日期</th>
+                <th style="width:120px">调整前（元/㎡）</th><th style="width:120px">调整后（元/㎡）</th><th style="width:110px">变动</th></tr></thead>
+              <tbody id="st-adj-body"></tbody>
+            </table>
+          </div>
+          <div class="table-note">调价记录来源于存量房交易网签备案管理系统的挂牌变更留痕，按房源核验码归集。本站不对挂牌价格作趋势解读，不发布房价指数。</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Tab 3：核验码验真（wsmh-09-02） ============ -->
+    <div class="tab-pane" id="sh-verify">
+      <div class="card">
+        <div class="card-body" style="padding:30px 24px">
+          <div class="vf-box">
+            <div class="center mb-16">
+              <div style="font-size:19px;font-weight:700">房源核验码验真</div>
+              <div class="text-3 text-sm mt-8">输入房源详情页或经纪门店公示的核验码，核验房源真实性、挂牌状态、委托机构与核验有效期。<br>
+                核验码形如 <b class="hym-code">LZ2H2026000000</b>，不区分大小写。</div>
+            </div>
+            <div class="vf-in">
+              <input class="input" id="vf-code" placeholder="请输入房源核验码" maxlength="24">
+              <button class="btn btn-primary btn-lg" style="flex:none" id="vf-btn" data-fp="wsmh-09-02"><i class="fa-solid fa-shield-halved"></i> 验真</button>
+            </div>
+            <div class="text-xs text-3 mt-8">演示提示：可点击下方任一示例核验码快速体验。</div>
+            <div class="flex gap-8 wrapf mt-8" id="vf-samples"></div>
+            <div id="vf-result" class="mt-20"></div>
+          </div>
+        </div>
+      </div>
+      <div class="alert alert-warning mt-16">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span>未核验房源不得对外发布。若您在其他渠道看到的房源无法验真，或核验信息与实际不符，请勿支付任何款项，
+          可通过<a href="complaint.html" data-fp="wsmh-09-02">咨询投诉</a>反映，核实成立后房源将被下架并记入机构信用记录。</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="src-note" data-fp="wsmh-15-03"></div>
+</div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+var SH_PAGE = 1, SH_SIZE = 6, SH_SORT = 'default', VF_LAST = '';
+
+function pageInit() {
+  buildFilter();
+  UI.syncChosen();
+  bindSort();
+  renderList();
+  renderSide();
+  renderStat();
+  bindVerify();
+  document.getElementById('src-note').innerHTML = UI.sourceNote();
+
+  var t = UI.param('tab');
+  if (t) { var a = document.querySelector('[data-tab="' + t + '"]'); if (a) a.click(); }
+  var code = UI.param('code');
+  if (code) {
+    var v = document.querySelector('[data-tab="sh-verify"]'); if (v) v.click();
+    document.getElementById('vf-code').value = code;
+    doVerify();
+  }
+  PORTAL.on(function () { renderList(); renderSide(); renderStat(); });
+}
+
+/* ---------------- 通用 ---------------- */
+function dayLeft(s) {
+  if (!s) return 999;
+  var t = new Date(String(s).replace(/-/g, '/') + ' 23:59:59').getTime();
+  return Math.ceil((t - Date.now()) / 86400000);
+}
+function lyBadge(h) {
+  var m = { '1': ['个人自主房源', 'blue'], '2': ['居间代理房源', 'purple'], '3': ['企业房源', 'cyan'] };
+  var x = m[h.ly] || ['其他来源', 'gray'];
+  return PORTAL.badge('<i class="fa-solid fa-tag"></i> ' + x[0], x[1]);
+}
+function cmpGet() {
+  try { var s = sessionStorage.getItem('wsmh.cmp.house'); return s ? s.split(',') : []; } catch (e) { return []; }
+}
+function cmpSet(a) { try { sessionStorage.setItem('wsmh.cmp.house', a.join(',')); } catch (e) { } }
+
+/* ---------------- 筛选 ---------------- */
+function buildFilter() {
+  var rows = [
+    ['sh-qx', '区域', [['不限', '']].concat(PDATA.QX.map(function (q) { return [q, q]; }))],
+    ['sh-zj', '总价', [['不限', ''], ['50 万以下', '0-50'], ['50-80 万', '50-80'], ['80-120 万', '80-120'],
+      ['120-200 万', '120-200'], ['200 万以上', '200-']]],
+    ['sh-mj', '面积', [['不限', ''], ['60㎡ 以下', '0-60'], ['60-90㎡', '60-90'], ['90-120㎡', '90-120'],
+      ['120-144㎡', '120-144'], ['144㎡ 以上', '144-']]],
+    ['sh-hx', '户型', [['不限', ''], ['1 室', '1室'], ['2 室', '2室'], ['3 室', '3室'], ['4 室', '4室']]],
+    ['sh-ly', '房源来源', [['不限', ''], ['个人自主', '1'], ['居间代理', '2'], ['企业房源', '3']]]
+  ];
+  document.getElementById('sh-filter').innerHTML = rows.map(function (r) {
+    return '<div class="filter-row" data-key="' + r[0] + '"><span class="fr-label">' + r[1] + '</span><span class="fr-opts">'
+      + r[2].map(function (o, i) {
+        return '<a class="' + (i === 0 ? 'on' : '') + '" data-v="' + o[1] + '" data-fp="wsmh-09-01">' + o[0] + '</a>';
+      }).join('') + '</span></div>';
+  }).join('');
+}
+window.onFilterChange = function () { SH_PAGE = 1; renderList(); };
+
+function bindSort() {
+  var bar = document.querySelector('.sort-bar');
+  bar.querySelectorAll('[data-sort]').forEach(function (a) {
+    a.onclick = function () {
+      bar.querySelectorAll('[data-sort]').forEach(function (x) { x.classList.remove('on'); });
+      a.classList.add('on'); SH_SORT = a.getAttribute('data-sort'); SH_PAGE = 1; renderList();
+    };
+  });
+}
+
+function rangeTo(f, v, kMin, kMax) {
+  if (!v) return;
+  var a = v.split('-');
+  if (a[0] !== '' && Number(a[0]) > 0) f[kMin] = Number(a[0]);
+  if (a[1] !== '' && a[1] !== undefined) f[kMax] = Number(a[1]);
+}
+
+function shQuery() {
+  var f = { lx: '2' };
+  var qx = UI.filterVal('sh-qx'); if (qx) f.qx = qx;
+  rangeTo(f, UI.filterVal('sh-zj'), 'zjMin', 'zjMax');
+  rangeTo(f, UI.filterVal('sh-mj'), 'mjMin', 'mjMax');
+  var hx = UI.filterVal('sh-hx'); if (hx) f.hx = hx;
+  var ly = UI.filterVal('sh-ly'); if (ly) f.ly = ly;
+  var arr = PORTAL.houses(f);
+  if (SH_SORT === 'zj') arr.sort(function (a, b) { return a.zj - b.zj; });
+  if (SH_SORT === 'dj') arr.sort(function (a, b) { return a.dj - b.dj; });
+  if (SH_SORT === 'mj') arr.sort(function (a, b) { return b.mj - a.mj; });
+  if (SH_SORT === 'gx') arr.sort(function (a, b) { return a.gxsj < b.gxsj ? 1 : -1; });
+  return arr;
+}
+
+/* ---------------- 房源列表 ---------------- */
+function renderList() {
+  var arr = shQuery();
+  var near = 0;
+  arr.forEach(function (h) { var d = dayLeft(h.hyyxq); if (d >= 0 && d <= 7) near++; });
+  document.getElementById('sh-total').innerHTML = arr.length;
+  document.getElementById('sh-near').innerHTML = near;
+
+  var box = document.getElementById('sh-rows');
+  if (!arr.length) {
+    box.innerHTML = UI.empty('没有符合条件的核验房源', '可以放宽筛选条件，或到房源综合检索按小区、关键词查找。',
+      '<a class="btn btn-primary" href="house-search.html?lx=2" data-fp="wsmh-09-01">去综合检索</a>');
+    document.getElementById('sh-pager').innerHTML = '';
+    return;
+  }
+  var start = (SH_PAGE - 1) * SH_SIZE;
+  box.innerHTML = arr.slice(start, start + SH_SIZE).map(rowHtml).join('');
+  UI.pager(document.getElementById('sh-pager'), arr.length, SH_PAGE, SH_SIZE, function (p) {
+    SH_PAGE = p; renderList(); window.scrollTo({ top: 260, behavior: 'smooth' });
+  });
+}
+
+function rowHtml(h) {
+  var d = dayLeft(h.hyyxq);
+  var yxq = d <= 7
+    ? '<span class="badge orange"><i class="fa-solid fa-hourglass-half"></i> 核验有效期 ' + h.hyyxq + ' · 临期（剩 ' + (d < 0 ? 0 : d) + ' 天）</span>'
+    : '<span class="badge line"><i class="fa-regular fa-clock"></i> 核验有效期 ' + h.hyyxq + '</span>';
+  var wt = h.wtjg
+    ? '<span class="badge gray"><i class="fa-solid fa-building-user"></i> 委托 ' + UI.esc(h.wtjg) + '</span>'
+      + (h.wtjjr ? '<span class="badge gray"><i class="fa-solid fa-user-tie"></i> 在册经纪人 ' + UI.esc(PORTAL.mask('name', h.wtjjr)) + '</span>' : '')
+    : '<span class="badge gray"><i class="fa-solid fa-user"></i> 权利人自主挂牌，无委托机构</span>';
+
+  return '<div class="house-row">'
+    + '<div class="hr-img"><img src="' + h.img + '" alt="' + UI.esc(h.xqmc) + '房源实景">'
+    + '<span class="hr-flag' + (h.fyzt === '2' ? ' blue' : '') + '"><i class="fa-solid fa-shield-halved"></i> ' + PORTAL.HOUSE_ST[h.fyzt].n + '</span></div>'
+    + '<div class="hr-body">'
+    + '<a class="hr-t" href="second-house-detail.html?id=' + h.id + '" data-fp="wsmh-09-01">' + UI.esc(h.bt) + '</a>'
+    + '<div class="hr-meta"><span>' + h.mj + '㎡</span><span>' + h.hx + '</span><span>' + h.cx + '</span>'
+    + '<span>' + h.zx + '</span><span>楼层 ' + h.lc + '</span><span>' + h.jcnd + ' 年建成</span></div>'
+    + '<div class="hr-addr"><i class="fa-solid fa-location-dot"></i> ' + h.qx + ' · ' + h.sq + ' · ' + UI.esc(h.xqmc) + ' · ' + h.fhMask + '</div>'
+    + '<div class="hr-tags">'
+    + '<span class="badge green"><i class="fa-solid fa-shield-halved"></i> 核验码 <b class="hym-code">' + h.hym + '</b></span>'
+    + yxq + lyBadge(h) + wt
+    + '</div>'
+    + '<div class="hr-src">数据来源：' + h.sjly + '　挂牌时间：' + h.gpsj + '　最近更新：' + h.gxsj + '</div>'
+    + '</div>'
+    + '<div class="hr-side">'
+    + '<div><div class="hr-price">' + h.zj + '<em> 万元</em></div>'
+    + '<div class="hr-unit">' + UI.money(h.dj, 0) + ' 元/㎡</div>'
+    + '<div class="text-xs text-3" style="margin-top:4px">备案（拟售）价格<br>实际成交以合同为准</div></div>'
+    + '<div class="hr-acts">'
+    + '<button class="btn btn-sm" onclick="shCmp(\'' + h.id + '\')" data-fp="wsmh-09-01"><i class="fa-solid fa-scale-balanced"></i> 对比</button>'
+    + '<button class="btn btn-sm" onclick="shFav(\'' + h.id + '\')" data-fp="wsmh-09-01"><i class="fa-regular fa-star"></i> 收藏</button>'
+    + '<a class="btn btn-sm btn-primary" href="second-house-detail.html?id=' + h.id + '" data-fp="wsmh-09-01">查看详情</a>'
+    + '</div></div></div>';
+}
+
+function shFav(id) {
+  if (!UI.needLogin('收藏房源')) return;
+  var r = PORTAL.act('house.fav', { hid: id });
+  if (r === 'exist') UI.toast('该房源已在收藏夹中，可在个人中心「我的收藏」查看', 'info');
+  else UI.toast('已收藏，可在个人中心「我的收藏」查看与取消', 'success');
+}
+function shCmp(id) {
+  var ids = cmpGet();
+  if (ids.indexOf(id) >= 0) { UI.toast('该房源已在对比栏中', 'info'); return; }
+  if (ids.length >= 4) { UI.toast('最多同时对比 4 套房源，请先到对比页移除部分房源', 'warning'); return; }
+  ids.push(id); cmpSet(ids);
+  if (ids.length >= 2) {
+    UI.confirm('已加入对比', '对比栏已有 <b>' + ids.length + '</b> 套房源，可按面积、户型、单价、核验状态横向对比。是否立即查看？',
+      function () { UI.go('web/house-compare.html', { ids: ids.join(',') }); }, '查看对比');
+  } else {
+    UI.toast('已加入对比栏，再选 1 套即可横向对比', 'success');
+  }
+}
+
+/* ---------------- 侧栏 ---------------- */
+function renderSide() {
+  var st = PORTAL.HOUSE_ST;
+  document.getElementById('sh-dict').innerHTML = ['1', '2', '3', '4', '5'].map(function (k) {
+    var txt = { '1': '权属核验通过，已生成核验码，可对外展示', '2': '已有看房预约，仍可继续预约与咨询',
+      '3': '已完成网签成交，自动停止对外展示', '4': '权利人或机构主动下架，不再展示',
+      '5': '核验有效期届满未续期，自动停止展示' };
+    return '<div class="flex items-center gap-8" style="padding:5px 0">' + PORTAL.badge(st[k].n, st[k].c)
+      + '<span class="text-xs text-3">' + txt[k] + '</span></div>';
+  }).join('');
+
+  var all = PORTAL.houses({ lx: '2' });
+  var near = all.filter(function (h) { var d = dayLeft(h.hyyxq); return d >= 0 && d <= 7; });
+  var box = document.getElementById('sh-near-box');
+  box.innerHTML = near.length
+    ? '<div class="text-sm">当前有 <b class="text-accent">' + near.length + '</b> 套房源核验有效期不足 7 天，已标注「临期」。'
+      + '逾期未续期的房源将自动停止对外展示。</div>'
+      + near.slice(0, 3).map(function (h) {
+        return '<div class="flex items-center gap-8" style="padding:7px 0;border-bottom:1px dashed var(--row-line)">'
+          + '<a class="flex-1 text-sm" href="second-house-detail.html?id=' + h.id + '" data-fp="wsmh-09-05">' + UI.esc(h.bt) + '</a>'
+          + '<span class="badge orange nowrap">' + dayLeft(h.hyyxq) + ' 天</span></div>';
+      }).join('')
+      + '<a class="btn btn-sm btn-ghost btn-block mt-12" href="../person/my-listing.html" data-fp="wsmh-09-05"><i class="fa-solid fa-rotate-right"></i> 我的房源与挂牌（去续期）</a>'
+    : '<div class="text-sm text-3">当前没有临期房源。核验有效期为 90 天，可在「我的房源与挂牌」提前续期。</div>'
+      + '<a class="btn btn-sm btn-ghost btn-block mt-12" href="../person/my-listing.html" data-fp="wsmh-09-05">我的房源与挂牌</a>';
+
+  var cnt = {};
+  all.forEach(function (h) { cnt[h.xqmc] = (cnt[h.xqmc] || 0) + 1; });
+  var arr = [];
+  for (var k in cnt) arr.push([k, cnt[k]]);
+  arr.sort(function (a, b) { return b[1] - a[1]; });
+  arr = arr.slice(0, 5);
+  var max = arr.length ? arr[0][1] : 1;
+  document.getElementById('sh-top').innerHTML = arr.map(function (x) {
+    return '<div class="mini-bar"><span class="mb-l">' + UI.esc(x[0]) + '</span>'
+      + '<div class="mb-t"><div class="mb-f" style="width:' + (x[1] / max * 100) + '%"></div></div>'
+      + '<span class="mb-v">' + x[1] + ' 套</span></div>';
+  }).join('') + '<div class="text-xs text-3 mt-8">仅统计核验通过并在展示期内的挂牌房源。</div>';
+}
+
+/* ---------------- 挂牌与调价统计（wsmh-09-04） ---------------- */
+function renderStat() {
+  var all = PORTAL.houses({ lx: '2' });
+
+  var byQx = {};
+  all.forEach(function (h) {
+    var g = byQx[h.qx] || (byQx[h.qx] = { n: 0, min: 1e9, max: 0, adj: 0 });
+    g.n++; g.min = Math.min(g.min, h.dj); g.max = Math.max(g.max, h.dj);
+    if (h.tjjl && h.tjjl.length) g.adj++;
+  });
+  var qxArr = [];
+  for (var q in byQx) qxArr.push([q, byQx[q]]);
+  qxArr.sort(function (a, b) { return b[1].n - a[1].n; });
+  var qMax = qxArr.length ? qxArr[0][1].n : 1;
+  document.getElementById('st-qx-body').innerHTML = qxArr.map(function (x) {
+    return '<tr><td class="strong">' + x[0] + '</td>'
+      + '<td><div class="mini-bar" style="padding:0"><div class="mb-t"><div class="mb-f" style="width:'
+      + (x[1].n / qMax * 100) + '%"></div></div><span class="mb-v">' + x[1].n + ' 套</span></div></td>'
+      + '<td class="num">' + UI.money(x[1].min, 0) + ' - ' + UI.money(x[1].max, 0) + '</td>'
+      + '<td class="num">' + x[1].adj + ' 套</td></tr>';
+  }).join('') || '<tr><td colspan="4" class="center text-3">暂无挂牌房源</td></tr>';
+
+  var sel = document.getElementById('st-qx');
+  if (!sel.options.length) {
+    sel.innerHTML = '<option value="">全部区域</option>' + PDATA.QX.map(function (q) {
+      return '<option value="' + q + '">' + q + '</option>';
+    }).join('');
+    sel.onchange = renderStatXq;
+  }
+  renderStatXq();
+
+  var adj = [];
+  all.forEach(function (h) {
+    (h.tjjl || []).forEach(function (t) { adj.push({ h: h, t: t }); });
+  });
+  adj.sort(function (a, b) { return a.t.d < b.t.d ? 1 : -1; });
+  document.getElementById('st-adj-body').innerHTML = adj.map(function (x) {
+    var diff = x.t.n - x.t.o;
+    return '<tr><td class="strong"><a href="second-house-detail.html?id=' + x.h.id + '" data-fp="wsmh-09-04">' + UI.esc(x.h.bt) + '</a></td>'
+      + '<td>' + UI.esc(x.h.xqmc) + '</td><td>' + x.h.qx + '</td><td>' + x.t.d + '</td>'
+      + '<td class="num">' + UI.money(x.t.o, 0) + '</td><td class="num">' + UI.money(x.t.n, 0) + '</td>'
+      + '<td class="num ' + (diff >= 0 ? 'adj-up' : 'adj-down') + '">' + (diff >= 0 ? '+' : '') + UI.money(diff, 0) + '</td></tr>';
+  }).join('') || '<tr><td colspan="7" class="center text-3">当前统计周期内暂无挂牌调价记录</td></tr>';
+}
+
+function renderStatXq() {
+  var qx = document.getElementById('st-qx').value;
+  var all = PORTAL.houses(qx ? { lx: '2', qx: qx } : { lx: '2' });
+  var by = {};
+  all.forEach(function (h) {
+    var g = by[h.xqmc] || (by[h.xqmc] = { qx: h.qx, n: 0, min: 1e9, max: 0 });
+    g.n++; g.min = Math.min(g.min, h.zj); g.max = Math.max(g.max, h.zj);
+  });
+  var arr = [];
+  for (var k in by) arr.push([k, by[k]]);
+  arr.sort(function (a, b) { return b[1].n - a[1].n; });
+  document.getElementById('st-xq-body').innerHTML = arr.map(function (x) {
+    return '<tr><td class="strong"><a href="house-map.html?xq=' + encodeURIComponent(x[0]) + '" data-fp="wsmh-09-04">' + UI.esc(x[0]) + '</a></td>'
+      + '<td>' + x[1].qx + '</td><td class="num">' + x[1].n + '</td>'
+      + '<td class="num">' + x[1].min + ' - ' + x[1].max + '</td></tr>';
+  }).join('') || '<tr><td colspan="4" class="center text-3">该区域暂无挂牌房源</td></tr>';
+}
+
+/* ---------------- 核验码验真（wsmh-09-02） ---------------- */
+function bindVerify() {
+  document.getElementById('vf-btn').onclick = doVerify;
+  document.getElementById('vf-code').onkeydown = function (e) { if (e.key === 'Enter') doVerify(); };
+  var s = PORTAL.houses({ lx: '2' }).slice(0, 2).concat(PORTAL.houses({ lx: '3' }).slice(0, 1));
+  document.getElementById('vf-samples').innerHTML = s.map(function (h) {
+    return '<button class="btn btn-sm" onclick="vfFill(\'' + h.hym + '\')" data-fp="wsmh-09-02">' + h.hym + '</button>';
+  }).join('') + '<button class="btn btn-sm" onclick="vfFill(\'LZ2H0000000000\')" data-fp="wsmh-09-02">错误示例 LZ2H0000000000</button>';
+}
+function vfFill(c) { document.getElementById('vf-code').value = c; doVerify(); }
+
+function doVerify() {
+  var code = String(document.getElementById('vf-code').value || '').trim().toUpperCase();
+  var box = document.getElementById('vf-result');
+  if (!code) { UI.toast('请输入房源核验码', 'warning'); return; }
+  VF_LAST = code;
+  var hit = PORTAL.houses({ all: 1 }).filter(function (h) { return String(h.hym).toUpperCase() === code; })[0];
+  if (!hit) {
+    box.innerHTML = '<div class="alert alert-danger" style="margin-bottom:12px"><i class="fa-solid fa-circle-xmark"></i>'
+      + '<span><b>未查询到该核验码。</b>请核对是否输入有误。若确认核验码来自房源广告或经纪门店公示，'
+      + '该房源可能未经核验或核验码为伪造，请勿支付定金、意向金等任何款项。</span></div>'
+      + '<button class="btn btn-accent" onclick="vfReport()" data-fp="wsmh-09-02"><i class="fa-solid fa-flag"></i> 举报该核验码</button>'
+      + '<a class="btn" href="complaint.html" style="margin-left:10px" data-fp="wsmh-09-02">去咨询投诉</a>';
+    UI.toast('未查询到该核验码', 'error');
+    return;
+  }
+  var st = PORTAL.HOUSE_ST[hit.fyzt];
+  var d = dayLeft(hit.hyyxq);
+  var pub = st.pub ? '<span class="badge green">对外展示中</span>' : '<span class="badge gray">已停止对外展示</span>';
+  box.innerHTML = '<div class="alert alert-success" style="margin-bottom:12px"><i class="fa-solid fa-circle-check"></i>'
+    + '<span><b>核验码有效，该房源为平台核验通过房源。</b>' + (d < 0 ? '注意：核验有效期已于 ' + hit.hyyxq + ' 届满。' : '') + '</span></div>'
+    + '<div class="desc-list"><dl>'
+    + '<dt>核验码</dt><dd><b class="hym-code">' + hit.hym + '</b></dd>'
+    + '<dt>房源</dt><dd>' + UI.esc(hit.bt) + '（' + hit.qx + ' · ' + UI.esc(hit.xqmc) + ' · ' + hit.fhMask + '）</dd>'
+    + '<dt>挂牌状态</dt><dd>' + PORTAL.houseBadge(hit) + ' ' + pub + '</dd>'
+    + '<dt>房源来源</dt><dd>' + hit.lymc + '</dd>'
+    + '<dt>委托机构</dt><dd>' + (hit.wtjg ? UI.esc(hit.wtjg) + (hit.wtjjr ? '　在册经纪人 ' + UI.esc(PORTAL.mask('name', hit.wtjjr)) : '') : '权利人自主挂牌，无委托机构') + '</dd>'
+    + '<dt>核验有效期</dt><dd>' + hit.hyyxq + (d >= 0 && d <= 7 ? ' <span class="badge orange">临期，剩 ' + d + ' 天</span>' : (d < 0 ? ' <span class="badge red">已过期</span>' : '')) + '</dd>'
+    + '<dt>挂牌价格</dt><dd>' + (hit.lx === '3' ? UI.money(hit.zj, 0) + ' 元/月' : hit.zj + ' 万元（' + UI.money(hit.dj, 0) + ' 元/㎡）')
+    + '<span class="text-3 text-xs">　备案（拟售）价格，实际成交以合同为准</span></dd>'
+    + '<dt>数据来源</dt><dd>' + hit.sjly + '　最近更新 ' + hit.gxsj + '</dd>'
+    + '</dl></div>'
+    + '<div class="mt-12">'
+    + '<a class="btn btn-primary" href="' + (hit.lx === '3' ? 'rent-house.html?id=' : 'second-house-detail.html?id=') + hit.id + '" data-fp="wsmh-09-02">查看房源详情</a>'
+    + '<a class="btn" style="margin-left:10px" href="query-verify.html" data-fp="wsmh-09-02">到查询中心扫码验真</a>'
+    + '</div>';
+  UI.toast('核验通过：' + hit.bt, 'success');
+}
+
+function vfReport() {
+  if (!UI.needLogin('举报虚假核验码')) return;
+  var code = VF_LAST;
+  UI.drawer('<i class="fa-solid fa-flag text-accent"></i> 举报虚假核验码',
+    '<div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation"></i>'
+    + '<span>请填写您看到该核验码的渠道与情况，核实成立后将依法处理并记入相关机构信用记录。</span></div>'
+    + '<div class="form-grid c1">'
+    + '<div class="form-item"><label>被举报核验码</label><input class="input" id="rp-code" value="' + UI.esc(code) + '" readonly></div>'
+    + '<div class="form-item"><label><span class="req">*</span>发现渠道</label>'
+    + '<select class="select" id="rp-way"><option>经纪门店橱窗公示</option><option>网络平台房源广告</option><option>短信或社交软件推送</option><option>纸质传单</option><option>其他</option></select></div>'
+    + '<div class="form-item"><label><span class="req">*</span>情况说明</label>'
+    + '<textarea class="textarea" id="rp-desc" placeholder="请说明房源信息、发布方名称与您核对到的问题"></textarea></div>'
+    + '<div class="form-item"><label>联系电话（选填）</label><input class="input" id="rp-tel" placeholder="便于回访核实，展示时将自动脱敏"></div>'
+    + '</div>',
+    '<button class="btn" data-act="close-drawer">取消</button><button class="btn btn-accent" id="rp-ok" data-fp="wsmh-09-02">提交举报</button>');
+  document.getElementById('rp-ok').onclick = function () {
+    var desc = document.getElementById('rp-desc').value.trim();
+    if (!desc) { UI.toast('请填写情况说明', 'warning'); return; }
+    var c = PORTAL.act('complaint.add', {
+      lb: '房源信息', bt: '疑似虚假房源核验码举报', dx: '核验码 ' + code, qx: '柳州市本级',
+      desc: '发现渠道：' + document.getElementById('rp-way').value + '。' + desc,
+      lxr: UI.user().name, tel: document.getElementById('rp-tel').value
+    });
+    UI.closeDrawer();
+    UI.toast('举报已受理，编号 ' + c.bh + '，承办单位' + c.dept + '，承诺 10 个工作日内反馈', 'success');
+  };
+}
+</script>
+</body>
+</html>

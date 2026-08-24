@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>查档受理与出证 · 房屋交易备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：资格核验面板、A4 证明版式、电子签章与二维码占位 */
+  .wz-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .radio-line { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; min-height: 32px; }
+  .radio-line label { font-size: 14px; color: var(--text-2); font-weight: 400; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+
+  .qz-panel { border-radius: var(--radius-lg); padding: 15px 18px; border: 1px solid; margin-top: 4px; }
+  .qz-panel.ok { border-color: var(--success); background: var(--success-light); }
+  .qz-panel.no { border-color: var(--danger); background: var(--danger-light); }
+  .qz-panel .qh { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 800; }
+  .qz-panel.ok .qh { color: #047857; }
+  .qz-panel.no .qh { color: #b91c1c; }
+  .qz-panel .qd { font-size: 13px; color: var(--text-2); margin-top: 6px; line-height: 1.6; }
+  .qz-items { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 12px; }
+  @media (max-width: 900px) { .qz-items { grid-template-columns: 1fr; } }
+  .qz-items .qi {
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 13px;
+    display: flex; align-items: flex-start; gap: 9px; font-size: 13px;
+  }
+  .qz-items .qi i { margin-top: 2px; }
+  .qz-items .qi .qt { font-weight: 600; }
+  .qz-items .qi .qs { font-size: 12.5px; color: var(--text-3); margin-top: 2px; }
+
+  .sum-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media (max-width: 1000px) { .sum-grid { grid-template-columns: repeat(2, 1fr); } }
+  .sum-grid .sc {
+    border: 1px solid var(--border); border-radius: var(--radius); background: #fff; padding: 13px 15px; text-align: center;
+  }
+  .sum-grid .sc .sl { font-size: 12.5px; color: var(--text-3); }
+  .sum-grid .sc .sv { font-size: 20px; font-weight: 800; margin-top: 4px; }
+
+  /* A4 证明版式 */
+  .a4 {
+    width: 794px; max-width: 100%; margin: 0 auto; background: #fff; border: 1px solid var(--border);
+    border-radius: 4px; box-shadow: var(--shadow-sm); padding: 46px 56px 130px; position: relative; color: #1f2733;
+  }
+  .a4 .a4-org { text-align: center; font-size: 15px; letter-spacing: 6px; color: var(--text-2); }
+  .a4 .a4-title { text-align: center; font-size: 25px; font-weight: 800; letter-spacing: 3px; margin-top: 14px; }
+  .a4 .a4-no { text-align: center; font-size: 13.5px; color: var(--text-2); margin-top: 10px; }
+  .a4 .a4-hr { height: 2px; background: #b91c1c; margin: 16px 0 22px; }
+  .a4 .a4-p { font-size: 14.5px; line-height: 2.1; text-indent: 2em; }
+  .a4 table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  .a4 table th, .a4 table td { border: 1px solid #b9c2d0; padding: 7px 9px; text-align: left; }
+  .a4 table th { background: #f2f5fa; font-weight: 600; }
+  .a4 .a4-note { font-size: 12.5px; color: var(--text-3); line-height: 1.9; margin-top: 14px; }
+  .a4 .a4-sign { margin-top: 26px; text-align: right; font-size: 14.5px; line-height: 2; position: relative; }
+  .a4 .seal {
+    position: absolute; right: 62px; bottom: 18px; width: 128px; height: 128px; border-radius: 50%;
+    border: 3px solid #c81e1e; color: #c81e1e; display: flex; align-items: center; justify-content: center;
+    text-align: center; font-size: 12.5px; font-weight: 700; line-height: 1.5; transform: rotate(-14deg); opacity: .82;
+  }
+  .a4 .qr { position: absolute; left: 56px; bottom: 30px; text-align: center; }
+  .a4 .qr .qr-box {
+    width: 92px; height: 92px; display: grid; grid-template-columns: repeat(11, 1fr); grid-template-rows: repeat(11, 1fr);
+    border: 4px solid #fff; outline: 1px solid #d7dceb;
+  }
+  .a4 .qr .qr-box span { background: #0f172a; }
+  .a4 .qr .qr-t { font-size: 11px; color: var(--text-3); margin-top: 4px; }
+
+  .ok-bar {
+    display: flex; align-items: center; gap: 12px; background: var(--success-light); border: 1px solid var(--success);
+    border-radius: var(--radius); padding: 13px 16px; margin-bottom: 14px;
+  }
+  .ok-bar .oi { width: 32px; height: 32px; border-radius: 50%; background: var(--success); color: #fff; display: flex; align-items: center; justify-content: center; }
+  .ok-bar .ot { font-size: 14px; font-weight: 700; color: #047857; }
+  .ok-bar .od { font-size: 12.5px; color: var(--text-2); margin-top: 2px; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdwb-21">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易备案管理系统
+        <span class="sep">/</span> <a class="link" href="archive-list.html">查档申请台账</a>
+        <span class="sep">/</span> <span class="cur">查档受理与出证</span>
+      </div>
+      <div class="page-title">查档受理与出证 · CD202607310186</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="PMS.toast('受理草稿已保存','success')"><i class="fa-regular fa-floppy-disk"></i> 保存草稿</button>
+      <button type="button" class="btn" onclick="location.href='archive-list.html'"><i class="fa-solid fa-arrow-left"></i> 返回台账</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <div class="wizard" id="wz">
+        <div class="w-step active" data-step="1"><span class="w-num">1</span><span class="w-label">申请与资格核验</span></div>
+        <div class="w-line"></div>
+        <div class="w-step" data-step="2"><span class="w-num">2</span><span class="w-label">查询结果确认</span></div>
+        <div class="w-line"></div>
+        <div class="w-step" data-step="3"><span class="w-num">3</span><span class="w-label">出证与领取</span></div>
+      </div>
+
+      <!-- 第 1 步 -->
+      <div class="wz-panel active" data-panel="1">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-id-card"></i>
+          <div>查档须核验申请人法定查询资格：本人凭实名认证即可查询；代理人、律师、公检法、公证处、银行须提供相应法定依据。
+            <b>无资格的一律拦截</b>，不得出具他人房屋信息证明。</div>
+        </div>
+
+        <div class="section-title mt-16">申请人信息</div>
+        <div class="form-grid form-align">
+          <div class="form-item">
+            <label>申请人类型<span class="req">*</span></label>
+            <select id="sqrType" onchange="renderQz()">
+              <option value="0" selected>0 本人</option>
+              <option value="1">1 委托代理人</option>
+              <option value="2">2 律师</option>
+              <option value="3">3 公检法</option>
+              <option value="4">4 公证处</option>
+              <option value="5">5 银行</option>
+            </select>
+          </div>
+          <div class="form-item"><label>申请人姓名<span class="req">*</span></label><input type="text" value="陈**"></div>
+          <div class="form-item"><label>证件类型<span class="req">*</span></label><select><option>居民身份证</option><option>护照</option><option>港澳台居民居住证</option></select></div>
+          <div class="form-item"><label>证件号码<span class="req">*</span></label><input type="text" value="450***********2841"></div>
+          <div class="form-item"><label>联系电话<span class="req">*</span></label><input type="text" value="138****6215"></div>
+          <div class="form-item">
+            <label>申请渠道<span class="req">*</span></label>
+            <select><option>1 门户</option><option>0 窗口</option><option>2 小程序</option><option>3 自助终端</option><option>4 银行网点</option><option>5 部门共享</option></select>
+          </div>
+        </div>
+
+        <div class="section-title mt-16" style="margin-top:18px">资格核验</div>
+        <div id="qzWrap"></div>
+        <div class="form-grid form-align mt-16" id="qzForm"></div>
+
+        <div class="section-title mt-16" style="margin-top:18px">查档要素</div>
+        <div class="form-grid form-align">
+          <div class="form-item">
+            <label>查档类型<span class="req">*</span></label>
+            <select>
+              <option>01 个人住房情况查询证明</option>
+              <option selected>02 家庭住房套数证明</option>
+              <option>03 房屋交易备案信息查询证明</option>
+              <option>04 合同备案证明</option>
+              <option>05 租赁备案证明</option>
+              <option>06 抵押备案证明</option>
+              <option>07 房屋权属状况证明</option>
+              <option>08 购房资格核验证明</option>
+              <option>09 房屋交易历史记录查询</option>
+              <option>99 其他证明</option>
+            </select>
+          </div>
+          <div class="form-item">
+            <label>查档用途<span class="req">*</span></label>
+            <select><option selected>0 买房资格</option><option>1 贷款</option><option>2 诉讼</option><option>3 公证</option><option>4 继承</option><option>5 落户</option><option>6 其他</option></select>
+          </div>
+          <div class="form-item">
+            <label>查询范围<span class="req">*</span></label>
+            <select id="scope" onchange="toggleScope()"><option value="0" selected>0 全市</option><option value="1">1 指定区县</option><option value="2">2 指定房屋</option></select>
+          </div>
+          <div class="form-item hidden" id="scopeArea">
+            <label>指定区县</label>
+            <select><option>城中区</option><option>鱼峰区</option><option>柳南区</option><option>柳北区</option><option>柳江区</option></select>
+          </div>
+          <div class="form-item hidden" id="scopeHouse">
+            <label>指定房屋</label>
+            <input type="text" placeholder="不动产单元号或坐落">
+          </div>
+          <div class="form-item"><label>查询时间范围起</label><input type="date"></div>
+          <div class="form-item"><label>查询时间范围止</label><input type="date"></div>
+          <div class="form-item"><label>被查询人<span class="req">*</span></label><input type="text" value="陈**（本人及家庭成员）"></div>
+          <div class="form-item"><label>被查询人证件号码<span class="req">*</span></label><input type="text" value="450***********2841"></div>
+        </div>
+
+        <div class="section-title mt-16" style="margin-top:18px">申请材料</div>
+        <table class="data-table compact" data-static>
+          <thead><tr><th>材料名称</th><th>必要性</th><th>上传状态</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr><td>申请人身份证件</td><td><span class="badge red">必要</span></td><td><span class="badge green">已上传</span></td><td><span class="link" onclick="PMS.toast('预览：身份证正反面.jpg')">预览</span> <span class="link" onclick="PMS.toast('已打开上传窗口')">重新上传</span></td></tr>
+            <tr><td>查档申请表</td><td><span class="badge red">必要</span></td><td><span class="badge green">已上传</span></td><td><span class="link" onclick="PMS.toast('预览：查档申请表 CD202607310186.pdf')">预览</span> <span class="link" onclick="PMS.toast('已打开上传窗口')">重新上传</span></td></tr>
+            <tr><td>家庭成员关系证明</td><td><span class="badge gray">可选</span></td><td><span class="badge green">公安库核验替代</span></td><td><span class="link" onclick="PMS.toast('已通过公安人口库核验，无需上传')">查看核验结果</span></td></tr>
+            <tr><td>法定查询依据（委托书 / 办案函 / 公函）</td><td><span class="badge gray">按申请人类型</span></td><td><span class="badge gray">本人查询免于提供</span></td><td><span class="link" onclick="PMS.toast('已打开上传窗口')">上传</span></td></tr>
+          </tbody>
+        </table>
+
+        <div class="wz-foot">
+          <button type="button" class="btn" disabled>上一步</button>
+          <button type="button" class="btn btn-primary" id="btnNext1" onclick="goto(2)">下一步：检索备案簿</button>
+        </div>
+      </div>
+
+      <!-- 第 2 步 -->
+      <div class="wz-panel" data-panel="2">
+        <div class="alert alert-success">
+          <i class="fa-solid fa-database"></i>
+          <div>本结果基于<b>房屋交易备案簿</b>实时生成，共检索 3 条备案簿记录，覆盖商品房网签、存量房网签、抵押与租赁全流程记事。
+            <a class="link" href="archive-book.html">查看备案簿</a></div>
+        </div>
+
+        <div class="section-title mt-16">结果概要</div>
+        <div class="sum-grid">
+          <div class="sc"><div class="sl">查询结果</div><div class="sv text-success">有房</div></div>
+          <div class="sc"><div class="sl">房屋套数</div><div class="sv">2 套</div></div>
+          <div class="sc"><div class="sl">总建筑面积</div><div class="sv">186.42 ㎡</div></div>
+          <div class="sc"><div class="sl">查询范围</div><div class="sv" style="font-size:15px">全市 · 不限时间</div></div>
+        </div>
+
+        <div class="section-title mt-16" style="margin-top:18px">结果明细</div>
+        <table class="data-table compact" data-static>
+          <thead>
+            <tr>
+              <th>房屋坐落</th><th>不动产单元号</th><th>产权证号</th><th>房屋类型</th>
+              <th>建筑面积</th><th>取得方式</th><th>取得时间</th><th>当前状态</th><th>限制情形摘要</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>彰泰滨江学府 12-2-1802</td>
+              <td class="nowrap">450202001005GB00123F00020017</td>
+              <td class="nowrap">桂(2023)柳州市不动产权第 0086421 号</td>
+              <td class="nowrap">成套住宅</td>
+              <td class="num nowrap">118.65 ㎡</td>
+              <td class="nowrap">商品房买卖</td>
+              <td class="nowrap">2023-03-12</td>
+              <td class="nowrap"><span class="badge orange">有条件可交易</span></td>
+              <td>抵押 2 笔 · 存量房网签未办结 · 限售已届满</td>
+            </tr>
+            <tr>
+              <td>桂中海279 8-1-501</td>
+              <td class="nowrap">450202001005GB00092F00010008</td>
+              <td class="nowrap">桂(2019)柳州市不动产权第 0031885 号</td>
+              <td class="nowrap">成套住宅</td>
+              <td class="num nowrap">67.77 ㎡</td>
+              <td class="nowrap">存量房买卖</td>
+              <td class="nowrap">2019-08-06</td>
+              <td class="nowrap"><span class="badge green">可交易</span></td>
+              <td>无限制</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="alert alert-info mt-16">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>按柳州市限购规则 XG001（市区户籍家庭限购 2 套），申请人家庭名下已有 <b>2 套</b>，已达上限，购房资格核验结论为 <b>不具备新增购房资格</b>。该结论将随证明一并出具。</div>
+        </div>
+
+        <div class="wz-foot">
+          <button type="button" class="btn" onclick="goto(1)">上一步</button>
+          <button type="button" class="btn" onclick="PMS.toast('结果异常已标记，将转人工复核')">标记结果异常</button>
+          <button type="button" class="btn btn-primary" onclick="goto(3)">下一步：出证</button>
+        </div>
+      </div>
+
+      <!-- 第 3 步 -->
+      <div class="wz-panel" data-panel="3">
+        <div class="ok-bar hidden" id="okBar">
+          <span class="oi"><i class="fa-solid fa-check"></i></span>
+          <div>
+            <div class="ot">证明已生成并完成电子签章，验证码 A7K2-9M4X</div>
+            <div class="od">可通过扫描二维码或在市住建局门户输入验证码验真，有效期至 2026-08-30；本次查档已完成留痕记录，
+              <a class="link" href="archive-audit.html">查看审计留痕</a></div>
+          </div>
+        </div>
+
+        <div class="section-title">出证要素</div>
+        <div class="form-grid form-align">
+          <div class="form-item"><label>证明类型<span class="req">*</span></label><input type="text" value="02 家庭住房套数证明" readonly></div>
+          <div class="form-item"><label>证明编号</label><input type="text" value="柳房查字〔2026〕第 001286 号" readonly></div>
+          <div class="form-item"><label>出证日期</label><input type="text" value="2026-08-01" readonly></div>
+          <div class="form-item"><label>证明有效期止<span class="req">*</span></label><input type="date" value="2026-08-30"></div>
+          <div class="form-item" style="grid-column:span 2">
+            <label>领取方式<span class="req">*</span></label>
+            <div class="radio-line">
+              <label><input type="radio" name="lqfs" onchange="togglePost(0)"> 窗口领取</label>
+              <label><input type="radio" name="lqfs" onchange="togglePost(1)"> 邮寄</label>
+              <label><input type="radio" name="lqfs" checked onchange="togglePost(0)"> 电子证照</label>
+              <label><input type="radio" name="lqfs" onchange="togglePost(0)"> 自助打印</label>
+            </div>
+          </div>
+          <div class="form-item hidden" style="grid-column:span 2" id="postBox">
+            <label>邮寄地址<span class="req">*</span></label>
+            <input type="text" placeholder="收件人、联系电话与详细地址">
+          </div>
+        </div>
+
+        <div class="section-title mt-16" style="margin-top:18px">证明正文预览</div>
+        <div class="a4">
+          <div class="a4-org">XXXX市住房和城乡建设局</div>
+          <div class="a4-title">房屋交易备案信息查询证明</div>
+          <div class="a4-no">柳房查字〔2026〕第 001286 号</div>
+          <div class="a4-hr"></div>
+          <p class="a4-p">兹有陈**（身份证号：450***********2841）于二〇二六年八月一日申请查询其家庭在柳州市范围内的住房情况。经检索XXXX市房屋交易备案簿，截至本证明出具之日，该家庭在本市登记在册的住房情况如下：</p>
+          <table>
+            <thead>
+              <tr><th style="width:32%">房屋坐落</th><th>产权证号</th><th style="width:14%">建筑面积</th><th style="width:14%">取得时间</th><th style="width:16%">当前状态</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>柳州市城中区彰泰滨江学府 12 栋 2 单元 1802</td><td>桂(2023)柳州市不动产权第 0086421 号</td><td>118.65 ㎡</td><td>2023-03-12</td><td>有条件可交易</td></tr>
+              <tr><td>柳州市城中区桂中海279 8 栋 1 单元 501</td><td>桂(2019)柳州市不动产权第 0031885 号</td><td>67.77 ㎡</td><td>2019-08-06</td><td>可交易</td></tr>
+            </tbody>
+          </table>
+          <p class="a4-p">合计住房 2 套，建筑面积合计 186.42 平方米。按现行限购政策，该家庭在本市市区已达限购套数上限。</p>
+          <div class="a4-note">
+            说明：<br>
+            1. 本证明信息来源于XXXX市房屋交易备案簿，仅反映本机构备案登记的房屋交易信息，不含不动产登记机构单独登记而未在本机构备案的情形。<br>
+            2. 本证明自出具之日起 30 日内有效，涂改无效。<br>
+            3. 可扫描左下角二维码或登录XXXX市住房和城乡建设局门户输入验证码 A7K2-9M4X 验真。
+          </div>
+          <div class="a4-sign">
+            XXXX市住房和城乡建设局<br>
+            二〇二六年八月一日
+            <div class="seal">XXXX市住房和城乡建设局<br>房屋交易备案专用章</div>
+          </div>
+          <div class="qr">
+            <div class="qr-box" id="qrBox"></div>
+            <div class="qr-t">扫码验真</div>
+          </div>
+        </div>
+
+        <div class="wz-foot">
+          <button type="button" class="btn" onclick="goto(2)">上一步</button>
+          <button type="button" class="btn" onclick="PMS.toast('打印预览已打开')"><i class="fa-solid fa-print"></i> 打印预览</button>
+          <button type="button" class="btn" onclick="PMS.toast('证明 PDF 已生成，正在下载','success')"><i class="fa-solid fa-file-pdf"></i> 下载 PDF</button>
+          <button type="button" class="btn btn-primary" onclick="doIssue()"><i class="fa-solid fa-stamp"></i> 生成证明并签章</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+/* 不同申请人类型对应不同法定查询依据，本人默认已通过实名认证 */
+var QZ = {
+  '0': {
+    ok: true,
+    title: '资格核验通过 · 本人查询',
+    desc: '申请人查询本人及家庭住房情况，凭实名认证即可办理，无需额外证明材料。',
+    items: [
+      ['ok', '实名认证', '已通过人脸识别核验，2026-07-31 14:26'],
+      ['ok', '身份一致性', '申请人与被查询人一致（陈**，450***********2841）'],
+      ['ok', '家庭成员关系', '已通过公安人口库核验，配偶 1 人、未成年子女 1 人'],
+      ['ok', '查询频次', '近 30 日查询 1 次，未触发异常行为规则']
+    ],
+    form: '<div class="form-item" style="grid-column:span 2"><label>实名认证方式<span class="req">*</span></label>' +
+      '<div class="radio-line"><label><input type="radio" name="smrz" checked> 人脸识别</label>' +
+      '<label><input type="radio" name="smrz"> 短信验证</label>' +
+      '<label><input type="radio" name="smrz"> 证件核验</label>' +
+      '<label><input type="radio" name="smrz"> 数字证书</label></div></div>'
+  },
+  '1': {
+    ok: false,
+    title: '资格核验不通过 · 缺少委托材料',
+    desc: '申请人不具备查询他人房屋信息的法定资格，请补充委托书或法定查询依据后再行受理。',
+    items: [
+      ['no', '授权委托书', '未上传，必要材料'],
+      ['no', '委托人身份核验', '未完成'],
+      ['ok', '受托人身份核验', '已通过证件核验'],
+      ['ok', '委托事项与期限', '待委托书上传后自动提取']
+    ],
+    form: '<div class="form-item"><label>委托人姓名<span class="req">*</span></label><input type="text" placeholder="被查询人姓名"></div>' +
+      '<div class="form-item"><label>委托事项<span class="req">*</span></label><input type="text" placeholder="如 代为查询住房情况"></div>' +
+      '<div class="form-item"><label>委托期限止<span class="req">*</span></label><input type="date"></div>' +
+      '<div class="form-item"><label>授权委托书<span class="req">*</span></label><div class="flex gap-8"><input type="text" style="flex:1" readonly value="" placeholder="上传经公证或双方签字的委托书"><button type="button" class="btn" onclick="PMS.toast(&#39;已打开上传窗口&#39;)">上传</button></div></div>'
+  },
+  '2': {
+    ok: true,
+    title: '资格核验通过 · 律师查询',
+    desc: '律师持所函与执业证，就承办案件查询相关当事人房屋信息，符合法定查询资格。',
+    items: [
+      ['ok', '律师执业证', '桂 45020*********，在有效期内'],
+      ['ok', '律师事务所函', '广西桂柳律师事务所（2026）函字第 0186 号'],
+      ['ok', '案件关联性', '案号 (2026)桂0204民初3182号，与被查询人相关'],
+      ['ok', '查询范围合规', '限于案件所涉房屋信息，不含无关信息']
+    ],
+    form: '<div class="form-item"><label>执业证号<span class="req">*</span></label><input type="text" value="桂 45020*********"></div>' +
+      '<div class="form-item"><label>律师事务所<span class="req">*</span></label><input type="text" value="广西桂柳律师事务所"></div>' +
+      '<div class="form-item"><label>关联案号<span class="req">*</span></label><input type="text" value="(2026)桂0204民初3182号"></div>' +
+      '<div class="form-item"><label>所函与执业证<span class="req">*</span></label><div class="flex gap-8"><input type="text" style="flex:1" readonly value="律师事务所函.pdf,执业证.jpg" placeholder="未上传"><button type="button" class="btn" onclick="PMS.toast(&#39;已打开上传窗口&#39;)">上传</button></div></div>'
+  },
+  '3': {
+    ok: true,
+    title: '资格核验通过 · 公检法查询',
+    desc: '办案单位持办案函与两名办案人员证件依法查询，属法定查询情形。',
+    items: [
+      ['ok', '办案函', '柳南法院（2026）执查字第 0286 号'],
+      ['ok', '办案人员证件', '罗**、韦** 两名办案人员证件已核验'],
+      ['ok', '案件编号', '(2026)桂0204执1276号'],
+      ['ok', '查询依据', '《中华人民共和国民事诉讼法》第二百五十二条']
+    ],
+    form: '<div class="form-item"><label>办案单位<span class="req">*</span></label><input type="text" value="XXXX市柳南区人民法院"></div>' +
+      '<div class="form-item"><label>办案函编号<span class="req">*</span></label><input type="text" value="（2026）执查字第 0286 号"></div>' +
+      '<div class="form-item"><label>办案人员<span class="req">*</span></label><input type="text" value="罗**、韦**"></div>' +
+      '<div class="form-item"><label>办案函与证件<span class="req">*</span></label><div class="flex gap-8"><input type="text" style="flex:1" readonly value="办案函.pdf" placeholder="未上传"><button type="button" class="btn" onclick="PMS.toast(&#39;已打开上传窗口&#39;)">上传</button></div></div>'
+  },
+  '4': {
+    ok: true,
+    title: '资格核验通过 · 公证处查询',
+    desc: '公证机构因办理继承、析产等公证事项查询，须提供公证事项受理证明。',
+    items: [
+      ['ok', '公证机构资质', 'XXXX市国信公证处，执业证在有效期内'],
+      ['ok', '公证事项受理证明', '（2026）桂柳证受字第 0286 号'],
+      ['ok', '公证员身份', '潘**，公证员执业证已核验'],
+      ['ok', '查询必要性', '办理法定继承公证，需核实被继承人房产']
+    ],
+    form: '<div class="form-item"><label>公证机构<span class="req">*</span></label><input type="text" value="XXXX市国信公证处"></div>' +
+      '<div class="form-item"><label>公证事项编号<span class="req">*</span></label><input type="text" value="（2026）桂柳证受字第 0286 号"></div>' +
+      '<div class="form-item"><label>承办公证员<span class="req">*</span></label><input type="text" value="潘**"></div>' +
+      '<div class="form-item"><label>受理证明<span class="req">*</span></label><div class="flex gap-8"><input type="text" style="flex:1" readonly value="公证事项受理证明.pdf" placeholder="未上传"><button type="button" class="btn" onclick="PMS.toast(&#39;已打开上传窗口&#39;)">上传</button></div></div>'
+  },
+  '5': {
+    ok: true,
+    title: '资格核验通过 · 银行查询',
+    desc: '银行因贷款审批查询借款人房屋情况，须提供单位公函与借款人书面授权。',
+    items: [
+      ['ok', '单位公函', '中国建设银行柳州分行（2026）柳建函字第 0126 号'],
+      ['ok', '借款人授权书', '韦** 签署，授权期限至 2026-12-31'],
+      ['ok', '经办人身份', '张**，工号 0086421，已核验'],
+      ['ok', '查询用途', '住房按揭贷款审批，用途合规']
+    ],
+    form: '<div class="form-item"><label>银行名称<span class="req">*</span></label><input type="text" value="中国建设银行柳州分行"></div>' +
+      '<div class="form-item"><label>公函编号<span class="req">*</span></label><input type="text" value="（2026）柳建函字第 0126 号"></div>' +
+      '<div class="form-item"><label>经办人<span class="req">*</span></label><input type="text" value="张**"></div>' +
+      '<div class="form-item"><label>公函与授权书<span class="req">*</span></label><div class="flex gap-8"><input type="text" style="flex:1" readonly value="单位公函.pdf,借款人授权书.pdf" placeholder="未上传"><button type="button" class="btn" onclick="PMS.toast(&#39;已打开上传窗口&#39;)">上传</button></div></div>'
+  }
+};
+
+function renderQz() {
+  var t = document.getElementById('sqrType').value;
+  var d = QZ[t];
+  document.getElementById('qzWrap').innerHTML =
+    '<div class="qz-panel ' + (d.ok ? 'ok' : 'no') + '">' +
+      '<div class="qh"><i class="fa-solid ' + (d.ok ? 'fa-circle-check' : 'fa-circle-xmark') + '"></i> ' + d.title + '</div>' +
+      '<div class="qd">' + d.desc + '</div>' +
+      '<div class="qz-items">' + d.items.map(function (it) {
+        return '<div class="qi"><i class="fa-solid ' + (it[0] === 'ok' ? 'fa-circle-check text-success' : 'fa-circle-xmark text-danger') + '"></i>' +
+          '<div><div class="qt">' + it[1] + '</div><div class="qs">' + it[2] + '</div></div></div>';
+      }).join('') + '</div>' +
+    '</div>';
+  document.getElementById('qzForm').innerHTML = d.form;
+  PMS.enhanceUrlUploads(document.getElementById('qzForm'));
+  var btn = document.getElementById('btnNext1');
+  btn.disabled = !d.ok;
+  btn.title = d.ok ? '' : '资格核验未通过，无法进入下一步';
+}
+
+function toggleScope() {
+  var v = document.getElementById('scope').value;
+  document.getElementById('scopeArea').classList.toggle('hidden', v !== '1');
+  document.getElementById('scopeHouse').classList.toggle('hidden', v !== '2');
+}
+
+function togglePost(on) {
+  document.getElementById('postBox').classList.toggle('hidden', !on);
+}
+
+var step = 1;
+document.getElementById('wz').addEventListener('click', function (e) {
+  var s = e.target.closest('.w-step');
+  if (s) goto(parseInt(s.getAttribute('data-step'), 10));
+});
+function goto(n) {
+  if (n < 1 || n > 3) return;
+  if (n > 1 && document.getElementById('btnNext1').disabled) {
+    PMS.toast('申请人资格核验未通过，请先补充法定查询依据', 'error');
+    return;
+  }
+  step = n;
+  document.querySelectorAll('.w-step').forEach(function (s) {
+    var i = parseInt(s.getAttribute('data-step'), 10);
+    s.classList.toggle('active', i === n);
+    s.classList.toggle('done', i < n);
+  });
+  document.querySelectorAll('.wz-panel').forEach(function (p) {
+    p.classList.toggle('active', p.getAttribute('data-panel') === String(n));
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function doIssue() {
+  PMS.confirm({
+    title: '确认出证并签章',
+    message: '生成证明后将自动加盖电子签章并写入查档留痕，是否确认？',
+    detail: '证明编号 柳房查字〔2026〕第 001286 号 · 有效期至 2026-08-30 · 领取方式 电子证照。',
+    type: 'info',
+    okText: '生成并签章',
+    onOk: function () {
+      document.getElementById('okBar').classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      PMS.toast('证明已生成并完成电子签章，验证码 A7K2-9M4X', 'success');
+    }
+  });
+}
+
+/* 二维码占位：固定图样，仅作版式示意 */
+(function () {
+  var pattern = [
+    1,1,1,1,1,1,1,0,1,0,1,
+    1,0,0,0,0,0,1,0,0,1,1,
+    1,0,1,1,1,0,1,0,1,1,0,
+    1,0,1,1,1,0,1,0,0,0,1,
+    1,0,1,1,1,0,1,0,1,0,1,
+    1,0,0,0,0,0,1,0,0,1,0,
+    1,1,1,1,1,1,1,0,1,0,1,
+    0,0,0,0,0,0,0,0,1,1,0,
+    1,1,0,1,0,1,1,0,0,1,1,
+    0,1,1,0,1,0,0,1,1,0,1,
+    1,0,1,1,0,1,1,0,1,1,0
+  ];
+  var box = document.getElementById('qrBox');
+  box.innerHTML = pattern.map(function (v) {
+    return '<span style="background:' + (v ? '#0f172a' : '#fff') + '"></span>';
+  }).join('');
+})();
+
+renderQz();
+</script>
+</body>
+</html>

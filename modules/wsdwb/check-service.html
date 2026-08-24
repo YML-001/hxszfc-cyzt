@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>限制校验服务监控 · 房屋交易备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：调用分布横向条、四项分结果图标、报文代码块 */
+  .call-row { display: flex; align-items: center; gap: 12px; padding: 9px 0; font-size: 13px; }
+  .call-row .cr-name { width: 92px; flex-shrink: 0; color: var(--text-2); }
+  .call-row .cr-bar { flex: 1; height: 9px; border-radius: 5px; background: #eef1f6; overflow: hidden; }
+  .call-row .cr-bar i { display: block; height: 100%; border-radius: 5px; background: var(--primary); }
+  .call-row .cr-val { width: 62px; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .call-row .cr-rate { width: 78px; text-align: right; font-size: 12px; color: var(--text-3); }
+  .call-row .cr-rate.low { color: #d97706; font-weight: 600; }
+  .ck { font-size: 13px; font-weight: 700; }
+  .ck.ok { color: #059669; } .ck.no { color: #dc2626; } .ck.na { color: var(--text-3); font-weight: 400; }
+  .tbl-box { overflow: auto; max-height: 440px; border-top: 1px solid var(--border); }
+  tr.is-block td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
+  tr.is-wait td:first-child { box-shadow: inset 3px 0 0 var(--warning); }
+  .code-box {
+    background: #0f172a; color: #cbd5e1; border-radius: var(--radius); padding: 12px 14px;
+    font-family: Consolas, Monaco, monospace; font-size: 12.5px; line-height: 1.75; overflow: auto; max-height: 260px;
+    white-space: pre; margin: 0;
+  }
+  .code-box .k { color: #7dd3fc; } .code-box .s { color: #86efac; } .code-box .n { color: #fca5a5; }
+  .fail-item {
+    border: 1px solid var(--danger); border-left-width: 3px; border-radius: var(--radius);
+    background: var(--danger-light); padding: 11px 14px; margin-bottom: 10px;
+  }
+  .fail-item .fi-t { font-size: 13.5px; font-weight: 700; color: #b91c1c; }
+  .fail-item .fi-d { font-size: 12.5px; color: var(--text-2); margin-top: 4px; line-height: 1.6; }
+  .snap { display: flex; flex-wrap: wrap; gap: 8px; }
+  .radio-line { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; min-height: 32px; }
+  .radio-line label { font-size: 14px; color: var(--text-2); font-weight: 400; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdwb-16">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易备案管理系统
+        <span class="sep">/</span> 交易限制管理
+        <span class="sep">/</span> <span class="cur">限制校验服务监控</span>
+      </div>
+      <div class="page-title">限制校验服务监控</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="location.href='restriction-status.html'"><i class="fa-solid fa-traffic-light"></i> 限制状态总览</button>
+      <button type="button" class="btn" onclick="PMS.toast('服务健康检查通过：平均响应 320ms，成功率 99.97%，无异常节点','success')"><i class="fa-solid fa-heart-pulse"></i> 服务健康检查</button>
+      <button type="button" class="btn" onclick="PMS.toast('《校验记录明细》Excel 已生成，正在下载','success')"><i class="fa-solid fa-download"></i> 导出记录</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-shield-halved"></i>
+    <div>商品房网签、存量房网签、租赁备案、抵押备案、上市交易<b>五类业务统一调用同一个限制校验服务</b>，提交前必须校验，命中限制即拦截并返回具体原因。
+      服务响应要求 ≤ 1 秒，校验结果有效期 24 小时；总结果为「需人工复核」的转人工，复核结果分维持 / 放行 / 驳回，放行全程留痕。</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-right-left"></i></div>
+      <div><div class="s-label">本月调用总量</div><div class="s-value">8,451</div><div class="s-trend text-3">平均响应 320 ms</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">校验通过</div><div class="s-value">8,180</div><div class="s-trend text-success">通过率 96.8%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-ban"></i></div>
+      <div><div class="s-label">校验拦截</div><div class="s-value">271</div><div class="s-trend text-danger">避免违规交易 271 笔</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-percent"></i></div>
+      <div><div class="s-label">拦截率</div><div class="s-value">3.2%</div><div class="s-trend text-warning">待人工复核 4 笔</div></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head"><h3>各业务系统调用分布</h3><span class="sub">统计期间 2026-08</span></div>
+      <div class="card-body">
+        <div class="call-row"><span class="cr-name">商品房网签</span><span class="cr-bar"><i style="width:100%"></i></span><span class="cr-val">3,286</span><span class="cr-rate">通过 98.2%</span></div>
+        <div class="call-row"><span class="cr-name">存量房网签</span><span class="cr-bar"><i style="width:88.7%"></i></span><span class="cr-val">2,914</span><span class="cr-rate low">通过 96.1%</span></div>
+        <div class="call-row"><span class="cr-name">租赁备案</span><span class="cr-bar"><i style="width:45.2%"></i></span><span class="cr-val">1,486</span><span class="cr-rate">通过 99.1%</span></div>
+        <div class="call-row"><span class="cr-name">抵押备案</span><span class="cr-bar"><i style="width:18.6%"></i></span><span class="cr-val">612</span><span class="cr-rate low">通过 94.3%</span></div>
+        <div class="call-row"><span class="cr-name">上市交易</span><span class="cr-bar"><i style="width:4.7%"></i></span><span class="cr-val">153</span><span class="cr-rate low">通过 92.8%</span></div>
+        <div class="text-3 text-sm" style="margin-top:10px">
+          <i class="fa-solid fa-circle-info"></i> 五类业务调用同一服务接口 <code>POST /wsdwb/api/v1/restriction/check</code>，入参为不动产单元号与业务类型，出参为四项分结果与总结果。
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>拦截原因分布</h3><span class="sub">本月共拦截 271 次</span></div>
+      <div class="card-body">
+        <div class="flex items-center gap-16" style="flex-wrap:wrap">
+          <div class="donut" style="background:conic-gradient(#dc2626 0 38.4%, #8b5cf6 38.4% 64.6%, #f59e0b 64.6% 77.1%, #2563eb 77.1% 87.8%, #06b6d4 87.8% 95.2%, #64748b 95.2% 100%)">
+            <div class="donut-hole">
+              <div class="fw-700" style="font-size:22px">271</div>
+              <div class="text-3 text-sm">拦截次数</div>
+            </div>
+          </div>
+          <div class="legend" style="flex:1;min-width:200px">
+            <div class="lg-item"><span class="lg-color" style="background:#dc2626"></span> 查封 <b style="margin-left:auto">38.4%</b></div>
+            <div class="lg-item"><span class="lg-color" style="background:#8b5cf6"></span> 限售期内 <b style="margin-left:auto">26.2%</b></div>
+            <div class="lg-item"><span class="lg-color" style="background:#f59e0b"></span> 异议登记 <b style="margin-left:auto">12.5%</b></div>
+            <div class="lg-item"><span class="lg-color" style="background:#2563eb"></span> 限购不通过 <b style="margin-left:auto">10.7%</b></div>
+            <div class="lg-item"><span class="lg-color" style="background:#06b6d4"></span> 已网签未办结 <b style="margin-left:auto">7.4%</b></div>
+            <div class="lg-item"><span class="lg-color" style="background:#64748b"></span> 在建工程抵押未解除 <b style="margin-left:auto">4.8%</b></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3>校验记录</h3><span class="sub">保留全部调用留痕，可追溯到业务单据</span></div>
+
+    <div class="filter-bar">
+      <div class="filter-item"><label>校验编号</label><input type="text" placeholder="如 JY202608010912006"></div>
+      <div class="filter-item">
+        <label>业务类型</label>
+        <select><option value="">全部</option><option>0 商品房网签</option><option>1 存量房网签</option><option>2 租赁备案</option><option>3 抵押备案</option><option>4 上市交易</option></select>
+      </div>
+      <div class="filter-item"><label>业务编号</label><input type="text" placeholder="业务单据编号"></div>
+      <div class="filter-item"><label>房屋坐落</label><input type="text" placeholder="小区 / 楼栋 / 房号"></div>
+      <div class="filter-item"><label>申请人</label><input type="text" placeholder="姓名或名称"></div>
+      <div class="filter-item">
+        <label>总校验结果</label>
+        <select><option value="">全部</option><option>通过</option><option>不通过</option><option>需人工复核</option></select>
+      </div>
+      <div class="filter-item"><label>校验时间起</label><input type="date" value="2026-08-01"></div>
+      <div class="filter-item"><label>校验时间止</label><input type="date" value="2026-08-01"></div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 8,451 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn" onclick="quick('block')"><i class="fa-solid fa-ban"></i> 仅看拦截</button>
+        <button type="button" class="btn" onclick="quick('wait')"><i class="fa-solid fa-user-check"></i> 仅看待复核</button>
+        <button type="button" class="btn" onclick="quick('all')"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tbl-box">
+      <table class="data-table" id="tblCk">
+        <thead>
+          <tr>
+            <th>校验编号</th>
+            <th>业务类型</th>
+            <th>业务编号</th>
+            <th>房屋坐落</th>
+            <th>申请人</th>
+            <th>房源限制</th>
+            <th>限购</th>
+            <th>限售</th>
+            <th>限贷</th>
+            <th>总校验结果</th>
+            <th>校验时间</th>
+            <th>结果有效期止</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="block" class="is-block">
+            <td class="nowrap fw-600">JY202608010912006</td>
+            <td class="nowrap"><span class="badge cyan">存量房网签</span></td>
+            <td class="nowrap">CFBA450200202600512</td>
+            <td>万科城 5-2-803</td>
+            <td class="nowrap">周**</td>
+            <td class="nowrap"><span class="ck no"><i class="fa-solid fa-xmark"></i> 不通过</span></td>
+            <td class="nowrap"><span class="ck ok"><i class="fa-solid fa-check"></i> 通过</span></td>
+            <td class="nowrap"><span class="ck no"><i class="fa-solid fa-xmark"></i> 不通过</span></td>
+            <td class="nowrap"><span class="ck na">—</span></td>
+            <td class="nowrap"><span class="badge red">不通过</span></td>
+            <td class="nowrap">2026-08-01 09:12</td>
+            <td class="nowrap">2026-08-02 09:12</td>
+            <td class="col-ops">
+              <span class="link" onclick="openCk('block')">详情</span>
+              <span class="link" onclick="openReview('JY202608010912006')">人工复核</span>
+            </td>
+          </tr>
+          <tr data-st="wait" class="is-wait">
+            <td class="nowrap fw-600">JY202607311426003</td>
+            <td class="nowrap"><span class="badge cyan">存量房网签</span></td>
+            <td class="nowrap">CFBA450200202600498</td>
+            <td>南亚国际城 2-3-1103</td>
+            <td class="nowrap">莫**</td>
+            <td class="nowrap"><span class="ck ok"><i class="fa-solid fa-check"></i> 通过</span></td>
+            <td class="nowrap"><span class="ck ok"><i class="fa-solid fa-check"></i> 通过</span></td>
+            <td class="nowrap"><span class="ck no"><i class="fa-solid fa-xmark"></i> 不通过</span></td>
+            <td class="nowrap"><span class="ck na">—</span></td>
+            <td class="nowrap"><span class="badge orange">需人工复核</span></td>
+            <td class="nowrap">2026-07-31 14:26</td>
+            <td class="nowrap">2026-08-01 14:26</td>
+            <td class="col-ops">
+              <span class="link" onclick="openCk('wait')">详情</span>
+              <span class="link" onclick="openReview('JY202607311426003')">人工复核</span>
+            </td>
+          </tr>
+          <tr data-st="pass">
+            <td class="nowrap fw-600">JY202608010908001</td>
+            <td class="nowrap"><span class="badge blue">商品房网签</span></td>
+            <td class="nowrap">SPFBA450200202601886</td>
+            <td>华润万象天地 2-1-1802</td>
+            <td class="nowrap">黄**</td>
+            <td class="nowrap"><span class="ck ok"><i class="fa-solid fa-check"></i> 通过</span></td>
+            <td class="nowrap"><span class="ck ok"><i class="fa-solid fa-check"></i> 通过</span></td>
+            <td class="nowrap"><span class="ck ok"><i class="fa-solid fa-check"></i> 通过</span></td>
+            <td class="nowrap"><span class="ck ok"><i class="fa-solid fa-check"></i> 通过</span></td>
+            <td class="nowrap"><span class="badge green">通过</span></td>
+            <td class="nowrap">2026-08-01 09:08</td>
+            <td class="nowrap">2026-08-02 09:08</td>
+            <td class="col-ops"><span class="link" onclick="openCk('pass')">详情</span></td>
+          </tr>
+          <tr data-st="pass">
+            <td class="nowrap fw-600">JY202608010906004</td>
+            <td class="nowrap"><span class="badge purple">抵押备案</span></td>
+            <td class="nowrap">DYBA450200202600186</td>
+            <td>彰泰滨江学府 12-2-1802</td>
+            <td class="nowrap">陈**</td>
+            <td class="nowrap"><span class="ck ok"><i class="fa-solid fa-check"></i> 通过</span></td>
+            <td class="nowrap"><span class="ck na">—</span></td>
+            <td class="nowrap"><span class="ck ok"><i class="fa-solid fa-check"></i> 通过</span></td>
+            <td class="nowrap"><span class="ck ok"><i class="fa-solid fa-check"></i> 通过</span></td>
+            <td class="nowrap"><span class="badge green">通过</span></td>
+            <td class="nowrap">2026-08-01 09:06</td>
+            <td class="nowrap">2026-08-02 09:06</td>
+            <td class="col-ops"><span class="link" onclick="openCk('pass')">详情</span></td>
+          </tr>
+          <tr data-st="block" class="is-block">
+            <td class="nowrap fw-600">JY202608010902008</td>
+            <td class="nowrap"><span class="badge blue">商品房网签</span></td>
+            <td class="nowrap">SPFBA450200202601879</td>
+            <td>荣和公园大道二期 8-1-1502</td>
+            <td class="nowrap">李**</td>
+            <td class="nowrap"><span class="ck no"><i class="fa-solid fa-xmark"></i> 不通过</span></td>
+            <td class="nowrap"><span class="ck ok"><i class="fa-solid fa-check"></i> 通过</span></td>
+            <td class="nowrap"><span class="ck ok"><i class="fa-solid fa-check"></i> 通过</span></td>
+            <td class="nowrap"><span class="ck ok"><i class="fa-solid fa-check"></i> 通过</span></td>
+            <td class="nowrap"><span class="badge red">不通过</span></td>
+            <td class="nowrap">2026-08-01 09:02</td>
+            <td class="nowrap">2026-08-02 09:02</td>
+            <td class="col-ops">
+              <span class="link" onclick="openCk('block')">详情</span>
+              <span class="link" onclick="openReview('JY202608010902008')">人工复核</span>
+            </td>
+          </tr>
+          <tr data-st="pass">
+            <td class="nowrap fw-600">JY202608010858002</td>
+            <td class="nowrap"><span class="badge green">租赁备案</span></td>
+            <td class="nowrap">ZLBA450200202603126</td>
+            <td>桂中海279 8-1-501</td>
+            <td class="nowrap">吴**</td>
+            <td class="nowrap"><span class="ck ok"><i class="fa-solid fa-check"></i> 通过</span></td>
+            <td class="nowrap"><span class="ck na">—</span></td>
+            <td class="nowrap"><span class="ck na">—</span></td>
+            <td class="nowrap"><span class="ck na">—</span></td>
+            <td class="nowrap"><span class="badge green">通过</span></td>
+            <td class="nowrap">2026-08-01 08:58</td>
+            <td class="nowrap">2026-08-02 08:58</td>
+            <td class="col-ops"><span class="link" onclick="openCk('pass')">详情</span></td>
+          </tr>
+          <tr data-st="block" class="is-block">
+            <td class="nowrap fw-600">JY202608010846005</td>
+            <td class="nowrap"><span class="badge cyan">存量房网签</span></td>
+            <td class="nowrap">CFBA450200202600509</td>
+            <td>阳光100 6-2-1205</td>
+            <td class="nowrap">郑**</td>
+            <td class="nowrap"><span class="ck ok"><i class="fa-solid fa-check"></i> 通过</span></td>
+            <td class="nowrap"><span class="ck no"><i class="fa-solid fa-xmark"></i> 不通过</span></td>
+            <td class="nowrap"><span class="ck no"><i class="fa-solid fa-xmark"></i> 不通过</span></td>
+            <td class="nowrap"><span class="ck na">—</span></td>
+            <td class="nowrap"><span class="badge red">不通过</span></td>
+            <td class="nowrap">2026-08-01 08:46</td>
+            <td class="nowrap">2026-08-02 08:46</td>
+            <td class="col-ops">
+              <span class="link" onclick="openCk('block')">详情</span>
+              <span class="link" onclick="openReview('JY202608010846005')">人工复核</span>
+            </td>
+          </tr>
+          <tr data-st="wait" class="is-wait">
+            <td class="nowrap fw-600">JY202608010832007</td>
+            <td class="nowrap"><span class="badge orange">上市交易</span></td>
+            <td class="nowrap">SSJY450200202600078</td>
+            <td>保利花园 3-1-1601</td>
+            <td class="nowrap">梁**</td>
+            <td class="nowrap"><span class="ck ok"><i class="fa-solid fa-check"></i> 通过</span></td>
+            <td class="nowrap"><span class="ck ok"><i class="fa-solid fa-check"></i> 通过</span></td>
+            <td class="nowrap"><span class="ck no"><i class="fa-solid fa-xmark"></i> 不通过</span></td>
+            <td class="nowrap"><span class="ck ok"><i class="fa-solid fa-check"></i> 通过</span></td>
+            <td class="nowrap"><span class="badge orange">需人工复核</span></td>
+            <td class="nowrap">2026-08-01 08:32</td>
+            <td class="nowrap">2026-08-02 08:32</td>
+            <td class="col-ops">
+              <span class="link" onclick="openCk('wait')">详情</span>
+              <span class="link" onclick="openReview('JY202608010832007')">人工复核</span>
+            </td>
+          </tr>
+          <tr data-st="pass">
+            <td class="nowrap fw-600">JY202608010826003</td>
+            <td class="nowrap"><span class="badge purple">抵押备案</span></td>
+            <td class="nowrap">DYBA450200202600190</td>
+            <td>荣和公园大道 3-1-902</td>
+            <td class="nowrap">韦**</td>
+            <td class="nowrap"><span class="ck ok"><i class="fa-solid fa-check"></i> 通过</span></td>
+            <td class="nowrap"><span class="ck na">—</span></td>
+            <td class="nowrap"><span class="ck ok"><i class="fa-solid fa-check"></i> 通过</span></td>
+            <td class="nowrap"><span class="ck ok"><i class="fa-solid fa-check"></i> 通过</span></td>
+            <td class="nowrap"><span class="badge green">通过</span></td>
+            <td class="nowrap">2026-08-01 08:26</td>
+            <td class="nowrap">2026-08-02 08:26</td>
+            <td class="col-ops"><span class="link" onclick="openCk('pass')">详情</span></td>
+          </tr>
+          <tr data-st="pass">
+            <td class="nowrap fw-600">JY202608010812001</td>
+            <td class="nowrap"><span class="badge green">租赁备案</span></td>
+            <td class="nowrap">ZLBA450200202603118</td>
+            <td>东城华府 1-2-902</td>
+            <td class="nowrap">秦**</td>
+            <td class="nowrap"><span class="ck ok"><i class="fa-solid fa-check"></i> 通过</span></td>
+            <td class="nowrap"><span class="ck na">—</span></td>
+            <td class="nowrap"><span class="ck na">—</span></td>
+            <td class="nowrap"><span class="ck na">—</span></td>
+            <td class="nowrap"><span class="badge green">通过</span></td>
+            <td class="nowrap">2026-08-01 08:12</td>
+            <td class="nowrap">2026-08-02 08:12</td>
+            <td class="col-ops"><span class="link" onclick="openCk('pass')">详情</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="table-foot" id="ckFoot"></div>
+  </div>
+
+</main>
+
+<!-- 校验详情 -->
+<div class="drawer-mask"></div>
+<div class="drawer drawer-lg" id="drCk">
+  <div class="drawer-head">
+    <h3 style="margin:0;font-size:16px" id="ckTitle">校验详情</h3>
+    <span class="text-3 text-sm" id="ckSubT">统一限制校验服务留痕</span>
+    <button type="button" class="btn btn-ghost" style="margin-left:auto" data-close-drawer><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="drawer-body">
+    <div id="ckSum"></div>
+
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-list-check"></i> 命中校验规则</h3></div>
+      <div class="card-body" id="ckRules"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-camera"></i> 房屋限制状态快照</h3><span class="sub">校验发生时刻的状态</span></div>
+      <div class="card-body" id="ckSnap"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-code"></i> 校验明细报文</h3><span class="sub">响应体 JSON</span></div>
+      <div class="card-body"><pre class="code-box" id="ckJson"></pre></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button type="button" class="btn" onclick="PMS.closeDrawer('drCk')">关闭</button>
+    <button type="button" class="btn" onclick="PMS.toast('校验报文已复制到剪贴板','success')"><i class="fa-regular fa-copy"></i> 复制报文</button>
+    <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer('drCk');openReview(document.getElementById('ckTitle').getAttribute('data-no')||'')"><i class="fa-solid fa-user-check"></i> 人工复核</button>
+  </div>
+</div>
+
+<!-- 人工复核 -->
+<div class="modal-mask" id="mdReview">
+  <div class="modal">
+    <div class="modal-head">人工复核</div>
+    <div class="modal-body">
+      <dl class="desc-list">
+        <div class="desc-item"><dt>校验编号</dt><dd id="rvNo">—</dd></div>
+        <div class="desc-item"><dt>业务类型</dt><dd>1 存量房网签</dd></div>
+        <div class="desc-item"><dt>房屋坐落</dt><dd>万科城 5-2-803</dd></div>
+        <div class="desc-item"><dt>不通过项</dt><dd class="text-danger">房源限制（已被查封）、限售校验（限售至 2027-03-15）</dd></div>
+      </dl>
+      <div class="form-grid form-align mt-16">
+        <div class="form-item" style="grid-column:span 2">
+          <label>复核结果<span class="req">*</span></label>
+          <div class="radio-line">
+            <label><input type="radio" name="rvR" value="keep" checked onchange="onRv()"> 维持（继续拦截）</label>
+            <label><input type="radio" name="rvR" value="pass" onchange="onRv()"> 放行</label>
+            <label><input type="radio" name="rvR" value="deny" onchange="onRv()"> 驳回业务申请</label>
+          </div>
+        </div>
+        <div class="form-item" style="grid-column:span 2">
+          <label>复核意见<span class="req">*</span></label>
+          <textarea rows="3" id="rvNote" placeholder="请填写复核意见"></textarea>
+          <div class="hint hidden" id="rvHint">选择「放行」时复核意见不少于 30 字，并须上传依据文件；放行操作将全程留痕并纳入审计。</div>
+        </div>
+        <div class="form-item hidden" style="grid-column:span 2" id="rvFileBox">
+          <label>依据文件<span class="req">*</span></label>
+          <input type="text" data-upload="1" placeholder="点击上传法院文书、政策依据或领导批示扫描件">
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" onclick="PMS.closeModal('mdReview')">取消</button>
+      <button type="button" class="btn btn-primary" onclick="doReview()">提交复核</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+var CK = {
+  block: {
+    no: 'JY202608010912006',
+    sum: '<div class="alert alert-danger"><i class="fa-solid fa-ban"></i><div><b>总校验结果：不通过</b>，命中 2 项限制，业务提交已被拦截。校验耗时 286 ms，结果有效期至 2026-08-02 09:12。</div></div>' +
+      '<dl class="desc-list">' +
+      '<div class="desc-item"><dt>校验编号</dt><dd>JY202608010912006</dd></div>' +
+      '<div class="desc-item"><dt>业务类型</dt><dd>1 存量房网签</dd></div>' +
+      '<div class="desc-item"><dt>业务编号</dt><dd><a class="link" href="../wscwb/contract-list.html">CFBA450200202600512</a></dd></div>' +
+      '<div class="desc-item"><dt>调用系统</dt><dd>wscwb 存量房交易网签备案系统</dd></div>' +
+      '<div class="desc-item"><dt>房屋坐落</dt><dd>万科城 5 栋 2 单元 803</dd></div>' +
+      '<div class="desc-item"><dt>不动产单元号</dt><dd>450204001008GB00256F00020009</dd></div>' +
+      '<div class="desc-item"><dt>申请人</dt><dd>周**（买受人）</dd></div>' +
+      '<div class="desc-item"><dt>经办机构</dt><dd>柳州安居房产经纪有限公司</dd></div>' +
+      '</dl>',
+    rules:
+      '<div class="fail-item"><div class="fi-t"><i class="fa-solid fa-circle-xmark"></i> 房源限制校验不通过 · 规则 RL-HOUSE-001</div>' +
+      '<div class="fi-d">规则名称：房屋被司法查封的不得交易。不通过原因：该房屋存在生效查封 1 笔、轮候查封 1 笔。' +
+      '关联业务编号 <a class="link" href="seal-list.html">CF45020420260126</a>（XXXX市柳南区人民法院，查封至 2029-07-27）。</div></div>' +
+      '<div class="fail-item"><div class="fi-t"><i class="fa-solid fa-circle-xmark"></i> 限售校验不通过 · 规则 XS001</div>' +
+      '<div class="fi-d">规则名称：柳州市市区新建商品住房限售规则（限售 3 年，起算节点 不动产登记）。不通过原因：该房屋处于限售期内，限售至 2027-03-15，尚余 226 天。' +
+      '<a class="link" href="sale-limit.html">查看限售明细</a></div></div>' +
+      '<div class="alert alert-success" style="margin-bottom:0"><i class="fa-solid fa-circle-check"></i><div>限购校验通过（买受人周** 家庭在市区名下 1 套，未超 2 套上限）；限贷校验不适用（本次为全款交易）。</div></div>',
+    snap:
+      '<span class="badge red">不可交易</span> <span class="badge red">查封</span> <span class="badge red">轮候查封</span> ' +
+      '<span class="badge purple">限售至 2027-03-15</span> <span class="badge orange">抵押 1 笔</span> <span class="badge blue">租赁备案至 2027-05-31</span>' +
+      '<div class="text-3 text-sm" style="margin-top:10px">状态更新时间 2026-08-01 09:12:36 · 触发业务 查封登记 CF45020420260196 · <a class="link" href="restriction-status.html?code=B">查看限制状态总览</a></div>',
+    json:
+      '{\n' +
+      '  <span class="k">"jybh"</span>: <span class="s">"JY202608010912006"</span>,\n' +
+      '  <span class="k">"jyywlx"</span>: <span class="s">"1"</span>,            <span class="n">// 1 存量房网签</span>\n' +
+      '  <span class="k">"ywzj"</span>: <span class="s">"CFBA450200202600512"</span>,\n' +
+      '  <span class="k">"bdcdyh"</span>: <span class="s">"450204001008GB00256F00020009"</span>,\n' +
+      '  <span class="k">"fyxzjy"</span>: {\n' +
+      '    <span class="k">"jg"</span>: <span class="s">"0"</span>,               <span class="n">// 0 不通过</span>\n' +
+      '    <span class="k">"btgyy"</span>: [<span class="s">"房屋已被司法查封"</span>, <span class="s">"存在轮候查封"</span>],\n' +
+      '    <span class="k">"gllist"</span>: [<span class="s">"CF45020420260126"</span>, <span class="s">"CF45020420260196"</span>]\n' +
+      '  },\n' +
+      '  <span class="k">"xgjy"</span>:   { <span class="k">"jg"</span>: <span class="s">"1"</span>, <span class="k">"ms"</span>: <span class="s">"家庭名下 1 套，未超限购上限 2 套"</span> },\n' +
+      '  <span class="k">"xsjy"</span>:   { <span class="k">"jg"</span>: <span class="s">"0"</span>, <span class="k">"gzdm"</span>: <span class="s">"XS001"</span>, <span class="k">"xsjzrq"</span>: <span class="s">"2027-03-15"</span> },\n' +
+      '  <span class="k">"xdjy"</span>:   { <span class="k">"jg"</span>: <span class="s">"9"</span>, <span class="k">"ms"</span>: <span class="s">"全款交易，不适用"</span> },\n' +
+      '  <span class="k">"zjg"</span>: <span class="s">"0"</span>,                <span class="n">// 0 不通过 1 通过 2 需人工复核</span>\n' +
+      '  <span class="k">"jysj"</span>: <span class="s">"2026-08-01 09:12:36"</span>,\n' +
+      '  <span class="k">"yxqz"</span>: <span class="s">"2026-08-02 09:12:36"</span>,\n' +
+      '  <span class="k">"hs"</span>: <span class="s">"286ms"</span>\n' +
+      '}'
+  },
+  wait: {
+    no: 'JY202607311426003',
+    sum: '<div class="alert alert-warning"><i class="fa-solid fa-user-clock"></i><div><b>总校验结果：需人工复核</b>，限售校验不通过但申请人已提交豁免申请（法定继承），须业务人员复核后决定维持或放行。</div></div>' +
+      '<dl class="desc-list">' +
+      '<div class="desc-item"><dt>校验编号</dt><dd>JY202607311426003</dd></div>' +
+      '<div class="desc-item"><dt>业务类型</dt><dd>1 存量房网签</dd></div>' +
+      '<div class="desc-item"><dt>业务编号</dt><dd><a class="link" href="../wscwb/contract-list.html">CFBA450200202600498</a></dd></div>' +
+      '<div class="desc-item"><dt>调用系统</dt><dd>wscwb 存量房交易网签备案系统</dd></div>' +
+      '<div class="desc-item"><dt>房屋坐落</dt><dd>南亚国际城 2 栋 3 单元 1103</dd></div>' +
+      '<div class="desc-item"><dt>不动产单元号</dt><dd>450203001006GB00211F00030014</dd></div>' +
+      '<div class="desc-item"><dt>申请人</dt><dd>莫**（出卖人，继承取得）</dd></div>' +
+      '<div class="desc-item"><dt>转人工原因</dt><dd class="text-warning">命中限售但存在豁免申请</dd></div>' +
+      '</dl>',
+    rules:
+      '<div class="fail-item"><div class="fi-t"><i class="fa-solid fa-circle-exclamation"></i> 限售校验不通过 · 规则 XS001</div>' +
+      '<div class="fi-d">该房屋 2025-02-10 不动产登记，限售至 2028-02-10。申请人主张系法定继承取得，申请适用豁免情形，已上传继承权公证书（2026）桂柳证字第 0286 号。' +
+      '<a class="link" href="sale-limit.html">查看豁免记录</a></div></div>' +
+      '<div class="alert alert-success" style="margin-bottom:0"><i class="fa-solid fa-circle-check"></i><div>房源限制校验通过（无查封、无异议、无在途网签）；限购校验通过；限贷校验不适用。</div></div>',
+    snap:
+      '<span class="badge orange">有条件可交易</span> <span class="badge purple">限售至 2028-02-10</span> <span class="badge gray">豁免申请审核中</span>' +
+      '<div class="text-3 text-sm" style="margin-top:10px">状态更新时间 2026-07-31 14:26:08 · 触发业务 存量房网签校验 · <a class="link" href="restriction-status.html">查看限制状态总览</a></div>',
+    json:
+      '{\n' +
+      '  <span class="k">"jybh"</span>: <span class="s">"JY202607311426003"</span>,\n' +
+      '  <span class="k">"jyywlx"</span>: <span class="s">"1"</span>,\n' +
+      '  <span class="k">"ywzj"</span>: <span class="s">"CFBA450200202600498"</span>,\n' +
+      '  <span class="k">"bdcdyh"</span>: <span class="s">"450203001006GB00211F00030014"</span>,\n' +
+      '  <span class="k">"fyxzjy"</span>: { <span class="k">"jg"</span>: <span class="s">"1"</span> },\n' +
+      '  <span class="k">"xgjy"</span>:   { <span class="k">"jg"</span>: <span class="s">"1"</span> },\n' +
+      '  <span class="k">"xsjy"</span>:   { <span class="k">"jg"</span>: <span class="s">"0"</span>, <span class="k">"gzdm"</span>: <span class="s">"XS001"</span>, <span class="k">"hmsq"</span>: <span class="s">"法定继承"</span> },\n' +
+      '  <span class="k">"xdjy"</span>:   { <span class="k">"jg"</span>: <span class="s">"9"</span> },\n' +
+      '  <span class="k">"zjg"</span>: <span class="s">"2"</span>,                <span class="n">// 2 需人工复核</span>\n' +
+      '  <span class="k">"rgfhzt"</span>: <span class="s">"待复核"</span>,\n' +
+      '  <span class="k">"jysj"</span>: <span class="s">"2026-07-31 14:26:08"</span>,\n' +
+      '  <span class="k">"hs"</span>: <span class="s">"312ms"</span>\n' +
+      '}'
+  },
+  pass: {
+    no: 'JY202608010908001',
+    sum: '<div class="alert alert-success"><i class="fa-solid fa-circle-check"></i><div><b>总校验结果：通过</b>，四项分结果均通过，业务可继续提交。校验耗时 264 ms，结果有效期至 2026-08-02 09:08。</div></div>' +
+      '<dl class="desc-list">' +
+      '<div class="desc-item"><dt>校验编号</dt><dd>JY202608010908001</dd></div>' +
+      '<div class="desc-item"><dt>业务类型</dt><dd>0 商品房网签</dd></div>' +
+      '<div class="desc-item"><dt>业务编号</dt><dd><a class="link" href="../wsswb/contract-list.html">SPFBA450200202601886</a></dd></div>' +
+      '<div class="desc-item"><dt>调用系统</dt><dd>wsswb 商品房交易网签备案系统</dd></div>' +
+      '<div class="desc-item"><dt>房屋坐落</dt><dd>华润万象天地 2 栋 1 单元 1802</dd></div>' +
+      '<div class="desc-item"><dt>不动产单元号</dt><dd>450202001005GB00318F00010026</dd></div>' +
+      '<div class="desc-item"><dt>申请人</dt><dd>黄**（买受人）</dd></div>' +
+      '<div class="desc-item"><dt>经办机构</dt><dd>柳州华润置地有限公司</dd></div>' +
+      '</dl>',
+    rules:
+      '<div class="alert alert-success"><i class="fa-solid fa-circle-check"></i><div><b>房源限制校验通过</b>：无查封、无异议登记、无在途网签，房源销控状态为「可售」。</div></div>' +
+      '<div class="alert alert-success"><i class="fa-solid fa-circle-check"></i><div><b>限购校验通过</b>：买受人为市区户籍家庭，名下住房 1 套，未超规则 XG001 上限 2 套。</div></div>' +
+      '<div class="alert alert-success"><i class="fa-solid fa-circle-check"></i><div><b>限售校验通过</b>：该房屋为新购商品房，尚未起算限售，登记后按规则 XS001 起算 3 年。</div></div>' +
+      '<div class="alert alert-success" style="margin-bottom:0"><i class="fa-solid fa-circle-check"></i><div><b>限贷校验通过</b>：首套房首付比例 25%，不低于规则 XD001 要求的 20%。</div></div>',
+    snap:
+      '<span class="badge green">可交易</span> <span class="badge gray">无查封</span> <span class="badge gray">无异议</span> <span class="badge gray">无限售</span>' +
+      '<div class="text-3 text-sm" style="margin-top:10px">状态更新时间 2026-08-01 09:08:22 · 触发业务 商品房网签校验 · <a class="link" href="restriction-status.html?code=C">查看限制状态总览</a></div>',
+    json:
+      '{\n' +
+      '  <span class="k">"jybh"</span>: <span class="s">"JY202608010908001"</span>,\n' +
+      '  <span class="k">"jyywlx"</span>: <span class="s">"0"</span>,            <span class="n">// 0 商品房网签</span>\n' +
+      '  <span class="k">"ywzj"</span>: <span class="s">"SPFBA450200202601886"</span>,\n' +
+      '  <span class="k">"bdcdyh"</span>: <span class="s">"450202001005GB00318F00010026"</span>,\n' +
+      '  <span class="k">"fyxzjy"</span>: { <span class="k">"jg"</span>: <span class="s">"1"</span> },\n' +
+      '  <span class="k">"xgjy"</span>:   { <span class="k">"jg"</span>: <span class="s">"1"</span>, <span class="k">"gzdm"</span>: <span class="s">"XG001"</span>, <span class="k">"ytsl"</span>: 1, <span class="k">"slsx"</span>: 2 },\n' +
+      '  <span class="k">"xsjy"</span>:   { <span class="k">"jg"</span>: <span class="s">"1"</span> },\n' +
+      '  <span class="k">"xdjy"</span>:   { <span class="k">"jg"</span>: <span class="s">"1"</span>, <span class="k">"sfbl"</span>: <span class="s">"25%"</span> },\n' +
+      '  <span class="k">"zjg"</span>: <span class="s">"1"</span>,                <span class="n">// 1 通过</span>\n' +
+      '  <span class="k">"jysj"</span>: <span class="s">"2026-08-01 09:08:22"</span>,\n' +
+      '  <span class="k">"yxqz"</span>: <span class="s">"2026-08-02 09:08:22"</span>,\n' +
+      '  <span class="k">"hs"</span>: <span class="s">"264ms"</span>\n' +
+      '}'
+  }
+};
+
+function openCk(key) {
+  var d = CK[key];
+  var t = document.getElementById('ckTitle');
+  t.textContent = '校验详情 · ' + d.no;
+  t.setAttribute('data-no', d.no);
+  document.getElementById('ckSum').innerHTML = d.sum;
+  document.getElementById('ckRules').innerHTML = d.rules;
+  document.getElementById('ckSnap').innerHTML = '<div class="snap">' + d.snap + '</div>';
+  document.getElementById('ckJson').innerHTML = d.json;
+  PMS.openDrawer('drCk');
+}
+
+function openReview(no) {
+  document.getElementById('rvNo').textContent = no || '—';
+  PMS.openModal('mdReview');
+}
+
+function onRv() {
+  var v = document.querySelector('input[name="rvR"]:checked').value;
+  document.getElementById('rvHint').classList.toggle('hidden', v !== 'pass');
+  document.getElementById('rvFileBox').classList.toggle('hidden', v !== 'pass');
+  if (v === 'pass') PMS.enhanceUrlUploads(document.getElementById('mdReview'));
+}
+
+function doReview() {
+  var v = document.querySelector('input[name="rvR"]:checked').value;
+  var note = document.getElementById('rvNote').value.trim();
+  if (v === 'pass' && note.length < 30) {
+    PMS.toast('选择「放行」时复核意见不少于 30 字，当前 ' + note.length + ' 字', 'error');
+    return;
+  }
+  var map = { keep: '维持拦截', pass: '放行', deny: '驳回业务申请' };
+  PMS.closeModal('mdReview');
+  PMS.confirm({
+    title: '确认提交复核结果',
+    message: '复核结果为「' + map[v] + '」，提交后即时生效，是否确认？',
+    detail: v === 'pass'
+      ? '放行操作将全程留痕并纳入审计，复核人、复核时间、依据文件一并记入限制校验记录。'
+      : '复核结果将回写业务系统，申请人可在业务端查看处理意见。',
+    type: v === 'pass' ? 'warning' : 'info',
+    okText: '确认提交',
+    onOk: function () { PMS.toast('复核完成：' + map[v] + '，结果已回写业务系统并留痕', 'success'); }
+  });
+}
+
+function quick(name) {
+  var table = document.getElementById('tblCk');
+  table.querySelectorAll('tbody tr').forEach(function (tr) {
+    tr.style.display = (name === 'all' || tr.getAttribute('data-st') === name) ? '' : 'none';
+  });
+  var txt = { all: '已重置筛选，共 8,451 条', block: '仅看拦截：本月 271 条', wait: '仅看待复核：4 条' };
+  PMS.toast(txt[name]);
+}
+
+PMS.renderPager(document.getElementById('ckFoot'), {
+  pageNum: 1, pageSize: 10, total: 8451,
+  onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+});
+</script>
+</body>
+</html>

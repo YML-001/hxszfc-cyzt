@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>预约看房管理 · 房屋租赁网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：转化漏斗 */
+  .funnel { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .app-main.list-layout > .funnel { flex-shrink: 0; margin-bottom: 6px; }
+  .fn-seg {
+    position: relative; cursor: pointer; padding: 14px 16px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: #fff; transition: all .15s;
+  }
+  .fn-seg:hover { border-color: var(--primary); box-shadow: 0 2px 8px rgba(37,99,235,.12); }
+  .fn-seg.active { border-color: var(--primary); background: #f5f9ff; }
+  .fn-seg .fn-t { font-size: 13px; color: var(--text-3); display: flex; align-items: center; gap: 6px; }
+  .fn-seg .fn-v { font-size: 24px; font-weight: 700; margin: 6px 0 4px; letter-spacing: -.5px; }
+  .fn-seg .fn-r { font-size: 12.5px; color: var(--text-3); }
+  .fn-seg .fn-r b { color: var(--primary); }
+  .fn-seg .fn-bar { height: 8px; border-radius: 4px; background: var(--bg-soft); overflow: hidden; margin-top: 9px; }
+  .fn-seg .fn-bar i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #2563eb, #60a5fa); }
+  .fn-seg + .fn-seg::before {
+    content: "\f054"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 11px;
+    position: absolute; left: -10px; top: 50%; transform: translateY(-50%); color: var(--text-3); z-index: 1;
+  }
+
+  .score { color: #f59e0b; letter-spacing: 1px; font-size: 12px; }
+  .data-table tbody tr.is-warn > td { background: #fff8ed; }
+  .data-table tbody tr.is-warn:hover > td { background: #fdf0d9; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wszwb-11">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋租赁网签备案管理系统
+        <span class="sep">/</span> 租赁房源管理
+        <span class="sep">/</span> <span class="cur">预约看房管理</span>
+      </div>
+      <div class="page-title">预约看房管理</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" onclick="PMS.openDrawer('drAdd')"><i class="fa-solid fa-plus"></i> 新增预约</button>
+      <button type="button" class="btn" onclick="PMS.toast('已导出《预约看房台账》Excel','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="funnel">
+    <div class="fn-seg active" data-seg="all" onclick="pickSeg(this)">
+      <div class="fn-t"><i class="fa-regular fa-calendar-check"></i> 预约</div>
+      <div class="fn-v">1,286</div>
+      <div class="fn-r">本月发起预约总量</div>
+      <div class="fn-bar"><i style="width:100%"></i></div>
+    </div>
+    <div class="fn-seg" data-seg="confirm" onclick="pickSeg(this)">
+      <div class="fn-t"><i class="fa-solid fa-circle-check"></i> 已确认</div>
+      <div class="fn-v">1,124</div>
+      <div class="fn-r">确认率 <b>87.4%</b></div>
+      <div class="fn-bar"><i style="width:87.4%"></i></div>
+    </div>
+    <div class="fn-seg" data-seg="viewed" onclick="pickSeg(this)">
+      <div class="fn-t"><i class="fa-solid fa-door-open"></i> 已看房</div>
+      <div class="fn-v">968</div>
+      <div class="fn-r">到访率 <b>75.3%</b></div>
+      <div class="fn-bar"><i style="width:75.3%"></i></div>
+    </div>
+    <div class="fn-seg" data-seg="signed" onclick="pickSeg(this)">
+      <div class="fn-t"><i class="fa-solid fa-file-signature"></i> 已签约</div>
+      <div class="fn-v">342</div>
+      <div class="fn-r">转化率 <b>26.6%</b></div>
+      <div class="fn-bar"><i style="width:26.6%"></i></div>
+    </div>
+  </div>
+
+  <div class="stat-grid" style="margin-top:8px">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-regular fa-calendar-days"></i></div>
+      <div><div class="s-label">本月预约</div><div class="s-value">1,286 <small>次</small></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-user-slash"></i></div>
+      <div><div class="s-label">爽约</div><div class="s-value">86 <small>次 · 6.7%</small></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-star"></i></div>
+      <div><div class="s-label">平均评价</div><div class="s-value">4.6 <small>分</small></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>关键词</label>
+        <input type="text" placeholder="预约编号 / 房源编号 / 预约人">
+      </div>
+      <div class="filter-item">
+        <label>预约渠道</label>
+        <select><option value="">全部</option><option>官网</option><option>微信小程序</option><option>电话</option></select>
+      </div>
+      <div class="filter-item">
+        <label>预约状态</label>
+        <select><option value="">全部</option><option>待确认</option><option>已确认</option><option>已看房</option><option>已取消</option><option>已爽约</option></select>
+      </div>
+      <div class="filter-item">
+        <label>看房结果</label>
+        <select><option value="">全部</option><option>有意向</option><option>待考虑</option><option>无意向</option><option>已签约</option></select>
+      </div>
+      <div class="filter-item">
+        <label>预约时间起</label>
+        <input type="date" value="2026-07-01">
+      </div>
+      <div class="filter-item">
+        <label>预约时间止</label>
+        <input type="date" value="2026-07-31">
+      </div>
+      <div class="filter-item">
+        <label>接待人</label>
+        <input type="text" placeholder="接待人姓名">
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 1,286 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblYy" data-static>
+        <thead>
+          <tr>
+            <th>预约编号</th>
+            <th>租赁房源编号</th>
+            <th>坐落</th>
+            <th>预约人</th>
+            <th>联系电话</th>
+            <th>预约看房时间</th>
+            <th>预约渠道</th>
+            <th>接待人</th>
+            <th>预约状态</th>
+            <th>看房结果</th>
+            <th class="num">评价</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-seg="confirm">
+            <td class="nowrap fw-600">YY2026007412</td>
+            <td class="nowrap">ZLFY450200202600386</td>
+            <td class="cell-lg">城中区文昌路 66 号阳光 100 城市广场 3-2-1602</td>
+            <td class="nowrap">黄某某</td>
+            <td class="nowrap">137****5182</td>
+            <td class="nowrap">2026-07-30 15:00</td>
+            <td class="nowrap">微信小程序</td>
+            <td class="nowrap">莫小芳</td>
+            <td class="nowrap"><span class="badge blue">已确认</span></td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="num"><span class="text-3">—</span></td>
+            <td class="col-ops">
+              <a class="link" href="listing-detail.html">查看房源</a>
+              <span class="link" onclick="openResult('YY2026007412')">标记已看房</span>
+              <span class="link" onclick="cancelYy('YY2026007412')">取消</span>
+            </td>
+          </tr>
+          <tr data-seg="all">
+            <td class="nowrap fw-600">YY2026007408</td>
+            <td class="nowrap">ZLFY450200202600371</td>
+            <td class="cell-lg">鱼峰区屏山大道 118 号万科城 7-1-902</td>
+            <td class="nowrap">韦某某</td>
+            <td class="nowrap">135****2076</td>
+            <td class="nowrap">2026-07-31 10:30</td>
+            <td class="nowrap">官网</td>
+            <td class="nowrap">周建华</td>
+            <td class="nowrap"><span class="badge orange">待确认</span></td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="num"><span class="text-3">—</span></td>
+            <td class="col-ops">
+              <a class="link" href="listing-detail.html">查看房源</a>
+              <span class="link" onclick="confirmYy('YY2026007408')">确认预约</span>
+              <span class="link" onclick="cancelYy('YY2026007408')">取消</span>
+            </td>
+          </tr>
+          <tr data-seg="signed">
+            <td class="nowrap fw-600">YY2026007386</td>
+            <td class="nowrap">ZLFY450200202600341</td>
+            <td class="cell-lg">柳南区潭中西路 5 号保利大江郡 9-2-1802</td>
+            <td class="nowrap">陆某某</td>
+            <td class="nowrap">180****3364</td>
+            <td class="nowrap">2026-07-28 16:00</td>
+            <td class="nowrap">微信小程序</td>
+            <td class="nowrap">莫小芳</td>
+            <td class="nowrap"><span class="badge green">已看房</span></td>
+            <td class="nowrap"><span class="badge green">已签约</span></td>
+            <td class="num"><span class="score">★★★★★</span></td>
+            <td class="col-ops">
+              <a class="link" href="contract-detail.html">查看合同</a>
+              <a class="link" href="listing-detail.html">查看房源</a>
+            </td>
+          </tr>
+          <tr data-seg="viewed">
+            <td class="nowrap fw-600">YY2026007352</td>
+            <td class="nowrap">ZLFY450200202600358</td>
+            <td class="cell-lg">柳北区跃进路 33 号桂中华府 6-2-1104 分间 B</td>
+            <td class="nowrap">覃某某</td>
+            <td class="nowrap">159****8802</td>
+            <td class="nowrap">2026-07-27 19:30</td>
+            <td class="nowrap">电话</td>
+            <td class="nowrap">李冬梅</td>
+            <td class="nowrap"><span class="badge green">已看房</span></td>
+            <td class="nowrap"><span class="badge blue">有意向</span></td>
+            <td class="num"><span class="score">★★★★☆</span></td>
+            <td class="col-ops">
+              <a class="link" href="listing-detail.html">查看房源</a>
+              <a class="link" href="contract-create.html">发起签约</a>
+            </td>
+          </tr>
+          <tr data-seg="viewed">
+            <td class="nowrap fw-600">YY2026007318</td>
+            <td class="nowrap">ZLFY450200202600214</td>
+            <td class="cell-lg">城中区解放北路 41 号天湖国际 2-1-1508</td>
+            <td class="nowrap">梁某某</td>
+            <td class="nowrap">182****4417</td>
+            <td class="nowrap">2026-07-26 14:00</td>
+            <td class="nowrap">微信小程序</td>
+            <td class="nowrap">周建华</td>
+            <td class="nowrap"><span class="badge green">已看房</span></td>
+            <td class="nowrap"><span class="badge gray">待考虑</span></td>
+            <td class="num"><span class="score">★★★★☆</span></td>
+            <td class="col-ops">
+              <a class="link" href="listing-detail.html">查看房源</a>
+              <span class="link" onclick="PMS.toast('已发送回访短信')">回访</span>
+            </td>
+          </tr>
+          <tr data-seg="all" class="is-warn">
+            <td class="nowrap fw-600">YY2026007286</td>
+            <td class="nowrap">ZLFY450200202600097</td>
+            <td class="cell-lg">鱼峰区静兰路 66 号碧桂园十里江湾 11-3-1203</td>
+            <td class="nowrap">吴某某</td>
+            <td class="nowrap">176****9931</td>
+            <td class="nowrap">2026-07-25 11:00</td>
+            <td class="nowrap">官网</td>
+            <td class="nowrap">李冬梅</td>
+            <td class="nowrap"><span class="badge red">已爽约</span></td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="num"><span class="text-3">—</span></td>
+            <td class="col-ops">
+              <a class="link" href="listing-detail.html">查看房源</a>
+              <span class="link" onclick="PMS.toast('已记入预约人爽约记录，本年累计 2 次')">记录爽约</span>
+            </td>
+          </tr>
+          <tr data-seg="all">
+            <td class="nowrap fw-600">YY2026007254</td>
+            <td class="nowrap">ZLFY450200202600186</td>
+            <td class="cell-lg">城中区文昌路 66 号阳光 100 城市广场 5-1-806</td>
+            <td class="nowrap">白某某</td>
+            <td class="nowrap">139****6608</td>
+            <td class="nowrap">2026-07-24 09:30</td>
+            <td class="nowrap">电话</td>
+            <td class="nowrap">莫小芳</td>
+            <td class="nowrap"><span class="badge gray">已取消</span><br><span class="text-3 text-sm">承租人另择房源</span></td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="num"><span class="text-3">—</span></td>
+            <td class="col-ops">
+              <a class="link" href="listing-detail.html">查看房源</a>
+            </td>
+          </tr>
+          <tr data-seg="signed">
+            <td class="nowrap fw-600">YY2026007201</td>
+            <td class="nowrap">ZLFY450200202600152</td>
+            <td class="cell-lg">柳东新区花岭路 8 号人才驿站 A 座 1206</td>
+            <td class="nowrap">刘某某</td>
+            <td class="nowrap">133****7745</td>
+            <td class="nowrap">2026-07-22 17:00</td>
+            <td class="nowrap">微信小程序</td>
+            <td class="nowrap">周建华</td>
+            <td class="nowrap"><span class="badge green">已看房</span></td>
+            <td class="nowrap"><span class="badge green">已签约</span></td>
+            <td class="num"><span class="score">★★★★★</span></td>
+            <td class="col-ops">
+              <a class="link" href="contract-detail.html">查看合同</a>
+              <a class="link" href="listing-detail.html">查看房源</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 新增预约抽屉 -->
+  <div class="drawer-mask" data-close-drawer></div>
+  <div class="drawer" id="drAdd">
+    <div class="drawer-head"><span>新增看房预约</span><i class="fa-solid fa-xmark" data-close-drawer></i></div>
+    <div class="drawer-body">
+      <div class="form-grid form-align">
+        <div class="form-item col-full"><label>租赁房源编号<span class="req">*</span></label><input type="text" value="ZLFY450200202600386"></div>
+        <div class="form-item col-full"><label>房屋坐落</label><input type="text" readonly value="城中区文昌路 66 号阳光 100 城市广场 3-2-1602"></div>
+        <div class="form-item"><label>预约人姓名<span class="req">*</span></label><input type="text" placeholder="请输入"></div>
+        <div class="form-item"><label>联系电话<span class="req">*</span></label><input type="text" placeholder="11 位手机号"></div>
+        <div class="form-item"><label>预约看房时间<span class="req">*</span></label><input type="datetime-local" value="2026-08-02T15:00"></div>
+        <div class="form-item"><label>预约渠道<span class="req">*</span></label><select><option>微信小程序</option><option>官网</option><option>电话</option></select></div>
+        <div class="form-item"><label>接待人</label><select><option>莫小芳</option><option>周建华</option><option>李冬梅</option></select></div>
+        <div class="form-item"><label>意向租期(月)</label><input type="number" value="12"></div>
+        <div class="form-item col-full"><label>备注</label><textarea rows="3" placeholder="如：希望周末看房，关注采光与周边配套"></textarea></div>
+      </div>
+      <div class="alert alert-info mt-16">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>预约提交后系统短信通知出租人与接待人，看房前 2 小时再次提醒；连续 3 次爽约的预约人将限制线上预约功能 30 天。</div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('预约已创建，编号 YY2026007413','success')">保存</button>
+    </div>
+  </div>
+
+  <!-- 看房结果抽屉 -->
+  <div class="drawer" id="drResult">
+    <div class="drawer-head"><span>录入看房结果 · <span id="rsNo">YY2026007412</span></span><i class="fa-solid fa-xmark" data-close-drawer></i></div>
+    <div class="drawer-body">
+      <div class="form-grid form-align">
+        <div class="form-item"><label>实际看房时间<span class="req">*</span></label><input type="datetime-local" value="2026-07-30T15:08"></div>
+        <div class="form-item"><label>是否到访<span class="req">*</span></label><select><option>已到访</option><option>爽约</option></select></div>
+        <div class="form-item">
+          <label>看房结果<span class="req">*</span></label>
+          <select><option>有意向</option><option>待考虑</option><option>无意向</option><option>已签约</option></select>
+        </div>
+        <div class="form-item">
+          <label>评价分值</label>
+          <select><option>5 分</option><option selected>4 分</option><option>3 分</option><option>2 分</option><option>1 分</option></select>
+        </div>
+        <div class="form-item col-full"><label>看房情况说明</label><textarea rows="3">承租人对房屋朝向与家电配置满意，就押金支付方式与出租人达成一致，拟按押一付三签约。</textarea></div>
+        <div class="form-item col-full"><label>后续跟进</label><select><option>发起签约</option><option>三日内回访</option><option>推荐其他房源</option><option>无需跟进</option></select></div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('看房结果已录入，可直接发起签约','success')">保存</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function pickSeg(el) {
+  document.querySelectorAll('.fn-seg').forEach(function (s) { s.classList.remove('active'); });
+  el.classList.add('active');
+  var seg = el.getAttribute('data-seg');
+  var map = { all: '全部预约', confirm: '已确认', viewed: '已看房', signed: '已签约' };
+  document.querySelectorAll('#tblYy tbody tr').forEach(function (tr) {
+    if (seg === 'all') { tr.style.display = ''; return; }
+    var v = tr.getAttribute('data-seg');
+    var hit = (seg === 'confirm') ? (v === 'confirm' || v === 'viewed' || v === 'signed')
+      : (seg === 'viewed') ? (v === 'viewed' || v === 'signed')
+      : (v === 'signed');
+    tr.style.display = hit ? '' : 'none';
+  });
+  PMS.toast('已筛选：' + map[seg]);
+}
+
+function confirmYy(no) {
+  PMS.toast('预约 ' + no + ' 已确认，短信通知承租人与接待人', 'success');
+}
+
+function cancelYy(no) {
+  PMS.confirm({
+    title: '取消预约',
+    message: '取消预约「' + no + '」？',
+    detail: '取消需填写取消原因，系统同步短信告知预约人。',
+    type: 'warning',
+    okText: '取消预约',
+    onOk: function () { PMS.toast('预约已取消，原因：房源已被他人预定', 'success'); }
+  });
+}
+
+function openResult(no) {
+  document.getElementById('rsNo').textContent = no;
+  PMS.openDrawer('drResult');
+}
+
+(function () {
+  PMS.renderPager(document.getElementById('tblYy'), {
+    pageNum: 1, pageSize: 20, total: 1286,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+</script>
+</body>
+</html>

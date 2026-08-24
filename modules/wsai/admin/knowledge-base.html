@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>政务知识库 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="pt" data-active="knowledge-base">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>知识库管理</span>
+      <span class="sep">/</span><span class="cur">监管知识库管理</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-sitemap"></i>知识库管理</span>
+    <a class="active" href="knowledge-base.html?role=pt">政务知识库</a>
+    <a href="knowledge-audit.html?role=pt">更新审核</a>
+    <a href="graph-build.html?role=pt">图谱构建</a>
+    <a href="graph-explorer.html?role=pt">图谱可视化</a>
+    <a href="risk-path.html?role=pt">风险传导路径</a>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon ai"><i class="fa-solid fa-book"></i></div>
+      <div><div class="s-label">文档总数</div><div class="s-value" id="kAll">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">已生效可引用</div><div class="s-value" id="kOn">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">待审核</div><div class="s-value" id="kPend">—</div>
+        <div class="s-trend text-danger">未生效不参与检索</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-quote-right"></i></div>
+      <div><div class="s-label">累计被引用</div><div class="s-value" id="kHit">—</div></div>
+    </div>
+  </div>
+
+  <div class="card list-card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>知识分类</label>
+        <select id="fCat" data-dict="zsfl" onchange="AI.paint('tKb')"></select>
+      </div>
+      <div class="filter-item">
+        <label>文档状态</label>
+        <select id="fZt" data-dict="zskzt" onchange="AI.paint('tKb')"></select>
+      </div>
+      <div class="filter-item">
+        <label>标题 / 条款关键词</label>
+        <input type="text" id="fKw" placeholder="输入标题或条款关键词" oninput="AI.paint('tKb')">
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-primary" onclick="AI.paint('tKb')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button class="btn" onclick="resetFilter()"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tKb" data-static>
+        <thead><tr>
+          <th>文档标题</th><th>分类</th><th>版本</th><th>状态</th>
+          <th class="cell-lg">条款摘要</th><th class="num">被引用</th>
+          <th>审核人</th><th>生效时间</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<div class="drawer-mask" data-close-drawer></div>
+<div class="drawer" id="dEdit">
+  <div class="drawer-head"><h3>编辑知识库文档</h3><span class="sub text-3" id="dTitle"></span>
+    <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span></div>
+  <div class="drawer-body">
+    <div class="alert alert-warning" id="dWarn"></div>
+    <div class="form-grid">
+      <div class="form-item col-full">
+        <label>文档标题</label>
+        <input type="text" id="eTitle" readonly>
+      </div>
+      <div class="form-item col-full">
+        <label>条款原文 <span class="req">*</span></label>
+        <textarea id="eClause" rows="7"></textarea>
+        <div class="hint">条款原文是智能问答的引用依据，AI 答复中的引用角标点开后展示的就是这段内容。</div>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="saveDoc()"><i class="fa-solid fa-floppy-disk"></i> 保存并送审</button>
+  </div>
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var curId = null;
+
+  function paintKpi() {
+    var ds = AI.get('kbDocs');
+    document.getElementById('kAll').textContent = ds.length;
+    document.getElementById('kOn').textContent = ds.filter(function (d) { return d.zskzt === '2'; }).length;
+    document.getElementById('kPend').textContent = ds.filter(function (d) { return d.zskzt === '1'; }).length;
+    document.getElementById('kHit').textContent = AI.num(ds.reduce(function (s, d) { return s + d.hits; }, 0));
+  }
+
+  window.resetFilter = function () {
+    document.getElementById('fCat').value = '';
+    document.getElementById('fZt').value = '';
+    document.getElementById('fKw').value = '';
+    AI.paint('tKb');
+  };
+
+  AI.table({
+    id: 'tKb', pageSize: 20,
+    rows: function () {
+      var cat = document.getElementById('fCat').value;
+      var zt = document.getElementById('fZt').value;
+      var kw = (document.getElementById('fKw').value || '').trim();
+      return AI.where('kbDocs', function (d) {
+        if (cat && d.cat !== cat) return false;
+        if (zt && d.zskzt !== zt) return false;
+        if (kw && d.title.indexOf(kw) < 0 && d.clause.indexOf(kw) < 0) return false;
+        return true;
+      });
+    },
+    cells: function (d) {
+      return [
+        '<td>' + AI.esc(d.title) + '</td>',
+        '<td>' + AI.dict('zsfl', d.cat) + '</td>',
+        '<td>' + AI.esc(d.ver) + '</td>',
+        '<td>' + AI.zskBadge(d.zskzt) + '</td>',
+        '<td class="cell-lg">' + AI.esc(d.clause) + '</td>',
+        '<td class="num">' + AI.num(d.hits) + '</td>',
+        '<td>' + AI.esc(d.auditBy || '—') + '</td>',
+        '<td>' + (d.effectAt ? AI.fmt.date(d.effectAt) : '—') + '</td>',
+        '<td class="col-ops">' +
+          '<button class="btn btn-sm" onclick="openEdit(\'' + d.id + '\')"><i class="fa-solid fa-pen"></i> 编辑</button> ' +
+          (d.zskzt === '0'
+            ? '<button class="btn btn-primary btn-sm" onclick="AI.act.submitDoc(\'' + d.id + '\')"><i class="fa-solid fa-paper-plane"></i> 送审</button>'
+            : '') +
+          (d.zskzt === '1'
+            ? '<a class="btn btn-sm" href="knowledge-audit.html?role=pt"><i class="fa-solid fa-clipboard-check"></i> 去审核</a>'
+            : '') +
+          (d.zskzt === '2'
+            ? '<button class="btn btn-danger btn-sm" onclick="AI.act.revokeDoc(\'' + d.id + '\')"><i class="fa-solid fa-ban"></i> 废止</button>'
+            : '') +
+        '</td>'
+      ];
+    },
+    empty: '没有符合条件的知识库文档'
+  });
+
+  window.openEdit = function (id) {
+    var d = AI.byId('kbDocs', id);
+    if (!d) return;
+    curId = id;
+    document.getElementById('dTitle').textContent = d.title + ' · ' + d.ver + '（' + AI.dict('zskzt', d.zskzt) + '）';
+    document.getElementById('eTitle').value = d.title;
+    document.getElementById('eClause').value = d.clause;
+    document.getElementById('dWarn').innerHTML = d.zskzt === '2'
+      ? '<i class="fa-solid fa-triangle-exclamation"></i><span>该文档当前<b>已生效</b>。修改后版本号递增并<b>自动退回待审核</b>，' +
+        '审核通过前不参与检索增强，引用它的 AI 输出会被幻觉防控判为无有效引用。</span>'
+      : '<i class="fa-solid fa-circle-info"></i><span>该文档当前为「' + AI.dict('zskzt', d.zskzt) +
+        '」，保存后需经业务科室审核通过才会生效并进入检索池。</span>';
+    PMS.openDrawer('dEdit');
+  };
+
+  window.saveDoc = function () {
+    if (!curId) return;
+    AI.act.editDoc(curId, document.getElementById('eClause').value);
+    PMS.closeDrawer('dEdit');
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () { paintKpi(); AI.repaintAll(); });
+  });
+})();
+</script>
+</body>
+</html>

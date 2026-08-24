@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>档案复制出证 · 房屋交易档案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  .no-code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; }
+  .cc-layout { display: grid; grid-template-columns: 1fr 560px; gap: 12px; align-items: start; }
+  @media (max-width: 1280px) { .cc-layout { grid-template-columns: 1fr; } }
+  /* 本页特有：卡片式单选 */
+  .pick-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 8px; }
+  .pick {
+    border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; cursor: pointer;
+    display: flex; align-items: center; gap: 9px; font-size: 13px; background: #fff; transition: .15s;
+  }
+  .pick:hover { border-color: var(--primary); }
+  .pick.on { border-color: var(--primary); background: var(--primary-bg); color: var(--primary); font-weight: 600; }
+  .pick i { font-size: 15px; }
+  .pick small { display: block; font-weight: 400; color: var(--text-3); font-size: 11.5px; margin-top: 1px; }
+  .pick.on small { color: var(--primary); opacity: .85; }
+  /* 本页特有：A4 证明预览 */
+  .a4-box { position: sticky; top: 12px; }
+  .a4 {
+    background: #fff; border: 1px solid var(--border); border-radius: 4px; box-shadow: var(--shadow);
+    padding: 44px 48px 56px; position: relative; min-height: 720px;
+  }
+  .a4 .head {
+    text-align: center; font-size: 24px; font-weight: 700; color: #b91c1c; letter-spacing: 4px;
+    padding-bottom: 12px; border-bottom: 3px solid #b91c1c; margin-bottom: 6px;
+  }
+  .a4 .head small { display: block; font-size: 13px; letter-spacing: 1px; margin-top: 4px; font-weight: 400; }
+  .a4 .cno { text-align: center; font-size: 13.5px; color: var(--text-2); margin: 16px 0 24px; }
+  .a4 .body { font-size: 14px; line-height: 2.1; color: #1e293b; text-indent: 2em; }
+  .a4 .body b { border-bottom: 1px solid #94a3b8; padding: 0 2px; }
+  .a4 .lst {
+    margin: 14px 0 14px 2em; border: 1px solid #cbd5e1; border-collapse: collapse; width: calc(100% - 2em); font-size: 13px;
+  }
+  .a4 .lst th, .a4 .lst td { border: 1px solid #cbd5e1; padding: 6px 9px; text-indent: 0; }
+  .a4 .lst th { background: #f4f7fb; font-weight: 600; }
+  .a4 .foot { margin-top: 34px; text-align: right; font-size: 14px; line-height: 2; padding-right: 18px; }
+  .a4 .cert-seal {
+    position: absolute; right: 62px; bottom: 118px; width: 122px; height: 122px; border-radius: 50%;
+    border: 3px solid #d64545; color: #d64545; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; text-align: center; font-size: 13px; line-height: 1.4; font-weight: 700;
+    opacity: .82; transform: rotate(-12deg);
+  }
+  .a4 .cert-seal .star { font-size: 17px; line-height: 1; margin: 2px 0; }
+  .a4 .qr-box { position: absolute; left: 48px; bottom: 46px; display: flex; align-items: center; gap: 10px; }
+  .qr {
+    width: 78px; height: 78px; display: grid; grid-template-columns: repeat(9, 1fr); grid-template-rows: repeat(9, 1fr);
+    gap: 1px; background: #fff; border: 1px solid var(--border); padding: 4px;
+  }
+  .qr span { background: #1e293b; }
+  .qr span.b { background: #fff; }
+  .a4 .qr-tip { font-size: 11.5px; color: var(--text-3); line-height: 1.7; }
+  .a4 .qr-tip b { color: var(--text-1); font-family: Consolas, monospace; }
+  /* 本页特有：卷内勾选 */
+  .sel-sum {
+    display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--primary-bg);
+    border-radius: 8px; font-size: 13px; color: var(--primary); margin-top: 10px;
+  }
+  .step-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12.5px; }
+  .step-line .s { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; background: var(--bg-soft); color: var(--text-3); }
+  .step-line .s.done { background: var(--success-light); color: var(--success); }
+  .step-line .s.now { background: var(--primary); color: #fff; font-weight: 600; }
+  .form-static { display: flex; align-items: center; gap: 8px; min-height: 34px; font-size: 13.5px; }
+  .form-static input[type="checkbox"] { width: auto; height: auto; }
+  .form-foot { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+  .foot-tip { margin-right: auto; font-size: 12.5px; color: var(--text-3); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdagl-18">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> <a class="link" href="index.html">房屋交易档案管理系统</a>
+        <span class="sep">/</span> 档案保管利用
+        <span class="sep">/</span> <span class="cur">档案复制出证</span>
+      </div>
+      <div class="page-title">
+        档案复制出证
+        <span class="badge blue no-code">FZ20260801012</span>
+        <span class="badge orange">待处理</span>
+      </div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="PMS.toast('草稿已保存','success')"><i class="fa-regular fa-floppy-disk"></i> 存草稿</button>
+      <a class="btn" href="borrow-list.html"><i class="fa-solid fa-arrow-left"></i> 返回借阅台账</a>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      本页办理 <b>档案原件复制件</b> 并加盖<b>档案证明章</b>。如需办理有无房证明、家庭住房套数证明等 <b>信息查询证明</b>，
+      请前往房屋交易备案管理系统的查档服务办理。
+      <a class="link" href="../wsdwb/check-service.html">前往 wsdwb 查档服务 <i class="fa-solid fa-angle-right"></i></a>
+    </div>
+  </div>
+
+  <div class="card mb-16">
+    <div class="card-body" style="padding:10px 14px">
+      <div class="step-line">
+        <span class="s done"><i class="fa-solid fa-check"></i> 受理</span>
+        <i class="fa-solid fa-angle-right text-3"></i>
+        <span class="s now">复制内容选择</span>
+        <i class="fa-solid fa-angle-right text-3"></i>
+        <span class="s">出证配置与用印</span>
+        <i class="fa-solid fa-angle-right text-3"></i>
+        <span class="s">收费与领取</span>
+        <i class="fa-solid fa-angle-right text-3"></i>
+        <span class="s">已出证</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="cc-layout">
+    <div>
+      <div class="card mb-16">
+        <div class="card-head"><h3><i class="fa-solid fa-arrow-right-to-bracket"></i> 来源与申请人</h3></div>
+        <div class="card-body">
+          <div class="form-grid form-align">
+            <div class="form-item col-full">
+              <label>来源<span class="req">*</span></label>
+              <div class="pick-row">
+                <div class="pick on" onclick="pickSrc(this,'jy')"><i class="fa-solid fa-hand-holding-hand"></i><span>借阅申请转入<small>本系统借阅</small></span></div>
+                <div class="pick" onclick="pickSrc(this,'cd')"><i class="fa-solid fa-magnifying-glass-location"></i><span>查档申请转入<small>wsdwb 转入</small></span></div>
+                <div class="pick" onclick="pickSrc(this,'zj')"><i class="fa-solid fa-pen-to-square"></i><span>直接受理<small>窗口直接办理</small></span></div>
+              </div>
+            </div>
+            <div class="form-item" id="itJy">
+              <label>借阅申请编号</label>
+              <input type="text" class="no-code" value="JY20260728026">
+            </div>
+            <div class="form-item" id="itCd" style="display:none">
+              <label>查档申请编号（wsdwb）<span class="req">*</span></label>
+              <input type="text" class="no-code" value="CD20260801008" onchange="PMS.toast('已从 wsdwb 带出申请人与查询需求','success')">
+            </div>
+            <div class="form-item">
+              <label>复制编号</label>
+              <input type="text" class="no-code" value="FZ20260801012" readonly>
+            </div>
+            <div class="form-item">
+              <label>受理日期</label>
+              <input type="date" value="2026-08-01">
+            </div>
+            <div class="form-item">
+              <label>申请人名称<span class="req">*</span></label>
+              <input type="text" value="陈**">
+            </div>
+            <div class="form-item">
+              <label>证件号码<span class="req">*</span></label>
+              <input type="text" class="no-code" value="450***********0028">
+            </div>
+            <div class="form-item">
+              <label>联系电话<span class="req">*</span></label>
+              <input type="text" value="139****8862">
+            </div>
+            <div class="form-item">
+              <label>申请人单位</label>
+              <input type="text" value="广西公证处柳州分部">
+            </div>
+            <div class="form-item">
+              <label>申请用途</label>
+              <select><option>公证</option><option>诉讼举证</option><option>继承</option><option>历史查询</option><option>业务办理</option></select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-16">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-copy"></i> 复制内容选择</h3>
+          <span class="text-3 text-sm">逐件勾选需要复制的卷内文件</span>
+        </div>
+        <div class="card-body">
+          <div class="form-grid form-align mb-16">
+            <div class="form-item col-2">
+              <label>选择案卷<span class="req">*</span></label>
+              <select onchange="PMS.toast('已加载 ' + this.value + ' 的卷内文件清单')">
+                <option>DA450204202600862　存量房买卖合同网签备案（12 件 46 页）</option>
+                <option>DA450202202100862　商品房买卖合同网签备案（14 件 52 页）</option>
+                <option>DA450202202300186　不动产转移登记归档（11 件 36 页）</option>
+              </select>
+            </div>
+            <div class="form-item">
+              <label>房屋坐落</label>
+              <input type="text" value="彰泰滨江学府 12 栋 2 单元 1802" readonly>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="data-table compact" data-static>
+              <thead>
+                <tr>
+                  <th style="width:38px"><input type="checkbox" id="ckAll"></th>
+                  <th class="num">卷内序号</th>
+                  <th>文件名称</th>
+                  <th>文件类型</th>
+                  <th>成文日期</th>
+                  <th class="num">页数</th>
+                  <th>是否原件</th>
+                  <th>文件状态</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td><input type="checkbox" class="ck" data-p="2" onchange="sum()"></td><td class="num">1</td><td class="cell-lg">存量房买卖合同网签备案申请表</td><td class="nowrap">申请表</td><td class="nowrap">2026-06-28</td><td class="num">2</td><td class="nowrap"><span class="badge green">原件</span></td><td class="nowrap"><span class="badge green">正常</span></td></tr>
+                <tr><td><input type="checkbox" class="ck" data-p="2" onchange="sum()"></td><td class="num">2</td><td class="cell-lg">转让方身份证明</td><td class="nowrap">身份证明材料</td><td class="nowrap">2026-06-28</td><td class="num">2</td><td class="nowrap"><span class="badge blue">扫描件</span></td><td class="nowrap"><span class="badge green">正常</span></td></tr>
+                <tr><td><input type="checkbox" class="ck" data-p="2" onchange="sum()"></td><td class="num">3</td><td class="cell-lg">受让方身份证明</td><td class="nowrap">身份证明材料</td><td class="nowrap">2026-06-28</td><td class="num">2</td><td class="nowrap"><span class="badge blue">扫描件</span></td><td class="nowrap"><span class="badge green">正常</span></td></tr>
+                <tr><td><input type="checkbox" class="ck" data-p="3" checked onchange="sum()"></td><td class="num">4</td><td class="cell-lg">不动产权证书</td><td class="nowrap">权属证明</td><td class="nowrap">2023-11-08</td><td class="num">3</td><td class="nowrap"><span class="badge blue">扫描件</span></td><td class="nowrap"><span class="badge green">正常</span></td></tr>
+                <tr><td><input type="checkbox" class="ck" data-p="6" checked onchange="sum()"></td><td class="num">5</td><td class="cell-lg">存量房买卖合同</td><td class="nowrap">合同协议</td><td class="nowrap">2026-06-28</td><td class="num">6</td><td class="nowrap"><span class="badge green">原件</span></td><td class="nowrap"><span class="badge green">正常</span></td></tr>
+                <tr><td><input type="checkbox" class="ck" data-p="2" onchange="sum()"></td><td class="num">6</td><td class="cell-lg">房源核验单</td><td class="nowrap">审批表与审批文书</td><td class="nowrap">2026-06-22</td><td class="num">2</td><td class="nowrap"><span class="badge green">原件</span></td><td class="nowrap"><span class="badge green">正常</span></td></tr>
+                <tr><td><input type="checkbox" class="ck" data-p="2" onchange="sum()"></td><td class="num">7</td><td class="cell-lg">交易限制校验结果单</td><td class="nowrap">审批表与审批文书</td><td class="nowrap">2026-06-24</td><td class="num">2</td><td class="nowrap"><span class="badge green">原件</span></td><td class="nowrap"><span class="badge green">正常</span></td></tr>
+                <tr><td><input type="checkbox" class="ck" data-p="8" onchange="sum()"></td><td class="num">8</td><td class="cell-lg">资金监管协议</td><td class="nowrap">合同协议</td><td class="nowrap">2026-06-28</td><td class="num">8</td><td class="nowrap"><span class="badge green">原件</span></td><td class="nowrap"><span class="badge green">正常</span></td></tr>
+                <tr><td><input type="checkbox" class="ck" data-p="1" onchange="sum()"></td><td class="num">9</td><td class="cell-lg">购房款支付凭证</td><td class="nowrap">缴费凭证</td><td class="nowrap">2026-06-29</td><td class="num">1</td><td class="nowrap"><span class="badge blue">扫描件</span></td><td class="nowrap"><span class="badge green">正常</span></td></tr>
+                <tr><td><input type="checkbox" class="ck" data-p="3" checked onchange="sum()"></td><td class="num">10</td><td class="cell-lg">网签备案证明</td><td class="nowrap">发证证书与证明</td><td class="nowrap">2026-06-29</td><td class="num">3</td><td class="nowrap"><span class="badge green">原件</span></td><td class="nowrap"><span class="badge green">正常</span></td></tr>
+                <tr><td><input type="checkbox" class="ck" data-p="1" onchange="sum()"></td><td class="num">11</td><td class="cell-lg">契税完税凭证</td><td class="nowrap">缴费凭证</td><td class="nowrap">2026-06-30</td><td class="num">1</td><td class="nowrap"><span class="badge blue">扫描件</span></td><td class="nowrap"><span class="badge green">正常</span></td></tr>
+                <tr><td><input type="checkbox" class="ck" data-p="14" onchange="sum()"></td><td class="num">12</td><td class="cell-lg">经纪服务合同</td><td class="nowrap">合同协议</td><td class="nowrap">2026-06-20</td><td class="num">14</td><td class="nowrap"><span class="badge gray">复印件</span></td><td class="nowrap"><span class="badge green">正常</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="sel-sum">
+            <i class="fa-solid fa-circle-check"></i>
+            已选 <b id="selN">3</b> 件，共 <b id="selP">12</b> 页
+            <span style="margin-left:auto" class="text-3">按件计费，收费标准 2.00 元 / 页</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-16">
+        <div class="card-head"><h3><i class="fa-solid fa-stamp"></i> 出证配置</h3></div>
+        <div class="card-body">
+          <div class="form-grid form-align">
+            <div class="form-item col-full">
+              <label>复制方式<span class="req">*</span></label>
+              <div class="pick-row">
+                <div class="pick on" onclick="pickWay(this)"><i class="fa-solid fa-print"></i><span>复印</span></div>
+                <div class="pick" onclick="pickWay(this)"><i class="fa-solid fa-images"></i><span>扫描</span></div>
+                <div class="pick" onclick="pickWay(this)"><i class="fa-solid fa-camera"></i><span>拍照</span></div>
+                <div class="pick" onclick="pickWay(this)"><i class="fa-solid fa-file-export"></i><span>电子导出</span></div>
+              </div>
+            </div>
+            <div class="form-item">
+              <label>加盖档案证明章</label>
+              <div class="form-static">
+                <input type="checkbox" id="swSeal" checked onchange="toggleSeal()" style="width:auto;height:auto">
+                <span>加盖（默认开启）</span>
+              </div>
+            </div>
+            <div class="form-item">
+              <label>档案证明编号</label>
+              <input type="text" value="柳房档字〔2026〕第 000862 号" readonly>
+            </div>
+            <div class="form-item">
+              <label>出证日期</label>
+              <input type="date" value="2026-08-01">
+            </div>
+            <div class="form-item">
+              <label>出证人<span class="req">*</span></label>
+              <input type="text" value="韦国强">
+            </div>
+            <div class="form-item">
+              <label>审核人<span class="req">*</span></label>
+              <input type="text" value="覃永明">
+            </div>
+            <div class="form-item">
+              <label>验证码</label>
+              <input type="text" class="no-code" value="D4M8-2K7X" readonly>
+            </div>
+            <div class="form-item col-full">
+              <label>证明文本内容<span class="req">*</span></label>
+              <textarea rows="5" id="certTxt">兹证明，柳州市城中区滨江东路 8 号彰泰滨江学府 12 栋 2 单元 1802 号房屋（不动产单元号 450202001005GB00123F00020017）的存量房买卖合同网签备案档案（档案号 DA450204202600862）现存于我所档案库。经申请人申请，现复制该案卷内《不动产权证书》《存量房买卖合同》《网签备案证明》共 3 件 12 页，与档案原件核对无误，特此证明。</textarea>
+              <span class="hint">
+                <a class="link" onclick="fillTpl()">套用模板自动填充</a>　模板会自动填入房屋坐落、档案号、复制文件清单与页数
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-16">
+        <div class="card-head"><h3><i class="fa-solid fa-money-bill-wave"></i> 收费与领取</h3></div>
+        <div class="card-body">
+          <div class="form-grid form-align">
+            <div class="form-item">
+              <label>领取方式<span class="req">*</span></label>
+              <select onchange="PMS.toast('领取方式已设为 ' + this.value)">
+                <option>现场领取</option><option>邮寄</option><option>电子发送</option>
+              </select>
+            </div>
+            <div class="form-item">
+              <label>领取人姓名</label>
+              <input type="text" value="陈**">
+            </div>
+            <div class="form-item">
+              <label>收费金额</label>
+              <input type="text" id="fee" value="24.00 元" readonly>
+            </div>
+            <div class="form-item">
+              <label>票据号码</label>
+              <input type="text" class="no-code" value="GXPJ2026080100862">
+            </div>
+            <div class="form-item">
+              <label>出证状态</label>
+              <div class="form-static"><span class="badge orange">待处理</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="form-foot">
+          <span class="foot-tip">出证后自动写入档案利用记录（查询类型：查档出证），并可在利用留痕审计中追溯</span>
+          <button type="button" class="btn" onclick="PMS.toast('已保存为草稿','success')">保存</button>
+          <button type="button" class="btn" onclick="window.print()"><i class="fa-solid fa-print"></i> 打印预览</button>
+          <button type="button" class="btn btn-primary" onclick="doCert()"><i class="fa-solid fa-stamp"></i> 出证并用印</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="a4-box">
+      <div class="card">
+        <div class="card-head">
+          <h3><i class="fa-regular fa-file-lines"></i> 证明预览（A4 纵向）</h3>
+          <span class="badge gray">实时预览</span>
+        </div>
+        <div class="card-body" style="background:#eef2f7">
+          <div class="a4">
+            <div class="head">
+              XXXX市住房和城乡建设局
+              <small>房 产 档 案 证 明</small>
+            </div>
+            <div class="cno">柳房档字〔2026〕第 000862 号</div>
+            <div class="body">
+              兹证明，柳州市城中区滨江东路 8 号<b>彰泰滨江学府 12 栋 2 单元 1802</b> 号房屋
+              （不动产单元号 <b>450202001005GB00123F00020017</b>）的存量房买卖合同网签备案档案
+              （档案号 <b>DA450204202600862</b>）现存于我所档案库。经申请人申请，现复制该案卷内材料如下：
+            </div>
+            <table class="lst">
+              <thead>
+                <tr><th style="width:44px">序号</th><th>文件名称</th><th style="width:64px">页数</th></tr>
+              </thead>
+              <tbody id="certLst">
+                <tr><td>1</td><td>不动产权证书</td><td>3</td></tr>
+                <tr><td>2</td><td>存量房买卖合同</td><td>6</td></tr>
+                <tr><td>3</td><td>网签备案证明</td><td>3</td></tr>
+                <tr><td colspan="2" style="text-align:right">合计</td><td><b>12</b></td></tr>
+              </tbody>
+            </table>
+            <div class="body">
+              以上复制件共 <b id="cN">3</b> 件 <b id="cP">12</b> 页，与档案原件核对无误，特此证明。
+            </div>
+            <div class="foot">
+              XXXX市房产交易所<br>
+              二〇二六年八月一日
+            </div>
+            <div class="cert-seal" id="certSeal">
+              XXXX市房产交易所
+              <span class="star">★</span>
+              档案证明专用章
+            </div>
+            <div class="qr-box">
+              <div class="qr" id="qr"></div>
+              <div class="qr-tip">
+                扫码验真<br>
+                验证码 <b>D4M8-2K7X</b><br>
+                有效期至 2027-08-01
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  var q = document.getElementById('qr'), h = '';
+  var pat = [
+    1,1,1,0,1,0,1,1,1, 1,0,1,0,0,1,1,0,1, 1,1,1,0,1,0,1,1,1,
+    0,0,0,1,0,1,0,0,0, 1,0,1,0,1,1,0,1,0, 0,1,0,1,0,0,1,0,1,
+    1,1,1,0,0,1,1,1,1, 1,0,1,1,0,1,0,0,1, 1,1,1,0,1,0,1,1,0
+  ];
+  for (var i = 0; i < 81; i++) h += '<span class="' + (pat[i] ? '' : 'b') + '"></span>';
+  q.innerHTML = h;
+})();
+
+function pickSrc(el, k) {
+  el.parentNode.querySelectorAll('.pick').forEach(function (p) { p.classList.remove('on'); });
+  el.classList.add('on');
+  document.getElementById('itJy').style.display = (k === 'jy') ? '' : 'none';
+  document.getElementById('itCd').style.display = (k === 'cd') ? '' : 'none';
+  if (k === 'cd') PMS.toast('wsdwb 查档申请转入：办结后复制件将回传 wsdwb 一并交付');
+}
+function pickWay(el) {
+  el.parentNode.querySelectorAll('.pick').forEach(function (p) { p.classList.remove('on'); });
+  el.classList.add('on');
+}
+function toggleSeal() {
+  var on = document.getElementById('swSeal').checked;
+  document.getElementById('certSeal').style.display = on ? '' : 'none';
+  PMS.toast(on ? '证明将加盖档案证明章' : '已取消加盖档案证明章', on ? 'success' : 'warning');
+}
+function sum() {
+  var cks = document.querySelectorAll('.ck:checked');
+  var n = cks.length, p = 0, rows = '';
+  cks.forEach(function (c, i) {
+    var pg = parseInt(c.getAttribute('data-p'), 10);
+    p += pg;
+    var nm = c.closest('tr').children[2].textContent.trim();
+    rows += '<tr><td>' + (i + 1) + '</td><td>' + nm + '</td><td>' + pg + '</td></tr>';
+  });
+  rows += '<tr><td colspan="2" style="text-align:right">合计</td><td><b>' + p + '</b></td></tr>';
+  document.getElementById('selN').textContent = n;
+  document.getElementById('selP').textContent = p;
+  document.getElementById('cN').textContent = n;
+  document.getElementById('cP').textContent = p;
+  document.getElementById('certLst').innerHTML = rows;
+  document.getElementById('fee').value = (p * 2).toFixed(2) + ' 元';
+}
+function fillTpl() {
+  var n = document.getElementById('selN').textContent, p = document.getElementById('selP').textContent;
+  var names = [];
+  document.querySelectorAll('.ck:checked').forEach(function (c) {
+    names.push('《' + c.closest('tr').children[2].textContent.trim() + '》');
+  });
+  document.getElementById('certTxt').value =
+    '兹证明，柳州市城中区滨江东路 8 号彰泰滨江学府 12 栋 2 单元 1802 号房屋（不动产单元号 450202001005GB00123F00020017）' +
+    '的存量房买卖合同网签备案档案（档案号 DA450204202600862）现存于我所档案库。经申请人申请，现复制该案卷内' +
+    names.join('') + '共 ' + n + ' 件 ' + p + ' 页，与档案原件核对无误，特此证明。';
+  PMS.toast('已按模板重新生成证明文本', 'success');
+}
+function doCert() {
+  if (parseInt(document.getElementById('selN').textContent, 10) === 0) {
+    PMS.toast('请先勾选需要复制的卷内文件', 'error');
+    return;
+  }
+  PMS.confirm({
+    title: '出证并加盖档案证明章',
+    type: 'info',
+    message: '确认出具档案复制件并加盖档案证明章？用印后证明编号与验证码即刻生效。',
+    detail: '柳房档字〔2026〕第 000862 号 · 复制 3 件 12 页 · 验证码 D4M8-2K7X',
+    okText: '确认出证',
+    onOk: function () {
+      PMS.toast('复制件已生成并加盖档案证明章，验证码 D4M8-2K7X，可扫码验真；本次复制出证已写入档案利用记录', 'success');
+    }
+  });
+}
+(function () {
+  var all = document.getElementById('ckAll');
+  all.addEventListener('change', function () {
+    var on = this.checked;
+    document.querySelectorAll('.ck').forEach(function (c) { c.checked = on; });
+    sum();
+  });
+  sum();
+  var from = new URLSearchParams(location.search).get('from');
+  if (from) PMS.toast('已从借阅申请 ' + from + ' 转入复制出证');
+})();
+</script>
+</body>
+</html>

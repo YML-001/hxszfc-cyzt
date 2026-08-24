@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>月度进度填报 · 新建商品房网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：上月值提示与版本对照 */
+  .last-val { font-size: 12px; color: var(--text-3); margin-top: 4px; }
+  .pg { display: flex; align-items: center; gap: 8px; min-width: 122px; }
+  .pg .progress { flex: 1; display: block; min-width: 58px; }
+  .pg b { font-variant-numeric: tabular-nums; font-size: 13px; }
+  .diff-tb td.chg { background: var(--danger-light); color: var(--danger); font-weight: 700; }
+  tr.row-warn td:first-child { box-shadow: inset 3px 0 0 var(--warning); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsswb-04">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房网签备案管理系统
+        <span class="sep">/</span> 项目管理
+        <span class="sep">/</span> <span class="cur">月度进度填报</span>
+      </div>
+      <div class="page-title">月度进度填报</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" onclick="PMS.toast('已向 17 个逾期未报项目责任人发送填报提醒短信','success')"><i class="fa-solid fa-bell"></i> 批量发送填报提醒</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成 202607 期自治区上报报文（127 个项目）','success')"><i class="fa-solid fa-file-export"></i> 生成自治区上报报文</button>
+      <button type="button" class="btn" onclick="PMS.toast('《月度进度填报台账》Excel 已生成','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-list-check"></i></div>
+      <div><div class="s-label">本期应报</div><div class="s-value">178</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">已报</div><div class="s-value">161</div><div class="s-trend text-3">报送率 90.4%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">待审</div><div class="s-value">34</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-rotate-left"></i></div>
+      <div><div class="s-label">已退回</div><div class="s-value">6</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><div class="s-label">逾期未报</div><div class="s-value">17</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-paper-plane"></i></div>
+      <div><div class="s-label">上报自治区</div><div class="s-value">127</div></div>
+    </div>
+  </div>
+
+  <div class="alert">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>填报窗口期为每月 1—10 日；窗口结束前 3 天与当天各提醒一次；逾期未报计入县区履职情况。</div>
+  </div>
+
+  <div class="card">
+    <div class="tabs" id="prTabs">
+      <div class="tab active" data-tab="t1">进度填报</div>
+      <div class="tab" data-tab="t2">市级审核 <span class="badge orange">34</span></div>
+      <div class="tab" data-tab="t3">逾期提醒 <span class="badge red">17</span></div>
+      <div class="tab" data-tab="t4">版本留痕</div>
+    </div>
+
+    <!-- 进度填报 -->
+    <div class="tab-panel active" data-panel="t1">
+      <div class="filter-bar">
+        <div class="filter-item"><label>统计期间</label><input type="month" value="2026-07"></div>
+        <div class="filter-item"><label>行政区划</label><select><option value="">全部</option><option>城中区</option><option>鱼峰区</option><option>柳南区</option><option>柳北区</option><option>柳江区</option><option>鹿寨县</option></select></div>
+        <div class="filter-item"><label>项目</label><input type="text" placeholder="项目名称关键词"></div>
+        <div class="filter-item"><label>填报状态</label><select><option value="">全部</option><option>待填报</option><option>已填报</option><option>已退回</option><option>已审核</option></select></div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 178 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="tb1" data-static>
+          <thead>
+            <tr>
+              <th>项目</th><th>统计期间</th><th>形象进度</th><th>投资完成比例</th>
+              <th class="num">本月网签（套）</th><th class="num">累计销售（套）</th><th class="num">本月交付（套）</th>
+              <th>填报状态</th><th>填报人与时间</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="nowrap fw-600">彰泰江湾城（三期）</td><td class="nowrap">202607</td>
+              <td class="nowrap">主体结构封顶 68%</td>
+              <td><div class="pg"><span class="progress"><span style="width:62.4%"></span></span><b>62.4%</b></div></td>
+              <td class="num nowrap">42</td><td class="num nowrap">357</td><td class="num nowrap">0</td>
+              <td class="nowrap"><span class="badge green">已审核</span></td>
+              <td class="nowrap">覃海波 · 2026-07-06 10:26</td>
+              <td class="col-ops"><span class="link" onclick="openFill('彰泰江湾城（三期）')">填报</span><span class="link" onclick="openFill('彰泰江湾城（三期）')">查看</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">华润置地柳州万象天地</td><td class="nowrap">202607</td>
+              <td class="nowrap">主体结构施工 42%</td>
+              <td><div class="pg"><span class="progress"><span style="width:38.6%"></span></span><b>38.6%</b></div></td>
+              <td class="num nowrap">36</td><td class="num nowrap">168</td><td class="num nowrap">0</td>
+              <td class="nowrap"><span class="badge orange">待审核</span></td>
+              <td class="nowrap">石文彬 · 2026-07-08 09:12</td>
+              <td class="col-ops"><span class="link" onclick="openFill('华润置地柳州万象天地')">填报</span><span class="link" onclick="openFill('华润置地柳州万象天地')">查看</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">保利柳江府（二期）</td><td class="nowrap">202607</td>
+              <td class="nowrap">装饰装修 82%</td>
+              <td><div class="pg"><span class="progress green"><span style="width:78.2%"></span></span><b>78.2%</b></div></td>
+              <td class="num nowrap">28</td><td class="num nowrap">286</td><td class="num nowrap">0</td>
+              <td class="nowrap"><span class="badge green">已审核</span></td>
+              <td class="nowrap">周雅琴 · 2026-07-04 15:42</td>
+              <td class="col-ops"><span class="link" onclick="openFill('保利柳江府（二期）')">填报</span><span class="link" onclick="openFill('保利柳江府（二期）')">查看</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">柳州万科城（五期）</td><td class="nowrap">202607</td>
+              <td class="nowrap">主体结构封顶 94%</td>
+              <td><div class="pg"><span class="progress green"><span style="width:86.4%"></span></span><b>86.4%</b></div></td>
+              <td class="num nowrap">86</td><td class="num nowrap">1,342</td><td class="num nowrap">0</td>
+              <td class="nowrap"><span class="badge orange">待审核</span></td>
+              <td class="nowrap">吴俊霖 · 2026-07-07 11:08</td>
+              <td class="col-ops"><span class="link" onclick="openFill('柳州万科城（五期）')">填报</span><span class="link" onclick="openFill('柳州万科城（五期）')">查看</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">中南春风南岸（二期）</td><td class="nowrap">202607</td>
+              <td class="nowrap">主体结构施工 56%</td>
+              <td><div class="pg"><span class="progress"><span style="width:48.2%"></span></span><b>48.2%</b></div></td>
+              <td class="num nowrap">18</td><td class="num nowrap">148</td><td class="num nowrap">0</td>
+              <td class="nowrap"><span class="badge red">已退回</span> <span class="text-3 text-sm">累计值小于上月</span></td>
+              <td class="nowrap">邓文静 · 2026-07-05 16:30</td>
+              <td class="col-ops"><span class="link" onclick="openFill('中南春风南岸（二期）')">填报</span><span class="link" onclick="PMS.toast('退回原因：累计销售套数 148 小于上月 156，请核对后重报','error')">退回原因</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">荣和公园里（一期）</td><td class="nowrap">202607</td>
+              <td class="nowrap">主体结构施工 34%</td>
+              <td><div class="pg"><span class="progress orange"><span style="width:28.6%"></span></span><b>28.6%</b></div></td>
+              <td class="num nowrap">12</td><td class="num nowrap">96</td><td class="num nowrap">0</td>
+              <td class="nowrap"><span class="badge green">已审核</span></td>
+              <td class="nowrap">韦丽萍 · 2026-07-03 09:48</td>
+              <td class="col-ops"><span class="link" onclick="openFill('荣和公园里（一期）')">填报</span><span class="link" onclick="openFill('荣和公园里（一期）')">查看</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">阳光城柳州樾府</td><td class="nowrap">202607</td>
+              <td class="nowrap">装饰装修 76%</td>
+              <td><div class="pg"><span class="progress green"><span style="width:72.8%"></span></span><b>72.8%</b></div></td>
+              <td class="num nowrap">24</td><td class="num nowrap">212</td><td class="num nowrap">0</td>
+              <td class="nowrap"><span class="badge orange">待审核</span></td>
+              <td class="nowrap">杨明辉 · 2026-07-09 14:16</td>
+              <td class="col-ops"><span class="link" onclick="openFill('阳光城柳州樾府')">填报</span><span class="link" onclick="openFill('阳光城柳州樾府')">查看</span></td>
+            </tr>
+            <tr class="row-warn">
+              <td class="nowrap fw-600">恒兴时代广场</td><td class="nowrap">202607</td>
+              <td class="nowrap text-3">—</td>
+              <td><div class="pg"><span class="progress orange"><span style="width:0%"></span></span><b>—</b></div></td>
+              <td class="num nowrap text-3">—</td><td class="num nowrap text-3">—</td><td class="num nowrap text-3">—</td>
+              <td class="nowrap"><span class="badge red">逾期未报</span> <span class="text-danger text-sm">逾期 21 天</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="col-ops"><span class="link" onclick="openFill('恒兴时代广场')">填报</span><span class="link" onclick="PMS.toast('已向柳南区住建局与项目责任人发送填报提醒','success')">催报</span></td>
+            </tr>
+            <tr class="row-warn">
+              <td class="nowrap fw-600">恒盛·山水云间（一期）</td><td class="nowrap">202607</td>
+              <td class="nowrap text-3">—</td>
+              <td><div class="pg"><span class="progress orange"><span style="width:0%"></span></span><b>—</b></div></td>
+              <td class="num nowrap text-3">—</td><td class="num nowrap text-3">—</td><td class="num nowrap text-3">—</td>
+              <td class="nowrap"><span class="badge red">逾期未报</span> <span class="text-danger text-sm">逾期 21 天</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="col-ops"><span class="link" onclick="openFill('恒盛·山水云间（一期）')">填报</span><span class="link" onclick="PMS.toast('已向鹿寨县住建局与项目责任人发送填报提醒','success')">催报</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">龙光玖誉城（四期）</td><td class="nowrap">202607</td>
+              <td class="nowrap">竣工验收准备 98%</td>
+              <td><div class="pg"><span class="progress green"><span style="width:94.6%"></span></span><b>94.6%</b></div></td>
+              <td class="num nowrap">16</td><td class="num nowrap">142</td><td class="num nowrap">0</td>
+              <td class="nowrap"><span class="badge green">已审核</span></td>
+              <td class="nowrap">罗建军 · 2026-07-02 10:04</td>
+              <td class="col-ops"><span class="link" onclick="openFill('龙光玖誉城（四期）')">填报</span><span class="link" onclick="openFill('龙光玖誉城（四期）')">查看</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 市级审核 -->
+    <div class="tab-panel" data-panel="t2">
+      <div class="filter-bar">
+        <div class="filter-item"><label>统计期间</label><input type="month" value="2026-07"></div>
+        <div class="filter-item"><label>行政区划</label><select><option value="">全部</option><option>城中区</option><option>鱼峰区</option><option>柳南区</option><option>柳北区</option><option>柳江区</option></select></div>
+        <div class="filter-item"><label>提交时间起</label><input type="date" value="2026-07-01"></div>
+        <div class="filter-item"><label>提交时间止</label><input type="date" value="2026-07-10"></div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 34 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="tb2" data-static>
+          <thead>
+            <tr><th>项目</th><th>行政区划</th><th>统计期间</th><th>形象进度</th><th class="num">投资完成比例</th><th class="num">本月网签（套）</th><th>提交人</th><th>提交时间</th><th>审核状态</th><th>操作</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="nowrap fw-600">华润置地柳州万象天地</td><td class="nowrap">鱼峰区</td><td class="nowrap">202607</td>
+              <td class="nowrap">主体结构施工 42%</td><td class="num nowrap">38.6%</td><td class="num nowrap">36</td>
+              <td class="nowrap">石文彬</td><td class="nowrap">2026-07-08 09:12</td>
+              <td class="nowrap"><span class="badge orange">待审核</span></td>
+              <td class="col-ops"><span class="link" onclick="openAudit('华润置地柳州万象天地','鱼峰区','主体结构施工 42%','38.6%','36')">审核</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">柳州万科城（五期）</td><td class="nowrap">鱼峰区</td><td class="nowrap">202607</td>
+              <td class="nowrap">主体结构封顶 94%</td><td class="num nowrap">86.4%</td><td class="num nowrap">86</td>
+              <td class="nowrap">吴俊霖</td><td class="nowrap">2026-07-07 11:08</td>
+              <td class="nowrap"><span class="badge orange">待审核</span></td>
+              <td class="col-ops"><span class="link" onclick="openAudit('柳州万科城（五期）','鱼峰区','主体结构封顶 94%','86.4%','86')">审核</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">阳光城柳州樾府</td><td class="nowrap">城中区</td><td class="nowrap">202607</td>
+              <td class="nowrap">装饰装修 76%</td><td class="num nowrap">72.8%</td><td class="num nowrap">24</td>
+              <td class="nowrap">杨明辉</td><td class="nowrap">2026-07-09 14:16</td>
+              <td class="nowrap"><span class="badge orange">待审核</span></td>
+              <td class="col-ops"><span class="link" onclick="openAudit('阳光城柳州樾府','城中区','装饰装修 76%','72.8%','24')">审核</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">融创柳江壹号院</td><td class="nowrap">柳江区</td><td class="nowrap">202607</td>
+              <td class="nowrap">基础施工 18%</td><td class="num nowrap">16.2%</td><td class="num nowrap">8</td>
+              <td class="nowrap">陆志明</td><td class="nowrap">2026-07-09 16:52</td>
+              <td class="nowrap"><span class="badge orange">待审核</span></td>
+              <td class="col-ops"><span class="link" onclick="openAudit('融创柳江壹号院','柳江区','基础施工 18%','16.2%','8')">审核</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">中鼎·翠湖公馆（一期）</td><td class="nowrap">鱼峰区</td><td class="nowrap">202607</td>
+              <td class="nowrap">已竣工</td><td class="num nowrap">100%</td><td class="num nowrap">6</td>
+              <td class="nowrap">秦丽娟</td><td class="nowrap">2026-07-06 08:56</td>
+              <td class="nowrap"><span class="badge orange">待审核</span></td>
+              <td class="col-ops"><span class="link" onclick="openAudit('中鼎·翠湖公馆（一期）','鱼峰区','已竣工','100%','6')">审核</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">柳州城投·和园（安置房）</td><td class="nowrap">柳北区</td><td class="nowrap">202607</td>
+              <td class="nowrap">已竣工</td><td class="num nowrap">100%</td><td class="num nowrap">12</td>
+              <td class="nowrap">卢秀兰</td><td class="nowrap">2026-07-05 10:22</td>
+              <td class="nowrap"><span class="badge orange">待审核</span></td>
+              <td class="col-ops"><span class="link" onclick="openAudit('柳州城投·和园（安置房）','柳北区','已竣工','100%','12')">审核</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">保利柳江府（三期）</td><td class="nowrap">柳南区</td><td class="nowrap">202607</td>
+              <td class="nowrap">未开工</td><td class="num nowrap">2.4%</td><td class="num nowrap">0</td>
+              <td class="nowrap">谭雅雯</td><td class="nowrap">2026-07-04 13:40</td>
+              <td class="nowrap"><span class="badge orange">待审核</span></td>
+              <td class="col-ops"><span class="link" onclick="openAudit('保利柳江府（三期）','柳南区','未开工','2.4%','0')">审核</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">柳州人才安居·锦华苑</td><td class="nowrap">城中区</td><td class="nowrap">202607</td>
+              <td class="nowrap">已竣工</td><td class="num nowrap">100%</td><td class="num nowrap">9</td>
+              <td class="nowrap">蓝海涛</td><td class="nowrap">2026-07-03 17:14</td>
+              <td class="nowrap"><span class="badge orange">待审核</span></td>
+              <td class="col-ops"><span class="link" onclick="openAudit('柳州人才安居·锦华苑','城中区','已竣工','100%','9')">审核</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 逾期提醒 -->
+    <div class="tab-panel" data-panel="t3">
+      <div class="filter-bar">
+        <div class="filter-item"><label>行政区划</label><select><option value="">全部</option><option>城中区</option><option>鱼峰区</option><option>柳南区</option><option>柳北区</option><option>柳江区</option><option>鹿寨县</option></select></div>
+        <div class="filter-item"><label>逾期天数</label><select><option value="">全部</option><option>&gt; 7 天</option><option>&gt; 15 天</option><option>&gt; 30 天</option></select></div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 6 个县区')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn btn-primary" onclick="batchRemind()"><i class="fa-solid fa-bell"></i> 发送提醒</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="tb3" data-static>
+          <thead>
+            <tr>
+              <th style="width:44px"><input type="checkbox" id="ckAll" onclick="toggleAll(this)"></th>
+              <th>行政区划</th><th>责任人</th><th>联系电话</th><th class="num">应报项目数</th><th class="num">已报数</th><th class="num">逾期未报</th><th class="num">逾期天数</th><th>上次提醒时间</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><input type="checkbox" class="ck-r" checked></td>
+              <td class="nowrap fw-600">柳南区</td><td class="nowrap">李国华</td><td class="nowrap">137****5566</td>
+              <td class="num nowrap">32</td><td class="num nowrap">27</td><td class="num nowrap text-danger">5</td><td class="num nowrap text-danger">21</td>
+              <td class="nowrap">2026-07-28 09:00</td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已向柳南区责任人发送填报提醒短信','success')">发送提醒</span></td>
+            </tr>
+            <tr>
+              <td><input type="checkbox" class="ck-r" checked></td>
+              <td class="nowrap fw-600">鹿寨县</td><td class="nowrap">莫建平</td><td class="nowrap">138****7700</td>
+              <td class="num nowrap">18</td><td class="num nowrap">14</td><td class="num nowrap text-danger">4</td><td class="num nowrap text-danger">21</td>
+              <td class="nowrap">2026-07-28 09:00</td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已向鹿寨县责任人发送填报提醒短信','success')">发送提醒</span></td>
+            </tr>
+            <tr>
+              <td><input type="checkbox" class="ck-r" checked></td>
+              <td class="nowrap fw-600">柳江区</td><td class="nowrap">陆志明</td><td class="nowrap">139****2208</td>
+              <td class="num nowrap">26</td><td class="num nowrap">23</td><td class="num nowrap text-danger">3</td><td class="num nowrap text-warning">18</td>
+              <td class="nowrap">2026-07-28 09:00</td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已向柳江区责任人发送填报提醒短信','success')">发送提醒</span></td>
+            </tr>
+            <tr>
+              <td><input type="checkbox" class="ck-r"></td>
+              <td class="nowrap fw-600">柳北区</td><td class="nowrap">卢秀兰</td><td class="nowrap">135****9012</td>
+              <td class="num nowrap">28</td><td class="num nowrap">26</td><td class="num nowrap text-danger">2</td><td class="num nowrap text-warning">14</td>
+              <td class="nowrap">2026-07-25 09:00</td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已向柳北区责任人发送填报提醒短信','success')">发送提醒</span></td>
+            </tr>
+            <tr>
+              <td><input type="checkbox" class="ck-r"></td>
+              <td class="nowrap fw-600">鱼峰区</td><td class="nowrap">秦丽娟</td><td class="nowrap">136****3021</td>
+              <td class="num nowrap">34</td><td class="num nowrap">32</td><td class="num nowrap text-danger">2</td><td class="num nowrap">11</td>
+              <td class="nowrap">2026-07-25 09:00</td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已向鱼峰区责任人发送填报提醒短信','success')">发送提醒</span></td>
+            </tr>
+            <tr>
+              <td><input type="checkbox" class="ck-r"></td>
+              <td class="nowrap fw-600">城中区</td><td class="nowrap">覃海波</td><td class="nowrap">136****3344</td>
+              <td class="num nowrap">40</td><td class="num nowrap">39</td><td class="num nowrap text-danger">1</td><td class="num nowrap">8</td>
+              <td class="nowrap">2026-07-25 09:00</td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已向城中区责任人发送填报提醒短信','success')">发送提醒</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 版本留痕 -->
+    <div class="tab-panel" data-panel="t4">
+      <div class="filter-bar">
+        <div class="filter-item"><label>项目</label><input type="text" value="彰泰江湾城（三期）"></div>
+        <div class="filter-item"><label>统计期间</label><input type="month" value="2026-07"></div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已加载本项目 202607 期全部填报版本')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn btn-primary" onclick="openDiff()"><i class="fa-solid fa-code-compare"></i> 左右对照</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="tb4" data-static>
+          <thead>
+            <tr><th style="width:44px">选</th><th>版本号</th><th>项目</th><th>统计期间</th><th>提交时间</th><th>提交人</th><th class="num">变更字段数</th><th>版本状态</th><th>操作</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><input type="checkbox" class="ck-v" checked></td>
+              <td class="nowrap fw-600">V3</td><td class="nowrap">彰泰江湾城（三期）</td><td class="nowrap">202607</td>
+              <td class="nowrap">2026-07-06 10:26</td><td class="nowrap">覃海波</td><td class="num nowrap">2</td>
+              <td class="nowrap"><span class="badge green">现行版本</span></td>
+              <td class="col-ops"><span class="link" onclick="openDiff()">查看差异</span></td>
+            </tr>
+            <tr>
+              <td><input type="checkbox" class="ck-v" checked></td>
+              <td class="nowrap fw-600">V2</td><td class="nowrap">彰泰江湾城（三期）</td><td class="nowrap">202607</td>
+              <td class="nowrap">2026-07-05 17:12</td><td class="nowrap">覃海波</td><td class="num nowrap">3</td>
+              <td class="nowrap"><span class="badge gray">历史版本</span></td>
+              <td class="col-ops"><span class="link" onclick="openDiff()">查看差异</span></td>
+            </tr>
+            <tr>
+              <td><input type="checkbox" class="ck-v"></td>
+              <td class="nowrap fw-600">V1</td><td class="nowrap">彰泰江湾城（三期）</td><td class="nowrap">202607</td>
+              <td class="nowrap">2026-07-03 09:04</td><td class="nowrap">覃海波</td><td class="num nowrap">—</td>
+              <td class="nowrap"><span class="badge gray">历史版本</span> <span class="text-3 text-sm">首次提交</span></td>
+              <td class="col-ops"><span class="link" onclick="openDiff()">查看差异</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 填报抽屉 -->
+  <div class="drawer-mask"></div>
+  <div class="drawer drawer-lg" id="dwFill">
+    <div class="drawer-head">
+      <h3>月度进度填报 · <span id="flPj">—</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-warning">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>累计类指标不得小于上月值，提交前系统自动校验；网签与备案套数由系统自动带出，不允许手工改写。</div>
+      </div>
+
+      <div class="section-title mt-16">形象进度与投资</div>
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>统计期间<span class="req">*</span></label>
+          <input type="month" value="2026-07" readonly>
+        </div>
+        <div class="form-item">
+          <label>形象进度描述<span class="req">*</span></label>
+          <input type="text" value="主体结构封顶 68%">
+          <div class="last-val">上月值：主体结构封顶 61%</div>
+        </div>
+        <div class="form-item">
+          <label>投资完成比例（%）<span class="req">*</span></label>
+          <input type="text" id="flInv" value="62.4" oninput="checkLess('flInv', 58.2, 'wInv')">
+          <div class="last-val">上月值：58.2</div>
+          <div class="last-val text-danger hidden" id="wInv">低于上月值，提交将被拦截</div>
+        </div>
+        <div class="form-item">
+          <label>本月完成投资（万元）</label>
+          <input type="text" value="7,860">
+          <div class="last-val">上月值：7,420</div>
+        </div>
+      </div>
+
+      <div class="section-title mt-16">销售与交付</div>
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>本月网签套数</label>
+          <input type="text" value="42" readonly>
+          <div class="last-val">系统自动带出，来源：网签备案台账</div>
+        </div>
+        <div class="form-item">
+          <label>累计销售套数<span class="req">*</span></label>
+          <input type="text" id="flSum" value="357" oninput="checkLess('flSum', 315, 'wSum')">
+          <div class="last-val">上月值：315</div>
+          <div class="last-val text-danger hidden" id="wSum">低于上月值，提交将被拦截</div>
+        </div>
+        <div class="form-item">
+          <label>本月交付套数</label>
+          <input type="text" value="0">
+          <div class="last-val">上月值：0</div>
+        </div>
+        <div class="form-item">
+          <label>累计交付套数<span class="req">*</span></label>
+          <input type="text" id="flDlv" value="0" oninput="checkLess('flDlv', 0, 'wDlv')">
+          <div class="last-val">上月值：0</div>
+          <div class="last-val text-danger hidden" id="wDlv">低于上月值，提交将被拦截</div>
+        </div>
+        <div class="form-item col-full">
+          <label>本月主要工作与问题说明</label>
+          <textarea>8# 9# 幢已封顶，10# 幢施工至 18 层；配套幼儿园主体施工中，无重大问题。</textarea>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn" onclick="PMS.toast('填报草稿已保存','success')"><i class="fa-regular fa-floppy-disk"></i> 保存草稿</button>
+      <button type="button" class="btn btn-primary" onclick="submitFill()"><i class="fa-solid fa-paper-plane"></i> 提交市级审核</button>
+    </div>
+  </div>
+
+  <!-- 审核抽屉 -->
+  <div class="drawer" id="dwAudit">
+    <div class="drawer-head">
+      <h3>月度进度审核 · <span id="adPj">—</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="section-title">填报内容（只读）</div>
+      <dl class="desc-list">
+        <div class="desc-item"><dt>项目</dt><dd id="adPj2">—</dd></div>
+        <div class="desc-item"><dt>行政区划</dt><dd id="adArea">—</dd></div>
+        <div class="desc-item"><dt>统计期间</dt><dd>202607</dd></div>
+        <div class="desc-item"><dt>形象进度</dt><dd id="adImg">—</dd></div>
+        <div class="desc-item"><dt>投资完成比例</dt><dd id="adInv">—</dd></div>
+        <div class="desc-item"><dt>本月网签套数</dt><dd id="adSign">—</dd></div>
+      </dl>
+
+      <div class="section-title mt-16">审核结论</div>
+      <div class="form-grid form-align">
+        <div class="form-item col-full">
+          <label>审核结论<span class="req">*</span></label>
+          <div class="radio-line">
+            <label><input type="radio" name="ar" value="pass" checked onchange="toggleAdBack()"> 通过</label>
+            <label><input type="radio" name="ar" value="back" onchange="toggleAdBack()"> 退回补正</label>
+          </div>
+        </div>
+        <div class="form-item col-full hidden" id="adBackBox">
+          <label>退回原因<span class="req">*</span></label>
+          <textarea placeholder="如：累计销售套数小于上月，请核对后重报"></textarea>
+        </div>
+        <div class="form-item">
+          <label>审核人<span class="req">*</span></label>
+          <input type="text" value="韦国强">
+        </div>
+        <div class="form-item">
+          <label>审核日期<span class="req">*</span></label>
+          <input type="date" value="2026-07-31">
+        </div>
+        <div class="form-item col-full">
+          <label>审核意见</label>
+          <textarea id="adOpt">填报数据与工程监理月报、网签台账一致，同意通过。</textarea>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="submitAudit()"><i class="fa-solid fa-paper-plane"></i> 提交结论</button>
+    </div>
+  </div>
+
+  <!-- 版本对照抽屉 -->
+  <div class="drawer drawer-lg" id="dwDiff">
+    <div class="drawer-head">
+      <h3>填报版本左右对照 · V2 → V3</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>差异字段红色高亮。本次对照共 2 个字段发生变化，修改人 覃海波，修改时间 2026-07-06 10:26。</div>
+      </div>
+      <table class="data-table compact diff-tb mt-16">
+        <thead>
+          <tr><th>指标</th><th>V2（2026-07-05 17:12）</th><th>V3（2026-07-06 10:26）</th><th>变化</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="nowrap">形象进度描述</td><td class="nowrap">主体结构封顶 64%</td><td class="nowrap chg">主体结构封顶 68%</td><td class="nowrap"><span class="badge red">已修改</span></td></tr>
+          <tr><td class="nowrap">投资完成比例（%）</td><td class="nowrap">60.8</td><td class="nowrap chg">62.4</td><td class="nowrap"><span class="badge red">已修改</span></td></tr>
+          <tr><td class="nowrap">本月完成投资（万元）</td><td class="nowrap">7,860</td><td class="nowrap">7,860</td><td class="nowrap text-3">—</td></tr>
+          <tr><td class="nowrap">本月网签套数</td><td class="nowrap">42</td><td class="nowrap">42</td><td class="nowrap text-3">—</td></tr>
+          <tr><td class="nowrap">累计销售套数</td><td class="nowrap">357</td><td class="nowrap">357</td><td class="nowrap text-3">—</td></tr>
+          <tr><td class="nowrap">本月交付套数</td><td class="nowrap">0</td><td class="nowrap">0</td><td class="nowrap text-3">—</td></tr>
+          <tr><td class="nowrap">累计交付套数</td><td class="nowrap">0</td><td class="nowrap">0</td><td class="nowrap text-3">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+      <button type="button" class="btn" onclick="PMS.toast('《填报版本对照表》已导出')"><i class="fa-solid fa-download"></i> 导出对照表</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+[['tb1', 178], ['tb2', 34], ['tb3', 6], ['tb4', 3]].forEach(function (it) {
+  PMS.renderPager(document.getElementById(it[0]), {
+    pageNum: 1, pageSize: 20, total: it[1],
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+});
+
+function openFill(pj) {
+  document.getElementById('flPj').textContent = pj;
+  PMS.openDrawer('dwFill');
+}
+
+function checkLess(id, last, warnId) {
+  var v = parseFloat(document.getElementById(id).value.replace(/,/g, ''));
+  document.getElementById(warnId).classList.toggle('hidden', !(v < last));
+}
+
+function submitFill() {
+  var bad = ['wInv', 'wSum', 'wDlv'].some(function (id) {
+    return !document.getElementById(id).classList.contains('hidden');
+  });
+  if (bad) {
+    PMS.toast('拦截：存在累计类指标小于上月值，请核对后再提交', 'error');
+    return;
+  }
+  PMS.closeDrawer('dwFill');
+  PMS.toast('已提交市级审核，本次提交生成版本 V4', 'success');
+}
+
+function openAudit(pj, area, img, inv, sign) {
+  document.getElementById('adPj').textContent = pj;
+  document.getElementById('adPj2').textContent = pj;
+  document.getElementById('adArea').textContent = area;
+  document.getElementById('adImg').textContent = img;
+  document.getElementById('adInv').textContent = inv;
+  document.getElementById('adSign').textContent = sign + ' 套';
+  PMS.openDrawer('dwAudit');
+}
+
+function toggleAdBack() {
+  var back = document.querySelector('input[name="ar"]:checked').value === 'back';
+  document.getElementById('adBackBox').classList.toggle('hidden', !back);
+  document.getElementById('adOpt').value = back
+    ? '填报数据与网签台账不一致，请核对后重报。'
+    : '填报数据与工程监理月报、网签台账一致，同意通过。';
+}
+
+function submitAudit() {
+  var back = document.querySelector('input[name="ar"]:checked').value === 'back';
+  PMS.closeDrawer('dwAudit');
+  PMS.toast(back ? '已退回县区补正，行状态变更为「已退回」' : '审核通过，已纳入自治区上报报文', back ? 'error' : 'success');
+}
+
+function openDiff() {
+  var n = document.querySelectorAll('.ck-v:checked').length;
+  if (n !== 2) {
+    PMS.toast('请勾选两个版本后再进行左右对照', 'error');
+    return;
+  }
+  PMS.openDrawer('dwDiff');
+}
+
+function toggleAll(el) {
+  document.querySelectorAll('.ck-r').forEach(function (c) { c.checked = el.checked; });
+}
+
+function batchRemind() {
+  var n = document.querySelectorAll('.ck-r:checked').length;
+  if (!n) { PMS.toast('请先勾选需要提醒的县区', 'error'); return; }
+  PMS.toast('已向 ' + n + ' 个县区责任人发送填报提醒短信', 'success');
+}
+</script>
+</body>
+</html>

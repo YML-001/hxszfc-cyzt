@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数据质量问题智能归因 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="fx" data-active="risk-judge" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>智能应用</span>
+      <span class="sep">/</span><span>智能风险研判</span>
+      <span class="sep">/</span><span class="cur">数据质量问题智能归因</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-shield-halved"></i>智能风险研判 wsai-10</span>
+    <a href="risk-judge.html?role=fx">风险智能研判</a>
+    <a href="risk-weight.html?role=fx">风险权重模型</a>
+    <a href="risk-clue.html?role=fx">预警线索池</a>
+    <a class="active" href="dq-attribution.html?role=fx">数据质量归因</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-database"></i>
+    <span>对数据质量问题做<b>智能归因</b>并给出整改建议，辅助数据中心的「数据标准与质量治理」。
+      归因结论需人工确认后才能推送整改 —— 未确认就点推送会被拦截。</span>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon ai"><i class="fa-solid fa-database"></i></div>
+      <div><div class="s-label">质量问题项</div><div class="s-value" id="kAll">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-bug"></i></div>
+      <div><div class="s-label">问题记录数</div><div class="s-value" id="kCnt">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-magnifying-glass-chart"></i></div>
+      <div><div class="s-label">已归因</div><div class="s-value" id="kAttr">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-paper-plane"></i></div>
+      <div><div class="s-label">已推送整改</div><div class="s-value" id="kPush">—</div></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head"><h3>问题类型分布</h3><span class="sub">按问题记录数</span></div>
+      <div class="card-body"><div id="lxBars"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>受影响的表</h3><span class="sub">按问题记录数排序</span></div>
+      <div class="card-body"><div id="tblBars"></div></div>
+    </div>
+  </div>
+
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3>质量问题清单</h3>
+      <span class="sub">归因结论需人工确认后才能推送整改</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tDq" data-static>
+        <thead><tr>
+          <th>数据表</th><th>字段</th><th>问题类型</th><th class="num">问题数</th>
+          <th class="cell-lg">AI 归因分析</th><th class="cell-lg">整改建议</th>
+          <th>确认状态</th><th>推送</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  function paintKpi() {
+    var ds = AI.get('dqIssues');
+    document.getElementById('kAll').textContent = ds.length;
+    document.getElementById('kCnt').textContent = AI.num(ds.reduce(function (s, d) { return s + d.cnt; }, 0));
+    document.getElementById('kAttr').textContent = ds.filter(function (d) { return d.attributed; }).length;
+    document.getElementById('kPush').textContent = ds.filter(function (d) { return d.pushed; }).length;
+
+    /* 问题类型分布 */
+    var byLx = {};
+    ds.forEach(function (d) { byLx[d.dqlx] = (byLx[d.dqlx] || 0) + d.cnt; });
+    var maxL = 1;
+    Object.keys(byLx).forEach(function (k) { if (byLx[k] > maxL) maxL = byLx[k]; });
+    document.getElementById('lxBars').innerHTML = Object.keys(byLx).map(function (k) {
+      return '<div class="factor-row"><span class="fr-n">' + AI.dict('dqlx', k) + '</span>' +
+        '<span class="fr-bar"><span style="width:' + (byLx[k] / maxL * 100) + '%"></span></span>' +
+        '<span class="fr-v">' + AI.num(byLx[k]) + '</span><span class="fr-d"></span></div>';
+    }).join('');
+
+    /* 受影响的表 */
+    var byTbl = {};
+    ds.forEach(function (d) { byTbl[d.tbl] = (byTbl[d.tbl] || 0) + d.cnt; });
+    var keys = Object.keys(byTbl).sort(function (a, b) { return byTbl[b] - byTbl[a]; });
+    var maxT = keys.length ? byTbl[keys[0]] : 1;
+    document.getElementById('tblBars').innerHTML = keys.map(function (k) {
+      return '<div class="factor-row"><span class="fr-n" style="width:170px;font-family:monospace;font-size:12px">' +
+        AI.esc(k) + '</span>' +
+        '<span class="fr-bar"><span style="width:' + (byTbl[k] / maxT * 100) + '%"></span></span>' +
+        '<span class="fr-v">' + AI.num(byTbl[k]) + '</span><span class="fr-d"></span></div>';
+    }).join('');
+  }
+
+  AI.table({
+    id: 'tDq', pageSize: 10,
+    rows: function () {
+      return AI.get('dqIssues').slice().sort(function (a, b) { return b.cnt - a.cnt; });
+    },
+    cells: function (d) {
+      var o = d.outputId ? AI.byId('outputs', d.outputId) : null;
+      return [
+        '<td style="font-family:monospace;font-size:12.5px">' + AI.esc(d.tbl) + '</td>',
+        '<td style="font-family:monospace;font-size:12.5px">' + AI.esc(d.field) + '</td>',
+        '<td>' + AI.badge(AI.dict('dqlx', d.dqlx), 'orange') + '</td>',
+        '<td class="num">' + AI.num(d.cnt) + '</td>',
+        '<td class="cell-lg">' + (d.attributed
+          ? AI.esc(d.cause)
+          : '<span class="text-3">尚未归因</span>') + '</td>',
+        '<td class="cell-lg">' + (d.attributed
+          ? AI.esc(d.advice)
+          : '<span class="text-3">归因后生成</span>') + '</td>',
+        '<td>' + (o ? AI.qrBadge(o.qrzt) : '<span class="text-3">—</span>') + '</td>',
+        '<td>' + (d.pushed
+          ? '<span class="badge green">已推送</span><div class="text-3 text-sm">' + AI.esc(d.handleBy || '') + '</div>'
+          : '<span class="badge gray">未推送</span>') + '</td>',
+        '<td class="col-ops">' +
+          (!d.attributed || !o
+            ? '<button class="btn btn-primary btn-sm" onclick="AI.act.attribute(\'' + d.id + '\')">' +
+              '<i class="fa-solid fa-wand-magic-sparkles"></i> 智能归因</button>'
+            : (o.qrzt === '0'
+                ? AI.actTriplet(o.id)
+                : (!d.pushed
+                    ? '<button class="btn btn-primary btn-sm" onclick="AI.act.pushRectify(\'' + d.id + '\')">' +
+                      '<i class="fa-solid fa-paper-plane"></i> 推送整改</button>'
+                    : '<span class="text-3">已完成</span>'))) +
+          (o && o.qrzt === '0'
+            ? ' <button class="btn btn-sm" onclick="AI.act.pushRectify(\'' + d.id + '\')" title="演示未确认拦截">' +
+              '<i class="fa-solid fa-triangle-exclamation"></i> 试推送</button>'
+            : '') +
+        '</td>'
+      ];
+    },
+    empty: '暂无数据质量问题'
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () { paintKpi(); AI.repaintAll(); });
+  });
+})();
+</script>
+</body>
+</html>

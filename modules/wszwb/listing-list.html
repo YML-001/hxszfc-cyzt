@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>租赁房源台账 · 房屋租赁网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：核验码等宽字体 + 分间房源从属缩进 */
+  .hy-code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; letter-spacing: .3px; }
+  .hy-code.expired { color: var(--text-3); text-decoration: line-through; }
+  .sub-room { padding-left: 18px; position: relative; }
+  .sub-room::before {
+    content: ""; position: absolute; left: 6px; top: -2px; bottom: 50%;
+    border-left: 1px solid var(--border-strong); border-bottom: 1px solid var(--border-strong);
+    width: 8px;
+  }
+  /* 房源来源结构三卡：在 KPI 卡基础上加可点击反馈 */
+  .src-card { cursor: pointer; }
+  .src-card:hover { border-color: var(--primary-soft); box-shadow: 0 4px 12px rgba(38, 86, 187, .1); }
+  .src-card .sc-pct { color: var(--text-3); font-weight: 400; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wszwb-02">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋租赁网签备案管理系统
+        <span class="sep">/</span> 租赁房源管理
+        <span class="sep">/</span> <span class="cur">租赁房源台账</span>
+      </div>
+      <div class="page-title">租赁房源台账</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn btn-primary" href="listing-register.html"><i class="fa-solid fa-plus"></i> 放盘登记</a>
+      <a class="btn" href="demand-match.html"><i class="fa-solid fa-handshake-angle"></i> 求租撮合</a>
+      <a class="btn" href="affordable-housing.html"><i class="fa-solid fa-hand-holding-heart"></i> 保租房专题</a>
+      <button type="button" class="btn" data-open-modal="mdImport"><i class="fa-solid fa-file-import"></i> 批量导入</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《全市租赁房源台账》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">待核验</div><div class="s-value">186</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-clipboard-check"></i></div>
+      <div><div class="s-label">已核验待发布</div><div class="s-value">642</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-bullhorn"></i></div>
+      <div><div class="s-label">已发布招租中</div><div class="s-value">21,436</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-house-user"></i></div>
+      <div><div class="s-label">已备案出租中</div><div class="s-value">86,215</div></div>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card src-card" onclick="PMS.toast('已按「住房租赁企业房源」筛选，共 34,682 套')">
+      <div class="s-icon blue"><i class="fa-solid fa-building"></i></div>
+      <div>
+        <div class="s-label">住房租赁企业房源 <span class="sc-pct">占 31.2%</span></div>
+        <div class="s-value">34,682</div>
+        <div class="s-trend text-3">托管企业 68 家 · 自持 21,486 / 转租 13,196</div>
+      </div>
+    </div>
+    <div class="stat-card src-card" onclick="PMS.toast('已按「个人业主房源」筛选，共 68,540 套')">
+      <div class="s-icon green"><i class="fa-solid fa-user"></i></div>
+      <div>
+        <div class="s-label">个人业主房源 <span class="sc-pct">占 61.6%</span></div>
+        <div class="s-value">68,540</div>
+        <div class="s-trend text-3">整租 61,204 / 分间合租 7,336</div>
+      </div>
+    </div>
+    <div class="stat-card src-card" onclick="PMS.toast('已按「保障性租赁住房」筛选，共 7,986 套')">
+      <div class="s-icon orange"><i class="fa-solid fa-hand-holding-heart"></i></div>
+      <div>
+        <div class="s-label">保障性租赁住房 <span class="sc-pct">占 7.2%</span></div>
+        <div class="s-value">7,986</div>
+        <div class="s-trend text-3">已配租 6,412 套 · 平均折扣率 78.6%</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      核验码有效期 90 天，到期前 15 天系统自动提醒；到期未延期的房源自动置为核验失效并从租房超市下架。
+      一套房屋的整租记录与分间记录不得同时处于招租状态，靠「租赁方式 + 分间编号」区分从属关系。
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>租赁房源编号</label>
+        <input type="text" placeholder="如 ZLFY450200202600386">
+      </div>
+      <div class="filter-item">
+        <label>坐落 / 楼盘</label>
+        <input type="text" placeholder="支持模糊查询">
+      </div>
+      <div class="filter-item">
+        <label>不动产单元号</label>
+        <input type="text" placeholder="4502020010…">
+      </div>
+      <div class="filter-item">
+        <label>出租方 / 托管企业</label>
+        <input type="text" placeholder="姓名 / 企业名称">
+      </div>
+      <div class="filter-item">
+        <label>所属行政区</label>
+        <select>
+          <option value="">全部</option>
+          <option>城中区</option><option>鱼峰区</option><option>柳南区</option>
+          <option>柳北区</option><option>柳江区</option><option>柳城县</option><option>鹿寨县</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>租赁房屋类型</label>
+        <select>
+          <option value="">全部</option>
+          <option>商品住房出租</option><option>保障性租赁住房</option><option>公共租赁住房</option>
+          <option>人才公寓</option><option>直管公房出租</option><option>宿舍型租赁住房</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>租赁方式</label>
+        <select><option value="">全部</option><option>整租</option><option>分间合租</option><option>床位</option></select>
+      </div>
+      <div class="filter-item">
+        <label>出租方类型</label>
+        <select><option value="">全部</option><option>个人业主</option><option>住房租赁企业</option><option>政府机构</option><option>产权单位</option></select>
+      </div>
+      <div class="filter-item">
+        <label>房源状态</label>
+        <select>
+          <option value="">全部</option>
+          <option>待核验</option><option>已核验待发布</option><option>已发布招租中</option>
+          <option>已签约锁定</option><option>已备案出租中</option><option>已退租</option>
+          <option>已下架</option><option>核验失效</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>核验有效期止</label>
+        <input type="date" value="2026-10-27">
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 111,208 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="wait">待核验 <span class="badge orange">186</span></div>
+      <div class="tab" data-tab="ready">已核验待发布 <span class="badge cyan">642</span></div>
+      <div class="tab" data-tab="on">已发布招租中</div>
+      <div class="tab" data-tab="lock">已签约锁定</div>
+      <div class="tab" data-tab="rent">已备案出租中</div>
+      <div class="tab" data-tab="off">已下架 / 核验失效</div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblFy" data-static>
+        <thead>
+          <tr>
+            <th>租赁房源编号</th>
+            <th>坐落</th>
+            <th>租赁方式</th>
+            <th>房屋类型</th>
+            <th class="num">出租面积(㎡)</th>
+            <th>户型</th>
+            <th>出租方</th>
+            <th>托管企业</th>
+            <th class="num">参考租金(元/月)</th>
+            <th>房源状态</th>
+            <th>核验码 / 有效期</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="ready" class="clickable" onclick="location.href='listing-detail.html'">
+            <td class="nowrap fw-600">ZLFY450200202600386</td>
+            <td class="cell-lg">城中区文昌路 66 号阳光 100 城市广场 3 栋 2 单元 1602 室</td>
+            <td class="nowrap">整租</td>
+            <td class="nowrap">商品住房出租</td>
+            <td class="num">82.60</td>
+            <td class="nowrap">2 室 1 厅</td>
+            <td class="nowrap">陈某某<br><span class="text-3 text-sm">个人业主</span></td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="num">2,300</td>
+            <td class="nowrap"><span class="badge cyan">已核验待发布</span></td>
+            <td class="nowrap"><span class="hy-code">ZLHY-450200-2026-000386</span><br><span class="text-3 text-sm">2026-10-27 到期</span></td>
+            <td class="col-ops">
+              <a class="link" href="listing-detail.html">详情</a>
+              <a class="link" href="listing-publish.html">发布</a>
+              <a class="link" href="contract-create.html">拟定合同</a>
+            </td>
+          </tr>
+          <tr data-st="wait" class="clickable" onclick="location.href='listing-verify.html'">
+            <td class="nowrap fw-600">ZLFY450200202600402</td>
+            <td class="cell-lg">柳南区柳石路 168 号荣和公园大道 5 栋 1 单元 806 室</td>
+            <td class="nowrap">整租</td>
+            <td class="nowrap">商品住房出租</td>
+            <td class="num">96.30</td>
+            <td class="nowrap">3 室 2 厅</td>
+            <td class="nowrap">梁某某<br><span class="text-3 text-sm">个人业主</span></td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="num">2,800</td>
+            <td class="nowrap"><span class="badge orange">待核验</span></td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="col-ops">
+              <a class="link" href="listing-verify.html">发起核验</a>
+              <a class="link" href="listing-detail.html">详情</a>
+            </td>
+          </tr>
+          <tr data-st="on" class="clickable" onclick="location.href='listing-detail.html'">
+            <td class="nowrap fw-600">ZLFY450200202600371</td>
+            <td class="cell-lg">鱼峰区屏山大道 118 号万科城 7 栋 1 单元 902 室</td>
+            <td class="nowrap">整租</td>
+            <td class="nowrap">商品住房出租</td>
+            <td class="num">108.60</td>
+            <td class="nowrap">3 室 2 厅</td>
+            <td class="nowrap">柳州安寓住房租赁<br><span class="text-3 text-sm">住房租赁企业</span></td>
+            <td class="nowrap">柳州安寓住房租赁有限公司</td>
+            <td class="num">3,200</td>
+            <td class="nowrap"><span class="badge blue">已发布招租中</span></td>
+            <td class="nowrap"><span class="hy-code">ZLHY-450200-2026-000371</span><br><span class="text-3 text-sm">2026-10-18 到期</span></td>
+            <td class="col-ops">
+              <a class="link" href="listing-detail.html">详情</a>
+              <a class="link" href="viewing-appointment.html">预约看房</a>
+              <span class="link" onclick="event.stopPropagation();PMS.toast('已下架，租房超市同步更新','success')">下架</span>
+            </td>
+          </tr>
+          <tr data-st="on" class="clickable" onclick="location.href='listing-detail.html'">
+            <td class="nowrap fw-600">ZLFY450200202600358</td>
+            <td class="cell-lg">柳北区跃进路 33 号桂中华府 6 栋 2 单元 1104 室</td>
+            <td class="nowrap">分间合租<span class="badge cyan" style="margin-left:6px">主记录</span></td>
+            <td class="nowrap">商品住房出租</td>
+            <td class="num">118.40</td>
+            <td class="nowrap">4 室 2 厅</td>
+            <td class="nowrap">柳州寓家公寓管理<br><span class="text-3 text-sm">住房租赁企业</span></td>
+            <td class="nowrap">柳州寓家公寓管理有限公司</td>
+            <td class="num">4,400</td>
+            <td class="nowrap"><span class="badge blue">已发布招租中</span></td>
+            <td class="nowrap"><span class="hy-code">ZLHY-450200-2026-000358</span><br><span class="text-3 text-sm">2026-10-11 到期</span></td>
+            <td class="col-ops">
+              <a class="link" href="listing-detail.html">详情</a>
+              <a class="link" href="listing-verify.html">群租校验</a>
+            </td>
+          </tr>
+          <tr data-st="on" class="clickable" onclick="location.href='listing-detail.html'">
+            <td class="nowrap fw-600">ZLFY450200202600358-A</td>
+            <td class="cell-lg sub-room">桂中华府 6-2-1104 <span class="badge gray">分间 A</span></td>
+            <td class="nowrap">分间合租</td>
+            <td class="nowrap">商品住房出租</td>
+            <td class="num">18.60</td>
+            <td class="nowrap">单间</td>
+            <td class="nowrap">柳州寓家公寓管理</td>
+            <td class="nowrap">柳州寓家公寓管理有限公司</td>
+            <td class="num">1,180</td>
+            <td class="nowrap"><span class="badge blue">已发布招租中</span></td>
+            <td class="nowrap"><span class="hy-code">ZLHY-450200-2026-000358</span><br><span class="text-3 text-sm">随主记录</span></td>
+            <td class="col-ops"><a class="link" href="listing-detail.html">详情</a></td>
+          </tr>
+          <tr data-st="on" class="clickable" onclick="location.href='listing-detail.html'">
+            <td class="nowrap fw-600">ZLFY450200202600358-B</td>
+            <td class="cell-lg sub-room">桂中华府 6-2-1104 <span class="badge gray">分间 B</span></td>
+            <td class="nowrap">分间合租</td>
+            <td class="nowrap">商品住房出租</td>
+            <td class="num">22.30</td>
+            <td class="nowrap">单间带阳台</td>
+            <td class="nowrap">柳州寓家公寓管理</td>
+            <td class="nowrap">柳州寓家公寓管理有限公司</td>
+            <td class="num">1,380</td>
+            <td class="nowrap"><span class="badge blue">已发布招租中</span></td>
+            <td class="nowrap"><span class="hy-code">ZLHY-450200-2026-000358</span><br><span class="text-3 text-sm">随主记录</span></td>
+            <td class="col-ops"><a class="link" href="listing-detail.html">详情</a></td>
+          </tr>
+          <tr data-st="rent" class="clickable" onclick="location.href='listing-detail.html'">
+            <td class="nowrap fw-600">ZLFY450200202600214</td>
+            <td class="cell-lg">城中区解放北路 41 号天湖国际 2 栋 1 单元 1508 室</td>
+            <td class="nowrap">整租</td>
+            <td class="nowrap">保障性租赁住房</td>
+            <td class="num">56.20</td>
+            <td class="nowrap">1 室 1 厅</td>
+            <td class="nowrap">XXXX市住房租赁发展集团<br><span class="text-3 text-sm">政府机构</span></td>
+            <td class="nowrap">柳州龙城人才公寓运营管理有限公司</td>
+            <td class="num">1,120</td>
+            <td class="nowrap"><span class="badge green">已备案出租中</span></td>
+            <td class="nowrap"><span class="hy-code">ZLHY-450200-2026-000214</span><br><span class="text-3 text-sm">2026-09-06 到期</span></td>
+            <td class="col-ops">
+              <a class="link" href="listing-detail.html">详情</a>
+              <a class="link" href="affordable-housing.html">保租房属性</a>
+            </td>
+          </tr>
+          <tr data-st="lock" class="clickable" onclick="location.href='listing-detail.html'">
+            <td class="nowrap fw-600">ZLFY450200202600341</td>
+            <td class="cell-lg">柳南区潭中西路 5 号保利大江郡 9 栋 2 单元 1802 室</td>
+            <td class="nowrap">整租</td>
+            <td class="nowrap">商品住房出租</td>
+            <td class="num">89.60</td>
+            <td class="nowrap">2 室 2 厅</td>
+            <td class="nowrap">周某某<br><span class="text-3 text-sm">个人业主</span></td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="num">2,650</td>
+            <td class="nowrap"><span class="badge purple">已签约锁定</span></td>
+            <td class="nowrap"><span class="hy-code">ZLHY-450200-2026-000341</span><br><span class="text-3 text-sm">2026-10-04 到期</span></td>
+            <td class="col-ops">
+              <a class="link" href="contract-detail.html">查看合同</a>
+              <a class="link" href="filing-certificate.html">办理备案</a>
+            </td>
+          </tr>
+          <tr data-st="rent" class="clickable" onclick="location.href='listing-detail.html'">
+            <td class="nowrap fw-600">ZLFY450200202600168</td>
+            <td class="cell-lg">柳江区江华路 9 号龙光玖誉城 4 栋 1 单元 706 室</td>
+            <td class="nowrap">整租</td>
+            <td class="nowrap">商品住房出租</td>
+            <td class="num">74.80</td>
+            <td class="nowrap">2 室 1 厅</td>
+            <td class="nowrap">莫某某<br><span class="text-3 text-sm">个人业主</span></td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="num">1,680</td>
+            <td class="nowrap"><span class="badge green">已备案出租中</span></td>
+            <td class="nowrap"><span class="hy-code">ZLHY-450200-2026-000168</span><br><span class="text-3 text-sm">2026-08-22 到期</span></td>
+            <td class="col-ops">
+              <a class="link" href="contract-detail.html">查看合同</a>
+              <a class="link" href="contract-change.html">变更续租</a>
+            </td>
+          </tr>
+          <tr data-st="off" class="clickable" onclick="location.href='listing-detail.html'">
+            <td class="nowrap fw-600">ZLFY450200202600097</td>
+            <td class="cell-lg">鱼峰区静兰路 66 号碧桂园十里江湾 11 栋 3 单元 1203 室</td>
+            <td class="nowrap">整租</td>
+            <td class="nowrap">商品住房出租</td>
+            <td class="num">102.40</td>
+            <td class="nowrap">3 室 2 厅</td>
+            <td class="nowrap">卢某某<br><span class="text-3 text-sm">个人业主</span></td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="num">2,980</td>
+            <td class="nowrap"><span class="badge red">核验失效</span></td>
+            <td class="nowrap"><span class="hy-code expired">ZLHY-450200-2026-000097</span><br><span class="text-danger text-sm">2026-07-18 已失效</span></td>
+            <td class="col-ops">
+              <a class="link" href="listing-verify.html">重新核验</a>
+              <a class="link" href="listing-detail.html">详情</a>
+            </td>
+          </tr>
+          <tr data-st="off" class="clickable" onclick="location.href='publisher-verify.html'">
+            <td class="nowrap fw-600">ZLFY450200202600389</td>
+            <td class="cell-lg">柳北区白露大道 77 号华润幸福里 3 栋 2 单元 1701 室</td>
+            <td class="nowrap">整租</td>
+            <td class="nowrap">商品住房出租</td>
+            <td class="num">88.20</td>
+            <td class="nowrap">2 室 2 厅</td>
+            <td class="nowrap">XXXX市桂中房产经纪<br><span class="text-3 text-sm">经纪机构代录</span></td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="num">1,580</td>
+            <td class="nowrap"><span class="badge orange">已下架</span></td>
+            <td class="nowrap"><span class="hy-code">ZLHY-450200-2026-000389</span><br><span class="text-3 text-sm">2026-10-28 到期</span></td>
+            <td class="col-ops">
+              <a class="link" href="publisher-verify.html">虚假房源处置</a>
+              <a class="link" href="listing-detail.html">详情</a>
+            </td>
+          </tr>
+          <tr data-st="wait" class="clickable" onclick="location.href='listing-verify.html'">
+            <td class="nowrap fw-600">ZLFY450200202600411</td>
+            <td class="cell-lg">城中区中山东路 15 号彰泰滨江学府 8 栋 1 单元 501 室</td>
+            <td class="nowrap">床位</td>
+            <td class="nowrap">宿舍型租赁住房</td>
+            <td class="num">126.50</td>
+            <td class="nowrap">4 室 2 厅 · 8 床位</td>
+            <td class="nowrap">XXXX市和居住房租赁<br><span class="text-3 text-sm">住房租赁企业</span></td>
+            <td class="nowrap">XXXX市和居住房租赁服务有限公司</td>
+            <td class="num">4,800</td>
+            <td class="nowrap"><span class="badge orange">待核验</span></td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="col-ops">
+              <a class="link" href="listing-verify.html">发起核验</a>
+              <a class="link" href="listing-detail.html">详情</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 批量导入 -->
+  <div class="modal-mask" id="mdImport">
+    <div class="modal modal-sm">
+      <div class="modal-head">批量导入租赁房源</div>
+      <div class="modal-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>模板中的不动产单元号与租赁方式为必填项，导入后系统自动逐条发起租赁房源核验，无需人工再次提交。分间合租须同时填写分间编号与分间面积。</div>
+        </div>
+        <div class="import-drop" onclick="PMS.toast('已选择《租赁房源导入模板_202608.xlsx》')">
+          <i class="fa-solid fa-cloud-arrow-up" style="font-size:28px;color:var(--primary)"></i>
+          <div class="mt-8">点击选择文件，或将 Excel 拖拽到此处</div>
+          <div class="text-3 text-sm mt-8">支持 .xlsx / .xls，单次不超过 500 条</div>
+        </div>
+        <p class="text-3 text-sm mt-16">
+          <i class="fa-solid fa-download"></i>
+          <span class="link" onclick="PMS.toast('模板下载中')">下载《租赁房源批量导入模板》</span>
+        </p>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-close-modal>取消</button>
+        <button type="button" class="btn btn-primary" onclick="PMS.closeModal();PMS.toast('已导入 246 条租赁房源，其中 8 条单元号校验失败已生成错误清单','success')">开始导入</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+/* 状态页签前端过滤，分页总数固定，避免翻页后演示数据跳变 */
+(function () {
+  var table = document.getElementById('tblFy');
+  var tabs = document.getElementById('stTabs');
+  if (!table || !tabs) return;
+  tabs.addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var name = tab.getAttribute('data-tab');
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.style.display = (name === 'all' || tr.getAttribute('data-st') === name) ? '' : 'none';
+    });
+  });
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 111208,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+</script>
+</body>
+</html>

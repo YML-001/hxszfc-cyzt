@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>幢层户结构关联 · 房屋交易面积信息管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：六级结构树、楼盘表方块矩阵 */
+  .st-wrap { display: grid; grid-template-columns: 320px 1fr; gap: 12px; align-items: start; }
+  @media (max-width: 1200px) { .st-wrap { grid-template-columns: 1fr; } }
+  .tree { font-size: 13px; max-height: 660px; overflow: auto; }
+  .tn { display: flex; align-items: center; gap: 7px; padding: 5px 8px; border-radius: 6px; cursor: pointer; user-select: none; }
+  .tn:hover { background: var(--primary-light); }
+  .tn.sel { background: var(--primary); color: #fff; }
+  .tn.sel .cnt, .tn.sel .lt { color: rgba(255, 255, 255, .82); }
+  .tn .ar { width: 12px; color: var(--text-3); flex-shrink: 0; transition: transform .18s; }
+  .tn.sel .ar { color: rgba(255, 255, 255, .82); }
+  .tn.open > .ar { transform: rotate(90deg); }
+  .tn .ic { width: 16px; text-align: center; color: var(--primary); flex-shrink: 0; }
+  .tn.sel .ic { color: #fff; }
+  .tn .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tn .cnt { font-size: 11.5px; color: var(--text-3); background: var(--bg-2); border-radius: 20px; padding: 1px 8px; flex-shrink: 0; }
+  .tn.sel .cnt { background: rgba(255, 255, 255, .2); }
+  .tn.non { color: var(--text-3); }
+  .tn.non .ic { color: var(--text-3); }
+  .ch { padding-left: 16px; border-left: 1px dashed var(--border); margin-left: 14px; }
+  .ch.hide { display: none; }
+  /* 楼盘表矩阵 */
+  .mx { overflow: auto; padding-bottom: 4px; }
+  .mx-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .mx-row .fl { width: 62px; flex-shrink: 0; font-size: 12px; color: var(--text-3); text-align: right; }
+  .cell {
+    width: 104px; flex-shrink: 0; border-radius: 6px; padding: 6px 8px; font-size: 12px; cursor: pointer;
+    border: 1px solid #c7d7f7; background: #eff6ff; transition: .15s;
+  }
+  .cell:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(38, 86, 187, .16); }
+  .cell .rn { font-weight: 700; }
+  .cell .ar2 { color: var(--text-3); font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .cell.new { background: #f0fdf4; border-color: #bbf7d0; }
+  .cell.miss { background: #fff; border: 1px dashed var(--border-strong); color: var(--text-3); }
+  .cell.bad { background: #fef2f2; border-color: #fca5a5; }
+  .mx-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-2); margin-bottom: 10px; }
+  .mx-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .mx-legend i { width: 13px; height: 13px; border-radius: 3px; display: inline-block; }
+  .amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .unit { color: var(--text-3); font-size: 11.5px; margin-left: 2px; }
+  .bal { display: flex; align-items: center; gap: 9px; font-size: 13px; background: #f0fdf4; color: var(--success); border: 1px solid #bbf7d0; border-radius: var(--radius); padding: 9px 13px; margin-top: 10px; }
+  .tbl-box { overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); max-height: 420px; }
+  .tbl-box .data-table { margin: 0; }
+  .thumb {
+    height: 132px; border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer;
+    background: repeating-linear-gradient(45deg, #f4f7fd, #f4f7fd 9px, #eaf0fb 9px, #eaf0fb 18px);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; color: var(--primary);
+  }
+  .thumb:hover { border-color: var(--primary); }
+  .thumb i { font-size: 26px; }
+  .thumb span { font-size: 12.5px; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wschcg-03">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易面积信息管理系统
+        <span class="sep">/</span> 结构关联关系
+        <span class="sep">/</span> <span class="cur">幢层户结构关联</span>
+      </div>
+      <div class="page-title">幢层户结构关联</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="expandAll(true)"><i class="fa-solid fa-plus"></i> 展开全部</button>
+      <button type="button" class="btn" onclick="expandAll(false)"><i class="fa-solid fa-minus"></i> 收起全部</button>
+      <button type="button" class="btn" onclick="PMS.toast('《8 栋幢层户结构表》Excel 已生成，正在下载','success')"><i class="fa-solid fa-download"></i> 导出结构表</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.openModal('mdAdj')"><i class="fa-solid fa-pen-to-square"></i> 发起结构调整</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-sitemap"></i>
+    <div>结构是面积成果与楼盘表挂接的<b>骨架，结构错则面积全错</b>。六级结构：项目 → 楼盘 → 幢 → 单元 → 层 → 户；成果户主键入库后回填楼盘表房源主键（fyzj）。非标准层（架空层、设备层、地下室、屋顶层、夹层、阁楼）以浅灰显示，<b>不计入正常户数统计</b>。</div>
+  </div>
+
+  <div class="st-wrap">
+    <div class="card">
+      <div class="card-head"><h3>结构树</h3><span class="sub">成果 CG450200202600186 V2.0</span></div>
+      <div class="card-body tight">
+        <div class="tree">
+          <div class="tn open" onclick="tgNode(this)">
+            <i class="fa-solid fa-caret-right ar"></i><i class="fa-solid fa-diagram-project ic"></i>
+            <span class="nm">荣和公园大道二期（项目）</span><span class="cnt">3 幢</span>
+          </div>
+          <div class="ch">
+            <div class="tn open" onclick="tgNode(this)">
+              <i class="fa-solid fa-caret-right ar"></i><i class="fa-solid fa-city ic"></i>
+              <span class="nm">荣和公园大道二期（楼盘）</span><span class="cnt">3 幢</span>
+            </div>
+            <div class="ch">
+              <div class="tn open sel" onclick="tgNode(this); pick('z', '8 栋')">
+                <i class="fa-solid fa-caret-right ar"></i><i class="fa-solid fa-building ic"></i>
+                <span class="nm">8 栋（26 层 96 户）</span><span class="cnt">96 户</span>
+              </div>
+              <div class="ch">
+                <div class="tn open" onclick="tgNode(this); pick('d', '8 栋 1 单元')">
+                  <i class="fa-solid fa-caret-right ar"></i><i class="fa-solid fa-door-closed ic"></i>
+                  <span class="nm">1 单元</span><span class="cnt">32 户</span>
+                </div>
+                <div class="ch">
+                  <div class="tn non" onclick="pick('c', '8 栋 1 单元 地下 1 层')">
+                    <i class="ar"></i><i class="fa-solid fa-warehouse ic"></i>
+                    <span class="nm">地下 1 层 <span class="lt text-sm">地下室</span></span><span class="cnt">0 户</span>
+                  </div>
+                  <div class="tn" onclick="pick('c', '8 栋 1 单元 1 层')">
+                    <i class="ar"></i><i class="fa-solid fa-layer-group ic"></i>
+                    <span class="nm">1 层 <span class="lt text-sm">标准层</span></span><span class="cnt">2 户</span>
+                  </div>
+                  <div class="tn open" onclick="tgNode(this); pick('c', '8 栋 1 单元 15 层')">
+                    <i class="fa-solid fa-caret-right ar"></i><i class="fa-solid fa-layer-group ic"></i>
+                    <span class="nm">15 层 <span class="lt text-sm">标准层</span></span><span class="cnt">2 户</span>
+                  </div>
+                  <div class="ch">
+                    <div class="tn" onclick="pick('h', '8-1-1502')">
+                      <i class="ar"></i><i class="fa-solid fa-house ic"></i>
+                      <span class="nm">1502 三室两厅</span><span class="cnt">120.86 ㎡</span>
+                    </div>
+                    <div class="tn" onclick="pick('h', '8-1-1501')">
+                      <i class="ar"></i><i class="fa-solid fa-house ic"></i>
+                      <span class="nm">1501 两室两厅</span><span class="cnt">96.20 ㎡</span>
+                    </div>
+                  </div>
+                  <div class="tn" onclick="pick('c', '8 栋 1 单元 26 层')">
+                    <i class="ar"></i><i class="fa-solid fa-layer-group ic"></i>
+                    <span class="nm">26 层 <span class="lt text-sm">标准层 · 跃层</span></span><span class="cnt">2 户</span>
+                  </div>
+                  <div class="tn non" onclick="pick('c', '8 栋 屋顶层')">
+                    <i class="ar"></i><i class="fa-solid fa-umbrella ic"></i>
+                    <span class="nm">屋顶层 <span class="lt text-sm">屋顶层</span></span><span class="cnt">0 户</span>
+                  </div>
+                </div>
+                <div class="tn" onclick="tgNode(this); pick('d', '8 栋 2 单元')">
+                  <i class="fa-solid fa-caret-right ar"></i><i class="fa-solid fa-door-closed ic"></i>
+                  <span class="nm">2 单元</span><span class="cnt">32 户</span>
+                </div>
+                <div class="ch hide">
+                  <div class="tn" onclick="pick('c', '8 栋 2 单元 12 层')">
+                    <i class="ar"></i><i class="fa-solid fa-layer-group ic"></i>
+                    <span class="nm">12 层 <span class="lt text-sm">标准层</span></span><span class="cnt">2 户</span>
+                  </div>
+                  <div class="tn" onclick="pick('c', '8 栋 2 单元 18 层')">
+                    <i class="ar"></i><i class="fa-solid fa-layer-group ic"></i>
+                    <span class="nm">18 层 <span class="lt text-sm">标准层</span></span><span class="cnt">2 户</span>
+                  </div>
+                </div>
+                <div class="tn" onclick="tgNode(this); pick('d', '8 栋 3 单元')">
+                  <i class="fa-solid fa-caret-right ar"></i><i class="fa-solid fa-door-closed ic"></i>
+                  <span class="nm">3 单元</span><span class="cnt">32 户</span>
+                </div>
+                <div class="ch hide">
+                  <div class="tn" onclick="pick('c', '8 栋 3 单元 9 层')">
+                    <i class="ar"></i><i class="fa-solid fa-layer-group ic"></i>
+                    <span class="nm">9 层 <span class="lt text-sm">标准层</span></span><span class="cnt">2 户</span>
+                  </div>
+                </div>
+              </div>
+              <div class="tn" onclick="pick('z', '9 栋')">
+                <i class="ar"></i><i class="fa-solid fa-building ic"></i>
+                <span class="nm">9 栋（26 层 96 户）</span><span class="cnt">96 户</span>
+              </div>
+              <div class="tn" onclick="pick('z', '10 栋')">
+                <i class="ar"></i><i class="fa-solid fa-building ic"></i>
+                <span class="nm">10 栋（18 层 72 户）</span><span class="cnt">72 户</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3 id="rtTitle">8 栋 · 幢信息</h3>
+        <span class="sub" id="rtSub">选中节点：幢</span>
+      </div>
+      <div class="card-body">
+        <div class="tabs">
+          <div class="tab active" data-tab="v1">结构明细</div>
+          <div class="tab" data-tab="v2">楼盘表矩阵视图</div>
+        </div>
+
+        <div class="tab-panel active" data-panel="v1">
+          <div id="paneZ">
+            <dl class="desc-list">
+              <div class="desc-item"><dt>幢号</dt><dd class="fw-600">8 栋</dd></div>
+              <div class="desc-item"><dt>房屋结构</dt><dd>钢筋混凝土结构</dd></div>
+              <div class="desc-item"><dt>总层数</dt><dd>26 层（地上 26 / 地下 1）</dd></div>
+              <div class="desc-item"><dt>单元数</dt><dd>3 个</dd></div>
+              <div class="desc-item"><dt>幢总户数</dt><dd>96 户</dd></div>
+              <div class="desc-item"><dt>幢总建筑面积</dt><dd class="amt">28,842.60 <span class="muted">㎡</span></dd></div>
+              <div class="desc-item"><dt>幢总套内面积</dt><dd class="amt">22,486.42 <span class="muted">㎡</span></dd></div>
+              <div class="desc-item"><dt>共有分摊面积</dt><dd class="amt">6,356.18 <span class="muted">㎡</span></dd></div>
+              <div class="desc-item"><dt>幢分摊系数</dt><dd class="amt fw-600">0.2827</dd></div>
+              <div class="desc-item"><dt>楼盘表幢主键</dt><dd>ZH450204001008GB00312F00010 <span class="badge green">已关联</span></dd></div>
+            </dl>
+
+            <div class="section-title mt-16" style="margin-top:18px">逐层汇总</div>
+            <div class="tbl-box">
+              <table class="data-table compact" data-static>
+                <thead><tr><th>所在层</th><th>层类型</th><th class="text-right">层高</th><th class="text-right">层建筑面积</th><th class="text-right">层套内面积</th><th class="text-right">层共有面积</th><th>层户数</th><th>操作</th></tr></thead>
+                <tbody>
+                  <tr class="text-3"><td>-1</td><td><span class="badge gray">地下室</span></td><td class="text-right amt">3.60</td><td class="text-right amt">1,862.40</td><td class="text-right amt">1,376.20</td><td class="text-right amt">486.20</td><td>0</td><td class="col-ops"><span class="link" onclick="location.href='drawing-viewer.html'">分层图</span></td></tr>
+                  <tr><td>1</td><td><span class="badge blue">标准层</span></td><td class="text-right amt">4.20</td><td class="text-right amt">1,142.60</td><td class="text-right amt">886.42</td><td class="text-right amt">256.18</td><td>4</td><td class="col-ops"><span class="link" onclick="location.href='drawing-viewer.html'">分层图</span></td></tr>
+                  <tr><td>2</td><td><span class="badge blue">标准层</span></td><td class="text-right amt">2.90</td><td class="text-right amt">1,108.62</td><td class="text-right amt">864.20</td><td class="text-right amt">244.42</td><td>4</td><td class="col-ops"><span class="link" onclick="location.href='drawing-viewer.html'">分层图</span></td></tr>
+                  <tr><td>3</td><td><span class="badge blue">标准层</span></td><td class="text-right amt">2.90</td><td class="text-right amt">1,108.62</td><td class="text-right amt">864.20</td><td class="text-right amt">244.42</td><td>4</td><td class="col-ops"><span class="link" onclick="location.href='drawing-viewer.html'">分层图</span></td></tr>
+                  <tr><td>5</td><td><span class="badge blue">标准层</span> <span class="badge cyan">合理跳号</span></td><td class="text-right amt">2.90</td><td class="text-right amt">1,108.62</td><td class="text-right amt">864.20</td><td class="text-right amt">244.42</td><td>4</td><td class="col-ops"><span class="link" onclick="location.href='structure-check.html'">核查</span></td></tr>
+                  <tr><td>15</td><td><span class="badge blue">标准层</span></td><td class="text-right amt">2.90</td><td class="text-right amt">1,108.62</td><td class="text-right amt">864.20</td><td class="text-right amt">244.42</td><td>4</td><td class="col-ops"><span class="link" onclick="location.href='drawing-viewer.html'">分层图</span></td></tr>
+                  <tr><td>26</td><td><span class="badge blue">标准层</span></td><td class="text-right amt">2.90</td><td class="text-right amt">1,186.42</td><td class="text-right amt">902.18</td><td class="text-right amt">284.24</td><td>4</td><td class="col-ops"><span class="link" onclick="location.href='drawing-viewer.html'">分层图</span></td></tr>
+                  <tr class="text-3"><td>27</td><td><span class="badge gray">屋顶层</span></td><td class="text-right amt">2.20</td><td class="text-right amt">86.40</td><td class="text-right amt">0.00</td><td class="text-right amt">86.40</td><td>0</td><td class="col-ops"><span class="link" onclick="location.href='drawing-viewer.html'">分层图</span></td></tr>
+                  <tr style="background:var(--bg-2);font-weight:700"><td colspan="3">汇总（26 层）</td><td class="text-right amt">28,842.60</td><td class="text-right amt">22,486.42</td><td class="text-right amt">6,356.18</td><td>96</td><td>—</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="bal"><i class="fa-solid fa-circle-check"></i> 各层建面之和 28,842.60 ㎡ = 幢总建面 28,842.60 ㎡ ✓</div>
+            <p class="text-3 text-sm mt-16"><i class="fa-solid fa-circle-info"></i> 演示展示 8 个代表层，实际 26 层数据完整；4 层为数字避讳跳号，已标记合理。</p>
+          </div>
+
+          <div id="paneC" class="hidden">
+            <dl class="desc-list">
+              <div class="desc-item"><dt>所在层</dt><dd class="fw-600" id="cName">15 层</dd></div>
+              <div class="desc-item"><dt>层类型</dt><dd><span class="badge blue">标准层</span></dd></div>
+              <div class="desc-item"><dt>层高</dt><dd class="amt">2.90 <span class="muted">m</span></dd></div>
+              <div class="desc-item"><dt>层建筑面积</dt><dd class="amt">1,108.62 <span class="muted">㎡</span></dd></div>
+              <div class="desc-item"><dt>层套内面积</dt><dd class="amt">864.20 <span class="muted">㎡</span></dd></div>
+              <div class="desc-item"><dt>层共有面积</dt><dd class="amt">244.42 <span class="muted">㎡</span></dd></div>
+              <div class="desc-item"><dt>层户数</dt><dd>2 户（本单元）</dd></div>
+              <div class="desc-item"><dt>层平面图</dt><dd><span class="link" onclick="location.href='drawing-viewer.html'">RHGYDD2Q_8_15_FCT.pdf</span></dd></div>
+            </dl>
+            <div class="bal"><i class="fa-solid fa-circle-check"></i> 层建面 1,108.62 ㎡ = 层套内 864.20 ㎡ + 层共有 244.42 ㎡ ✓</div>
+
+            <div class="grid-2 mt-16" style="margin-top:16px">
+              <div>
+                <div class="section-title">该层户列表</div>
+                <table class="data-table compact" data-static>
+                  <thead><tr><th>房号</th><th>户型</th><th class="text-right">建筑面积</th><th class="text-right">套内</th><th class="text-right">分摊</th><th class="text-right">分摊系数</th></tr></thead>
+                  <tbody>
+                    <tr><td class="fw-600">1502</td><td>三室两厅</td><td class="text-right amt">120.86</td><td class="text-right amt">93.62</td><td class="text-right amt">27.24</td><td class="text-right amt">0.2270</td></tr>
+                    <tr><td class="fw-600">1501</td><td>两室两厅</td><td class="text-right amt">96.20</td><td class="text-right amt">74.86</td><td class="text-right amt">21.34</td><td class="text-right amt">0.2216</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div>
+                <div class="section-title">该层平面图</div>
+                <div class="thumb" onclick="location.href='drawing-viewer.html'">
+                  <i class="fa-solid fa-layer-group"></i>
+                  <span>15 层分层平面图 · 1:100</span>
+                  <span class="text-3">点击进入图纸查看器</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="paneH" class="hidden">
+            <dl class="desc-list">
+              <div class="desc-item"><dt>房间号</dt><dd class="fw-600" id="hName">8-1-1502</dd></div>
+              <div class="desc-item"><dt>不动产单元号</dt><dd>450204001008GB00312F00010015</dd></div>
+              <div class="desc-item"><dt>房屋用途 / 性质</dt><dd>成套住宅 / 商品房</dd></div>
+              <div class="desc-item"><dt>户型 / 结构</dt><dd>三室两厅 / 平层</dd></div>
+              <div class="desc-item"><dt>朝向</dt><dd>朝南</dd></div>
+              <div class="desc-item"><dt>建筑面积</dt><dd class="amt fw-600">120.86 <span class="muted">㎡</span></dd></div>
+              <div class="desc-item"><dt>套内建筑面积</dt><dd class="amt">93.62 <span class="muted">㎡</span></dd></div>
+              <div class="desc-item"><dt>套内墙体面积</dt><dd class="amt">8.42 <span class="muted">㎡</span></dd></div>
+              <div class="desc-item"><dt>阳台面积</dt><dd class="amt">6.20 <span class="muted">㎡</span></dd></div>
+              <div class="desc-item"><dt>分摊面积</dt><dd class="amt">27.24 <span class="muted">㎡</span></dd></div>
+              <div class="desc-item"><dt>分摊系数</dt><dd class="amt">0.2270</dd></div>
+              <div class="desc-item"><dt>地下室 / 阁楼 / 露台</dt><dd class="amt">0.00 / 0.00 / 0.00 <span class="muted">㎡</span></dd></div>
+              <div class="desc-item"><dt>是否车位 / 人防</dt><dd>否 / 否</dd></div>
+              <div class="desc-item"><dt>楼盘表房源主键</dt><dd>FY450204001008GB00312F00010015 <span class="badge green">已关联</span></dd></div>
+              <div class="desc-item"><dt>楼盘表状态</dt><dd><span class="badge orange">已签约</span> 合同 SPF450200202601286</dd></div>
+              <div class="desc-item"><dt>预实测差异</dt><dd class="text-warning">预测 118.65 → 实测 120.86，+2.21 ㎡（+1.86%）</dd></div>
+            </dl>
+            <div class="grid-2 mt-16" style="margin-top:16px">
+              <div>
+                <div class="section-title">户型图</div>
+                <div class="thumb" onclick="location.href='drawing-viewer.html'">
+                  <i class="fa-solid fa-door-open"></i>
+                  <span>8-1-1502 分户图 · 1:100</span>
+                  <span class="text-3">点击进入图纸查看器（支持双栏对照）</span>
+                </div>
+              </div>
+              <div>
+                <div class="section-title">快捷操作</div>
+                <div class="flex gap-8" style="flex-wrap:wrap">
+                  <button type="button" class="btn" onclick="location.href='area-compare.html'"><i class="fa-solid fa-scale-balanced"></i> 预实测比对</button>
+                  <button type="button" class="btn" onclick="location.href='area-diff.html'"><i class="fa-solid fa-hand-holding-dollar"></i> 差异处理</button>
+                  <button type="button" class="btn" onclick="location.href='result-detail.html'"><i class="fa-solid fa-file-lines"></i> 成果详情</button>
+                  <button type="button" class="btn" onclick="location.href='area-change.html'"><i class="fa-solid fa-clock-rotate-left"></i> 面积变更记录</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-panel" data-panel="v2">
+          <div class="mx-legend">
+            <span><i style="background:#eff6ff;border:1px solid #c7d7f7"></i> 已匹配楼盘表（93）</span>
+            <span><i style="background:#f0fdf4;border:1px solid #bbf7d0"></i> 新增待确认（2）</span>
+            <span><i style="background:#fff;border:1px dashed #c0c4cc"></i> 缺失（1）</span>
+            <span><i style="background:#fef2f2;border:1px solid #fca5a5"></i> 异常（1）</span>
+            <span class="text-3">鼠标悬停方块可看该户完整面积明细</span>
+          </div>
+          <div class="mx" id="mx"></div>
+          <p class="text-3 text-sm mt-16">
+            <i class="fa-solid fa-circle-info"></i>
+            矩阵按「层 × 房号」呈现整幢 8 栋（纵向层从高到低，横向房号）。演示展示 26 / 18 / 15 / 12 / 9 / 1 层共 6 层；
+            差异房号须在<a class="link" href="room-match.html">楼盘表房号匹配</a>页逐条确认完才允许入库。
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- 发起结构调整 -->
+<div class="modal-mask" id="mdAdj">
+  <div class="modal">
+    <div class="modal-head">发起结构调整</div>
+    <div class="modal-body">
+      <div class="alert alert-warning">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>结构是面积成果与楼盘表挂接的骨架，<b>结构调整须走审批并全程留痕</b>。涉及已签约房屋的结构调整还须关联合同处理意见。</div>
+      </div>
+      <div class="form-grid form-align mt-16">
+        <div class="form-item">
+          <label>调整对象<span class="req">*</span></label>
+          <select><option>8 栋 2 单元 12 层</option><option>8 栋 1 单元</option><option>8 栋（整幢）</option></select>
+        </div>
+        <div class="form-item">
+          <label>调整类型<span class="req">*</span></label>
+          <select><option>房号更正</option><option>层类型更正</option><option>单元归属更正</option><option>新增层 / 户</option><option>删除层 / 户</option></select>
+        </div>
+        <div class="form-item">
+          <label>审批人<span class="req">*</span></label>
+          <select><option>李**（交易科科长）</option><option>陈**（副所长）</option></select>
+        </div>
+        <div class="form-item" style="grid-column:1/-1">
+          <label>调整内容与理由<span class="req">*</span></label>
+          <textarea rows="3">8 栋 2 单元 12 层重复房号 1201（户表第 47 行）更正为 1202，同步更正不动产单元号第 28 位定着物号。理由：测绘成果房号录入重复，经现场核对该户实际房号为 1202。</textarea>
+        </div>
+        <div class="form-item" style="grid-column:1/-1">
+          <label>依据材料</label>
+          <input type="text" data-upload="1" placeholder="点击上传现场核对记录、测绘机构说明函等">
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" data-close-modal>取消</button>
+      <button type="button" class="btn btn-primary" onclick="submitAdj()"><i class="fa-solid fa-paper-plane"></i> 提交审批</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+function tgNode(el) {
+  var ch = el.nextElementSibling;
+  if (ch && ch.classList.contains('ch')) {
+    ch.classList.toggle('hide');
+    el.classList.toggle('open', !ch.classList.contains('hide'));
+  }
+}
+
+function expandAll(open) {
+  document.querySelectorAll('.tree .ch').forEach(function (c) { c.classList.toggle('hide', !open); });
+  document.querySelectorAll('.tree .tn').forEach(function (t) {
+    var ch = t.nextElementSibling;
+    if (ch && ch.classList.contains('ch')) t.classList.toggle('open', open);
+  });
+}
+
+function pick(kind, name) {
+  event.stopPropagation();
+  document.querySelectorAll('.tree .tn').forEach(function (t) { t.classList.remove('sel'); });
+  var t = event.target.closest('.tn');
+  if (t) t.classList.add('sel');
+  var titles = { z: '幢信息', d: '单元信息', c: '层信息', h: '户信息' };
+  document.getElementById('rtTitle').textContent = name + ' · ' + titles[kind === 'd' ? 'z' : kind];
+  document.getElementById('rtSub').textContent = '选中节点：' + ({ z: '幢', d: '单元', c: '层', h: '户' })[kind];
+  document.getElementById('paneZ').classList.toggle('hidden', !(kind === 'z' || kind === 'd'));
+  document.getElementById('paneC').classList.toggle('hidden', kind !== 'c');
+  document.getElementById('paneH').classList.toggle('hidden', kind !== 'h');
+  if (kind === 'c') document.getElementById('cName').textContent = name;
+  if (kind === 'h') document.getElementById('hName').textContent = name;
+}
+
+/* 楼盘表矩阵：层 × 房号 */
+(function buildMatrix() {
+  var floors = [
+    { f: 26, rooms: [
+      { r: '2601', a: '168.42', s: 'ok' }, { r: '2602', a: '166.20', s: 'ok' },
+      { r: '2603', a: '168.42', s: 'new' }, { r: '2604', a: '142.30', s: 'ok' }
+    ]},
+    { f: 18, rooms: [
+      { r: '1801', a: '118.65', s: 'ok' }, { r: '1803', a: '120.86', s: 'bad' },
+      { r: '1806', a: '100.15', s: 'ok' }, { r: '1808', a: '96.20', s: 'ok' }
+    ]},
+    { f: 15, rooms: [
+      { r: '1501', a: '96.20', s: 'ok' }, { r: '1502', a: '120.86', s: 'ok' },
+      { r: '1505', a: '118.65', s: 'ok' }, { r: '1508', a: '96.20', s: 'ok' }
+    ]},
+    { f: 12, rooms: [
+      { r: '1201', a: '96.20', s: 'miss' }, { r: '1202', a: '96.20', s: 'new' },
+      { r: '1205', a: '118.65', s: 'ok' }, { r: '1208', a: '96.20', s: 'ok' }
+    ]},
+    { f: 9, rooms: [
+      { r: '901', a: '96.20', s: 'ok' }, { r: '902', a: '135.68', s: 'ok' },
+      { r: '905', a: '118.65', s: 'ok' }, { r: '908', a: '96.20', s: 'ok' }
+    ]},
+    { f: 1, rooms: [
+      { r: '0101', a: '96.86', s: 'ok' }, { r: '0102', a: '96.86', s: 'ok' },
+      { r: '0105', a: '86.42', s: 'ok' }, { r: '0106', a: '86.42', s: 'ok' }
+    ]}
+  ];
+  var tips = { ok: '已匹配楼盘表', new: '成果有楼盘表无（新增待确认）', miss: '楼盘表有成果无（缺失 · 已签约不允许删除）', bad: '结构异常（房号跳号，缺 1802）' };
+  var html = floors.map(function (fl) {
+    return '<div class="mx-row"><span class="fl">' + (fl.f === 1 ? '1 层' : fl.f + ' 层') + '</span>' +
+      fl.rooms.map(function (rm) {
+        var t = rm.r + ' · 建面 ' + rm.a + ' ㎡ · ' + tips[rm.s];
+        return '<div class="cell ' + (rm.s === 'ok' ? '' : rm.s) + '" title="' + t + '" onclick="cellClick(\'' + rm.r + '\',\'' + rm.s + '\')">' +
+          '<div class="rn">' + rm.r + '</div><div class="ar2">' + rm.a + ' ㎡</div></div>';
+      }).join('') + '</div>';
+  }).join('');
+  document.getElementById('mx').innerHTML = html;
+})();
+
+function cellClick(r, s) {
+  if (s === 'miss' || s === 'new') { location.href = 'room-match.html'; return; }
+  if (s === 'bad') { location.href = 'structure-check.html'; return; }
+  PMS.toast(r + '：建筑面积已与楼盘表房源匹配，房源主键已回填');
+}
+
+function submitAdj() {
+  PMS.closeModal('mdAdj');
+  PMS.toast('结构调整申请已提交李**（交易科科长）审批，调整内容与依据材料已留痕', 'success');
+}
+</script>
+</body>
+</html>

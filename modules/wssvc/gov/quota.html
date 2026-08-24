@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>授权与配额策略 · 统一应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../../assets/css/app.css">
+<link rel="stylesheet" href="../../../assets/css/wssvc.css">
+</head>
+<body data-role="admin" data-active="wssvc-60">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 统一应用服务平台
+        <span class="sep">/</span> 服务接入与治理 <span class="sep">/</span> <span class="cur">授权与配额策略</span>
+      </div>
+      <div class="page-title">授权与配额策略</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="app-access.html"><i class="fa-solid fa-cubes"></i> 接入应用</a>
+      <a class="btn" href="monitor.html"><i class="fa-solid fa-heart-pulse"></i> 运行监控</a>
+      <button class="btn" onclick="SVC.exportAsync('授权与配额策略清单')"><i class="fa-solid fa-download"></i> 导出</button>
+      <button class="btn btn-primary" onclick="PMS.openDrawer('quotaDrawer')"><i class="fa-solid fa-plus"></i> 新增策略</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-sliders"></i>
+    <div><b>授权管「能不能调」，配额与限流管「能调多少」，两件事一张表配完</b>。
+      配额按天算、限流按秒算——日配额防的是某个应用写了死循环把一天的量在一小时跑完；
+      每秒限流防的是瞬间并发把三方打垮。
+      <b>三方服务商自己也有上限，平台的限流阈值必须低于三方的承受值，否则限流形同虚设</b>。</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-list-check"></i></div>
+      <div><div class="s-label">生效策略</div><div class="s-value">64</div><div class="s-trend">覆盖 21 个应用</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-gauge"></i></div>
+      <div><div class="s-label">今日触发限流</div><div class="s-value">18<span class="text-sm"> 次</span></div><div class="s-trend text-warning">集中在 AI 平台的 OCR</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-circle-exclamation"></i></div>
+      <div><div class="s-label">配额耗尽</div><div class="s-value">1<span class="text-sm"> 个</span></div><div class="s-trend text-danger">AI 平台 OCR 已用 98%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-shield"></i></div>
+      <div><div class="s-label">启用 IP 白名单</div><div class="s-value">19<span class="text-sm"> 个应用</span></div><div class="s-trend text-success">外部单位应用全部启用</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-ban"></i></div>
+      <div><div class="s-label">今日拒绝调用</div><div class="s-value">246</div><div class="s-trend">未授权 12 · 超配额 216 · 非白名单 18</div></div>
+    </div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="policy">授权与配额策略</div>
+      <div class="tab" data-tab="limit">限流阈值</div>
+      <div class="tab" data-tab="deny">拒绝记录</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="policy">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>调用方应用</label><select><option value="">全部</option><option>存量房网签备案系统</option><option>新建商品房交易系统</option><option>预售资金监管系统</option><option>AI 应用服务平台</option><option>统一服务门户</option></select></div>
+          <div class="filter-item"><label>归属服务</label><select><option value="">全部</option><option>统一签约服务</option><option>政银直连服务</option><option>统一文件服务</option><option>统一消息服务</option></select></div>
+          <div class="filter-item"><label>配额水位</label><select><option value="">全部</option><option>已耗尽</option><option>超 80%</option><option>正常</option><option>长期低用</option></select></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已检索策略','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="PMS.toast('已重置为默认条件')">重置</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>调用方应用</th><th>授权接口</th><th class="num">日配额</th><th class="num">今日已用</th><th>水位</th><th class="num">每秒限流</th><th>IP 白名单</th><th>超限处置</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr class="clickable" onclick="PMS.openDrawer('quotaDrawer')">
+                <td class="nowrap">AI 应用服务平台</td><td class="cell-lg">文件服务 · OCR 识别</td><td class="num">5,000</td><td class="num">4,902</td>
+                <td><span class="badge red">98%</span></td><td class="num">10</td><td><span class="badge green">已启用</span></td><td>拒绝并告警</td>
+                <td><span class="link danger" onclick="event.stopPropagation();PMS.confirm({title:'临时提额',message:'为 AI 平台的 OCR 调用临时提额到 8000？',detail:'临时提额今日有效，次日回落。长期提额需走服务目录的订阅变更审批。',okText:'提额',onOk:function(){PMS.toast('已临时提额至 8000','success')}})">临时提额</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('quotaDrawer')">
+                <td class="nowrap">存量房网签备案系统</td><td class="cell-lg">文件服务 · 文件下载</td><td class="num">30,000</td><td class="num">21,042</td>
+                <td><span class="badge orange">70%</span></td><td class="num">50</td><td><span class="badge green">已启用</span></td><td>排队等待</td><td><span class="link">调整</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('quotaDrawer')">
+                <td class="nowrap">存量房网签备案系统</td><td class="cell-lg">文件服务 · 文件上传</td><td class="num">20,000</td><td class="num">12,486</td>
+                <td><span class="badge green">62%</span></td><td class="num">40</td><td><span class="badge green">已启用</span></td><td>排队等待</td><td><span class="link">调整</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('quotaDrawer')">
+                <td class="nowrap">新建商品房交易系统</td><td class="cell-lg">文件服务 · 文件上传</td><td class="num">20,000</td><td class="num">9,842</td>
+                <td><span class="badge green">49%</span></td><td class="num">40</td><td><span class="badge green">已启用</span></td><td>排队等待</td><td><span class="link">调整</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('quotaDrawer')">
+                <td class="nowrap">预售资金监管系统</td><td class="cell-lg">政银直连 · 全部接口</td><td class="num">40,000</td><td class="num">26,942</td>
+                <td><span class="badge orange">67%</span></td><td class="num">30</td><td><span class="badge green">已启用</span></td><td>排队等待</td><td><span class="link">调整</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('quotaDrawer')">
+                <td class="nowrap">存量房交易资金监管</td><td class="cell-lg">政银直连 · 全部接口</td><td class="num">30,000</td><td class="num">18,406</td>
+                <td><span class="badge green">61%</span></td><td class="num">30</td><td><span class="badge green">已启用</span></td><td>排队等待</td><td><span class="link">调整</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('quotaDrawer')">
+                <td class="nowrap">统一服务门户</td><td class="cell-lg">消息服务 · 微信模板消息</td><td class="num">8,000</td><td class="num">3,286</td>
+                <td><span class="badge green">41%</span></td><td class="num">20</td><td><span class="badge gray">未启用</span></td><td>拒绝并告警</td><td><span class="link">调整</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('quotaDrawer')">
+                <td class="nowrap">存量房网签备案系统</td><td class="cell-lg">消息服务 · 短信单发</td><td class="num">10,000</td><td class="num">4,208</td>
+                <td><span class="badge green">42%</span></td><td class="num">25</td><td><span class="badge green">已启用</span></td><td>排队等待</td><td><span class="link">调整</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('quotaDrawer')">
+                <td class="nowrap">存量房网签备案系统</td><td class="cell-lg">签约服务 · 发起签署</td><td class="num">2,000</td><td class="num">486</td>
+                <td><span class="badge green">24%</span></td><td class="num">10</td><td><span class="badge green">已启用</span></td><td>排队等待</td><td><span class="link">调整</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('quotaDrawer')">
+                <td class="nowrap">住房公积金业务系统</td><td class="cell-lg">政银直连 · 公积金 4 接口</td><td class="num">6,000</td><td class="num">2,486</td>
+                <td><span class="badge green">41%</span></td><td class="num">15</td><td><span class="badge green">已启用</span></td><td>拒绝并告警</td><td><span class="link">调整</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('quotaDrawer')">
+                <td class="nowrap">房产档案管理系统</td><td class="cell-lg">文件服务 · 全部接口</td><td class="num">15,000</td><td class="num">9,624</td>
+                <td><span class="badge green">64%</span></td><td class="num">30</td><td><span class="badge green">已启用</span></td><td>排队等待</td><td><span class="link">调整</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('quotaDrawer')">
+                <td class="nowrap">中介与经纪机构管理</td><td class="cell-lg">统一签约 · 合同落章</td><td class="num">1,000</td><td class="num">142</td>
+                <td><span class="badge green">14%</span></td><td class="num">5</td><td><span class="badge green">已启用</span></td><td>拒绝并告警</td><td><span class="link">调整</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="limit">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-gauge-high"></i>
+          <div><b>限流阈值不是拍脑袋定的，是从三方的承受值倒推</b>。
+            三方给多少并发、平台留多少余量、各应用怎么分——这三个数得对得上。
+            下表的「三方上限」是合同或联调时对方给的数，
+            <b>平台阈值之和超过三方上限的那几行，等于限流没设</b>。</div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head"><h3><i class="fa-solid fa-arrow-down-up-across-line"></i> 三方承受值与平台阈值</h3></div>
+            <div class="card-body">
+              <div class="svc-tbl">
+                <table class="data-table compact">
+                  <thead><tr><th>三方服务商</th><th class="num">对方上限</th><th class="num">平台阈值合计</th><th>余量</th><th>状态</th></tr></thead>
+                  <tbody>
+                    <tr><td class="nowrap">对象存储集群</td><td class="num">500 QPS</td><td class="num">240 QPS</td><td>52%</td><td><span class="badge green">充裕</span></td></tr>
+                    <tr><td class="nowrap">OCR 识别服务</td><td class="num">20 QPS</td><td class="num">18 QPS</td><td>10%</td><td><span class="badge orange">偏紧</span></td></tr>
+                    <tr><td class="nowrap">移动短信通道</td><td class="num">100 条/秒</td><td class="num">65 条/秒</td><td>35%</td><td><span class="badge green">充裕</span></td></tr>
+                    <tr><td class="nowrap">法大大签约</td><td class="num">30 QPS</td><td class="num">18 QPS</td><td>40%</td><td><span class="badge green">充裕</span></td></tr>
+                    <tr><td class="nowrap">自治区签章平台</td><td class="num">50 QPS</td><td class="num">32 QPS</td><td>36%</td><td><span class="badge green">充裕</span></td></tr>
+                    <tr><td class="nowrap">柳州银行接口</td><td class="num">40 QPS</td><td class="num">45 QPS</td><td class="text-danger">-13%</td><td><span class="badge red">超配</span></td></tr>
+                    <tr><td class="nowrap">桂林银行接口</td><td class="num">20 QPS</td><td class="num">15 QPS</td><td>25%</td><td><span class="badge green">充裕</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="hint"><i class="fa-solid fa-triangle-exclamation"></i>
+                柳州银行一行超配：三个资金监管系统各配 15 QPS，合计 45 超过对方给的 40。
+                高峰同时打满会被对方拒绝，需要把维修资金那份降到 10。</p>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3><i class="fa-solid fa-chart-column"></i> 今日限流触发</h3></div>
+            <div class="card-body">
+              <div class="svc-chart" data-chart="hbar" data-series='{"unit":" 次","items":[{"n":"OCR 识别","v":12,"warn":true},{"n":"文件下载","v":4},{"n":"短信单发","v":2},{"n":"电子落章","v":0},{"n":"发起签署","v":0}]}'></div>
+              <p class="hint"><i class="fa-solid fa-circle-info"></i>
+                OCR 今日 12 次触发限流，全部来自 AI 平台的合同批量审查。
+                这类批处理应该错峰跑，已建议对方改到 20:00 后。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="deny">
+      <div class="card-body">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>时间</th><th>调用方</th><th>目标接口</th><th>来源 IP</th><th>拒绝原因</th><th>处置</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td class="nowrap">21:12:04</td><td class="nowrap">AI 应用服务平台</td><td class="cell-lg">文件服务 · OCR 识别</td><td class="nowrap">10.86.22.31</td><td><span class="badge orange">超每秒限流 10</span></td><td class="cell-lg">已拒绝，建议错峰</td><td><a class="link" href="call-log.html">看日志</a></td></tr>
+              <tr><td class="nowrap">20:48:36</td><td class="nowrap">AI 应用服务平台</td><td class="cell-lg">文件服务 · OCR 识别</td><td class="nowrap">10.86.22.31</td><td><span class="badge orange">超每秒限流 10</span></td><td class="cell-lg">已拒绝，建议错峰</td><td><a class="link" href="call-log.html">看日志</a></td></tr>
+              <tr><td class="nowrap">18:22:14</td><td class="nowrap">未知调用方</td><td class="cell-lg">文件服务 · 文件下载</td><td class="nowrap">113.12.**.**</td><td><span class="badge red">非白名单来源</span></td><td class="cell-lg">已拒绝并记入安全审计</td><td><a class="link" href="audit.html">看审计</a></td></tr>
+              <tr><td class="nowrap">16:40:52</td><td class="nowrap">房屋租赁监管系统</td><td class="cell-lg">签约服务 · 发起签署</td><td class="nowrap">10.86.19.8</td><td><span class="badge red">未授权接口</span></td><td class="cell-lg">订阅审批中，尚未生效</td><td><a class="link" href="service-catalog.html">看订阅</a></td></tr>
+              <tr><td class="nowrap">15:18:26</td><td class="nowrap">中介与经纪机构管理</td><td class="cell-lg">统一签约 · 合同落章</td><td class="nowrap">10.86.20.14</td><td><span class="badge orange">超日配额 1000</span></td><td class="cell-lg">当日剩余请求全部拒绝</td><td><a class="link" href="call-log.html">看日志</a></td></tr>
+              <tr><td class="nowrap">11:06:08</td><td class="nowrap">AI 应用服务平台</td><td class="cell-lg">文件服务 · OCR 识别</td><td class="nowrap">10.86.22.31</td><td><span class="badge orange">超每秒限流 10</span></td><td class="cell-lg">已拒绝，建议错峰</td><td><a class="link" href="call-log.html">看日志</a></td></tr>
+              <tr><td class="nowrap">09:42:31</td><td class="nowrap">旧版档案系统</td><td class="cell-lg">文件服务 · 文件上传</td><td class="nowrap">10.86.11.6</td><td><span class="badge red">应用已停用</span></td><td class="cell-lg">系统已下线仍在调，已通知运维</td><td><a class="link" href="app-access.html">看应用</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="drawer-mask" onclick="PMS.closeDrawer('quotaDrawer')"></div>
+  <div class="drawer" id="quotaDrawer">
+    <div class="drawer-head">
+      <h3>配额策略 · AI 应用服务平台 → OCR 识别</h3>
+      <span class="close" onclick="PMS.closeDrawer('quotaDrawer')"><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-warning">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <div>今日已用 4,902 / 5,000，水位 98%。按当前速度约 22:10 耗尽，
+          <b>耗尽后 AI 的合同审查会退回人工，窗口明早会有积压</b>。
+          要么临时提额，要么让对方把批处理挪到夜间。</div>
+      </div>
+      <div class="form-grid">
+        <div class="form-item"><label>调用方应用 <span class="req">*</span></label><select><option>AI 应用服务平台</option><option>存量房网签备案系统</option><option>新建商品房交易系统</option></select></div>
+        <div class="form-item"><label>授权接口 <span class="req">*</span></label><select><option>文件服务 · OCR 识别</option><option>文件服务 · 全部接口</option></select></div>
+        <div class="form-item"><label>日配额 <span class="req">*</span></label><input type="number" value="5000"></div>
+        <div class="form-item"><label>每秒限流（QPS）</label><input type="number" value="10"></div>
+        <div class="form-item"><label>并发上限</label><input type="number" value="20"></div>
+        <div class="form-item"><label>超限处置</label><select><option>拒绝并告警</option><option>排队等待</option><option>降级到备用三方</option></select></div>
+        <div class="form-item"><label>配额重置时点</label><select><option>每日 00:00</option><option>每日 06:00</option></select></div>
+        <div class="form-item"><label>水位告警线</label><input type="text" value="80%"></div>
+        <div class="form-item col-full"><label>IP 白名单</label><textarea>10.86.22.0/24</textarea></div>
+        <div class="form-item col-full"><label>备注</label><textarea>OCR 三方并发上限 20 QPS，本应用占 10。若要提额需同步评估三方承受值，不能只改这里的数。</textarea></div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn" onclick="PMS.closeDrawer('quotaDrawer')">取消</button>
+      <button class="btn" onclick="PMS.toast('已临时提额至 8000，今日有效','success')"><i class="fa-solid fa-arrow-up"></i> 今日临时提额</button>
+      <button class="btn btn-primary" onclick="PMS.toast('策略已保存并即时生效','success');PMS.closeDrawer('quotaDrawer')"><i class="fa-solid fa-check"></i> 保存</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../../assets/js/app.js"></script>
+<script src="../../../assets/js/wssvc.js"></script>
+</body>
+</html>

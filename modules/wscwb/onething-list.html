@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>交易登记一件事台账 · 存量房交易网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：并联进度小方块，一格代表一个环节 */
+  .mini-steps { display: inline-flex; gap: 3px; }
+  .mini-steps i {
+    width: 13px; height: 13px; border-radius: 3px; background: #e3e7ee; display: inline-block;
+  }
+  .mini-steps i.done { background: var(--success); }
+  .mini-steps i.cur { background: var(--warning); }
+  .mini-steps i.late { background: var(--danger); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wscwb-05">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 存量房交易网签备案管理系统
+        <span class="sep">/</span> 交易登记一件事
+        <span class="sep">/</span> <span class="cur">交易登记一件事台账</span>
+      </div>
+      <div class="page-title">交易登记一件事台账</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="onething-qrcode.html"><i class="fa-solid fa-qrcode"></i> 扫码追溯</a>
+      <a class="btn" href="enterprise-deal.html"><i class="fa-solid fa-building"></i> 企业交易协同</a>
+      <button type="button" class="btn" onclick="PMS.toast('已向 3 件超期办件的责任单位发出督办单','success')"><i class="fa-solid fa-bullhorn"></i> 批量督办</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《一件事办件台账》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-diagram-project"></i></div>
+      <div><div class="s-label">在办办件</div><div class="s-value">42</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">本月办结</div><div class="s-value">318</div><div class="s-trend text-success">办结率 98.1%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-stopwatch"></i></div>
+      <div><div class="s-label">平均办结时长</div><div class="s-value">2.1 天</div><div class="s-trend text-success">↓ 从 7 天压缩</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><div class="s-label">临期 / 超期</div><div class="s-value">3</div><div class="s-trend text-danger">需立即督办</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-layer-group"></i>
+    <div>
+      「交易登记一件事」把网签备案、税费缴纳、转移登记、抵押注销与新设、水电气过户、公积金提取等事项并联办理：
+      申请人一次提交、材料一次采集全网共享，各单位并行处理、结果互认，办结时限由 7 个工作日压缩至 2.1 天。
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>办件编号</label>
+        <input type="text" placeholder="如 YJS20260728042">
+      </div>
+      <div class="filter-item">
+        <label>备案编号</label>
+        <input type="text" placeholder="BA450200…">
+      </div>
+      <div class="filter-item">
+        <label>坐落 / 小区</label>
+        <input type="text" placeholder="支持模糊查询">
+      </div>
+      <div class="filter-item">
+        <label>申请人</label>
+        <input type="text" placeholder="买受人姓名">
+      </div>
+      <div class="filter-item">
+        <label>办件状态</label>
+        <select>
+          <option value="">全部</option>
+          <option>受理中</option>
+          <option>并联办理中</option>
+          <option>已办结</option>
+          <option>已退回</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>当前环节</label>
+        <select>
+          <option value="">全部</option>
+          <option>网签备案</option>
+          <option>税费核定与缴纳</option>
+          <option>带押过户</option>
+          <option>转移登记</option>
+          <option>抵押注销与新设</option>
+          <option>水电气过户</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>时限状态</label>
+        <select><option value="">全部</option><option>正常</option><option>临期</option><option>超期</option></select>
+      </div>
+      <div class="filter-item">
+        <label>受理日期</label>
+        <input type="date" value="2026-07-01">
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 42 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="doing">并联办理中 <span class="badge blue">39</span></div>
+      <div class="tab" data-tab="late">临期 / 超期 <span class="badge red">3</span></div>
+      <div class="tab" data-tab="done">已办结</div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblOne" data-static>
+        <thead>
+          <tr>
+            <th>办件编号</th>
+            <th>房屋坐落</th>
+            <th>申请人</th>
+            <th>关联备案</th>
+            <th>并联进度</th>
+            <th>当前环节</th>
+            <th>承办单位</th>
+            <th>受理时间</th>
+            <th>剩余时限</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="doing" class="clickable" onclick="location.href='onething-detail.html'">
+            <td class="nowrap fw-600">YJS20260728042</td>
+            <td class="cell-lg">彰泰滨江学府 12-2-1802</td>
+            <td class="nowrap">李明轩</td>
+            <td class="nowrap">BA450200202600318</td>
+            <td class="nowrap">
+              <span class="mini-steps"><i class="done"></i><i class="done"></i><i class="done"></i><i class="cur"></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+              <span class="text-3 text-sm">3/10</span>
+            </td>
+            <td class="nowrap">带押过户</td>
+            <td class="nowrap">建行柳州分行</td>
+            <td class="nowrap">2026-07-31 11:27</td>
+            <td class="nowrap"><span class="badge green">剩 1.5 天</span></td>
+            <td class="col-ops">
+              <a class="link" href="onething-detail.html">协同详情</a>
+              <a class="link" href="onething-qrcode.html">扫码追溯</a>
+            </td>
+          </tr>
+          <tr data-st="late" class="clickable" onclick="location.href='onething-detail.html'">
+            <td class="nowrap fw-600">YJS20260728038</td>
+            <td class="cell-lg">荣和千千树 5-3-1105</td>
+            <td class="nowrap">吕思远</td>
+            <td class="nowrap">BA450200202600381</td>
+            <td class="nowrap">
+              <span class="mini-steps"><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="late"></i><i></i><i></i><i></i><i></i></span>
+              <span class="text-danger text-sm">5/10</span>
+            </td>
+            <td class="nowrap">转移登记</td>
+            <td class="nowrap">市不动产登记中心</td>
+            <td class="nowrap">2026-07-28 09:14</td>
+            <td class="nowrap"><span class="badge red">超期 26 小时</span></td>
+            <td class="col-ops">
+              <a class="link" href="onething-detail.html">协同详情</a>
+              <span class="link danger" onclick="event.stopPropagation();PMS.toast('督办单已发送至市不动产登记中心','success')">督办</span>
+            </td>
+          </tr>
+          <tr data-st="doing" class="clickable" onclick="location.href='onething-detail.html'">
+            <td class="nowrap fw-600">YJS20260730055</td>
+            <td class="cell-lg">桂景湾 3-1-602</td>
+            <td class="nowrap">邓文雅</td>
+            <td class="nowrap">BA450200202600317</td>
+            <td class="nowrap">
+              <span class="mini-steps"><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="cur"></i><i></i><i></i><i></i></span>
+              <span class="text-3 text-sm">6/10</span>
+            </td>
+            <td class="nowrap">水电气过户</td>
+            <td class="nowrap">XXXX市自来水公司 等 3 家</td>
+            <td class="nowrap">2026-07-31 09:52</td>
+            <td class="nowrap"><span class="badge green">剩 1.8 天</span></td>
+            <td class="col-ops">
+              <a class="link" href="onething-detail.html">协同详情</a>
+              <a class="link" href="onething-qrcode.html">扫码追溯</a>
+            </td>
+          </tr>
+          <tr data-st="doing" class="clickable" onclick="location.href='onething-detail.html'">
+            <td class="nowrap fw-600">YJS20260730053</td>
+            <td class="cell-lg">保利大江郡 9-2-2201</td>
+            <td class="nowrap">XXXX市恒锐科技有限公司</td>
+            <td class="nowrap">BA450200202600316</td>
+            <td class="nowrap">
+              <span class="mini-steps"><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="cur"></i><i></i><i></i><i></i><i></i><i></i></span>
+              <span class="text-3 text-sm">4/10</span>
+            </td>
+            <td class="nowrap">税费核定与缴纳</td>
+            <td class="nowrap">XXXX市税务局</td>
+            <td class="nowrap">2026-07-30 16:35</td>
+            <td class="nowrap"><span class="badge orange">剩 6 小时</span></td>
+            <td class="col-ops">
+              <a class="link" href="transfer-tax.html">纳税过户</a>
+              <span class="link" onclick="event.stopPropagation();PMS.toast('已提醒申请人尽快完成缴款','success')">提醒</span>
+            </td>
+          </tr>
+          <tr data-st="late" class="clickable" onclick="location.href='onething-detail.html'">
+            <td class="nowrap fw-600">YJS20260727031</td>
+            <td class="cell-lg">阳光 100 城市广场 B 座 2108</td>
+            <td class="nowrap">郑家豪</td>
+            <td class="nowrap">BA450200202600379</td>
+            <td class="nowrap">
+              <span class="mini-steps"><i class="done"></i><i class="done"></i><i class="late"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+              <span class="text-danger text-sm">2/10</span>
+            </td>
+            <td class="nowrap">网签备案人工复核</td>
+            <td class="nowrap">XXXX市房产交易所</td>
+            <td class="nowrap">2026-07-27 14:38</td>
+            <td class="nowrap"><span class="badge red">超期 8 小时</span></td>
+            <td class="col-ops">
+              <a class="link" href="filing-detail.html">去复核</a>
+              <span class="link danger" onclick="event.stopPropagation();PMS.toast('督办单已发送至复核岗','success')">督办</span>
+            </td>
+          </tr>
+          <tr data-st="doing" class="clickable" onclick="location.href='onething-detail.html'">
+            <td class="nowrap fw-600">YJS20260730051</td>
+            <td class="cell-lg">万科城 21-1-1503</td>
+            <td class="nowrap">石俊峰</td>
+            <td class="nowrap">BA450200202600311</td>
+            <td class="nowrap">
+              <span class="mini-steps"><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="cur"></i><i></i><i></i></span>
+              <span class="text-3 text-sm">7/10</span>
+            </td>
+            <td class="nowrap">公积金提取</td>
+            <td class="nowrap">市住房公积金中心</td>
+            <td class="nowrap">2026-07-28 14:07</td>
+            <td class="nowrap"><span class="badge green">剩 1.2 天</span></td>
+            <td class="col-ops">
+              <a class="link" href="onething-detail.html">协同详情</a>
+              <a class="link" href="onething-qrcode.html">扫码追溯</a>
+            </td>
+          </tr>
+          <tr data-st="late" class="clickable" onclick="location.href='onething-detail.html'">
+            <td class="nowrap fw-600">YJS20260726028</td>
+            <td class="cell-lg">龙光玖誉府 5-2-1503</td>
+            <td class="nowrap">黎小敏</td>
+            <td class="nowrap">BA450200202600298</td>
+            <td class="nowrap">
+              <span class="mini-steps"><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="late"></i><i></i><i></i><i></i></span>
+              <span class="text-danger text-sm">6/10</span>
+            </td>
+            <td class="nowrap">燃气过户</td>
+            <td class="nowrap">XXXX市燃气有限责任公司</td>
+            <td class="nowrap">2026-07-26 10:41</td>
+            <td class="nowrap"><span class="badge red">超期 12 小时</span></td>
+            <td class="col-ops">
+              <a class="link" href="onething-detail.html">协同详情</a>
+              <span class="link danger" onclick="event.stopPropagation();PMS.toast('督办单已发送至XXXX市燃气有限责任公司','success')">督办</span>
+            </td>
+          </tr>
+          <tr data-st="done" class="clickable" onclick="location.href='onething-detail.html'">
+            <td class="nowrap fw-600">YJS20260725019</td>
+            <td class="cell-lg">雅居乐花园 12-3-706</td>
+            <td class="nowrap">杨思婷</td>
+            <td class="nowrap">BA450200202600314</td>
+            <td class="nowrap">
+              <span class="mini-steps"><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i></span>
+              <span class="text-success text-sm">10/10</span>
+            </td>
+            <td class="nowrap">已办结</td>
+            <td class="nowrap">—</td>
+            <td class="nowrap">2026-07-25 09:20</td>
+            <td class="nowrap"><span class="badge green">1.8 天办结</span></td>
+            <td class="col-ops">
+              <a class="link" href="onething-detail.html">协同详情</a>
+              <span class="link" onclick="event.stopPropagation();PMS.toast('办结材料包下载中')">结果材料</span>
+            </td>
+          </tr>
+          <tr data-st="done" class="clickable" onclick="location.href='onething-detail.html'">
+            <td class="nowrap fw-600">YJS20260724015</td>
+            <td class="cell-lg">中航郡府 4-1-1902</td>
+            <td class="nowrap">覃宇轩</td>
+            <td class="nowrap">BA450200202600312</td>
+            <td class="nowrap">
+              <span class="mini-steps"><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i></span>
+              <span class="text-success text-sm">10/10</span>
+            </td>
+            <td class="nowrap">已办结</td>
+            <td class="nowrap">—</td>
+            <td class="nowrap">2026-07-24 11:06</td>
+            <td class="nowrap"><span class="badge green">2.3 天办结</span></td>
+            <td class="col-ops">
+              <a class="link" href="onething-detail.html">协同详情</a>
+              <span class="link" onclick="event.stopPropagation();PMS.toast('办结材料包下载中')">结果材料</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  var table = document.getElementById('tblOne');
+  document.getElementById('stTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var name = tab.getAttribute('data-tab');
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.style.display = (name === 'all' || tr.getAttribute('data-st') === name) ? '' : 'none';
+    });
+  });
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 42,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+</script>
+</body>
+</html>

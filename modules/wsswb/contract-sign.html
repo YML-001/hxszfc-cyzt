@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>合同在线签署 · 新建商品房网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：签署方卡片、合同文本预览区与自动备案进度 */
+  .sign-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; background: #fff; }
+  .sign-card.done { border-left: 3px solid var(--success); }
+  .sign-card.wait { border-left: 3px solid var(--warning); }
+  .sign-card .sc-t { display: flex; align-items: center; gap: 9px; font-size: 14.5px; font-weight: 700; margin-bottom: 10px; }
+  .sign-card .sc-t .badge { margin-left: auto; }
+  .sign-card .sc-r { display: flex; font-size: 13px; padding: 3px 0; }
+  .sign-card .sc-r > span:first-child { width: 84px; flex-shrink: 0; color: var(--text-3); }
+  .sign-card .sc-r > span:last-child { color: var(--text-2); }
+  .doc {
+    border: 1px solid var(--border); border-radius: var(--radius); background: #fff;
+    max-height: 460px; overflow: auto; padding: 26px 32px; font-size: 13.5px; line-height: 2;
+  }
+  .doc h4 { text-align: center; font-size: 18px; margin: 0 0 6px; }
+  .doc .doc-no { text-align: center; color: var(--text-3); font-size: 12.5px; margin-bottom: 20px; }
+  .doc .cl { font-weight: 700; margin: 16px 0 4px; }
+  .doc .sig { display: flex; gap: 40px; margin-top: 26px; flex-wrap: wrap; }
+  .doc .sig > div { flex: 1 1 240px; }
+  .sig-stamp {
+    display: inline-flex; align-items: center; justify-content: center; width: 88px; height: 88px;
+    border: 2px solid #c0392b; border-radius: 50%; color: #c0392b; font-size: 11px; font-weight: 700;
+    text-align: center; line-height: 1.4; transform: rotate(-10deg); margin-top: 8px;
+  }
+  .sig-hand { font-family: "KaiTi", "STKaiti", serif; font-size: 26px; color: #1d3f8f; margin-top: 8px; }
+  .chk-line { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--row-line); font-size: 13.5px; }
+  .chk-line:last-child { border-bottom: 0; }
+  .chk-line .cl-no {
+    width: 44px; flex-shrink: 0; font-size: 12px; font-weight: 700; color: var(--primary);
+  }
+  .chk-line .badge { margin-left: auto; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsswb-12">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房网签备案管理系统
+        <span class="sep">/</span> <a class="link" href="contract-list.html">合同网签</a>
+        <span class="sep">/</span> <span class="cur">合同在线签署</span>
+      </div>
+      <div class="page-title">合同在线签署</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="PMS.toast('已向未签署方发送签署催办短信','success')"><i class="fa-solid fa-bell"></i> 催办</button>
+      <button type="button" class="btn" onclick="PMS.toast('《商品房买卖合同》PDF 已下载')"><i class="fa-solid fa-download"></i> 下载合同</button>
+      <button type="button" class="btn" onclick="location.href='contract-list.html'"><i class="fa-solid fa-arrow-left"></i> 返回台账</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <dl class="desc-list">
+        <div class="desc-item"><dt>合同编号</dt><dd>SF450200202601342</dd></div>
+        <div class="desc-item"><dt>网签编号</dt><dd>WQ4502002026073100862</dd></div>
+        <div class="desc-item"><dt>项目 / 房号</dt><dd>彰泰江湾城（三期） · 11-1-2801</dd></div>
+        <div class="desc-item"><dt>成交总价（万元）</dt><dd>156.33</dd></div>
+        <div class="desc-item"><dt>合同状态</dt><dd id="ctSt"><span class="badge cyan">签署中</span></dd></div>
+        <div class="desc-item"><dt>签署平台</dt><dd>统一签约平台（wsqy）· 任务 TASK20260731000862</dd></div>
+      </dl>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-pen-nib"></i> 签署任务</h3>
+        <span class="sub">双方签署完成即触发交易条件核验</span>
+      </div>
+      <div class="card-body">
+        <div class="sign-card done mb-16" id="cardSeller">
+          <div class="sc-t"><i class="fa-solid fa-building text-primary"></i> 出卖方 · 柳州彰泰置业有限公司 <span class="badge green" id="stSeller">已签署</span></div>
+          <div class="sc-r"><span>签署方式</span><span>企业电子印章（法人 CA 证书）</span></div>
+          <div class="sc-r"><span>签署人</span><span>覃海波（委托代理人）</span></div>
+          <div class="sc-r"><span>签署时间</span><span id="tmSeller">2026-07-31 10:12:36</span></div>
+          <div class="sc-r"><span>核验方式</span><span>企业 CA 证书验签通过</span></div>
+        </div>
+
+        <div class="sign-card wait" id="cardBuyer">
+          <div class="sc-t"><i class="fa-solid fa-user text-primary"></i> 买受方 · 李婉婷、李国华 <span class="badge orange" id="stBuyer">待签署</span></div>
+          <div class="sc-r"><span>签署方式</span><span>人脸识别 + 短信验证码</span></div>
+          <div class="sc-r"><span>签署人</span><span>李婉婷（60%）、李国华（40%）</span></div>
+          <div class="sc-r"><span>签署时间</span><span id="tmBuyer">—</span></div>
+          <div class="sc-r"><span>核验方式</span><span>公安人口库人脸比对 + 手机号实名核验</span></div>
+        </div>
+
+        <div class="btn-row mt-16">
+          <button type="button" class="btn btn-primary" id="btnSign" onclick="doSign()"><i class="fa-solid fa-signature"></i> 买受方在线签署</button>
+          <button type="button" class="btn" onclick="PMS.toast('已向李婉婷、李国华发送签署链接短信','success')"><i class="fa-solid fa-paper-plane"></i> 重发签署链接</button>
+          <button type="button" class="btn btn-danger" onclick="PMS.confirm({title:'撤回签署任务',message:'确认撤回本合同的签署任务？',type:'danger',detail:'撤回后合同回到草稿状态，房源认购关系保留。',okText:'确认撤回',onOk:function(){PMS.toast('签署任务已撤回，合同回到草稿状态','success')}})"><i class="fa-solid fa-rotate-left"></i> 撤回签署</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-list-check"></i> 签署与备案进度</h3>
+        <span class="sub">网签即备案，人工只处理异常件</span>
+      </div>
+      <div class="card-body">
+        <div class="timeline" id="tl">
+          <div class="tl-item done"><div class="tl-dot"></div>
+            <div class="tl-title">合同文本生成</div>
+            <div class="tl-meta">2026-07-31 10:06 · 示范文本 V2026.1 · 要素锁定</div>
+          </div>
+          <div class="tl-item done"><div class="tl-dot"></div>
+            <div class="tl-title">签署任务创建</div>
+            <div class="tl-meta">2026-07-31 10:08 · 统一签约平台 TASK20260731000862</div>
+          </div>
+          <div class="tl-item done"><div class="tl-dot"></div>
+            <div class="tl-title">出卖方签署完成</div>
+            <div class="tl-meta">2026-07-31 10:12 · 企业电子印章验签通过</div>
+          </div>
+          <div class="tl-item pending" id="tlBuyer"><div class="tl-dot"></div>
+            <div class="tl-title">买受方签署</div>
+            <div class="tl-meta">待办理</div>
+          </div>
+          <div class="tl-item pending" id="tlCheck"><div class="tl-dot"></div>
+            <div class="tl-title">12 项交易条件并行校验</div>
+            <div class="tl-meta">双方签署完成后自动触发</div>
+          </div>
+          <div class="tl-item pending" id="tlFile"><div class="tl-dot"></div>
+            <div class="tl-title">自动备案并出具备案证明</div>
+            <div class="tl-meta">全通过则自动备案，异常件转人工复核</div>
+          </div>
+        </div>
+
+        <div id="chkBox" class="hidden">
+          <div class="section-title mt-16">12 项校验实时结论</div>
+          <div id="chkList"></div>
+        </div>
+
+        <div class="alert alert-info mt-16" id="tipBox">
+          <i class="fa-solid fa-circle-info"></i>
+          <div id="tipTxt">合同一经双方签署完成即锁定，不可直接修改，需变更须走变更备案生成新版本。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-file-contract"></i> 合同文本预览</h3>
+      <span class="sub">正文由统一签约平台按备案模板渲染，本系统只存结构化要素</span>
+    </div>
+    <div class="card-body">
+      <div class="doc">
+        <h4>商品房买卖合同（预售）</h4>
+        <div class="doc-no">合同编号：SF450200202601342　　网签编号：WQ4502002026073100862　　示范文本版本：V2026.1</div>
+
+        <div class="cl">出卖方（甲方）</div>
+        <div>名称：柳州彰泰置业有限公司　统一社会信用代码：91450200MA5K9**2XN　法定代表人：黄彰泰　注册地址：柳州市城中区文昌路 9 号　委托代理人：覃海波</div>
+
+        <div class="cl">买受方（乙方）</div>
+        <div>李婉婷（居民身份证 4502**********2246，份额 60%）、李国华（居民身份证 4502**********0819，份额 40%），共有方式：按份共有。</div>
+
+        <div class="cl">第一条　项目建设依据</div>
+        <div>甲方以出让方式取得位于柳州市城中区文昌路 9 号地块的土地使用权，土地出让合同号 柳国土出让（2023）第 086 号，不动产权证号 桂（2024）柳州市不动产权第 0018626 号，建设工程规划许可证号 建字第 450200202400132 号，施工许可证号 450200202403180101。</div>
+
+        <div class="cl">第二条　商品房销售依据</div>
+        <div>该商品房已取得商品房预售许可，预售许可证号 <b>柳房预售证第〔2026〕0087 号</b>，发证机关 XXXX市住房和城乡建设局，有效期至 2027-07-30。</div>
+
+        <div class="cl">第三条　买受人所购商品房的基本情况</div>
+        <div>房号 11-1-2801，位于 11# 幢 1 单元 28 层，房屋用途 成套住宅，建筑结构 剪力墙，朝向 南北通透，装修情况 精装。建筑面积 118.65 ㎡，其中套内建筑面积 92.55 ㎡，分摊共有建筑面积 26.10 ㎡。</div>
+
+        <div class="cl">第四条　计价方式与价款</div>
+        <div>按建筑面积计价，成交单价 13,176 元/㎡，成交总价 <b>1,563,300 元</b>（大写：壹佰伍拾陆万叁仟叁佰元整）。该价格与一房一价备案价一致（备案批次 PF2026073101）。</div>
+
+        <div class="cl">第五条　付款方式与期限</div>
+        <div>付款方式：商业贷款。首付款 469,000 元于 2026-08-05 前支付；贷款 1,094,300 元由中国建设银行柳州分行受托支付，贷款年限 30 年。全部房款直接存入预售资金监管账户（中国建设银行柳州分行 4500×××1276），不得由甲方直接收取。</div>
+
+        <div class="cl">第六条　交付</div>
+        <div>甲方应于 <b>2027-12-31</b> 前将符合约定条件的商品房交付乙方，交付条件为竣工验收合格并取得竣工验收备案。本项目实行交房即交证。</div>
+
+        <div class="cl">第七条　面积差异处理</div>
+        <div>产权登记面积与合同约定建筑面积误差绝对值在 3% 以内（含）的，据实结算房价款；超出 3% 的，乙方有权退房或据实结算并由甲方双倍返还超出部分房价款。</div>
+
+        <div class="cl">第八条　违约责任</div>
+        <div>甲方逾期交房，按日向乙方支付已付房价款万分之一的违约金；乙方逾期付款，按日向甲方支付逾期应付款万分之一的违约金；甲方逾期办理不动产登记，按日支付已付房价款万分之零点五的违约金。</div>
+
+        <div class="cl">第九条　争议解决</div>
+        <div>本合同项下争议，双方协商不成的，提交柳州仲裁委员会仲裁。</div>
+
+        <div class="cl">第十条　补充协议</div>
+        <div>1. 前期物业服务企业为柳州彰泰物业服务有限公司，住宅物业费 2.60 元/㎡·月，前期物业合同期限至 2030-12-30。2. 本合同不以购买车位为条件。3. 精装修主要材料品牌与规格见附件《装修标准清单》。</div>
+
+        <div class="sig">
+          <div>
+            <div>出卖方（签章）：</div>
+            <div class="sig-stamp">柳州彰泰置业<br>有限公司<br>★ 合同专用</div>
+            <div class="text-3 text-sm mt-8">2026 年 7 月 31 日</div>
+          </div>
+          <div>
+            <div>买受方（签字）：</div>
+            <div class="sig-hand" id="sigBuyer">—</div>
+            <div class="text-3 text-sm mt-8" id="sigBuyerDate">待签署</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>合同一经双方签署完成即锁定，不可直接修改；需要变更的须办理<a class="link" href="filing-change.html">变更备案</a>生成新版本，原版本置历史保留。</div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+var CHECKS = [
+  ['JY01', '房源在有效预售许可（或现售备案）房间清单内', 1],
+  ['JY02', '房屋销控状态允许签约', 1],
+  ['JY03', '成交价在一房一价备案价允许浮动范围内', 1],
+  ['JY04', '项目 / 楼栋 / 房间未处于暂停销售', 1],
+  ['JY05', '开发企业资质有效且无禁售处罚', 1],
+  ['JY06', '当事人实名核验通过', 1],
+  ['JY07', '买受人限购资格符合', 1],
+  ['JY08', '房屋无查封 / 异议 / 限制登记', 1],
+  ['JY09', '面积与楼盘表及测绘成果一致', 1],
+  ['JY10', '预售资金监管账户有效且监管协议在期内', 1],
+  ['JY11', '合同要素完整性与模板版本合规', 1],
+  ['JY12', '无重复网签（同一房号无其他有效合同）', 1]
+];
+
+function doSign() {
+  PMS.confirm({
+    title: '买受方在线签署',
+    message: '确认由买受方完成在线签署？',
+    detail: '签署方式为人脸识别 + 短信验证码，签署完成后立即触发 12 项交易条件并行校验。',
+    okText: '确认签署',
+    onOk: signDone
+  });
+}
+
+function signDone() {
+  document.getElementById('stBuyer').className = 'badge green';
+  document.getElementById('stBuyer').textContent = '已签署';
+  document.getElementById('tmBuyer').textContent = '2026-07-31 10:26:48';
+  document.getElementById('cardBuyer').className = 'sign-card done';
+  document.getElementById('btnSign').disabled = true;
+  document.getElementById('sigBuyer').textContent = '李婉婷　李国华';
+  document.getElementById('sigBuyerDate').textContent = '2026 年 7 月 31 日';
+  setStep('tlBuyer', 'done', '买受方签署完成', '2026-07-31 10:26 · 人脸比对 相似度 98.6% · 短信验证通过');
+  document.getElementById('ctSt').innerHTML = '<span class="badge blue">已签署</span>';
+  PMS.toast('双方签署完成，正在执行 12 项交易条件并行校验', 'success');
+  setTimeout(runCheck, 700);
+}
+
+function setStep(id, cls, title, meta) {
+  var el = document.getElementById(id);
+  el.className = 'tl-item ' + cls;
+  el.querySelector('.tl-title').textContent = title;
+  el.querySelector('.tl-meta').textContent = meta;
+}
+
+/* 12 项校验逐项亮灯，全部通过后自动备案并出具电子备案证明 */
+function runCheck() {
+  setStep('tlCheck', 'pending', '12 项交易条件并行校验', '执行中…');
+  document.getElementById('chkBox').classList.remove('hidden');
+  var box = document.getElementById('chkList');
+  box.innerHTML = CHECKS.map(function (c) {
+    return '<div class="chk-line" id="ck' + c[0] + '"><span class="cl-no">' + c[0] + '</span>' +
+      '<span>' + c[1] + '</span><span class="badge gray">校验中</span></div>';
+  }).join('');
+
+  CHECKS.forEach(function (c, i) {
+    setTimeout(function () {
+      var line = document.getElementById('ck' + c[0]);
+      var b = line.querySelector('.badge');
+      b.className = 'badge green';
+      b.textContent = '通过';
+      if (i === CHECKS.length - 1) setTimeout(autoFile, 500);
+    }, 220 + i * 180);
+  });
+}
+
+function autoFile() {
+  setStep('tlCheck', 'done', '12 项交易条件并行校验', '2026-07-31 10:26 · 12 项全部通过 · 耗时 2.4 秒');
+  setStep('tlFile', 'done', '自动备案并出具备案证明', '2026-07-31 10:26 · 备案编号 柳房商备字〔2026〕第 001342 号 · 出证耗时 36 秒');
+  document.getElementById('ctSt').innerHTML = '<span class="badge green">已备案</span>';
+  var tip = document.getElementById('tipBox');
+  tip.className = 'alert alert-success mt-16';
+  document.getElementById('tipTxt').innerHTML =
+    '12 项校验全部通过，系统已<b>自动备案</b>并出具电子备案证明：备案编号 <b>柳房商备字〔2026〕第 001342 号</b>。' +
+    '<span class="link" onclick="location.href=\'filing-detail.html\'">查看备案详情</span>　' +
+    '<span class="link" onclick="location.href=\'filing-cert.html\'">查看备案证明</span>';
+  PMS.toast('已自动备案，备案编号 柳房商备字〔2026〕第 001342 号', 'success');
+}
+</script>
+</body>
+</html>

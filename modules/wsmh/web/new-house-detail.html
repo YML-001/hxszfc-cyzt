@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>楼盘详情 · 统一服务门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  /* 楼盘详情页专属布局 */
+  .nd-body { padding-bottom: 40px; }
+  .nd-top { display: grid; grid-template-columns: 620px 1fr; gap: 20px; align-items: start; }
+  .gal { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card); padding: 12px; }
+  .gal .g-big { position: relative; height: 372px; border-radius: 4px; overflow: hidden; background: var(--bg-soft); }
+  .gal .g-big img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .gal .g-cap {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 12px; font-size: 13px; color: #fff;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, .6));
+  }
+  .gal .g-thumbs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
+  .gal .g-th { height: 74px; border-radius: 4px; overflow: hidden; cursor: pointer; border: 2px solid transparent; position: relative; }
+  .gal .g-th img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .gal .g-th.on { border-color: var(--primary); }
+  .gal .g-th span { position: absolute; left: 0; right: 0; bottom: 0; font-size: 11px; color: #fff; background: rgba(0, 0, 0, .45); text-align: center; }
+
+  .nd-info { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card); padding: 20px; }
+  .nd-info h1 { font-size: 25px; line-height: 1.4; }
+  .nd-tags { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 10px; }
+  .nd-price { margin-top: 16px; padding: 14px 16px; background: var(--primary-light-2); border: 1px solid var(--primary-soft); border-radius: var(--radius); }
+  .nd-price .p-v { font-size: 30px; font-weight: 700; color: var(--accent); font-family: "DIN Alternate", var(--font); }
+  .nd-price .p-v em { font-style: normal; font-size: 14px; font-weight: 400; color: var(--text-2); margin-left: 3px; }
+  .nd-price .p-n { font-size: 12.5px; color: var(--text-3); margin-top: 4px; }
+  .nd-kv { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 16px; margin-top: 16px; font-size: 13.5px; }
+  .nd-kv .k { color: var(--text-3); }
+  .nd-acts { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+  .key-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .qr-box {
+    width: 150px; height: 150px; background: var(--bg-soft); border: 1px solid var(--border); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; font-size: 74px; color: var(--primary); margin: 0 auto 10px;
+  }
+  .bar-acts { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+</style>
+</head>
+<body data-nav="house">
+
+<div class="wrap">
+  <div class="crumb">
+    <a href="home.html">首页</a><i class="fa-solid fa-angle-right"></i>
+    <a href="house-market.html">房源超市</a><i class="fa-solid fa-angle-right"></i>
+    <a href="new-house.html">新房专区</a><i class="fa-solid fa-angle-right"></i><span id="crumb-n">楼盘详情</span>
+  </div>
+</div>
+
+<div class="wrap nd-body" id="nd-body"></div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+var P = null, GAL = [], GI = 0;
+var GAL_CAP = ['项目效果图', '工程实景进度图', '示范区实景图', '交通区位示意图'];
+
+function pageInit() {
+  var id = UI.param('id') || 'XM01';
+  P = PORTAL.project(id);
+  if (!P) {
+    document.getElementById('nd-body').innerHTML = '<div class="card"><div class="card-body">'
+      + UI.empty('未找到该楼盘项目', '项目可能已下架或链接有误',
+        '<a class="btn btn-primary" href="new-house.html" data-fp="wsmh-08-01">返回新房专区</a> '
+        + '<a class="btn" href="house-market.html">回房源超市</a>')
+      + '</div></div>';
+    return;
+  }
+  document.getElementById('crumb-n').textContent = P.xmmc;
+  document.title = P.xmmc + ' · 楼盘详情 · 统一服务门户';
+  GAL = buildGallery(P);
+  render();
+}
+
+function buildGallery(p) {
+  var imgs = [p.img];
+  PORTAL.projects().forEach(function (x) {
+    if (imgs.length < 4 && imgs.indexOf(x.img) < 0) imgs.push(x.img);
+  });
+  return imgs;
+}
+
+function render() {
+  var p = P;
+  var acct = PORTAL.funds().accounts.filter(function (a) { return a.xm === p.xmmc; })[0];
+  var ag = PORTAL.agencies().filter(function (a) { return a.mc === p.kfqy; })[0];
+
+  var html = '';
+
+  /* -------- 图集与概要（wsmh-07-06） -------- */
+  html += '<div class="nd-top">'
+    + '<div class="gal">'
+    + '<div class="g-big"><img id="g-img" src="' + GAL[0] + '" alt="' + UI.esc(p.xmmc) + '">'
+    + '<div class="g-cap" id="g-cap">' + GAL_CAP[0] + '　图片由建设单位提供并经主管部门核验，仅供参考，不作为交付标准</div></div>'
+    + '<div class="g-thumbs">' + GAL.map(function (g, i) {
+      return '<div class="g-th' + (i === 0 ? ' on' : '') + '" data-g="' + i + '" data-fp="wsmh-07-06">'
+        + '<img src="' + g + '" alt="' + GAL_CAP[i] + '"><span>' + GAL_CAP[i] + '</span></div>';
+    }).join('') + '</div></div>'
+
+    + '<div class="nd-info">'
+    + '<h1>' + p.xmmc + '</h1>'
+    + '<div class="nd-tags">'
+    + PORTAL.badge(p.zt, p.zt === '现售' ? 'green' : 'blue')
+    + PORTAL.badge('已核验', 'green')
+    + (p.good ? PORTAL.badge('好房子认定 ' + p.rdpc, 'purple') : '')
+    + (p.zjdy ? PORTAL.badge('涉在建工程抵押', 'orange') : '')
+    + (p.risk ? PORTAL.badge(p.risk === 3 ? '保交楼重点监测' : '资金监管预警', 'red') : '')
+    + '</div>'
+    + '<div class="nd-price"><div class="p-v">' + UI.money(p.junjia, 0) + '<em>元/㎡</em></div>'
+    + '<div class="p-n">价格区间 ' + p.jgqj + ' 元/㎡　|　<b>备案（拟售）价格，实际成交以合同为准</b></div></div>'
+    + '<div class="nd-kv">'
+    + kv('开发企业', p.kfqy) + kv('项目坐落', p.dz)
+    + kv('区域商圈', p.qx + ' · ' + p.sq) + kv('销售状态', p.zt)
+    + kv('可售套数', p.ksts + ' 套') + kv('总套数', p.zts + ' 套')
+    + kv('预售许可证', p.yszh) + kv('发证日期', p.ysrq)
+    + '</div>'
+    + '<div class="nd-acts">'
+    + '<a class="btn btn-primary btn-lg" href="price-table.html?id=' + p.id + '" data-fp="wsmh-08-04"><i class="fa-solid fa-table-cells"></i> 一房一价与销控表</a>'
+    + '<a class="btn btn-accent btn-lg" href="select-room.html?id=' + p.id + '" data-fp="wsmh-13-01"><i class="fa-solid fa-hand-pointer"></i> 在线选房</a>'
+    + '<button class="btn" id="nd-cmp" data-fp="wsmh-12-08"><i class="fa-solid fa-scale-balanced"></i> 加入对比</button>'
+    + '<a class="btn" href="buy-service.html" data-fp="wsmh-13-02"><i class="fa-solid fa-magnifying-glass-chart"></i> 购房进度查询</a>'
+    + '</div>'
+    + '<div class="text-xs text-3 mt-16"><i class="fa-solid fa-database"></i> 数据来源：商品房网签备案管理系统、预售许可与资金监管业务库；更新时间 ' + UI.today() + ' 06:00</div>'
+    + '</div></div>';
+
+  /* -------- 风险提示（wsmh-13-04） -------- */
+  if (p.risk) {
+    html += '<div class="alert ' + (p.risk === 3 ? 'alert-danger' : 'alert-warning') + ' mt-20">'
+      + '<i class="fa-solid fa-triangle-exclamation"></i>'
+      + '<span><b>购房风险提示：</b>' + p.riskNote + '。'
+      + '请在签约前核对预售许可、监管账户与工程进度，购房款一律缴入下方公示的预售资金监管账户；'
+      + '如发现要求转入个人账户、体外收款等情形，可通过「咨询投诉」举报。</span></div>';
+  }
+
+  /* -------- 项目概况（wsmh-07-06） -------- */
+  html += '<div class="col-head mt-20"><h2>项目概况</h2><span class="ch-en">Project Overview</span>'
+    + '<span class="ch-more" style="cursor:default">与商品房网签备案管理系统同源</span></div>'
+    + '<div class="desc-list c2"><dl>'
+    + dd('开发企业', p.kfqy) + dd('项目坐落', p.dz)
+    + dd('区域商圈', p.qx + ' · ' + p.sq) + dd('销售状态', p.zt)
+    + dd('预售许可证号', p.yszh) + dd('发证日期', p.ysrq)
+    + dd('总建筑面积', UI.money(p.jzmj, 0) + ' ㎡') + dd('总套数', p.zts + ' 套')
+    + dd('可售套数', '<b class="text-accent">' + p.ksts + '</b> 套') + dd('已售套数', (p.zts - p.ksts) + ' 套')
+    + dd('备案拟售均价', UI.money(p.junjia, 0) + ' 元/㎡') + dd('价格区间', p.jgqj + ' 元/㎡')
+    + dd('数据来源', '商品房网签备案管理系统') + dd('更新时间', UI.today() + ' 06:00')
+    + '</dl></div>';
+
+  /* -------- 购房关键信息公示（wsmh-08-05） -------- */
+  html += '<div class="col-head mt-24"><h2>购房关键信息公示</h2><span class="ch-en">Key Disclosure</span>'
+    + '<span class="ch-more" style="cursor:default">签约缴款前请逐项核对</span></div>'
+    + '<div class="alert alert-danger"><i class="fa-solid fa-shield-halved"></i>'
+    + '<span><b>购房款必须缴入下列预售资金监管账户，切勿转入个人账户、销售人员账户或其他非监管账户。</b>'
+    + '缴款前请核对户名、开户行与账号，如有疑问可拨打 ' + PORTAL.site().tel + ' 或到交易大厅窗口核实。</span></div>'
+    + '<div class="key-grid">'
+
+    /* 左：证照与监管账户 */
+    + '<div class="card"><div class="card-head"><h3><i class="fa-solid fa-building-columns text-primary"></i> 预售许可与资金监管</h3></div>'
+    + '<div class="card-body np">'
+    + '<div class="desc-list" style="border:0;border-radius:0"><dl>'
+    + dd('预售许可证号', p.yszh) + dd('发证日期', p.ysrq)
+    + dd('监管银行', p.jgyh) + dd('监管状态', acct ? (acct.zt === '预警' ? '<span class="text-warning">' + acct.zt + '</span>' : '<span class="text-success">' + acct.zt + '</span>') : '正常')
+    + '</dl></div>'
+    + '<table class="pub-table"><thead><tr><th>监管范围（楼栋）</th><th>监管银行</th><th>监管账号</th></tr></thead><tbody>'
+    + (acct ? '<tr><td class="strong">' + acct.lc + '</td><td>' + acct.yh + '</td><td class="num">' + acct.zh + '</td></tr>' : '')
+    + '<tr><td class="strong">全项目（预售资金专户）</td><td>' + p.jgyh + '</td><td class="num">' + p.jgzh + '</td></tr>'
+    + '</tbody></table>'
+    + '<div class="table-note">监管账户信息同步公示于「信息公示 → 资金监管类公示」，'
+    + '<a href="public-fund.html" data-fp="wsmh-05-03">点此核对全市监管账户公示</a>。</div>'
+    + '</div></div>'
+
+    /* 右：物业、维修资金、白蚁防治、信用 */
+    + '<div class="card"><div class="card-head"><h3><i class="fa-solid fa-list-check text-primary"></i> 物业、维修资金与企业信用</h3></div>'
+    + '<div class="card-body np">'
+    + '<div class="desc-list" style="border:0;border-radius:0"><dl>'
+    + dd('前期物业服务企业', p.wuye)
+    + dd('物业费标准', '<b>' + p.wyf + '</b> 元/㎡·月（按合同约定收取）')
+    + dd('住宅专项维修资金', '<b>' + p.wxzj + '</b> 元/㎡（首期，随网签备案同步缴存）')
+    + dd('白蚁防治收费', '<b>' + p.byfz + '</b> 元/㎡（由建设单位委托防治机构收取）')
+    + dd('开发企业信用', ag
+      ? ('<b class="text-accent num">' + ag.score + '</b> 分　' + PORTAL.badge(ag.dj + ' 级', ag.dj === 'A' ? 'green' : ag.dj === 'B' ? 'blue' : 'orange')
+        + (ag.hb ? ' ' + PORTAL.badge('信用红榜', 'red') : '') + (ag.heb ? ' ' + PORTAL.badge('信用黑榜', 'gray') : '')
+        + '<div class="text-xs text-3">履约情况：' + ag.lyqk + '</div>')
+      : '该企业信用信息以从业主体公示为准')
+    + '</dl></div>'
+    + '<div class="card-body flex gap-8 wrapf" style="padding:14px 15px">'
+    + '<button class="btn btn-sm btn-primary" id="cred-qr" data-fp="wsmh-08-05"><i class="fa-solid fa-qrcode"></i> 查看信用二维码</button>'
+    + (ag ? '<a class="btn btn-sm" href="agency-detail.html?id=' + ag.id + '" data-fp="wsmh-08-05">查看企业公示详情</a>' : '')
+    + '<a class="btn btn-sm" href="credit-rank.html" data-fp="wsmh-08-05">信用评价与红黑榜</a>'
+    + '</div>'
+    + '</div></div>'
+    + '</div>';
+
+  /* -------- 在建工程抵押（wsmh-05-07） -------- */
+  if (p.zjdy) {
+    html += '<div class="col-head mt-24"><h2>在建工程抵押情况</h2><span class="ch-en">Mortgage</span></div>'
+      + '<div class="card"><div class="card-body np">'
+      + '<table class="pub-table"><thead><tr><th>抵押楼栋</th><th>涉及房屋范围</th><th>抵押状态</th><th>抵押权人</th></tr></thead>'
+      + '<tbody><tr><td class="strong">' + p.zjdy.lc + '</td><td>' + p.zjdy.fw + '</td>'
+      + '<td>' + PORTAL.badge(p.zjdy.zt, 'orange') + '</td><td>' + p.zjdy.yh + '</td></tr></tbody></table>'
+      + '<div class="table-note"><b>提示：</b>购买在建工程抵押范围内的房屋，须由抵押权人出具同意销售的书面文件并办理相应解押手续，'
+      + '签约前请向建设单位与监管银行核实。完整公示见「<a href="public-affairs.html?tab=pa-mortgage" data-fp="wsmh-05-07">政务公开与通知公告 → 在建抵押</a>」。</div>'
+      + '</div></div>';
+  }
+
+  /* -------- 测绘成果（wsmh-05-08） -------- */
+  var cha = (p.scmj - p.ycmj);
+  html += '<div class="col-head mt-24"><h2>房产测绘成果</h2><span class="ch-en">Survey Result</span></div>'
+    + '<div class="card"><div class="card-body np">'
+    + '<table class="pub-table"><thead><tr><th>预测建筑面积</th><th>实测建筑面积</th><th>面积差值</th><th>测绘机构</th><th>成果备案</th></tr></thead>'
+    + '<tbody><tr><td class="num strong">' + UI.money(p.ycmj, 0) + ' ㎡</td>'
+    + '<td class="num strong">' + UI.money(p.scmj, 0) + ' ㎡</td>'
+    + '<td class="num">' + (cha >= 0 ? '+' : '') + UI.money(cha, 0) + ' ㎡（' + (Math.abs(cha / p.ycmj * 100)).toFixed(2) + '%）</td>'
+    + '<td>' + p.chjg + '</td>'
+    + '<td>' + PORTAL.badge('已备案', 'green') + '</td></tr></tbody></table>'
+    + '<div class="table-note">合同约定面积以实测面积为准，面积误差比绝对值超出 3% 的，按《商品房买卖合同》约定处理。'
+    + '测绘成果公示见「<a href="public-affairs.html?tab=pa-survey" data-fp="wsmh-05-08">政务公开与通知公告 → 测绘公示</a>」。</div>'
+    + '</div></div>';
+
+  /* -------- 交付节点时间轴（wsmh-13-04） -------- */
+  var firstWait = -1;
+  p.jfjd.forEach(function (j, i) { if (firstWait < 0 && !j.s) firstWait = i; });
+  html += '<div class="col-head mt-24"><h2>交付节点公示</h2><span class="ch-en">Delivery Milestones</span>'
+    + '<a class="ch-more" href="buy-service.html" data-fp="wsmh-13-04">购房办事服务 · 交付节点 <i class="fa-solid fa-angle-right"></i></a></div>'
+    + '<div class="card"><div class="card-body">'
+    + '<div class="timeline">' + p.jfjd.map(function (j, i) {
+      var cls = j.s ? 'done' : (i === firstWait ? 'on' : 'wait');
+      return '<div class="tl-i ' + cls + '"><div class="tl-t">' + j.n + '</div>'
+        + '<div class="tl-m">' + (j.d ? '计划 / 实际时间：' + j.d : '尚未确定时间')
+        + '　' + (j.s ? '已完成' : (i === firstWait ? '进行中' : '待推进')) + '</div></div>';
+    }).join('') + '</div>'
+    + '<div class="disclaimer" style="margin-top:14px"><b>口径说明：</b>交付节点由建设单位报送、主管部门核验后公示，'
+    + '计划交付时间以《商品房买卖合同》约定为准；出现延期的，建设单位应当按合同约定承担违约责任，'
+    + '购房人可在「咨询投诉」提交问题线索。</div>'
+    + '</div></div>';
+
+  /* -------- 底部操作条 -------- */
+  html += '<div class="card mt-24"><div class="card-body bar-acts">'
+    + '<b style="font-size:15px"><i class="fa-solid fa-arrow-right-long text-accent"></i> 下一步可以办：</b>'
+    + '<a class="btn btn-primary" href="price-table.html?id=' + p.id + '" data-fp="wsmh-08-03">查看一房一价与销控表</a>'
+    + '<a class="btn btn-accent" href="select-room.html?id=' + p.id + '" data-fp="wsmh-13-01">在线选房与认购登记</a>'
+    + '<button class="btn" id="nd-cmp2" data-fp="wsmh-12-08">加入对比</button>'
+    + '<a class="btn" href="buy-service.html" data-fp="wsmh-13-02">购房进度查询</a>'
+    + '<a class="btn" href="public-fund.html" data-fp="wsmh-05-03">核对监管账户公示</a>'
+    + '<a class="btn ml-auto" href="new-house.html">返回新房专区</a>'
+    + '</div></div>'
+    + '<div id="src-note"></div>';
+
+  document.getElementById('nd-body').innerHTML = html;
+  document.getElementById('src-note').innerHTML = UI.sourceNote(
+    '楼盘图片由建设单位提供并经主管部门核验，效果图与实景图仅供参考，不作为交付标准与合同附件。');
+
+  bind(ag);
+}
+
+function kv(k, v) { return '<div><span class="k">' + k + '：</span>' + v + '</div>'; }
+function dd(k, v) { return '<dt>' + k + '</dt><dd>' + v + '</dd>'; }
+
+function bind(ag) {
+  document.querySelectorAll('[data-g]').forEach(function (t) {
+    t.onclick = function () {
+      GI = Number(t.getAttribute('data-g'));
+      document.getElementById('g-img').src = GAL[GI];
+      document.getElementById('g-cap').innerHTML = GAL_CAP[GI] + '　图片由建设单位提供并经主管部门核验，仅供参考，不作为交付标准';
+      document.querySelectorAll('[data-g]').forEach(function (x) { x.classList.remove('on'); });
+      t.classList.add('on');
+    };
+  });
+
+  document.getElementById('cred-qr').onclick = function () { creditQr(ag); };
+  document.getElementById('nd-cmp').onclick = addCmp;
+  document.getElementById('nd-cmp2').onclick = addCmp;
+}
+
+function creditQr(ag) {
+  UI.modal('<i class="fa-solid fa-qrcode text-primary"></i> 开发企业信用二维码',
+    '<div class="center"><div class="qr-box"><i class="fa-solid fa-qrcode"></i></div>'
+    + '<div class="text-sm text-2">扫码查看 <b>' + UI.esc(P.kfqy) + '</b> 的信用公示信息</div>'
+    + '<div class="text-xs text-3 mt-8">演示环境二维码为占位图，实际扫码跳转从业主体公示页并展示实时信用分与处罚记录</div></div>'
+    + (ag ? '<div class="desc-list mt-16"><dl>'
+      + dd('企业名称', ag.mc) + dd('主体类型', ag.lx)
+      + dd('统一社会信用代码', ag.tyshxydm) + dd('入网状态', PORTAL.agBadge(ag))
+      + dd('信用分值', '<b class="text-accent num">' + ag.score + '</b> 分（' + ag.dj + ' 级）')
+      + dd('服务评价', ag.pjscore + ' 分 / ' + ag.pjnum + ' 条')
+      + dd('履约情况', ag.lyqk) + dd('公示更新', UI.today())
+      + '</dl></div>'
+      : '<div class="alert alert-info mt-16"><i class="fa-solid fa-circle-info"></i><span>该企业信用档案以「从业主体公示」栏目为准。</span></div>'),
+    '<button class="btn" data-act="close-modal">关闭</button>'
+    + (ag ? '<a class="btn btn-primary" href="agency-detail.html?id=' + ag.id + '" data-fp="wsmh-08-05">查看企业公示详情 <i class="fa-solid fa-angle-right"></i></a>'
+      : '<a class="btn btn-primary" href="agency-list.html">查看企业名录</a>'));
+}
+
+function addCmp() {
+  var a = [];
+  try { a = JSON.parse(sessionStorage.getItem('wsmh.compare') || '[]'); } catch (e) { a = []; }
+  if (a.indexOf(P.id) >= 0) { UI.toast('该项目已在对比栏中', 'warning'); return; }
+  if (a.length >= 4) { UI.toast('最多同时对比 4 个，请先到对比页移除', 'warning'); return; }
+  a.push(P.id);
+  try { sessionStorage.setItem('wsmh.compare', JSON.stringify(a)); } catch (e) { }
+  if (a.length >= 2) {
+    UI.confirm('已加入对比', '对比栏当前有 <b>' + a.length + '</b> 个条目，是否立即查看逐指标对比？',
+      function () { UI.go('web/house-compare.html', { ids: a.join(',') }); }, '开始对比');
+  } else {
+    UI.toast('已加入对比栏，再选 1 个项目即可开始对比', 'success');
+  }
+}
+</script>
+</body>
+</html>

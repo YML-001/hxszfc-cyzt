@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>证照识别回填 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="jb" data-active="contract-review" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>智能应用</span>
+      <span class="sep">/</span><span>智能审核</span>
+      <span class="sep">/</span><span class="cur">证照识别回填</span>
+    </div>
+    <div class="page-actions">
+      <span class="node-tag"><i class="fa-solid fa-user-shield"></i>业务经办人</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-file-circle-check"></i>智能审核 wsai-06</span>
+    <a href="contract-review.html?role=jb">合同材料审核</a>
+    <a class="active" href="license-ocr.html?role=jb">证照识别回填</a>
+    <a href="cross-check.html?role=jb">材料交叉校验</a>
+    <span class="sn-label" style="margin-left:10px"><i class="fa-solid fa-magnifying-glass-chart"></i>治理</span>
+    <a href="../admin/review-feedback.html?role=pt">审核结果复核回流</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-id-card"></i>
+    <span>识别结果<b>逐字段给出置信度</b>：置信度 ≥90% 的字段可直接回填，<b>低于 90% 的字段必须人工确认</b>后才允许回填到收件表单。
+      整条识别结论同样要经人工确认才产生业务效力。</span>
+  </div>
+
+  <div class="ai-split" style="min-height:520px">
+    <!-- 左：证照影像与识别 -->
+    <div class="card">
+      <div class="card-head">
+        <h3>证照影像</h3>
+        <span class="sub">选择证照类型后执行识别</span>
+        <div class="head-actions">
+          <select id="pickKind" style="width:180px" onchange="paintImg()">
+            <option value="idcard">居民身份证</option>
+            <option value="license">营业执照</option>
+            <option value="estate">不动产权证书</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="run()"><i class="fa-solid fa-wand-magic-sparkles"></i> 智能识别</button>
+        </div>
+      </div>
+      <div class="card-body" id="imgBody"></div>
+    </div>
+
+    <!-- 右：识别字段与回填 -->
+    <div class="card">
+      <div class="card-head">
+        <h3>识别结果与回填</h3>
+        <span class="sub" id="resSub">尚未识别</span>
+        <div class="head-actions">
+          <button class="btn btn-sm" onclick="apply()"><i class="fa-solid fa-paste"></i> 回填到收件表单</button>
+        </div>
+      </div>
+      <div class="card-body" id="resBody">
+        <div class="empty"><i class="fa-regular fa-id-card"></i><div>点「智能识别」开始</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="aiPushHint" class="mt-16"></div>
+
+  <div class="card mt-16">
+    <div class="card-head"><h3>识别记录</h3><span class="sub">全部证照识别输出留痕</span></div>
+    <div class="table-wrap">
+      <table class="data-table" id="tOcr" data-static>
+        <thead><tr>
+          <th>业务标识</th><th class="cell-lg">识别结论</th><th>模型 / 版本</th>
+          <th>整体置信度</th><th>确认状态</th><th>确认人</th><th>识别时间</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var IMG = {
+    idcard: '1586281380349-632531db7ed4',
+    license: '1450101499163-c8848c66ca85',
+    estate: '1568667256549-094345857637'
+  };
+  var lastOut = null, lastTpl = null;
+
+  window.paintImg = function () {
+    var k = document.getElementById('pickKind').value;
+    var tpl = AI.act.licenseTpl()[k];
+    document.getElementById('imgBody').innerHTML =
+      '<div class="grp-card"><div class="grp-head"><span class="gi"><i class="fa-solid fa-id-card"></i></span>' +
+        AI.esc(tpl.mc) + '</div>' +
+        '<img src="https://images.unsplash.com/photo-' + IMG[k] + '?auto=format&fit=crop&w=760&q=70" ' +
+          'alt="' + AI.esc(tpl.mc) + '" style="width:100%;border-radius:8px;border:1px solid var(--border)">' +
+        '<div class="text-3 text-sm mt-16">影像为演示用图片，实际由高拍仪采集或申请人上传，' +
+          '识别引擎按版式模板抽取字段。</div>' +
+      '</div>';
+  };
+
+  window.run = function () {
+    var k = document.getElementById('pickKind').value;
+    var r = AI.act.ocrFill(k);
+    if (!r) return;
+    lastOut = r.output;
+    lastTpl = r.tpl;
+    paintRes();
+  };
+
+  function paintRes() {
+    if (!lastOut || !lastTpl) return;
+    var o = AI.byId('outputs', lastOut.id) || lastOut;
+    var low = lastTpl.fields.filter(function (f) { return f[2] < 90; });
+    document.getElementById('resSub').textContent =
+      lastTpl.mc + ' · ' + lastTpl.fields.length + ' 个字段，' + low.length + ' 个需人工确认';
+    document.getElementById('resBody').innerHTML =
+      '<div class="mb-16">' + AI.aiSource(o) + '</div>' +
+      '<div class="mb-16">' + AI.aiMark(o.qrzt) + '</div>' +
+      lastTpl.fields.map(function (f) {
+        var ok = f[2] >= 90;
+        return '<div class="issue ' + (ok ? 'adopt' : 'pending') + '">' +
+          '<div class="is-h"><span class="is-f">' + AI.esc(f[0]) + '</span>' +
+            AI.confidence(f[2]) +
+            '<span style="margin-left:auto">' + (ok
+              ? '<span class="badge green">可直接回填</span>'
+              : '<span class="badge orange">需人工确认</span>') + '</span></div>' +
+          '<div class="is-cell ' + (ok ? '' : 'ai') + '"><b>识别值</b>' + AI.esc(f[1]) + '</div>' +
+          '</div>';
+      }).join('') +
+      (o.qrzt === '0'
+        ? '<div class="alert alert-warning mt-16"><i class="fa-solid fa-triangle-exclamation"></i>' +
+          '<span>识别结论尚未人工确认，<b>不能回填到收件表单</b>。请先确认。</span></div>' +
+          '<div class="mt-16">' + AI.actTriplet(o.id) + '</div>'
+        : '<div class="alert alert-success mt-16"><i class="fa-solid fa-circle-check"></i>' +
+          '<span>识别结论已' + AI.dict('qrzt', o.qrzt) + '，可回填到收件表单。</span></div>');
+  }
+
+  window.apply = function () {
+    if (!lastOut) { AI.toast('请先执行智能识别', 'error'); return; }
+    AI.act.applyOcr(lastOut.id);
+  };
+
+  AI.table({
+    id: 'tOcr', pageSize: 10,
+    rows: function () {
+      return AI.where('outputs', function (o) { return o.scene === '08'; });
+    },
+    cells: function (o) {
+      return [
+        '<td>' + AI.esc(o.bizId) + '</td>',
+        '<td class="cell-lg">' + AI.esc(o.text) + '</td>',
+        '<td>' + AI.esc(o.mxmc) + '<br><span class="text-3 text-sm">' + AI.esc(o.ver) + '</span></td>',
+        '<td>' + AI.confidence(o.conf) + '</td>',
+        '<td>' + AI.qrBadge(o.qrzt) + '</td>',
+        '<td>' + AI.esc(o.hrBy || '—') + '</td>',
+        '<td>' + AI.fmt.time(o.at) + '</td>',
+        '<td class="col-ops">' + (o.qrzt === '0'
+          ? AI.actTriplet(o.id)
+          : '<button class="btn btn-sm" onclick="AI.act.applyOcr(\'' + o.id + '\')">' +
+            '<i class="fa-solid fa-paste"></i> 回填</button>') + '</td>'
+      ];
+    },
+    empty: '暂无识别记录'
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    paintImg();
+    AI.on(function () { if (lastOut) paintRes(); AI.repaintAll(); });
+  });
+})();
+</script>
+</body>
+</html>

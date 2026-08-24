@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>成果入库同步 · 房屋交易面积信息管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：成果摘要卡、影响预估面板、入库结果页与三条联动结果动画 */
+  .sum {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    background: linear-gradient(100deg, #eef4ff 0%, #f8faff 60%, #fff 100%);
+    border: 1px solid var(--border); border-left: 4px solid var(--primary);
+    border-radius: var(--radius); padding: 13px 16px;
+  }
+  .sum .no { font-size: 16px; font-weight: 800; }
+  .sum .sb { font-size: 12.5px; color: var(--text-3); margin-top: 3px; }
+  .sum .kv { font-size: 12px; color: var(--text-3); }
+  .sum .kv b { display: block; font-size: 14.5px; color: var(--text-1); font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .sum .vsep { width: 1px; height: 34px; background: var(--border); }
+  /* 影响预估 */
+  .imp { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  @media (max-width: 1200px) { .imp { grid-template-columns: repeat(2, 1fr); } }
+  .imp .ic { border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 13px; background: #fff; }
+  .imp .ic .l { font-size: 12px; color: var(--text-3); }
+  .imp .ic .v { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .imp .ic .v span { font-size: 11.5px; color: var(--text-3); font-weight: 400; margin-left: 2px; }
+  .imp .ic.warn { background: #fffbeb; border-color: #fde68a; } .imp .ic.warn .v { color: #b45309; }
+  .imp .ic.info { background: var(--primary-light); border-color: #c7d7f7; } .imp .ic.info .v { color: var(--primary); }
+  /* 结果页 */
+  .res { text-align: center; padding: 26px 20px 6px; }
+  .res .rc {
+    width: 72px; height: 72px; border-radius: 50%; margin: 0 auto 14px; display: flex; align-items: center; justify-content: center;
+    font-size: 34px; color: #fff; background: var(--success); box-shadow: 0 8px 20px rgba(16, 185, 129, .28);
+    animation: pop .4s cubic-bezier(.34, 1.56, .64, 1);
+  }
+  .res.part .rc { background: var(--warning); box-shadow: 0 8px 20px rgba(245, 158, 11, .28); }
+  @keyframes pop { from { transform: scale(.4); opacity: 0 } to { transform: scale(1); opacity: 1 } }
+  .res .rt { font-size: 21px; font-weight: 800; color: var(--success); }
+  .res.part .rt { color: #b45309; }
+  .res .rs { font-size: 13px; color: var(--text-2); margin-top: 6px; }
+  .chain { display: flex; flex-direction: column; gap: 9px; margin-top: 18px; }
+  .chain .cn {
+    display: flex; align-items: flex-start; gap: 11px; padding: 12px 15px; border-radius: var(--radius);
+    background: #f0fdf4; border: 1px solid #bbf7d0; font-size: 13.5px; text-align: left;
+    opacity: 0; transform: translateY(8px); animation: fin .45s ease forwards;
+  }
+  .chain .cn:nth-child(1) { animation-delay: .25s }
+  .chain .cn:nth-child(2) { animation-delay: .65s }
+  .chain .cn:nth-child(3) { animation-delay: 1.05s }
+  .chain .cn.hi { background: #eff6ff; border-color: #bfdbfe; }
+  .chain .cn i.ci { color: var(--success); margin-top: 2px; font-size: 15px; }
+  .chain .cn.hi i.ci { color: var(--primary); }
+  .chain .cn .cb { flex: 1; }
+  .chain .cn .ct { font-weight: 700; }
+  .chain .cn .cd { color: var(--text-2); margin-top: 3px; font-size: 12.5px; }
+  @keyframes fin { to { opacity: 1; transform: translateY(0) } }
+  .amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tbl-box { overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+  .tbl-box .data-table { margin: 0; }
+  .blk { background: #fef2f2; border: 1px solid #fca5a5; border-radius: var(--radius); padding: 12px 14px; }
+  .blk .bt { font-weight: 700; color: var(--danger); display: flex; align-items: center; gap: 8px; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wschcg-08">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易面积信息管理系统
+        <span class="sep">/</span> <a class="link" href="result-list.html">测绘成果台账</a>
+        <span class="sep">/</span> <span class="cur">成果入库同步</span>
+      </div>
+      <div class="page-title">成果入库同步</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="switchCase()"><i class="fa-solid fa-repeat"></i> 切换演示场景</button>
+      <button type="button" class="btn" onclick="location.href='result-list.html'"><i class="fa-solid fa-arrow-left"></i> 返回台账</button>
+    </div>
+  </div>
+
+  <!-- 办理区 -->
+  <div id="formArea">
+    <div class="card">
+      <div class="card-head"><h3>选择待入库成果</h3><span class="sub">可按编号搜索，或从成果台账带入</span></div>
+      <div class="card-body">
+        <div class="flex gap-8 mb-16" style="flex-wrap:wrap">
+          <input type="text" id="cgNo" value="CG450200202600186" style="width:280px">
+          <select id="cgSel" style="width:330px" onchange="onSel()">
+            <option value="ok">CG450200202600186 · 荣和公园大道二期 8 栋 V2.0（整改后重报 · 质检通过）</option>
+            <option value="no">CG450200202600174 · 彰泰滨江学府 3 栋 V2.0（质检不通过 · 致命）</option>
+          </select>
+          <button type="button" class="btn btn-primary" onclick="onSel()"><i class="fa-solid fa-magnifying-glass"></i> 查询成果</button>
+        </div>
+
+        <div class="sum">
+          <div>
+            <div class="no" id="sNo">CG450200202600186 · V2.0 实测成果</div>
+            <div class="sb" id="sSub">荣和公园大道二期 8 栋 · XXXX市测绘院 · 2026-07-22 测绘 · 1 幢 96 户</div>
+          </div>
+          <div class="vsep"></div>
+          <div class="kv">总建筑面积<b>28,842.60 ㎡</b></div>
+          <div class="kv">总套内 / 总分摊<b>22,486.42 / 6,356.18 ㎡</b></div>
+          <div class="kv">幢分摊系数<b>0.2827</b></div>
+          <div class="vsep"></div>
+          <div id="sBadge"><span class="badge green"><i class="fa-solid fa-circle-check"></i> 质检通过（ZJ20260801034 · 12 项全通过，1 项警告已说明）</span></div>
+        </div>
+
+        <div class="blk mt-16 hidden" id="blkNo">
+          <div class="bt"><i class="fa-solid fa-ban"></i> 该成果质检未通过，不允许入库</div>
+          <div class="text-sm mt-8" style="color:var(--text-2)">
+            ZJ20260801018：12 项质检中不通过 3 项，其中 <b>05 房号唯一性为致命问题</b>（8 栋 2 单元 12 层重复房号 1201），整包退回不允许人工放行。
+            <a class="link" href="result-check.html">查看质检报告</a>
+          </div>
+        </div>
+
+        <div class="alert alert-success mt-16" id="okTip">
+          <i class="fa-solid fa-circle-check"></i>
+          <div>该成果已整改重报并通过 12 项质检（03 户面积平衡已修正为套内 78.87 + 分摊 21.28 = 100.15 ㎡；05 房号已由 1201 更正为 1202），可办理入库。房号匹配差异已<a class="link" href="room-match.html">全部确认完毕</a>。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>入库配置</h3></div>
+      <div class="card-body">
+        <div class="form-grid form-align">
+          <div class="form-item" style="grid-column:1/-1">
+            <label>入库类型<span class="req">*</span></label>
+            <div class="radio-line">
+              <label><input type="radio" name="rk" value="0" onchange="onRk()"> 首次入库</label>
+              <label><input type="radio" name="rk" value="1" checked onchange="onRk()"> 覆盖更新</label>
+              <label><input type="radio" name="rk" value="2" onchange="onRk()"> 增量更新</label>
+              <label><input type="radio" name="rk" value="3" onchange="onRk()"> 局部更正</label>
+            </div>
+          </div>
+          <div class="form-item"><label>目标方案</label><input type="text" value="wsshare 楼盘表与房屋基础数据" readonly></div>
+          <div class="form-item"><label>目标楼盘<span class="req">*</span></label><input type="text" value="荣和公园大道二期" readonly></div>
+          <div class="form-item"><label>目标幢号<span class="req">*</span></label><input type="text" value="8 栋" readonly></div>
+          <div class="form-item" id="itPart" style="display:none">
+            <label>局部更正范围</label>
+            <div class="radio-line">
+              <label><input type="checkbox" checked> 8 栋 2 单元</label>
+              <label><input type="checkbox"> 8 栋 1 单元</label>
+              <label><input type="checkbox"> 8 栋 3 单元</label>
+            </div>
+          </div>
+          <div class="form-item"><label>入库审批人<span class="req">*</span></label><select><option>李**（交易科科长）</option><option>陈**（副所长）</option></select></div>
+          <div class="form-item" style="grid-column:1/-1"><label>入库说明</label><textarea rows="2">竣工实测成果 V2.0 覆盖更新 8 栋全部房源面积，V1.0 预测成果置为已被替代。</textarea></div>
+        </div>
+
+        <div class="section-title mt-16" style="margin-top:18px">影响预估（提交前）</div>
+        <div class="imp">
+          <div class="ic"><div class="l">新增幢数</div><div class="v">0</div></div>
+          <div class="ic"><div class="l">更新幢数</div><div class="v">1</div></div>
+          <div class="ic"><div class="l">新增户数</div><div class="v">2</div></div>
+          <div class="ic"><div class="l">更新户数</div><div class="v">94</div></div>
+          <div class="ic"><div class="l">删除记录数</div><div class="v">0</div></div>
+          <div class="ic warn">
+            <div class="l">涉及已签约房屋</div>
+            <div class="v">68 <span>户</span> <span class="link text-sm" onclick="PMS.openModal('mdSign')">查看清单</span></div>
+          </div>
+          <div class="ic info"><div class="l">面积发生变化的户数</div><div class="v">91 <span>户</span></div></div>
+          <div class="ic info"><div class="l">面积变化合计</div><div class="v">+242.60 <span>㎡</span></div></div>
+        </div>
+
+        <div class="alert alert-warning mt-16">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div><b>覆盖更新</b>会替换该幢全部数据，本次涉及 <b>68 户已签约房屋</b>，提交时需二次确认并键入幢号。入库失败或发现错误支持<b>整批回滚</b>，回滚须填写原因并留痕。</div>
+        </div>
+
+        <div class="flex gap-8 mt-16" style="justify-content:flex-end">
+          <button type="button" class="btn" onclick="location.href='room-match.html'"><i class="fa-solid fa-arrows-left-right-to-line"></i> 先查房号匹配</button>
+          <button type="button" class="btn btn-primary" id="btnLoad" onclick="doLoad()"><i class="fa-solid fa-database"></i> 提交入库</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 结果区 -->
+  <div id="resArea" class="hidden">
+    <div class="card">
+      <div class="card-body">
+        <div class="res" id="resBox">
+          <div class="rc"><i class="fa-solid fa-check"></i></div>
+          <div class="rt" id="resT">入库成功</div>
+          <div class="rs" id="resS">RK20260801012 · 覆盖更新 · 96 条记录全部写入楼盘表，耗时 3.6 秒</div>
+        </div>
+
+        <div class="imp mt-16" style="margin-top:18px">
+          <div class="ic"><div class="l">入库编号</div><div class="v" style="font-size:15px">RK20260801012</div></div>
+          <div class="ic"><div class="l">入库类型</div><div class="v" style="font-size:15px">覆盖更新</div></div>
+          <div class="ic"><div class="l">开始时间</div><div class="v" style="font-size:15px">2026-08-01 14:02:16</div></div>
+          <div class="ic"><div class="l">结束时间</div><div class="v" style="font-size:15px">2026-08-01 14:02:20</div></div>
+          <div class="ic"><div class="l">耗时</div><div class="v">3.6 <span>秒</span></div></div>
+          <div class="ic"><div class="l">新增 / 更新户数</div><div class="v" style="font-size:15px">2 / 94</div></div>
+          <div class="ic" id="icRes"><div class="l">入库结果</div><div class="v" style="font-size:15px;color:var(--success)">成功</div></div>
+          <div class="ic" id="icFail"><div class="l">失败条数</div><div class="v">0</div></div>
+        </div>
+
+        <div class="chain" id="chainOk">
+          <div class="cn">
+            <i class="fa-solid fa-circle-check ci"></i>
+            <div class="cb">
+              <div class="ct">楼盘表已更新，96 户面积同步完成，房源主键已回填</div>
+              <div class="cd">wsshare 楼盘表幢 / 层 / 房间三级结构已写入，成果户表的 fyzj 字段回填房源主键；建筑面积、套内面积、分摊面积、分摊系数、户型、朝向、用途同步更新。</div>
+            </div>
+          </div>
+          <div class="cn">
+            <i class="fa-solid fa-circle-check ci"></i>
+            <div class="cb">
+              <div class="ct">V1.0 预测成果已置为「已被新版本替代」，V2.0 成为当前生效版本</div>
+              <div class="cd">替换原因：竣工实测替换预测成果。楼盘表数据永远指向当前生效版本，历史版本只读保留可查看与对比。<a class="link" href="result-version.html">查看版本树</a></div>
+            </div>
+          </div>
+          <div class="cn hi">
+            <i class="fa-solid fa-scale-unbalanced ci"></i>
+            <div class="cb">
+              <div class="ct">已自动触发预实测逐户比对，96 户比对完成，其中 <b class="text-danger">5 户差异超 3% 阈值</b></div>
+              <div class="cd">
+                总面积 28,600.00 ㎡ → 28,842.60 ㎡（+242.60 ㎡ / +0.85%）；需结算 91 户，净找补 +123,574.40 元。超阈值户须走面积差异处理流程，不得直接结算。
+                <div class="flex gap-8 mt-8">
+                  <button type="button" class="btn btn-sm btn-primary" onclick="location.href='area-compare.html'"><i class="fa-solid fa-table-columns"></i> 查看比对结果</button>
+                  <button type="button" class="btn btn-sm" onclick="location.href='area-diff.html'">处理超阈值户</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="hidden" id="failBox">
+          <div class="section-title mt-16" style="margin-top:18px">失败明细（2 条）</div>
+          <div class="tbl-box">
+            <table class="data-table compact" data-static>
+              <thead><tr><th>行号</th><th>房号</th><th class="text-right">建筑面积</th><th>失败原因</th><th>建议处理</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr style="background:#fef2f2">
+                  <td>62</td><td class="fw-600">8-2-1806</td><td class="text-right amt">100.15</td>
+                  <td>该房源已被锁定，存在在办网签业务（SPF450200202601302 网签中）</td>
+                  <td>待网签办结或撤销锁定后重试</td>
+                  <td class="col-ops"><span class="link" onclick="PMS.toast('已通知商品房网签系统解除房源锁定','success')">解除锁定</span></td>
+                </tr>
+                <tr style="background:#fef2f2">
+                  <td>34</td><td class="fw-600">8-3-902</td><td class="text-right amt">135.68</td>
+                  <td>该房源存在未处理的面积差异争议（购房人要求退房）</td>
+                  <td>先完成面积差异处理再入库</td>
+                  <td class="col-ops"><span class="link" onclick="location.href='area-diff.html?room=8-3-902'">去处理</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="flex gap-8 mt-16" style="justify-content:center;margin-top:20px">
+          <button type="button" class="btn btn-primary hidden" id="btnRetry" onclick="PMS.toast('已重试 2 条失败项，1 条成功、1 条仍失败（面积差异争议未处理）','success')"><i class="fa-solid fa-rotate"></i> 重试失败项</button>
+          <button type="button" class="btn" onclick="location.href='area-sync.html'"><i class="fa-solid fa-arrows-rotate"></i> 面积同步记录</button>
+          <button type="button" class="btn" onclick="location.href='result-detail.html'"><i class="fa-solid fa-file-lines"></i> 查看成果详情</button>
+          <button type="button" class="btn btn-danger" onclick="doRollback()"><i class="fa-solid fa-rotate-left"></i> 整批回滚</button>
+          <button type="button" class="btn" onclick="backForm()">返回办理</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3>入库记录</h3>
+        <span class="sub">该幢历史入库 3 次 · 回滚 1 次</span>
+      </div>
+      <div class="card-body">
+        <div class="tbl-box">
+          <table class="data-table compact" data-static>
+            <thead>
+              <tr><th>入库编号</th><th>成果版本</th><th>入库类型</th><th>新增 / 更新户数</th><th>删除</th><th>入库时间</th><th>耗时</th><th>结果</th><th>失败</th><th>已回滚</th><th>回滚原因</th><th>操作人 / 审批人</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="fw-600">RK20260801012</td><td>V2.0 实测成果</td><td><span class="badge orange">覆盖更新</span></td><td>2 / 94</td><td>0</td>
+                <td class="nowrap">2026-08-01 14:02</td><td>3.6 秒</td><td><span class="badge green">成功</span></td><td>0</td><td>否</td><td class="text-3">—</td>
+                <td class="nowrap">韦国强 / 李**</td>
+                <td class="col-ops"><span class="link danger" onclick="doRollback()">整批回滚</span></td>
+              </tr>
+              <tr>
+                <td class="fw-600">RK20250318006</td><td>V1.0 预测成果</td><td><span class="badge blue">首次入库</span></td><td>96 / 0</td><td>0</td>
+                <td class="nowrap">2025-03-18 10:26</td><td>4.2 秒</td><td><span class="badge green">成功</span></td><td>0</td><td>否</td><td class="text-3">—</td>
+                <td class="nowrap">韦国强 / 李**</td>
+                <td class="col-ops"><span class="link" onclick="PMS.toast('入库明细：96 户全部成功')">详情</span></td>
+              </tr>
+              <tr class="text-3">
+                <td class="fw-600">RK20250312002</td><td>V1.0 预测成果</td><td><span class="badge blue">首次入库</span></td><td>0 / 0</td><td>0</td>
+                <td class="nowrap">2025-03-12 15:08</td><td>5.1 秒</td><td><span class="badge red">失败</span></td><td>96</td><td><span class="badge orange">是</span></td>
+                <td>目标楼盘幢主键不存在，需先建立楼盘结构</td>
+                <td class="nowrap">韦国强 / 李**</td>
+                <td class="col-ops"><span class="link" onclick="PMS.toast('已回滚，楼盘表恢复至入库前状态')">详情</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- 已签约房屋清单 -->
+<div class="modal-mask" id="mdSign">
+  <div class="modal">
+    <div class="modal-head">涉及已签约房屋清单（68 户 · 展示 6 户）</div>
+    <div class="modal-body">
+      <div class="alert alert-warning">
+        <i class="fa-solid fa-file-signature"></i>
+        <div>已签约房屋的面积变更会影响合同履约与结算。入库后自动生成预实测比对，超约定幅度的须走面积差异处理；<b>同步楼盘表时未关联合同处理意见的房屋将被拦截</b>。</div>
+      </div>
+      <table class="data-table compact" data-static>
+        <thead><tr><th>房号</th><th>合同编号</th><th>购房人</th><th class="text-right">合同约定面积</th><th class="text-right">实测面积</th><th class="text-right">面积变化</th><th>比例</th><th>合同状态</th></tr></thead>
+        <tbody>
+          <tr><td>8-1-1502</td><td>SPF450200202601286</td><td>李**</td><td class="text-right amt">118.65</td><td class="text-right amt">120.86</td><td class="text-right amt text-warning">+2.21</td><td class="text-warning">+1.86%</td><td><span class="badge green">已备案</span></td></tr>
+          <tr style="background:#fef2f2"><td>8-2-1806</td><td>SPF450200202601302</td><td>陈**</td><td class="text-right amt">96.20</td><td class="text-right amt">100.15</td><td class="text-right amt text-warning">+3.95</td><td class="text-danger fw-600">+4.11%</td><td><span class="badge green">已备案</span></td></tr>
+          <tr style="background:#fef2f2"><td>8-3-902</td><td>SPF450200202601318</td><td>黄**</td><td class="text-right amt">142.30</td><td class="text-right amt">135.68</td><td class="text-right amt text-primary">−6.62</td><td class="text-danger fw-600">−4.65%</td><td><span class="badge green">已备案</span></td></tr>
+          <tr><td>8-1-1802</td><td>SPF450200202601292</td><td>韦**</td><td class="text-right amt">120.86</td><td class="text-right amt">121.42</td><td class="text-right amt text-warning">+0.56</td><td class="text-warning">+0.46%</td><td><span class="badge green">已备案</span></td></tr>
+          <tr><td>8-2-1206</td><td>SPF450200202601276</td><td>覃**</td><td class="text-right amt">96.20</td><td class="text-right amt">95.86</td><td class="text-right amt text-primary">−0.34</td><td class="text-primary">−0.35%</td><td><span class="badge green">已备案</span></td></tr>
+          <tr><td>8-1-0602</td><td>SPF450200202601248</td><td>莫**</td><td class="text-right amt">118.65</td><td class="text-right amt">118.65</td><td class="text-right amt text-3">0.00</td><td class="text-3">0.00%</td><td><span class="badge green">已备案</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" data-close-modal>关闭</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.toast('《已签约房屋面积变化清单》Excel 已生成，正在下载','success')"><i class="fa-solid fa-download"></i> 导出清单</button>
+    </div>
+  </div>
+</div>
+
+<!-- 覆盖更新二次确认 -->
+<div class="modal-mask" id="mdOverride">
+  <div class="modal modal-sm">
+    <div class="modal-head">覆盖更新二次确认</div>
+    <div class="modal-body">
+      <div class="alert alert-warning">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div><b>覆盖更新将替换该幢全部数据</b>，涉及 <b>68 户已签约房屋</b>，是否确认？覆盖后原楼盘表面积数据由本次成果全量替换，可整批回滚。</div>
+      </div>
+      <div class="form-grid form-align mt-16">
+        <div class="form-item" style="grid-column:1/-1">
+          <label>请键入幢号确认（8 栋）<span class="req">*</span></label>
+          <input type="text" id="cfmInput" placeholder="请键入：8 栋">
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" data-close-modal>取消</button>
+      <button type="button" class="btn btn-danger-solid" onclick="confirmLoad()">确认覆盖更新</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+var partMode = false;
+
+function onSel() {
+  var v = document.getElementById('cgSel').value, ok = v === 'ok';
+  document.getElementById('cgNo').value = ok ? 'CG450200202600186' : 'CG450200202600174';
+  document.getElementById('sNo').textContent = ok ? 'CG450200202600186 · V2.0 实测成果' : 'CG450200202600174 · V2.0 实测成果';
+  document.getElementById('sSub').textContent = ok
+    ? '荣和公园大道二期 8 栋 · XXXX市测绘院 · 2026-07-22 测绘 · 1 幢 96 户'
+    : '彰泰滨江学府 3 栋 · 柳州建元 · 2026-07-16 测绘 · 1 幢 112 户';
+  document.getElementById('sBadge').innerHTML = ok
+    ? '<span class="badge green"><i class="fa-solid fa-circle-check"></i> 质检通过（ZJ20260801034 · 12 项全通过，1 项警告已说明）</span>'
+    : '<span class="badge red"><i class="fa-solid fa-xmark"></i> 质检不通过（ZJ20260801018 · 致命 1 · 严重 2）</span>';
+  document.getElementById('blkNo').classList.toggle('hidden', ok);
+  document.getElementById('okTip').classList.toggle('hidden', !ok);
+  document.getElementById('btnLoad').disabled = !ok;
+}
+
+function onRk() {
+  var v = document.querySelector('input[name=rk]:checked').value;
+  document.getElementById('itPart').style.display = v === '3' ? '' : 'none';
+}
+
+function doLoad() {
+  var v = document.querySelector('input[name=rk]:checked').value;
+  if (v === '1') { PMS.openModal('mdOverride'); return; }
+  runLoad();
+}
+
+function confirmLoad() {
+  var v = (document.getElementById('cfmInput').value || '').trim();
+  if (v !== '8 栋' && v !== '8栋') { PMS.toast('请键入「8 栋」以确认覆盖更新', 'error'); return; }
+  PMS.closeModal('mdOverride');
+  runLoad();
+}
+
+function runLoad() {
+  PMS.toast('正在写入 wsshare 楼盘表…');
+  setTimeout(function () {
+    document.getElementById('formArea').classList.add('hidden');
+    document.getElementById('resArea').classList.remove('hidden');
+    applyCase();
+    var main = document.querySelector('main.app-main');
+    if (main) main.scrollTop = 0;
+  }, 800);
+}
+
+function applyCase() {
+  var box = document.getElementById('resBox');
+  box.classList.toggle('part', partMode);
+  box.querySelector('.rc i').className = partMode ? 'fa-solid fa-exclamation' : 'fa-solid fa-check';
+  document.getElementById('resT').textContent = partMode ? '入库部分成功' : '入库成功';
+  document.getElementById('resS').textContent = partMode
+    ? 'RK20260801012 · 覆盖更新 · 96 条中 94 条成功、2 条失败，耗时 3.8 秒'
+    : 'RK20260801012 · 覆盖更新 · 96 条记录全部写入楼盘表，耗时 3.6 秒';
+  document.getElementById('icRes').querySelector('.v').innerHTML = partMode
+    ? '<span style="color:#b45309">部分成功</span>' : '<span style="color:var(--success)">成功</span>';
+  document.getElementById('icFail').querySelector('.v').textContent = partMode ? '2' : '0';
+  document.getElementById('failBox').classList.toggle('hidden', !partMode);
+  document.getElementById('btnRetry').classList.toggle('hidden', !partMode);
+  document.getElementById('chainOk').classList.toggle('hidden', partMode);
+}
+
+function switchCase() {
+  partMode = !partMode;
+  if (!document.getElementById('resArea').classList.contains('hidden')) applyCase();
+  PMS.toast(partMode ? '已切换为「入库部分成功」场景（96 条中 2 条失败）' : '已切换为「入库成功」场景');
+}
+
+function backForm() {
+  document.getElementById('resArea').classList.add('hidden');
+  document.getElementById('formArea').classList.remove('hidden');
+}
+
+function doRollback() {
+  PMS.confirm({
+    title: '整批回滚',
+    message: '确认将 RK20260801012 整批回滚吗？',
+    detail: '回滚后楼盘表恢复至入库前状态（V1.0 预测成果面积），已生成的预实测比对结果一并作废；回滚须填写原因并留痕，操作影响 96 户房源与 68 份已备案合同。',
+    type: 'danger',
+    okText: '确认回滚',
+    onOk: function () {
+      PMS.toast('已整批回滚：楼盘表恢复至 V1.0 面积，V1.0 重新置为当前生效版本，回滚原因已留痕', 'success');
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function () { onSel(); onRk(); });
+</script>
+</body>
+</html>

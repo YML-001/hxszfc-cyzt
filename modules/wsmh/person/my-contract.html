@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的合同与交易 · 个人中心</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  /* 我的合同与交易专属布局 */
+  .ct-card { border: 1px solid var(--border); border-radius: var(--radius-card); margin-bottom: 16px; overflow: hidden; }
+  .ct-card:last-child { margin-bottom: 0; }
+  .ct-h { display: flex; align-items: center; gap: 10px; padding: 13px 16px; background: var(--primary-light-2); border-bottom: 1px solid var(--border); }
+  .ct-h .ct-bh { font-size: 15px; font-weight: 700; }
+  .ct-b { padding: 16px; }
+  .ct-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 18px; }
+  .ct-f .lb { font-size: 12.5px; color: var(--text-3); }
+  .ct-f .vl { font-size: 14.5px; color: var(--text-1); margin-top: 3px; font-weight: 500; }
+  .ct-f .vl.num { font-family: "DIN Alternate", var(--font); }
+  .ct-acts { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px dashed var(--row-line); flex-wrap: wrap; }
+  .doc { font-size: 14px; line-height: 2.1; }
+  .doc h4 { font-size: 16px; margin: 18px 0 6px; }
+  .doc .doc-t { text-align: center; font-size: 21px; font-weight: 700; letter-spacing: 3px; }
+  .doc .doc-s { text-align: center; font-size: 13px; color: var(--text-3); margin-top: 6px; }
+  .doc p { margin: 0 0 6px; text-indent: 2em; }
+  .doc .noind { text-indent: 0; }
+  .doc .sign { display: flex; gap: 40px; margin-top: 26px; }
+  .doc .sign div { flex: 1; line-height: 2.2; }
+  .ver-i { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 10px; }
+  .ver-i.cur { border-color: var(--primary); background: var(--primary-light-2); }
+  .prog-t { height: 8px; background: var(--bg-soft); border-radius: 4px; overflow: hidden; }
+  .prog-f { height: 100%; background: linear-gradient(90deg, #6b95e8, var(--primary)); border-radius: 4px; }
+</style>
+</head>
+<body data-nav="home">
+
+<div class="wrap"><div class="crumb">
+  <a href="../web/home.html">首页</a><i class="fa-solid fa-angle-right"></i>
+  <a href="index.html">个人中心</a><i class="fa-solid fa-angle-right"></i>我的合同与交易
+</div></div>
+
+<div class="wrap">
+  <div class="desk">
+    <aside class="side-menu" id="side"></aside>
+    <main class="desk-main" id="dmain">
+
+      <div class="tabs" data-tabs data-scope="ct-box">
+        <a class="on" data-tab="mc-ct" data-fp="wsmh-30-02"><i class="fa-solid fa-file-contract"></i> 我的合同</a>
+        <a data-tab="mc-node" data-fp="wsmh-30-03"><i class="fa-solid fa-timeline"></i> 交易节点</a>
+      </div>
+
+      <div id="ct-box">
+        <!-- Tab 1：我的合同（wsmh-30-02） -->
+        <div class="tab-pane on" id="mc-ct">
+          <div class="alert alert-info">
+            <i class="fa-solid fa-circle-info"></i>
+            <span>本页展示您作为当事人的<b>网签合同与备案情况</b>。合同文本以网签系统生成的示范文本为准，
+              当事人姓名与证件号按规定脱敏；合同每次变更都会生成新版本并保留历史版本可追溯。</span>
+          </div>
+          <div id="ct-list"></div>
+        </div>
+
+        <!-- Tab 2：交易节点（wsmh-30-03） -->
+        <div class="tab-pane" id="mc-node">
+          <div class="alert alert-info">
+            <i class="fa-solid fa-circle-info"></i>
+            <span>交易节点按<b>认购、网签、备案、缴款、维修资金缴存、产权过户、房屋交付</b>的顺序推进，
+              节点状态由各业务系统实时回写。当前进行中的节点会标注「当前节点」并给出直达办理入口。</span>
+          </div>
+          <div id="nd-list"></div>
+        </div>
+      </div>
+
+      <div id="src-note"></div>
+    </main>
+  </div>
+</div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+function pageInit() {
+  if (!deskGuard('contract')) return;
+  renderAll();
+  document.getElementById('src-note').innerHTML = UI.sourceNote(
+    '合同与交易节点数据来源于商品房与存量房网签备案管理系统，节点状态由业务系统实时回写。');
+  var t = UI.param('tab');
+  if (t) { var a = document.querySelector('[data-tab="' + t + '"]'); if (a) a.click(); }
+  PORTAL.on(function () { renderSide('contract'); renderAll(); });
+}
+function renderAll() { renderContracts(); renderNodes(); }
+
+/* ============ 个人中心左侧菜单（各页统一） ============ */
+function renderSide(active) {
+  var u = UI.user(), login = UI.isLogin();
+  var c = PORTAL.todoCounts();
+  var M = [
+    ['idx', '个人中心首页', 'fa-gauge', 'index.html', 0, 'wsmh-02-06'],
+    ['case', '我的办件', 'fa-list-check', 'my-case.html', c.fix, 'wsmh-30-01'],
+    ['contract', '我的合同与交易', 'fa-file-contract', 'my-contract.html', 0, 'wsmh-30-02'],
+    ['pay', '我的缴款与贷款', 'fa-money-bill-transfer', 'my-payment.html', c.pay, 'wsmh-30-04'],
+    ['listing', '我的房源与预约', 'fa-house-circle-check', 'my-listing.html', 0, 'wsmh-30-06'],
+    ['cert', '我的证照与消息', 'fa-file-shield', 'my-cert.html', PORTAL.unread(), 'wsmh-30-08'],
+    ['rating', '我的评价与授权', 'fa-star', 'my-rating.html', c.rate, 'wsmh-30-10']
+  ];
+  document.getElementById('side').innerHTML =
+    '<div class="sm-head"><div class="sm-n"><i class="fa-solid fa-circle-user"></i> '
+    + UI.esc(login ? u.name : '未登录') + '</div>'
+    + '<div class="sm-r">' + (login ? '个人用户 · 已实名（等级 ' + u.realname + '）' : '登录后查看办件、合同与证照') + '</div></div>'
+    + '<div class="sm-g"><div class="sm-gt">我的服务</div>'
+    + M.map(function (m) {
+      return '<a href="' + m[3] + '" class="' + (m[0] === active ? 'on' : '') + '" data-fp="' + m[5] + '">'
+        + '<i class="fa-solid ' + m[2] + '"></i>' + m[1]
+        + (login && m[4] ? '<span class="sm-b">' + m[4] + '</span>' : '') + '</a>';
+    }).join('')
+    + '</div><div class="sm-g" style="border-top:1px solid var(--border)">'
+    + '<a href="../web/home.html" data-fp="wsmh-34-01"><i class="fa-solid fa-arrow-left"></i>返回门户首页</a>'
+    + '</div>';
+}
+
+function deskGuard(active) {
+  renderSide(active);
+  if (UI.isLogin()) return true;
+  document.getElementById('dmain').innerHTML =
+    '<div class="desk-card"><div class="empty"><i class="fa-solid fa-user-lock"></i>'
+    + '<div class="em-t">个人中心需要登录后访问</div>'
+    + '<div class="em-d">门户配置的未登录浏览范围为「房源列表与详情、信息公示、办事指南」，我的合同属于需登录实名的范围。</div>'
+    + '<div class="em-a"><a class="btn btn-primary" href="../web/login.html?from=person" data-fp="wsmh-34-06">立即登录</a>'
+    + '<button class="btn" style="margin-left:10px" onclick="demoLogin()" data-fp="wsmh-34-06">演示：一键登录个人用户</button>'
+    + '</div></div></div>';
+  UI.needLogin('我的合同与交易');
+  return false;
+}
+
+/* 演示用：保留当前页参数并以个人用户身份登录 */
+function demoLogin() {
+  var parts = location.search.replace(/^\?/, '').split('&').filter(function (x) {
+    return x && x.indexOf('user=') !== 0;
+  });
+  parts.push('user=person');
+  location.href = location.pathname + '?' + parts.join('&');
+}
+
+/* ============ Tab 1：我的合同 ============ */
+function baBadge(ba) {
+  if (ba === '已备案') return '<span class="badge green">已备案</span>';
+  if (ba === '备案中') return '<span class="badge cyan">备案中</span>';
+  return '<span class="badge orange">' + UI.esc(ba) + '</span>';
+}
+
+function renderContracts() {
+  var arr = PORTAL.contracts();
+  var box = document.getElementById('ct-list');
+  if (!arr.length) {
+    box.innerHTML = '<div class="desk-card">' + UI.empty('暂无网签合同',
+      '完成认购或在线签约后，合同会自动出现在这里。',
+      '<a class="btn btn-primary" href="../web/second-hand-apply.html" data-fp="wsmh-16-02">去二手房自助办理</a>'
+      + '<a class="btn" style="margin-left:10px" href="../web/rent-sign.html" data-fp="wsmh-18-01">去租房签约备案</a>') + '</div>';
+    return;
+  }
+  box.innerHTML = arr.map(function (c) {
+    return '<div class="ct-card">'
+      + '<div class="ct-h"><i class="fa-solid fa-file-contract text-primary"></i>'
+      + '<span class="ct-bh">' + c.bh + '</span>'
+      + '<span class="badge blue">' + UI.esc(c.lx) + '</span>'
+      + baBadge(c.ba)
+      + '<span class="badge gray">当前版本 V' + c.ver + '</span>'
+      + '<span class="ml-auto text-xs text-3">' + (c.bash ? '备案时间 ' + c.bash : '备案办理中，办结后自动更新') + '</span></div>'
+      + '<div class="ct-b"><div class="ct-grid">'
+      + fld('项目 / 小区', UI.esc(c.xmmc))
+      + fld('涉及房屋', UI.esc(PORTAL.mask('fh', c.fw)))
+      + fld('建筑面积', c.mj + ' ㎡', 1)
+      + fld('合同总价', UI.money(c.zj, 0) + ' 元', 1)
+      + fld('合同类型', UI.esc(c.lx))
+      + fld('备案状态', c.ba)
+      + fld('备案时间', c.bash || '—')
+      + fld('版本历史', c.vers.length + ' 个版本')
+      + '</div></div>'
+      + '<div class="ct-acts">'
+      + '<button class="btn btn-sm btn-primary" data-doc="' + c.id + '" data-fp="wsmh-30-02"><i class="fa-solid fa-file-lines"></i> 查看合同文本</button>'
+      + '<button class="btn btn-sm" data-ver="' + c.id + '" data-fp="wsmh-30-02"><i class="fa-solid fa-code-branch"></i> 历史版本</button>'
+      + '<button class="btn btn-sm" data-dl="' + c.id + '" data-fp="wsmh-30-02"><i class="fa-solid fa-file-arrow-down"></i> 下载合同</button>'
+      + '<button class="btn btn-sm" data-node="' + c.id + '" data-fp="wsmh-30-03"><i class="fa-solid fa-timeline"></i> 查看交易节点</button>'
+      + '</div></div>';
+  }).join('');
+
+  box.querySelectorAll('[data-doc]').forEach(function (b) {
+    b.onclick = function () { showDoc(b.getAttribute('data-doc')); };
+  });
+  box.querySelectorAll('[data-ver]').forEach(function (b) {
+    b.onclick = function () { showVers(b.getAttribute('data-ver')); };
+  });
+  box.querySelectorAll('[data-dl]').forEach(function (b) {
+    b.onclick = function () {
+      var c = ctOf(b.getAttribute('data-dl'));
+      UI.toast('合同 ' + c.bh + ' 已生成 PDF 下载任务，演示环境不产生真实文件', 'success');
+    };
+  });
+  box.querySelectorAll('[data-node]').forEach(function (b) {
+    b.onclick = function () {
+      document.querySelector('[data-tab="mc-node"]').click();
+      window.scrollTo({ top: 220, behavior: 'smooth' });
+    };
+  });
+}
+
+function fld(l, v, num) {
+  return '<div class="ct-f"><div class="lb">' + l + '</div><div class="vl' + (num ? ' num' : '') + '">' + v + '</div></div>';
+}
+function ctOf(id) { return PORTAL.contracts().filter(function (c) { return c.id === id; })[0]; }
+
+/* ---- 合同文本 ---- */
+function showDoc(id) {
+  var c = ctOf(id);
+  if (!c) return;
+  var rent = c.lx.indexOf('租赁') >= 0;
+  var seller = c.lx.indexOf('商品房') >= 0 ? PDATA.DEVS[0] : PORTAL.mask('name', '覃美玲');
+  var dj = Math.round(c.zj / c.mj);
+  UI.modal('<i class="fa-solid fa-file-lines text-primary"></i> 合同文本预览',
+    '<div class="alert alert-warning" style="margin-bottom:16px"><i class="fa-solid fa-triangle-exclamation"></i>'
+    + '<span>以下为网签系统生成的合同要素文本，当事人姓名与证件号按规定脱敏。'
+    + '正式文本以双方电子签章的备案合同为准，如与本页展示不一致，以备案合同为准。</span></div>'
+    + '<div class="doc">'
+    + '<div class="doc-t">柳州市' + UI.esc(c.lx) + '</div>'
+    + '<div class="doc-s">合同编号：' + c.bh + '　　版本：V' + c.ver + '　　备案状态：' + UI.esc(c.ba) + (c.bash ? '（' + c.bash + '）' : '') + '</div>'
+    + '<h4>第一条　合同当事人</h4>'
+    + '<p class="noind">出卖人（出租人）：<b>' + UI.esc(seller) + '</b>　'
+    + (c.lx.indexOf('商品房') >= 0 ? '统一社会信用代码：91450200MA5K****X1' : '证件号码：450202********') + '</p>'
+    + '<p class="noind">买受人（承租人）：<b>' + PORTAL.mask('name', UI.user().name) + '</b>　证件号码：'
+    + PORTAL.mask('id', '450202198703152816') + '　联系方式：' + UI.esc(UI.user().mobile) + '</p>'
+    + '<h4>第二条　房屋基本情况</h4>'
+    + '<p>本合同项下房屋坐落于<b>' + UI.esc(c.xmmc) + ' ' + UI.esc(PORTAL.mask('fh', c.fw)) + '</b>，'
+    + '建筑面积 <b>' + c.mj + '</b> 平方米，房屋规划用途为住宅，'
+    + '权属状况为无查封、无异议登记等限制交易情形。房屋测绘成果已按规定备案。</p>'
+    + '<h4>第三条　价款与支付方式</h4>'
+    + '<p>' + (rent ? '租金' : '房屋成交总价款') + '为人民币 <b>' + UI.money(c.zj, 0) + '</b> 元'
+    + '（大写：' + rmb(c.zj) + '），折合单价 <b>' + UI.money(dj, 0) + '</b> 元/平方米。</p>'
+    + '<p>买受人应当将购房款缴入本项目的<b>预售资金监管账户</b>或存量房交易<b>资金监管专户</b>，'
+    + '任何情况下不得将购房款转入个人账户。付款方式为首付款加银行按揭贷款，'
+    + '首付款于合同签订之日起 3 日内缴存，贷款部分由贷款银行按审批结果划付。</p>'
+    + '<h4>第四条　交付与权属转移</h4>'
+    + '<p>出卖人应当在双方约定期限内将符合交付条件的房屋交付买受人，'
+    + '并配合办理不动产权属转移登记。交付时应提供住宅质量保证书、住宅使用说明书与竣工验收备案证明。</p>'
+    + '<h4>第五条　违约责任</h4>'
+    + '<p>任何一方未按约定履行义务的，应当承担违约责任并赔偿对方由此造成的损失；'
+    + '逾期付款或逾期交房超过 30 日的，守约方有权解除合同并要求违约方按合同总价款的 1% 支付违约金。</p>'
+    + '<h4>第六条　争议解决与其他</h4>'
+    + '<p>因本合同发生的争议，双方应协商解决；协商不成的，依法向房屋所在地人民法院起诉。'
+    + '本合同自双方电子签章之日起生效，网签备案后与纸质文本具有同等效力。</p>'
+    + '<div class="sign"><div>出卖人（出租人）：<br>' + UI.esc(seller) + '<br>签署日期：' + (c.vers[0] ? c.vers[0].d : '—') + '</div>'
+    + '<div>买受人（承租人）：<br>' + PORTAL.mask('name', UI.user().name) + '<br>签署日期：' + (c.vers[0] ? c.vers[0].d : '—') + '</div></div>'
+    + '</div>',
+    '<button class="btn" data-act="close-modal">关闭</button>'
+    + '<button class="btn" id="doc-ver" data-fp="wsmh-30-02">历史版本</button>'
+    + '<button class="btn btn-primary" id="doc-dl" data-fp="wsmh-30-02">下载合同</button>', true);
+  document.getElementById('doc-ver').onclick = function () { UI.closeModal(); showVers(id); };
+  document.getElementById('doc-dl').onclick = function () {
+    UI.toast('合同 ' + c.bh + ' 已生成 PDF 下载任务，演示环境不产生真实文件', 'success');
+  };
+}
+
+/* 金额大写 */
+function rmb(n) {
+  var D = ['零', '壹', '贰', '叁', '肆', '伍', '陆', '柒', '捌', '玖'];
+  var U = ['', '拾', '佰', '仟', '万', '拾', '佰', '仟', '亿'];
+  var s = String(Math.floor(Math.abs(n)));
+  if (s === '0') return '零元整';
+  var r = '', zero = false;
+  for (var i = 0; i < s.length; i++) {
+    var d = Number(s.charAt(i)), p = s.length - 1 - i;
+    if (d === 0) { zero = true; if (p === 4) r += '万'; }
+    else {
+      if (zero && r) r += '零';
+      zero = false;
+      r += D[d] + U[p];
+    }
+  }
+  return r.replace(/万+/g, '万') + '元整';
+}
+
+/* ---- 历史版本 ---- */
+function showVers(id) {
+  var c = ctOf(id);
+  if (!c) return;
+  var vs = c.vers.slice().sort(function (a, b) { return b.v - a.v; });
+  UI.drawer('<i class="fa-solid fa-code-branch text-primary"></i> 合同历史版本　' + c.bh,
+    '<div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>'
+    + '<span>合同每次变更备案都会生成新版本，历史版本<b>只读留痕、不可删除</b>，'
+    + '任何一方均可查询版本变更时间与变更内容。当前生效版本为 <b>V' + c.ver + '</b>。</span></div>'
+    + vs.map(function (v, i) {
+      return '<div class="ver-i' + (v.v === c.ver ? ' cur' : '') + '">'
+        + '<div class="flex items-center gap-8">'
+        + '<span class="badge ' + (v.v === c.ver ? 'blue' : 'gray') + '">V' + v.v + '</span>'
+        + '<span class="bold flex-1">' + UI.esc(v.note) + '</span>'
+        + (v.v === c.ver ? '<span class="badge green">当前生效</span>' : '<span class="badge gray">历史版本</span>')
+        + '</div>'
+        + '<div class="text-xs text-3 mt-8">生成时间：' + v.d
+        + '　　变更主体：' + (v.v === 1 ? '双方首次签署' : '双方协商一致后变更备案') + '</div>'
+        + (i < vs.length - 1
+          ? '<div class="mt-8"><button class="btn btn-sm" data-cmp="' + v.v + '" data-cid="' + c.id + '" data-fp="wsmh-30-02">'
+            + '<i class="fa-solid fa-code-compare"></i> 与 V' + vs[i + 1].v + ' 对比</button></div>'
+          : '')
+        + '</div>';
+    }).join('')
+    + '<div class="text-xs text-3 mt-12">版本对比说明：原型按版本记录变更说明、变更时间与生效状态；'
+    + '正式环境按合同要素逐字段比对，标出价款、付款方式、交付时间等关键字段的变化。</div>',
+    '<button class="btn" data-act="close-drawer">关闭</button>');
+
+  document.querySelectorAll('[data-cmp]').forEach(function (b) {
+    b.onclick = function () {
+      var v = Number(b.getAttribute('data-cmp'));
+      var cc = ctOf(b.getAttribute('data-cid'));
+      var cur = cc.vers.filter(function (x) { return x.v === v; })[0];
+      var old = cc.vers.filter(function (x) { return x.v === v - 1; })[0];
+      UI.modal('<i class="fa-solid fa-code-compare text-primary"></i> 版本对比　V' + (v - 1) + ' → V' + v,
+        '<div class="desc-list"><dl>'
+        + '<dt>合同编号</dt><dd>' + cc.bh + '（版本变更不改变合同编号）</dd>'
+        + '<dt>V' + (v - 1) + '</dt><dd>' + UI.esc(old ? old.note : '—') + '　<span class="text-3 text-xs">' + (old ? old.d : '') + '</span></dd>'
+        + '<dt>V' + v + '</dt><dd>' + UI.esc(cur ? cur.note : '—') + '　<span class="text-3 text-xs">' + (cur ? cur.d : '') + '</span></dd>'
+        + '<dt>变更要点</dt><dd>' + UI.esc(cur ? cur.note : '') + '；房屋坐落、建筑面积与当事人未发生变化</dd>'
+        + '<dt>变更效力</dt><dd>变更备案通过后 V' + v + ' 生效，V' + (v - 1) + ' 转为历史版本留痕</dd>'
+        + '</dl></div>');
+    };
+  });
+}
+
+/* ============ Tab 2：交易节点（wsmh-30-03） ============ */
+function renderNodes() {
+  var arr = PORTAL.contracts();
+  var box = document.getElementById('nd-list');
+  if (!arr.length) {
+    box.innerHTML = '<div class="desk-card">' + UI.empty('暂无交易节点',
+      '完成认购或在线签约后，交易节点会自动生成。',
+      '<a class="btn btn-primary" href="../web/second-hand-apply.html" data-fp="wsmh-16-01">去二手房自助办理</a>') + '</div>';
+    return;
+  }
+  box.innerHTML = arr.map(function (c) {
+    var done = 0, cur = null;
+    c.nodes.forEach(function (n) { if (n.s === 1) done++; if (n.s === 2 && !cur) cur = n; });
+    var p = Math.round(done / c.nodes.length * 100);
+    return '<div class="desk-card">'
+      + '<div class="card-head"><h3><i class="fa-solid fa-timeline text-primary"></i> ' + UI.esc(c.xmmc) + ' ' + UI.esc(PORTAL.mask('fh', c.fw)) + '</h3>'
+      + '<span class="sub">' + c.bh + ' · ' + UI.esc(c.lx) + '</span>'
+      + '<div class="ca">' + baBadge(c.ba) + '</div></div>'
+      + '<div class="card-body">'
+      + '<div class="flex items-center gap-12 mb-16">'
+      + '<span class="text-sm text-3 nowrap">整体进度</span>'
+      + '<span class="prog-t flex-1"><span class="prog-f" style="display:block;width:' + p + '%"></span></span>'
+      + '<span class="bold num" style="width:52px;text-align:right">' + p + '%</span>'
+      + '<span class="text-xs text-3 nowrap">已完成 ' + done + ' / ' + c.nodes.length + ' 个节点</span></div>'
+      + '<div class="timeline">' + c.nodes.map(function (n) {
+        var cls = n.s === 1 ? 'done' : (n.s === 2 ? 'on' : 'wait');
+        var act = n.s === 2 ? nodeAct(n) : null;
+        return '<div class="tl-i ' + cls + '">'
+          + '<div class="tl-t">' + UI.esc(n.n)
+          + (n.s === 1 ? ' <span class="badge green">已完成</span>' : '')
+          + (n.s === 2 ? ' <span class="badge blue">当前节点</span>' : '')
+          + (n.s === 0 ? ' <span class="badge gray">待办理</span>' : '') + '</div>'
+          + '<div class="tl-m">' + (n.d ? '完成时间：' + n.d : (n.s === 2 ? '正在办理中，请按下方入口继续办理' : '前序节点完成后自动进入')) + '</div>'
+          + (act ? '<div class="mt-8"><a class="btn btn-sm btn-primary" href="' + act[1] + '" data-fp="' + act[2] + '">'
+            + '<i class="fa-solid fa-arrow-right"></i> ' + act[0] + '</a></div>' : '')
+          + '</div>';
+      }).join('') + '</div>'
+      + '</div></div>';
+  }).join('');
+}
+
+function nodeAct(n) {
+  if (n.n.indexOf('缴存') >= 0 || n.n.indexOf('缴款') >= 0) return ['去缴款（我的缴款与贷款）', 'my-payment.html', 'wsmh-30-04'];
+  if (n.n.indexOf('网签') >= 0) return ['去在线签约（二手房自助办理）', '../web/second-hand-apply.html', 'wsmh-16-02'];
+  if (n.n.indexOf('备案') >= 0) return ['查看备案办件进度', 'my-case.html', 'wsmh-30-01'];
+  if (n.n.indexOf('资金监管') >= 0) return ['查看资金监管进度', '../web/second-hand-progress.html', 'wsmh-17-02'];
+  if (n.n.indexOf('纳税') >= 0) return ['交易税费试算', '../web/tool-tax.html', 'wsmh-33-03'];
+  if (n.n.indexOf('过户') >= 0) return ['查看过户办理指引', '../web/guide.html', 'wsmh-04-01'];
+  if (n.n.indexOf('交付') >= 0) return ['查看交付节点公示', '../web/buy-service.html', 'wsmh-13-04'];
+  return ['查看办事指南', '../web/guide.html', 'wsmh-04-01'];
+}
+</script>
+</body>
+</html>

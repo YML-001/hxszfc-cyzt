@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>借出归还与催办 · 房屋交易档案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  .no-code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; }
+  /* 本页特有：剩余天数样式 */
+  .dd { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .dd.ok { color: var(--success); }
+  .dd.mid { color: var(--primary); }
+  .dd.near { color: #b45309; }
+  .dd.over { color: var(--danger); }
+  .data-table tbody tr.od-row { background: #fff5f5; }
+  .data-table tbody tr.od-row:hover { background: #ffecec; }
+  .data-table tbody tr.od-row td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
+  .data-table tbody tr.nr-row { background: #fffaf2; }
+  .data-table tbody tr.nr-row td:first-child { box-shadow: inset 3px 0 0 var(--warning); }
+  /* 本页特有：借出前后状况对照 */
+  .cmp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 900px) { .cmp-grid { grid-template-columns: 1fr; } }
+  .cmp-col { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .cmp-h { padding: 9px 14px; font-size: 13.5px; font-weight: 700; background: var(--bg-soft); display: flex; align-items: center; gap: 8px; }
+  .cmp-col.now .cmp-h { background: var(--primary-light); color: var(--primary); }
+  .cmp-b { padding: 14px; }
+  .ph-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+  /* 本页特有：纯 CSS 档案照片占位 */
+  .doc-ph {
+    width: 92px; height: 118px; border: 1px solid var(--border); border-radius: 4px; background: #fff;
+    padding: 9px 8px; position: relative; cursor: pointer; box-shadow: var(--shadow-sm); overflow: hidden;
+  }
+  .doc-ph:hover { border-color: var(--primary); }
+  .doc-ph .tl { height: 7px; background: #cbd5e1; border-radius: 2px; margin-bottom: 7px; width: 72%; }
+  .doc-ph .ln { height: 4px; background: #e2e8f0; border-radius: 2px; margin-bottom: 5px; }
+  .doc-ph .ln.s { width: 62%; }
+  .doc-ph .seal {
+    position: absolute; right: 7px; bottom: 24px; width: 26px; height: 26px; border-radius: 50%;
+    border: 2px solid #e05252; opacity: .65;
+  }
+  .doc-ph .cap {
+    position: absolute; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, .68); color: #fff;
+    font-size: 10.5px; text-align: center; padding: 2px 0;
+  }
+  .doc-ph.dmg { border-color: #f2b8b8; }
+  .doc-ph.dmg .tear {
+    position: absolute; right: -8px; top: 26px; width: 34px; height: 40px; background: #fee2e2;
+    transform: rotate(18deg); border-left: 2px dashed #dc2626;
+  }
+  .doc-ph.add {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+    border-style: dashed; color: var(--text-3); background: var(--bg-soft);
+  }
+  .doc-ph.add:hover { color: var(--primary); }
+  .doc-ph.add i { font-size: 20px; }
+  .doc-ph.add span { font-size: 11.5px; }
+  .zk-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .zk {
+    border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; cursor: pointer; font-size: 13px;
+    display: inline-flex; align-items: center; gap: 7px; background: #fff; transition: .15s;
+  }
+  .zk:hover { border-color: var(--primary); }
+  .zk.on { border-color: var(--primary); background: var(--primary-bg); color: var(--primary); font-weight: 600; }
+  .zk.on.bad { border-color: var(--danger); background: #fdecec; color: var(--danger); }
+  .zk.on.mid { border-color: var(--warning); background: #fff7ec; color: #b45309; }
+  /* 本页特有：催办历史 */
+  .cb-log { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .cb-log .r { display: flex; gap: 10px; padding: 8px 12px; font-size: 12.5px; border-bottom: 1px solid var(--border); }
+  .cb-log .r:last-child { border-bottom: none; }
+  .cb-log .r .t { width: 108px; color: var(--text-3); flex-shrink: 0; }
+  .cb-log .r .w { width: 92px; flex-shrink: 0; }
+  .modal-head { display: flex; align-items: center; gap: 10px; }
+  .modal-head h3 { font-size: 16px; font-weight: 700; }
+  .modal-head .close { margin-left: auto; cursor: pointer; color: var(--text-3); font-size: 18px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: none; border: 0; }
+  .modal-head .close:hover { background: var(--bg-soft); color: var(--text-1); }
+  .form-static { display: flex; align-items: center; gap: 8px; min-height: 34px; font-size: 13.5px; }
+  .form-static input[type="checkbox"] { width: auto; height: auto; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdagl-16">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> <a class="link" href="index.html">房屋交易档案管理系统</a>
+        <span class="sep">/</span> 档案保管利用
+        <span class="sep">/</span> <a class="link" href="borrow-list.html">借阅申请台账</a>
+        <span class="sep">/</span> <span class="cur">借出归还与催办</span>
+      </div>
+      <div class="page-title">借出归还与催办</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" onclick="PMS.toast('已对 8 卷逾期档案批量发送催办短信','warning')"><i class="fa-solid fa-bell"></i> 批量催办逾期</button>
+      <a class="btn" href="borrow-list.html"><i class="fa-solid fa-list"></i> 借阅申请台账</a>
+      <button type="button" class="btn" onclick="PMS.toast('已导出《借出归还台账》Excel','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      当前 <b>逾期未还 8 卷</b>，最长逾期 26 天（JC20260620008 XXXX市中级人民法院）。
+      到期前 3 天自动提醒，逾期后每 3 天催办一次；存在逾期未还记录的借阅人不得再次借阅。
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-hand-holding-hand"></i></div>
+      <div><div class="s-label">在借档案</div><div class="s-value">186</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-clock"></i></div>
+      <div><div class="s-label">即将到期（≤ 3 天）</div><div class="s-value">12</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><div class="s-label">逾期未还</div><div class="s-value">8</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-rotate-right"></i></div>
+      <div><div class="s-label">本月续借</div><div class="s-value">26</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-bullhorn"></i></div>
+      <div><div class="s-label">本月催办</div><div class="s-value">42</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">归还完好率</div><div class="s-value">99.2%</div></div>
+    </div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="zj">在借 <span class="badge blue">186</span></div>
+      <div class="tab" data-tab="near">即将到期 <span class="badge orange">12</span></div>
+      <div class="tab" data-tab="od">逾期未还 <span class="badge red">8</span></div>
+      <div class="tab" data-tab="gh">已归还 <span class="badge gray">1,286</span></div>
+      <div class="tab" data-tab="yc">异常处理 <span class="badge orange">3</span></div>
+    </div>
+
+    <div class="card-body">
+      <div class="filter-bar" style="border-radius:8px;border:1px solid var(--border)">
+        <div class="filter-item"><label>借出编号</label><input type="text" placeholder="如 JC20260620008"></div>
+        <div class="filter-item"><label>档案号</label><input type="text" placeholder="如 DA450202201900642"></div>
+        <div class="filter-item"><label>借阅人 / 单位</label><input type="text" placeholder="姓名或单位"></div>
+        <div class="filter-item">
+          <label>借出状态</label>
+          <select><option value="">全部</option><option>已借出</option><option>已归还</option><option>逾期未还</option><option>已丢失</option><option>已赔偿</option></select>
+        </div>
+        <div class="filter-item"><label>应归还时间</label><input type="date" value="2026-07-01"></div>
+        <div class="filter-item"><label>至</label><input type="date" value="2026-08-31"></div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件查询到 186 条借出记录')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn" onclick="PMS.toast('已重置筛选条件')">重置</button>
+        </div>
+      </div>
+
+      <div class="table-wrap mt-16">
+        <table class="data-table" id="tblJc" data-static>
+          <thead>
+            <tr>
+              <th>借出编号</th>
+              <th>借阅申请编号</th>
+              <th>档案号与名称</th>
+              <th>借阅人 / 单位</th>
+              <th>借出时间</th>
+              <th>借出办理人</th>
+              <th>应归还时间</th>
+              <th>剩余 / 逾期</th>
+              <th>续借</th>
+              <th>催办</th>
+              <th>借出状态</th>
+              <th style="width:170px">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="od-row">
+              <td class="nowrap fw-600 no-code">JC20260620008</td>
+              <td class="nowrap no-code">JY20260618022</td>
+              <td>
+                <div class="no-code">DA450202201900642</div>
+                <div class="text-3 text-sm">桂中大道88号12栋1单元301房改房产权登记档案 等 3 卷</div>
+              </td>
+              <td class="nowrap">莫**<br><span class="text-3 text-sm">XXXX市中级人民法院</span></td>
+              <td class="nowrap">2026-06-20</td>
+              <td class="nowrap">覃永明</td>
+              <td class="nowrap">2026-07-06</td>
+              <td class="nowrap"><span class="dd over"><i class="fa-solid fa-triangle-exclamation"></i> 逾期 26 天</span></td>
+              <td class="nowrap text-3">未续借</td>
+              <td class="nowrap">4 次<br><span class="text-3 text-sm">07-30 短信</span></td>
+              <td class="nowrap"><span class="badge red">逾期未还</span></td>
+              <td class="col-ops">
+                <a class="link" onclick="openReturn('JC20260620008')">办理归还</a>
+                <a class="link text-danger fw-600" onclick="openUrge('JC20260620008',4)">催办</a>
+                <a class="link" onclick="openRenew('JC20260620008',0)">续借</a>
+              </td>
+            </tr>
+            <tr class="od-row">
+              <td class="nowrap fw-600 no-code">JC20260710004</td>
+              <td class="nowrap no-code">JY20260708018</td>
+              <td>
+                <div class="no-code">DA450202202200518</div>
+                <div class="text-3 text-sm">荣和公园大道3栋2单元602商品房买卖合同备案</div>
+              </td>
+              <td class="nowrap">韦**<br><span class="text-3 text-sm">广西同望律师事务所</span></td>
+              <td class="nowrap">2026-07-10</td>
+              <td class="nowrap">蒙丽华</td>
+              <td class="nowrap">2026-07-25</td>
+              <td class="nowrap"><span class="dd over"><i class="fa-solid fa-triangle-exclamation"></i> 逾期 7 天</span></td>
+              <td class="nowrap">1 次<br><span class="text-3 text-sm">上限 3 次</span></td>
+              <td class="nowrap">2 次<br><span class="text-3 text-sm">07-31 短信</span></td>
+              <td class="nowrap"><span class="badge red">逾期未还</span></td>
+              <td class="col-ops">
+                <a class="link" onclick="openReturn('JC20260710004')">办理归还</a>
+                <a class="link text-danger fw-600" onclick="openUrge('JC20260710004',2)">催办</a>
+                <a class="link" onclick="openRenew('JC20260710004',1)">续借</a>
+              </td>
+            </tr>
+            <tr class="nr-row">
+              <td class="nowrap fw-600 no-code">JC20260720012</td>
+              <td class="nowrap no-code">JY20260718006</td>
+              <td>
+                <div class="no-code">DA450204202400186</div>
+                <div class="text-3 text-sm">彰泰滨江学府8栋1单元1102存量房买卖合同网签备案</div>
+              </td>
+              <td class="nowrap">陈**<br><span class="text-3 text-sm">广西公证处柳州分部</span></td>
+              <td class="nowrap">2026-07-20</td>
+              <td class="nowrap">覃永明</td>
+              <td class="nowrap">2026-08-04</td>
+              <td class="nowrap"><span class="dd near"><i class="fa-regular fa-clock"></i> 剩余 3 天</span></td>
+              <td class="nowrap text-3">未续借</td>
+              <td class="nowrap">1 次<br><span class="text-3 text-sm">08-01 到期提醒</span></td>
+              <td class="nowrap"><span class="badge orange">已借出</span></td>
+              <td class="col-ops">
+                <a class="link" onclick="openReturn('JC20260720012')">办理归还</a>
+                <a class="link" onclick="openUrge('JC20260720012',1)">催办</a>
+                <a class="link" onclick="openRenew('JC20260720012',0)">续借</a>
+              </td>
+            </tr>
+            <tr class="nr-row">
+              <td class="nowrap fw-600 no-code">JC20260722018</td>
+              <td class="nowrap no-code">JY20260721014</td>
+              <td>
+                <div class="no-code">DA450206202300094</div>
+                <div class="text-3 text-sm">柳东新区花岭路6号A栋1808房屋租赁备案档案</div>
+              </td>
+              <td class="nowrap">李**<br><span class="text-3 text-sm">XXXX市不动产登记中心</span></td>
+              <td class="nowrap">2026-07-22</td>
+              <td class="nowrap">蒙丽华</td>
+              <td class="nowrap">2026-08-03</td>
+              <td class="nowrap"><span class="dd near"><i class="fa-regular fa-clock"></i> 剩余 2 天</span></td>
+              <td class="nowrap text-3">未续借</td>
+              <td class="nowrap">1 次<br><span class="text-3 text-sm">07-31 到期提醒</span></td>
+              <td class="nowrap"><span class="badge orange">已借出</span></td>
+              <td class="col-ops">
+                <a class="link" onclick="openReturn('JC20260722018')">办理归还</a>
+                <a class="link" onclick="openUrge('JC20260722018',1)">催办</a>
+                <a class="link" onclick="openRenew('JC20260722018',0)">续借</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600 no-code">JC20260726022</td>
+              <td class="nowrap no-code">JY20260725010</td>
+              <td>
+                <div class="no-code">DA450205201800386</div>
+                <div class="text-3 text-sm">白云路26号3单元502公有住房出售档案</div>
+              </td>
+              <td class="nowrap">黄**<br><span class="text-3 text-sm">XXXX市公安局柳南分局</span></td>
+              <td class="nowrap">2026-07-26</td>
+              <td class="nowrap">覃永明</td>
+              <td class="nowrap">2026-08-10</td>
+              <td class="nowrap"><span class="dd mid">剩余 9 天</span></td>
+              <td class="nowrap text-3">未续借</td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap"><span class="badge blue">已借出</span></td>
+              <td class="col-ops">
+                <a class="link" onclick="openReturn('JC20260726022')">办理归还</a>
+                <a class="link" onclick="openRenew('JC20260726022',0)">续借</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600 no-code">JC20260728026</td>
+              <td class="nowrap no-code">JY20260727004</td>
+              <td>
+                <div class="no-code">DA450202202100486</div>
+                <div class="text-3 text-sm">彰泰滨江学府12栋2单元1802商品房认购登记</div>
+              </td>
+              <td class="nowrap">覃**<br><span class="text-3 text-sm">XXXX市房产交易所 · 存量房科</span></td>
+              <td class="nowrap">2026-07-28</td>
+              <td class="nowrap">蒙丽华</td>
+              <td class="nowrap">2026-08-12</td>
+              <td class="nowrap"><span class="dd ok">剩余 11 天</span></td>
+              <td class="nowrap text-3">未续借</td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap"><span class="badge blue">已借出</span></td>
+              <td class="col-ops">
+                <a class="link" onclick="openReturn('JC20260728026')">办理归还</a>
+                <a class="link" onclick="openRenew('JC20260728026',0)">续借</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600 no-code">JC20260618002</td>
+              <td class="nowrap no-code">JY20260616008</td>
+              <td>
+                <div class="no-code">DA450202199900208</div>
+                <div class="text-3 text-sm">1999 年度公有住房出售档案（第三卷）</div>
+              </td>
+              <td class="nowrap">蒙**<br><span class="text-3 text-sm">受周** 委托</span></td>
+              <td class="nowrap">2026-06-18</td>
+              <td class="nowrap">覃永明</td>
+              <td class="nowrap">2026-07-03</td>
+              <td class="nowrap"><span class="dd ok">已归还</span></td>
+              <td class="nowrap text-3">未续借</td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap">
+                <span class="badge orange">已归还</span>
+                <div class="text-warning text-sm">归还时轻微破损</div>
+              </td>
+              <td class="col-ops">
+                <a class="link" onclick="openReturn('JC20260618002')">查看归还记录</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600 no-code">JC20260512014</td>
+              <td class="nowrap no-code">JY20260510022</td>
+              <td>
+                <div class="no-code">DA450202201200318</div>
+                <div class="text-3 text-sm">2012 年度存量房买卖合同备案档案（第五卷）</div>
+              </td>
+              <td class="nowrap">周**<br><span class="text-3 text-sm">权利人本人</span></td>
+              <td class="nowrap">2026-05-12</td>
+              <td class="nowrap">蒙丽华</td>
+              <td class="nowrap">2026-05-27</td>
+              <td class="nowrap"><span class="dd ok">已归还</span></td>
+              <td class="nowrap">2 次</td>
+              <td class="nowrap">1 次</td>
+              <td class="nowrap"><span class="badge gray">已归还</span></td>
+              <td class="col-ops">
+                <a class="link" onclick="openReturn('JC20260512014')">查看归还记录</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="text-3 text-sm mt-16">
+        <i class="fa-solid fa-circle-info"></i>
+        剩余天数样式：大于 7 天绿色、3 ~ 7 天蓝色、不超过 3 天橙色并带时钟图标、已逾期红色。归还状况异常的自动触发修复或赔偿流程。
+      </p>
+    </div>
+  </div>
+
+  <div class="drawer-mask"></div>
+  <div class="drawer drawer-xl" id="drReturn">
+    <div class="drawer-head">
+      <h3>归还办理</h3>
+      <span class="badge blue no-code" id="rtNo">JC20260620008</span>
+      <button type="button" class="close" onclick="PMS.closeDrawer('drReturn')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="drawer-body">
+
+      <div class="section-title">借出信息</div>
+      <dl class="desc-list">
+        <div class="desc-item"><dt>借出编号</dt><dd class="no-code">JC20260620008</dd></div>
+        <div class="desc-item"><dt>借阅申请编号</dt><dd class="no-code">JY20260618022</dd></div>
+        <div class="desc-item"><dt>借阅人</dt><dd>莫**　XXXX市中级人民法院　<span class="badge red">公检法</span></dd></div>
+        <div class="desc-item"><dt>联系电话</dt><dd>138****2618</dd></div>
+        <div class="desc-item span-2"><dt>借阅档案</dt><dd>
+          <span class="no-code">DA450202201900642</span> 桂中大道88号12栋1单元301房改房产权登记档案　<span class="text-3">等 3 卷</span>
+        </dd></div>
+        <div class="desc-item"><dt>借出时间</dt><dd>2026-06-20 10:26　办理人 覃永明</dd></div>
+        <div class="desc-item"><dt>应归还时间</dt><dd class="text-danger">2026-07-06（逾期 26 天）</dd></div>
+        <div class="desc-item"><dt>催办情况</dt><dd>已催办 4 次，最近 2026-07-30 短信</dd></div>
+        <div class="desc-item"><dt>登记库位</dt><dd class="no-code">KF01-J18-J2-C3-G6-H142　等 3 处</dd></div>
+      </dl>
+
+      <div class="section-title mt-16">借出前后状况对照</div>
+      <div class="cmp-grid">
+        <div class="cmp-col">
+          <div class="cmp-h"><i class="fa-solid fa-box-open text-3"></i> 借出前（2026-06-20 登记）</div>
+          <div class="cmp-b">
+            <div class="form-item">
+              <label>借出前状况</label>
+              <div class="form-static"><span class="badge green">完好</span></div>
+            </div>
+            <div class="form-item mt-16">
+              <label>状况描述</label>
+              <div class="text-2 text-sm" style="line-height:1.6">
+                卷皮完整无破损，装订线牢固；卷内 3 卷共 28 件 96 页，页号连续，无缺页；
+                第二卷第 6 件边角有历史折痕（借出前已存在，已拍照留证）。
+              </div>
+            </div>
+            <div class="form-item mt-16">
+              <label>借出前照片（3 张）</label>
+              <div class="ph-row">
+                <div class="doc-ph" onclick="PMS.toast('已放大查看借出前照片 1')">
+                  <div class="tl"></div><div class="ln"></div><div class="ln"></div><div class="ln s"></div>
+                  <div class="ln"></div><div class="ln s"></div><div class="seal"></div>
+                  <div class="cap">卷皮正面</div>
+                </div>
+                <div class="doc-ph" onclick="PMS.toast('已放大查看借出前照片 2')">
+                  <div class="tl"></div><div class="ln"></div><div class="ln s"></div><div class="ln"></div>
+                  <div class="ln"></div><div class="ln s"></div>
+                  <div class="cap">卷内首页</div>
+                </div>
+                <div class="doc-ph" onclick="PMS.toast('已放大查看借出前照片 3')">
+                  <div class="tl"></div><div class="ln"></div><div class="ln"></div><div class="ln s"></div>
+                  <div class="seal"></div>
+                  <div class="cap">折痕处特写</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cmp-col now">
+          <div class="cmp-h"><i class="fa-solid fa-rotate-left"></i> 归还时（本次登记）</div>
+          <div class="cmp-b">
+            <div class="form-item">
+              <label>归还时状况<span class="req">*</span></label>
+              <div class="zk-row">
+                <div class="zk on" onclick="pickZk(this,'wh')"><i class="fa-solid fa-circle-check"></i> 完好</div>
+                <div class="zk mid" onclick="pickZk(this,'qw')"><i class="fa-solid fa-bandage"></i> 轻微破损</div>
+                <div class="zk mid" onclick="pickZk(this,'yz')"><i class="fa-solid fa-triangle-exclamation"></i> 严重破损</div>
+                <div class="zk mid" onclick="pickZk(this,'qy')"><i class="fa-solid fa-file-circle-xmark"></i> 缺页</div>
+                <div class="zk bad" onclick="pickZk(this,'ds')"><i class="fa-solid fa-circle-xmark"></i> 丢失</div>
+              </div>
+            </div>
+            <div class="form-item mt-16">
+              <label>状况描述</label>
+              <textarea rows="3" id="ghDesc">卷皮完整，装订线牢固，卷内 3 卷共 28 件 96 页齐全，页号连续无缺页；与借出前状况一致。</textarea>
+            </div>
+            <div class="form-item mt-16">
+              <label>归还时照片<span class="req">*</span></label>
+              <div class="ph-row">
+                <div class="doc-ph" onclick="PMS.toast('已放大查看归还照片 1')">
+                  <div class="tl"></div><div class="ln"></div><div class="ln"></div><div class="ln s"></div>
+                  <div class="ln"></div><div class="ln s"></div><div class="seal"></div>
+                  <div class="cap">卷皮正面</div>
+                </div>
+                <div class="doc-ph" onclick="PMS.toast('已放大查看归还照片 2')">
+                  <div class="tl"></div><div class="ln"></div><div class="ln s"></div><div class="ln"></div>
+                  <div class="ln"></div><div class="ln s"></div>
+                  <div class="cap">卷内首页</div>
+                </div>
+                <div class="doc-ph add" id="phAdd" onclick="addPhoto()">
+                  <i class="fa-solid fa-camera"></i><span>拍照留证</span>
+                </div>
+              </div>
+              <span class="hint">纸质档案借出与归还均须登记状况并拍照留证，照片存入 wssvc 文件服务</span>
+            </div>
+            <div class="form-item mt-16">
+              <label>归还办理人</label>
+              <input type="text" value="韦国强">
+            </div>
+            <div class="form-item mt-16">
+              <label>实际归还时间</label>
+              <input type="datetime-local" value="2026-08-01T19:16">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="ycBox" style="display:none">
+        <div class="section-title mt-16">异常处理</div>
+        <div class="alert alert-warning" id="ycAlert">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div id="ycAlertTxt">归还状况异常，须填写异常情况说明并选择处理措施，处理完成前档案不恢复「已归档在库」状态。</div>
+        </div>
+        <div class="form-grid form-align">
+          <div class="form-item col-full">
+            <label>异常情况说明<span class="req">*</span></label>
+            <textarea rows="3" placeholder="描述破损部位、程度、可能原因等"></textarea>
+          </div>
+          <div class="form-item">
+            <label>处理措施<span class="req">*</span></label>
+            <select id="ycFix">
+              <option>修复</option><option>数字化后封存</option><option>更换卷盒</option><option>赔偿</option><option>报损</option>
+            </select>
+          </div>
+          <div class="form-item">
+            <label>责任认定</label>
+            <select><option>借阅人责任</option><option>档案原有状况</option><option>责任待认定</option></select>
+          </div>
+          <div class="form-item col-full">
+            <label>责任认定说明</label>
+            <textarea rows="2" placeholder="填写责任认定依据与后续处理要求"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert alert-info mt-16">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>
+          归还入库后，档案状态恢复为「已归档在库」，库位
+          <b class="no-code">KF01-J18-J2-C3-G6-H142</b> 等 3 处恢复占用；本次归还写入档案流转时间轴与利用记录。
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" onclick="PMS.closeDrawer('drReturn')">取消</button>
+      <button type="button" class="btn" onclick="PMS.toast('已打印归还回执','success')"><i class="fa-solid fa-print"></i> 打印归还回执</button>
+      <button type="button" class="btn btn-primary" onclick="doReturn()"><i class="fa-solid fa-check"></i> 确认归还入库</button>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="mdUrge">
+    <div class="modal modal-sm">
+      <div class="modal-head">
+        <h3>逾期催办</h3>
+        <button type="button" class="close" onclick="PMS.closeModal('mdUrge')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>借出编号 <b class="no-code" id="urgeNo">JC20260620008</b> 已逾期 26 天，已催办 <b id="urgeCnt">4</b> 次。逾期后每 3 天催办一次。</div>
+        </div>
+        <div class="form-grid form-align">
+          <div class="form-item col-full">
+            <label>借阅人联系方式</label>
+            <div class="form-static">莫**　XXXX市中级人民法院　138****2618　liuzhou-court@example.gov.cn</div>
+          </div>
+          <div class="form-item col-full">
+            <label>催办方式<span class="req">*</span></label>
+            <div class="zk-row">
+              <div class="zk on" onclick="this.classList.toggle('on')"><i class="fa-solid fa-comment-sms"></i> 短信</div>
+              <div class="zk" onclick="this.classList.toggle('on')"><i class="fa-solid fa-phone"></i> 电话</div>
+              <div class="zk on" onclick="this.classList.toggle('on')"><i class="fa-solid fa-envelope"></i> 公函</div>
+            </div>
+          </div>
+          <div class="form-item col-full">
+            <label>催办内容</label>
+            <textarea rows="4">莫**同志：您于 2026-06-20 借出的房产档案 DA450202201900642 等 3 卷，应归还日期为 2026-07-06，现已逾期 26 天。请于 3 个工作日内到XXXX市房产交易所档案室办理归还手续。逾期未还的，将暂停后续借阅资格并按规定报送。联系电话 0772-2861086。</textarea>
+            <span class="hint">模板自动生成，可编辑后发送</span>
+          </div>
+        </div>
+        <div class="section-title mt-16">催办历史</div>
+        <div class="cb-log">
+          <div class="r"><span class="t">2026-07-03</span><span class="w">短信</span><span>到期前 3 天自动提醒，已送达</span></div>
+          <div class="r"><span class="t">2026-07-09</span><span class="w">短信</span><span>逾期首次催办，已送达</span></div>
+          <div class="r"><span class="t">2026-07-16</span><span class="w">电话</span><span>联系案件承办人莫**，答复案件在审需继续使用</span></div>
+          <div class="r"><span class="t">2026-07-30</span><span class="w">公函</span><span>柳房交档函〔2026〕第 026 号，已寄出</span></div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="PMS.closeModal('mdUrge')">取消</button>
+        <button type="button" class="btn btn-primary" onclick="PMS.closeModal('mdUrge');PMS.toast('催办已发送（短信 + 公函），催办次数更新为 5 次','success')"><i class="fa-solid fa-paper-plane"></i> 发送催办</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="mdRenew">
+    <div class="modal modal-sm">
+      <div class="modal-head">
+        <h3>续借办理</h3>
+        <button type="button" class="close" onclick="PMS.closeModal('mdRenew')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>本次为第 <b id="rnTimes">1</b> 次续借，续借上限 3 次；续借须经审批，审批通过后应归还时间自动顺延。</div>
+        </div>
+        <div class="form-grid form-align">
+          <div class="form-item">
+            <label>借出编号</label>
+            <input type="text" class="no-code" id="rnNo" value="JC20260620008" readonly>
+          </div>
+          <div class="form-item">
+            <label>当前应归还时间</label>
+            <input type="text" value="2026-07-06" readonly>
+          </div>
+          <div class="form-item">
+            <label>续借至<span class="req">*</span></label>
+            <input type="date" value="2026-08-16">
+          </div>
+          <div class="form-item">
+            <label>续借天数</label>
+            <div class="form-static">15 天（默认延长 15 天）</div>
+          </div>
+          <div class="form-item col-full">
+            <label>续借理由<span class="req">*</span></label>
+            <textarea rows="3" placeholder="填写续借理由，不少于 20 字">案件（2026）桂 02 民终 286 号仍在二审审理中，档案原件需继续用于举证质证，申请延长借阅期限至 2026-08-16。</textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="PMS.closeModal('mdRenew')">取消</button>
+        <button type="button" class="btn btn-primary" onclick="PMS.closeModal('mdRenew');PMS.toast('续借申请已提交审批，审批通过后应归还时间顺延至 2026-08-16','success')">提交审批</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function openReturn(no) {
+  document.getElementById('rtNo').textContent = no;
+  PMS.openDrawer('drReturn');
+}
+function openUrge(no, cnt) {
+  document.getElementById('urgeNo').textContent = no;
+  document.getElementById('urgeCnt').textContent = cnt;
+  PMS.openModal('mdUrge');
+}
+function openRenew(no, times) {
+  document.getElementById('rnNo').value = no;
+  document.getElementById('rnTimes').textContent = times + 1;
+  if (times >= 3) { PMS.toast('该借出已达续借上限 3 次，不能再续借', 'error'); return; }
+  PMS.openModal('mdRenew');
+}
+var curZk = 'wh';
+function pickZk(el, k) {
+  el.parentNode.querySelectorAll('.zk').forEach(function (z) { z.classList.remove('on'); });
+  el.classList.add('on');
+  curZk = k;
+  var box = document.getElementById('ycBox');
+  var alt = document.getElementById('ycAlert');
+  var txt = document.getElementById('ycAlertTxt');
+  var fix = document.getElementById('ycFix');
+  var desc = document.getElementById('ghDesc');
+  box.style.display = (k === 'wh') ? 'none' : '';
+  if (k === 'wh') {
+    desc.value = '卷皮完整，装订线牢固，卷内 3 卷共 28 件 96 页齐全，页号连续无缺页；与借出前状况一致。';
+    return;
+  }
+  alt.className = 'alert alert-warning';
+  if (k === 'qw') {
+    desc.value = '第二卷卷皮右下角轻微磨损，卷内材料齐全无缺页。';
+    txt.textContent = '归还状况为「轻微破损」，须填写异常情况说明并选择处理措施，建议登记修复或更换卷盒。';
+    fix.value = '更换卷盒';
+  } else if (k === 'yz') {
+    desc.value = '第二卷卷皮撕裂约 8 厘米，装订线断裂，内页散落。';
+    txt.textContent = '归还状况为「严重破损」，须填写异常情况说明并选择处理措施，建议数字化后封存并做责任认定。';
+    fix.value = '数字化后封存';
+  } else if (k === 'qy') {
+    desc.value = '第二卷第 6 件缺第 18 ~ 19 页，页号不连续。';
+    txt.textContent = '归还状况为「缺页」，须逐页核对卷内文件并填写缺页明细，同时启动责任认定。';
+    fix.value = '修复';
+  } else if (k === 'ds') {
+    desc.value = '第三卷整卷未随同归还，借阅人称已遗失。';
+    alt.className = 'alert alert-danger';
+    txt.innerHTML = '<b>档案丢失将启动追责与补救流程，该卷档案状态将置为「缺失」并在一房一档中标注。</b>须完成赔偿或补救措施登记，并报档案审核人审批。';
+    fix.value = '赔偿';
+    PMS.confirm({
+      title: '登记为档案丢失',
+      type: 'danger',
+      message: '登记丢失后，该卷档案状态将置为「缺失」，并启动追责与补救流程，操作不可撤销。确认继续？',
+      detail: 'JC20260620008 · 第三卷 · 借阅人 莫** · XXXX市中级人民法院',
+      okText: '确认登记丢失',
+      onOk: function () { PMS.toast('已登记档案丢失，已推送档案审核人审批', 'warning'); }
+    });
+  }
+}
+function addPhoto() {
+  var add = document.getElementById('phAdd');
+  var el = document.createElement('div');
+  el.className = 'doc-ph';
+  el.onclick = function () { PMS.toast('已放大查看归还照片'); };
+  el.innerHTML = '<div class="tl"></div><div class="ln"></div><div class="ln s"></div><div class="ln"></div>' +
+    '<div class="ln"></div><div class="seal"></div><div class="cap">补拍 ' +
+    (document.querySelectorAll('.cmp-col.now .doc-ph').length) + '</div>';
+  add.parentNode.insertBefore(el, add);
+  PMS.toast('已拍照留证', 'success');
+}
+function doReturn() {
+  if (curZk === 'wh') {
+    PMS.toast('归还入库完成：档案状态恢复为「已归档在库」，3 处库位恢复占用', 'success');
+  } else if (curZk === 'ds') {
+    PMS.toast('已登记丢失并转入追责与补救流程，档案状态置为「缺失」', 'error');
+  } else {
+    PMS.toast('归还已登记，异常处理任务已生成并转交对应处理岗', 'warning');
+  }
+  PMS.closeDrawer('drReturn');
+}
+(function () {
+  PMS.renderPager(document.getElementById('tblJc'), {
+    pageNum: 1, pageSize: 10, total: 186,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+  var no = new URLSearchParams(location.search).get('no');
+  if (no) openReturn(no);
+})();
+</script>
+</body>
+</html>

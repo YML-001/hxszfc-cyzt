@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>模型版本管理 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="pt" data-active="model-library">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>模型底座</span>
+      <span class="sep">/</span><span>模型管理</span>
+      <span class="sep">/</span><span class="cur">模型版本管理</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-microchip"></i>模型管理 wsai-02</span>
+    <a href="model-library.html?role=pt">算法模型库</a>
+    <a href="model-deploy.html?role=pt">本地化部署</a>
+    <a class="active" href="model-version.html?role=pt">版本管理</a>
+    <a href="model-eval.html?role=pt">效果评估</a>
+    <a href="compute-resource.html?role=pt">算力纳管</a>
+    <a href="agent-orchestrate.html?role=pt">智能体编排</a>
+    <a href="upstream-model.html?role=pt">上级模型复用</a>
+    <a href="corpus-manage.html?role=pt">行业语料</a>
+  </div>
+
+  <div class="card list-card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>模型</label>
+        <select id="fModel" onchange="AI.paint('tVer')"><option value="">全部模型</option></select>
+      </div>
+      <div class="filter-item">
+        <label>版本状态</label>
+        <select id="fZt" data-dict="mxzt" onchange="AI.paint('tVer')"></select>
+      </div>
+      <div class="filter-item">
+        <label>灰度比例</label>
+        <input type="number" id="fGray" min="1" max="99" placeholder="1~99" style="width:190px">
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-primary" onclick="AI.paint('tVer')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button class="btn" onclick="resetFilter()"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tVer" data-static>
+        <thead><tr>
+          <th>模型名称</th><th>版本</th><th>状态</th><th class="num">准确率</th>
+          <th>调用权限</th><th class="cell-lg">版本说明</th><th>操作人</th><th>发布时间</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var ROLE_NAME = { pt: 'AI 平台管理员', jb: '业务经办人', fx: '监管分析人员' };
+
+  function fillModels() {
+    var sel = document.getElementById('fModel');
+    if (sel.options.length > 1) return;
+    AI.get('models').forEach(function (m) {
+      var op = document.createElement('option');
+      op.value = m.id; op.textContent = m.mc;
+      sel.appendChild(op);
+    });
+    /* 从模型库带 ?model= 进来时自动选中 */
+    var pre = AI.param('model');
+    if (pre) sel.value = pre;
+  }
+
+  window.resetFilter = function () {
+    document.getElementById('fModel').value = '';
+    document.getElementById('fZt').value = '';
+    document.getElementById('fGray').value = '';
+    AI.paint('tVer');
+  };
+
+  AI.table({
+    id: 'tVer', pageSize: 20,
+    rows: function () {
+      var mo = document.getElementById('fModel').value;
+      var zt = document.getElementById('fZt').value;
+      return AI.where('versions', function (v) {
+        if (mo && v.modelId !== mo) return false;
+        if (zt && v.mxzt !== zt) return false;
+        return true;
+      }).sort(function (a, b) { return b.releaseAt - a.releaseAt; });
+    },
+    cells: function (v) {
+      var m = AI.byId('models', v.modelId);
+      var isCur = m && m.ver === v.ver;
+      return [
+        '<td>' + AI.esc(v.mxmc) + '</td>',
+        '<td>' + AI.esc(v.ver) + (isCur ? ' <span class="badge blue">当前版本</span>' : '') + '</td>',
+        '<td>' + AI.mxBadge(v.mxzt) + (v.grayPct ? '<div class="text-3 text-sm">灰度 ' + v.grayPct + '%</div>' : '') + '</td>',
+        '<td class="num">' + v.acc + '%</td>',
+        '<td>' + (v.perm || []).map(function (r) {
+          return '<span class="badge gray">' + (ROLE_NAME[r] || r) + '</span>';
+        }).join(' ') + '</td>',
+        '<td class="cell-lg">' + AI.esc(v.note) +
+          (v.rollbackFrom ? ' <span class="badge orange">自 ' + AI.esc(v.rollbackFrom) + ' 回滚</span>' : '') + '</td>',
+        '<td>' + AI.esc(v.operator) + '</td>',
+        '<td>' + AI.fmt.time(v.releaseAt) + '</td>',
+        '<td class="col-ops">' +
+          (isCur
+            ? (m.mxzt === '2'
+                ? '<button class="btn btn-primary btn-sm" onclick="AI.act.releaseVer(\'' + m.id + '\')">' +
+                  '<i class="fa-solid fa-circle-up"></i> 转全量</button>'
+                : '<button class="btn btn-sm" onclick="doGray(\'' + m.id + '\')"><i class="fa-solid fa-code-branch"></i> 转灰度</button>')
+            : '<button class="btn btn-sm" onclick="AI.act.rollbackVer(\'' + v.id + '\')">' +
+              '<i class="fa-solid fa-rotate-left"></i> 回滚到此版本</button>') +
+        '</td>'
+      ];
+    },
+    empty: '没有符合条件的版本记录'
+  });
+
+  window.doGray = function (modelId) {
+    var pct = document.getElementById('fGray').value;
+    if (!pct) {
+      AI.toast('请先在上方「灰度比例」填写 1~99 的数值，再点转灰度', 'error');
+      document.getElementById('fGray').focus();
+      return;
+    }
+    AI.act.grayVer(modelId, pct);
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    fillModels();
+    AI.on(function () { AI.repaintAll(); });
+  });
+})();
+</script>
+</body>
+</html>

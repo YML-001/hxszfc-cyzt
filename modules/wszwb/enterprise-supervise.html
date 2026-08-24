@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>租赁企业门店与人员监管 · 房屋租赁网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：信用等级堆叠条、企业画像卡、双随机抽取结果 */
+  .credit-bar { display: flex; height: 34px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+  .credit-bar .cb-seg {
+    display: flex; align-items: center; justify-content: center; color: #fff;
+    font-size: 12.5px; font-weight: 600; cursor: pointer; transition: filter .15s;
+  }
+  .credit-bar .cb-seg:hover { filter: brightness(1.08); }
+  .credit-legend { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 10px; font-size: 12.5px; color: var(--text-2); }
+  .credit-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 6px; }
+
+  .profile-card { border: 1px solid var(--border); border-radius: var(--radius); background: #fff; }
+  .profile-card > .pc-head {
+    padding: 11px 14px; border-bottom: 1px solid var(--border); font-size: 13.5px; font-weight: 600;
+    display: flex; align-items: center; gap: 8px; background: #fafbfd;
+  }
+  .profile-card > .pc-head .pc-more { margin-left: auto; font-size: 12.5px; font-weight: 400; }
+  .profile-card > .pc-body { padding: 14px; }
+
+  .gauge {
+    width: 128px; height: 128px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: conic-gradient(var(--warning) 0 76%, #eef1f6 76% 100%);
+  }
+  .gauge .g-hole {
+    width: 92px; height: 92px; border-radius: 50%; background: #fff;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .line-mini { display: flex; align-items: flex-end; gap: 10px; height: 96px; }
+  .line-mini .lm-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; height: 100%; justify-content: flex-end; }
+  .line-mini .lm-bar { width: 100%; max-width: 22px; border-radius: 4px 4px 0 0; background: var(--primary); }
+  .line-mini .lm-bar.b2 { background: var(--success); }
+  .line-mini .lm-pair { display: flex; gap: 3px; align-items: flex-end; width: 100%; justify-content: center; height: 100%; }
+  .line-mini .lm-label { font-size: 11.5px; color: var(--text-3); }
+
+  .acct-row {
+    display: flex; align-items: center; gap: 10px; padding: 9px 0;
+    border-bottom: 1px dashed var(--row-line); font-size: 13px;
+  }
+  .acct-row:last-child { border-bottom: none; }
+  .pick-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; font-size: 13px;
+  }
+  .pick-item .pi-no {
+    width: 22px; height: 22px; border-radius: 50%; background: var(--primary-light); color: var(--primary);
+    font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .check-group { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 16px; }
+  .check-group .check { display: flex; align-items: center; gap: 8px; font-size: 13.5px; cursor: pointer; }
+  .data-table tbody tr.is-warn > td { background: #fff8ed; }
+  .data-table tbody tr.is-warn:hover > td { background: #fdf0d9; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wszwb-05">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋租赁网签备案管理系统
+        <span class="sep">/</span> 租赁主体监管
+        <span class="sep">/</span> <span class="cur">企业门店与人员监管</span>
+      </div>
+      <div class="page-title">租赁企业门店与人员监管</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" data-open-drawer="drCheck"><i class="fa-solid fa-clipboard-check"></i> 发起检查</button>
+      <button type="button" class="btn" data-open-drawer="drRandom"><i class="fa-solid fa-shuffle"></i> 双随机抽取</button>
+      <a class="btn" href="enterprise-report.html"><i class="fa-solid fa-file-lines"></i> 开业报告</a>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《租赁企业监管台账》Excel','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-building"></i></div>
+      <div><div class="s-label">在营企业</div><div class="s-value">68</div><div class="s-trend text-3">家</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-store"></i></div>
+      <div><div class="s-label">备案门店</div><div class="s-value">214</div><div class="s-trend text-3">家</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-id-badge"></i></div>
+      <div><div class="s-label">持证经纪人</div><div class="s-value">1,286</div><div class="s-trend text-3">人</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-magnifying-glass-chart"></i></div>
+      <div><div class="s-label">本月检查</div><div class="s-value">96</div><div class="s-trend text-3">次</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-screwdriver-wrench"></i></div>
+      <div><div class="s-label">整改中</div><div class="s-value">18</div><div class="s-trend text-danger">含逾期未整改 3 项</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      整改逾期未反馈的自动升级为「逾期未整改」并推送预警；检查与处罚结果挂接从业主体信用档案并扣分，
+      黑名单主体在签约、发布、备案环节强制拦截。
+    </div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="list">企业名录</div>
+      <div class="tab" data-tab="profile">企业画像</div>
+      <div class="tab" data-tab="credit">信用等级分布</div>
+    </div>
+
+    <div class="tab-panel" data-panel="credit">
+      <div class="table-wrap">
+        <div class="section-title">共 68 家在营企业，黑名单主体在签约、发布、备案环节强制拦截</div>
+        <div class="credit-bar">
+        <div class="cb-seg" style="width:17.6%;background:#15a15a" onclick="PMS.toast('已按「A 级」筛选，共 12 家')">A 级 12</div>
+        <div class="cb-seg" style="width:50.0%;background:#2656bb" onclick="PMS.toast('已按「B 级」筛选，共 34 家')">B 级 34</div>
+        <div class="cb-seg" style="width:23.5%;background:#e08a1e" onclick="PMS.toast('已按「C 级」筛选，共 16 家')">C 级 16</div>
+        <div class="cb-seg" style="width:5.9%;background:#d64545" onclick="PMS.toast('已按「D 级」筛选，共 4 家')">D 4</div>
+        <div class="cb-seg" style="width:3.0%;background:#3f3f46" onclick="PMS.toast('已按「黑名单」筛选，共 2 家')">2</div>
+      </div>
+      <div class="credit-legend">
+        <span><i style="background:#15a15a"></i>A 级 12 家（守信激励）</span>
+        <span><i style="background:#2656bb"></i>B 级 34 家（正常经营）</span>
+        <span><i style="background:#e08a1e"></i>C 级 16 家（重点关注）</span>
+        <span><i style="background:#d64545"></i>D 级 4 家（列入检查重点）</span>
+        <span><i style="background:#3f3f46"></i>黑名单 2 家（业务强制拦截）</span>
+        </div>
+        <div class="alert alert-info mt-16">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>
+            信用分实行百分制，年度基准分 100 分：发布未核验房源每套扣 4 分，监管账户留存不足单次扣 15 分，
+            经查实的租赁纠纷每件扣 2 分，合同备案超 30 日未办理每 10 份扣 1 分。
+            60 分以下评为 D 级并列入检查重点，两次评为 D 级或存在骗取补贴、恶意侵占租金等情形的列入黑名单。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel active" data-panel="list">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>关键词</label>
+        <input type="text" placeholder="企业名称 / 统一社会信用代码 / 门店名称">
+      </div>
+      <div class="filter-item">
+        <label>企业类型</label>
+        <select>
+          <option value="">全部</option>
+          <option>住房租赁企业</option><option>房地产经纪机构</option><option>物业服务企业</option>
+          <option>政府平台公司</option><option>产业园区运营方</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>经营状态</label>
+        <select><option value="">全部</option><option>正常经营</option><option>暂停经营</option><option>责令整改</option><option>已注销</option></select>
+      </div>
+      <div class="filter-item">
+        <label>信用等级</label>
+        <select><option value="">全部</option><option>A 级</option><option>B 级</option><option>C 级</option><option>D 级</option><option>黑名单</option></select>
+      </div>
+      <div class="filter-item">
+        <label>是否开立监管账户</label>
+        <select><option value="">全部</option><option>是</option><option>否</option></select>
+      </div>
+      <div class="filter-item">
+        <label>管理房源套数</label>
+        <input type="text" placeholder="如 500-5000">
+      </div>
+      <div class="filter-item">
+        <label>最近检查时间起</label>
+        <input type="date" value="2026-01-01">
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 68 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblQy" data-static>
+        <thead>
+          <tr>
+            <th>企业编号</th>
+            <th>企业名称</th>
+            <th>企业类型</th>
+            <th>法定代表人</th>
+            <th class="num">门店数</th>
+            <th class="num">从业人员</th>
+            <th class="num">持证经纪人</th>
+            <th class="num">管理房源(套)</th>
+            <th class="num">备案合同(份)</th>
+            <th>监管账户</th>
+            <th>信用等级</th>
+            <th class="num">信用分</th>
+            <th>经营状态</th>
+            <th>最近检查</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="clickable" onclick="showProfile('anyu')">
+            <td class="nowrap fw-600">ZLQY45020000021</td>
+            <td class="cell-lg">柳州安寓住房租赁有限公司</td>
+            <td class="nowrap">住房租赁企业</td>
+            <td class="nowrap">吴某某</td>
+            <td class="num">14</td>
+            <td class="num">186</td>
+            <td class="num">96</td>
+            <td class="num">6,428</td>
+            <td class="num">5,914</td>
+            <td class="nowrap"><span class="badge green">已开立 2 户</span></td>
+            <td class="nowrap"><span class="badge green">A 级</span></td>
+            <td class="num">96</td>
+            <td class="nowrap"><span class="badge green">正常经营</span></td>
+            <td class="nowrap">2026-06-18</td>
+            <td class="col-ops">
+              <span class="link" onclick="event.stopPropagation();showProfile('anyu')">企业画像</span>
+              <a class="link" href="fund-custody.html">监管账户</a>
+            </td>
+          </tr>
+          <tr class="clickable is-warn" onclick="showProfile('yujia')">
+            <td class="nowrap fw-600">ZLQY45020000038</td>
+            <td class="cell-lg">柳州寓家公寓管理有限公司</td>
+            <td class="nowrap">住房租赁企业</td>
+            <td class="nowrap">龙某某</td>
+            <td class="num">9</td>
+            <td class="num">124</td>
+            <td class="num">52</td>
+            <td class="num">3,286</td>
+            <td class="num">2,914</td>
+            <td class="nowrap"><span class="badge red">留存不足</span></td>
+            <td class="nowrap"><span class="badge red">D 级</span></td>
+            <td class="num">62</td>
+            <td class="nowrap"><span class="badge orange">责令整改</span></td>
+            <td class="nowrap">2026-07-28</td>
+            <td class="col-ops">
+              <span class="link" onclick="event.stopPropagation();showProfile('yujia')">企业画像</span>
+              <a class="link" href="fund-custody.html">风险监测</a>
+              <a class="link" href="violation-ledger.html">违规台账</a>
+            </td>
+          </tr>
+          <tr class="clickable" onclick="showProfile('anyu')">
+            <td class="nowrap fw-600">ZLQY45020000012</td>
+            <td class="cell-lg">XXXX市住房租赁发展集团有限公司</td>
+            <td class="nowrap">政府平台公司</td>
+            <td class="nowrap">韦某某</td>
+            <td class="num">6</td>
+            <td class="num">98</td>
+            <td class="num">34</td>
+            <td class="num">7,986</td>
+            <td class="num">6,412</td>
+            <td class="nowrap"><span class="badge green">已开立 3 户</span></td>
+            <td class="nowrap"><span class="badge green">A 级</span></td>
+            <td class="num">98</td>
+            <td class="nowrap"><span class="badge green">正常经营</span></td>
+            <td class="nowrap">2026-05-22</td>
+            <td class="col-ops">
+              <span class="link" onclick="event.stopPropagation();showProfile('anyu')">企业画像</span>
+              <a class="link" href="affordable-housing.html">保租房房源</a>
+            </td>
+          </tr>
+          <tr class="clickable" onclick="showProfile('anyu')">
+            <td class="nowrap fw-600">ZLQY45020000047</td>
+            <td class="cell-lg">XXXX市和居住房租赁服务有限公司</td>
+            <td class="nowrap">住房租赁企业</td>
+            <td class="nowrap">石某某</td>
+            <td class="num">5</td>
+            <td class="num">64</td>
+            <td class="num">28</td>
+            <td class="num">1,842</td>
+            <td class="num">1,486</td>
+            <td class="nowrap"><span class="badge green">已开立 1 户</span></td>
+            <td class="nowrap"><span class="badge blue">B 级</span></td>
+            <td class="num">84</td>
+            <td class="nowrap"><span class="badge green">正常经营</span></td>
+            <td class="nowrap">2026-07-11</td>
+            <td class="col-ops">
+              <span class="link" onclick="event.stopPropagation();showProfile('anyu')">企业画像</span>
+              <a class="link" href="enterprise-report.html">开业报告</a>
+            </td>
+          </tr>
+          <tr class="clickable" onclick="showProfile('anyu')">
+            <td class="nowrap fw-600">ZLQY45020000055</td>
+            <td class="cell-lg">柳州龙城人才公寓运营管理有限公司</td>
+            <td class="nowrap">政府平台公司</td>
+            <td class="nowrap">梁某某</td>
+            <td class="num">3</td>
+            <td class="num">42</td>
+            <td class="num">16</td>
+            <td class="num">1,268</td>
+            <td class="num">1,124</td>
+            <td class="nowrap"><span class="badge green">已开立 1 户</span></td>
+            <td class="nowrap"><span class="badge green">A 级</span></td>
+            <td class="num">94</td>
+            <td class="nowrap"><span class="badge green">正常经营</span></td>
+            <td class="nowrap">2026-04-09</td>
+            <td class="col-ops">
+              <span class="link" onclick="event.stopPropagation();showProfile('anyu')">企业画像</span>
+              <a class="link" href="fund-custody.html">监管账户</a>
+            </td>
+          </tr>
+          <tr class="clickable" onclick="showProfile('anyu')">
+            <td class="nowrap fw-600">ZLQY45020000063</td>
+            <td class="cell-lg">XXXX市桂中房产经纪有限公司</td>
+            <td class="nowrap">房地产经纪机构</td>
+            <td class="nowrap">卢某某</td>
+            <td class="num">22</td>
+            <td class="num">248</td>
+            <td class="num">164</td>
+            <td class="num">4,126</td>
+            <td class="num">3,286</td>
+            <td class="nowrap"><span class="badge gray">不适用</span></td>
+            <td class="nowrap"><span class="badge orange">C 级</span></td>
+            <td class="num">73</td>
+            <td class="nowrap"><span class="badge green">正常经营</span></td>
+            <td class="nowrap">2026-07-30</td>
+            <td class="col-ops">
+              <span class="link" onclick="event.stopPropagation();showProfile('anyu')">企业画像</span>
+              <a class="link" href="publisher-verify.html">虚假房源</a>
+            </td>
+          </tr>
+          <tr class="clickable" onclick="showProfile('yujia')">
+            <td class="nowrap fw-600">ZLQY45020000071</td>
+            <td class="cell-lg">XXXX市万家优租资产管理有限公司</td>
+            <td class="nowrap">住房租赁企业</td>
+            <td class="nowrap">谭某某</td>
+            <td class="num">4</td>
+            <td class="num">36</td>
+            <td class="num">12</td>
+            <td class="num">846</td>
+            <td class="num">512</td>
+            <td class="nowrap"><span class="badge red">留存不足</span></td>
+            <td class="nowrap"><span class="badge gray">黑名单</span></td>
+            <td class="num">38</td>
+            <td class="nowrap"><span class="badge red">暂停经营</span></td>
+            <td class="nowrap">2026-07-24</td>
+            <td class="col-ops">
+              <span class="link" onclick="event.stopPropagation();showProfile('yujia')">企业画像</span>
+              <a class="link" href="violation-ledger.html">违规台账</a>
+            </td>
+          </tr>
+          <tr class="clickable" onclick="showProfile('anyu')">
+            <td class="nowrap fw-600">ZLQY45020000082</td>
+            <td class="cell-lg">XXXX市宜居公寓管理有限公司</td>
+            <td class="nowrap">住房租赁企业</td>
+            <td class="nowrap">陆某某</td>
+            <td class="num">7</td>
+            <td class="num">88</td>
+            <td class="num">36</td>
+            <td class="num">2,264</td>
+            <td class="num">1,986</td>
+            <td class="nowrap"><span class="badge green">已开立 2 户</span></td>
+            <td class="nowrap"><span class="badge blue">B 级</span></td>
+            <td class="num">81</td>
+            <td class="nowrap"><span class="badge green">正常经营</span></td>
+            <td class="nowrap">2026-06-30</td>
+            <td class="col-ops">
+              <span class="link" onclick="event.stopPropagation();showProfile('anyu')">企业画像</span>
+              <a class="link" href="fund-custody.html">监管账户</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    </div>
+
+    <!-- 企业画像 -->
+    <div class="tab-panel" data-panel="profile" id="profile">
+      <div class="table-wrap">
+        <div class="section-title">
+          企业画像 · <span id="pfName">柳州寓家公寓管理有限公司</span>
+          <span class="text-3 text-sm">（在「企业名录」中点击任一行可切换画像对象）</span>
+        </div>
+
+      <div class="grid-2">
+        <div class="profile-card">
+          <div class="pc-head"><i class="fa-solid fa-circle-info" style="color:var(--primary)"></i> 基本信息</div>
+          <div class="pc-body">
+            <dl class="desc-list">
+              <div class="desc-item full"><dt>企业名称</dt><dd class="fw-600" id="pfName2">柳州寓家公寓管理有限公司</dd></div>
+              <div class="desc-item"><dt>企业编号</dt><dd id="pfNo">ZLQY45020000038</dd></div>
+              <div class="desc-item"><dt>统一社会信用代码</dt><dd>91450200MA5PX8****3K</dd></div>
+              <div class="desc-item"><dt>企业类型</dt><dd>住房租赁企业</dd></div>
+              <div class="desc-item"><dt>法定代表人</dt><dd>龙某某（4502**********0316）</dd></div>
+              <div class="desc-item"><dt>联系电话</dt><dd>0772-38****6</dd></div>
+              <div class="desc-item"><dt>注册资本</dt><dd>1,000 万元</dd></div>
+              <div class="desc-item"><dt>成立日期</dt><dd>2019-04-16</dd></div>
+              <div class="desc-item"><dt>开业报告编号</dt><dd>KYBG450200202100128</dd></div>
+              <div class="desc-item full"><dt>注册地址</dt><dd>柳州市柳北区跃进路 33 号桂中商务中心 A 座 18 层</dd></div>
+              <div class="desc-item full"><dt>经营范围</dt><dd>住房租赁经营；房屋租赁；物业管理；企业管理咨询；房地产经纪（依法须经批准的项目，经相关部门批准后方可开展经营活动）</dd></div>
+            </dl>
+          </div>
+        </div>
+
+        <div class="profile-card">
+          <div class="pc-head">
+            <i class="fa-solid fa-chart-line" style="color:var(--success)"></i> 经营规模
+            <a class="link pc-more" href="business-stat.html">业务统计 <i class="fa-solid fa-angle-right"></i></a>
+          </div>
+          <div class="pc-body">
+            <div class="grid-3">
+              <div><div class="text-3 text-sm">从业人员</div><div class="fw-700" style="font-size:20px">124 人</div></div>
+              <div><div class="text-3 text-sm">持证经纪人</div><div class="fw-700" style="font-size:20px">52 人</div></div>
+              <div><div class="text-3 text-sm">备案门店</div><div class="fw-700" style="font-size:20px">9 家</div></div>
+              <div class="mt-16"><div class="text-3 text-sm">管理房源</div><div class="fw-700" style="font-size:20px">3,286 套</div></div>
+              <div class="mt-16"><div class="text-3 text-sm">备案合同</div><div class="fw-700" style="font-size:20px">2,914 份</div></div>
+              <div class="mt-16"><div class="text-3 text-sm">备案率</div><div class="fw-700 text-warning" style="font-size:20px">88.7%</div></div>
+            </div>
+            <div class="text-3 text-sm mt-16">近 6 个月房源（蓝）与备案量（绿）</div>
+            <div class="line-mini mt-8">
+              <div class="lm-col"><div class="lm-pair"><div class="lm-bar" style="height:62%"></div><div class="lm-bar b2" style="height:54%"></div></div><span class="lm-label">3 月</span></div>
+              <div class="lm-col"><div class="lm-pair"><div class="lm-bar" style="height:70%"></div><div class="lm-bar b2" style="height:61%"></div></div><span class="lm-label">4 月</span></div>
+              <div class="lm-col"><div class="lm-pair"><div class="lm-bar" style="height:78%"></div><div class="lm-bar b2" style="height:68%"></div></div><span class="lm-label">5 月</span></div>
+              <div class="lm-col"><div class="lm-pair"><div class="lm-bar" style="height:86%"></div><div class="lm-bar b2" style="height:74%"></div></div><span class="lm-label">6 月</span></div>
+              <div class="lm-col"><div class="lm-pair"><div class="lm-bar" style="height:94%"></div><div class="lm-bar b2" style="height:82%"></div></div><span class="lm-label">7 月</span></div>
+              <div class="lm-col"><div class="lm-pair"><div class="lm-bar" style="height:100%"></div><div class="lm-bar b2" style="height:88%"></div></div><span class="lm-label">8 月</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2 mt-16">
+        <div class="profile-card">
+          <div class="pc-head">
+            <i class="fa-solid fa-building-columns" style="color:var(--info)"></i> 资金监管
+            <a class="link pc-more" href="fund-custody.html">查看流水 <i class="fa-solid fa-angle-right"></i></a>
+          </div>
+          <div class="pc-body">
+            <div class="acct-row">
+              <span class="fw-600" style="width:104px">租金监管专户</span>
+              <span class="text-3">工商银行柳州分行营业部 6212 **** **** 4826</span>
+              <span style="margin-left:auto" class="fw-600">余额 486.2 万元</span>
+              <span class="badge red">留存不足</span>
+            </div>
+            <div class="acct-row">
+              <span class="fw-600" style="width:104px">押金监管专户</span>
+              <span class="text-3">建设银行柳州分行 6217 **** **** 1938</span>
+              <span style="margin-left:auto" class="fw-600">余额 312.6 万元</span>
+              <span class="badge green">达标</span>
+            </div>
+            <div class="alert alert-warning mt-16">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <div>
+                租金监管专户最低留存金额 <b>642.8 万元</b>（按在管合同月租金总额 30% 计），当前余额 486.2 万元，
+                缺口 156.6 万元，已自动<b>冻结该企业新增房源上架</b>。
+              </div>
+            </div>
+            <div class="grid-3 mt-16">
+              <div><div class="text-3 text-sm">本年租金收入</div><div class="fw-700">6,842.5 万元</div></div>
+              <div><div class="text-3 text-sm">本年租金支出</div><div class="fw-700">5,914.3 万元</div></div>
+              <div><div class="text-3 text-sm">对账不平笔数</div><div class="fw-700 text-danger">4 笔</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="profile-card">
+          <div class="pc-head">
+            <i class="fa-solid fa-gauge-high" style="color:var(--warning)"></i> 信用与风险
+            <a class="link pc-more" href="violation-ledger.html">违规台账 <i class="fa-solid fa-angle-right"></i></a>
+          </div>
+          <div class="pc-body">
+            <div class="flex items-center gap-16" style="flex-wrap:wrap">
+              <div class="gauge" id="pfGauge">
+                <div class="g-hole">
+                  <div class="fw-700" style="font-size:26px;color:var(--warning)" id="pfScore">62</div>
+                  <div class="text-3 text-sm">信用分 / 100</div>
+                </div>
+              </div>
+              <div style="flex:1;min-width:200px">
+                <div class="flex items-center gap-8">
+                  <span class="badge red">D 级</span>
+                  <span class="badge gray">未列入黑名单</span>
+                </div>
+                <div class="text-3 text-sm mt-16">近 12 个月扣分记录</div>
+                <div class="acct-row"><span>发布未核验房源 3 套</span><span style="margin-left:auto" class="text-danger fw-600">−12 分</span></div>
+                <div class="acct-row"><span>租金监管账户留存不足</span><span style="margin-left:auto" class="text-danger fw-600">−15 分</span></div>
+                <div class="acct-row"><span>租赁纠纷投诉 6 件（已调处 4 件）</span><span style="margin-left:auto" class="text-danger fw-600">−8 分</span></div>
+                <div class="acct-row"><span>合同备案不及时（超 30 日）18 份</span><span style="margin-left:auto" class="text-danger fw-600">−3 分</span></div>
+              </div>
+            </div>
+            <div class="alert alert-danger mt-16">
+              <i class="fa-solid fa-circle-exclamation"></i>
+              <div>
+                当前风险监测命中：<b>长收短付（高风险）</b>期限差 11 个月、<b>监管账户余额不足（高风险）</b>缺口 156.6 万元。
+                <a class="link" href="fund-custody.html">前往高风险经营监测</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="profile-card mt-16">
+        <div class="pc-head">
+          <i class="fa-solid fa-clipboard-list" style="color:var(--primary)"></i> 检查记录
+          <span class="pc-more">
+            <button type="button" class="btn btn-sm" data-open-drawer="drCheck"><i class="fa-solid fa-plus"></i> 发起检查</button>
+          </span>
+        </div>
+        <div class="pc-body">
+          <div class="table-wrap">
+            <table class="data-table" data-static data-fill="0">
+              <thead>
+                <tr>
+                  <th>检查编号</th><th>检查类型</th><th>检查日期</th><th>检查人</th>
+                  <th>发现问题</th><th>问题等级</th><th>整改期限</th><th>整改状态</th><th>复查结果</th><th>处罚类型</th><th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="is-warn">
+                  <td class="nowrap fw-600">JC450200202600286</td>
+                  <td class="nowrap">专项检查</td>
+                  <td class="nowrap">2026-07-28</td>
+                  <td class="nowrap">韦国强 / 梁敏</td>
+                  <td class="cell-lg">租金监管账户留存金额低于最低标准；存在长收短付经营模式</td>
+                  <td class="nowrap"><span class="badge red">严重</span></td>
+                  <td class="nowrap">2026-08-11</td>
+                  <td class="nowrap"><span class="badge red">逾期未整改</span></td>
+                  <td class="nowrap"><span class="text-3">—</span></td>
+                  <td class="nowrap">责令限期整改</td>
+                  <td class="col-ops">
+                    <span class="link" onclick="PMS.toast('已打开检查笔录与现场照片')">查看</span>
+                    <span class="link" onclick="PMS.toast('已登记约谈记录，约谈时间 2026-08-03 09:30','success')">登记约谈</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="nowrap fw-600">JC450200202600174</td>
+                  <td class="nowrap">双随机检查</td>
+                  <td class="nowrap">2026-05-14</td>
+                  <td class="nowrap">周立 / 覃海燕</td>
+                  <td class="cell-lg">3 套房源未取得核验码即在第三方平台发布</td>
+                  <td class="nowrap"><span class="badge orange">一般</span></td>
+                  <td class="nowrap">2026-05-28</td>
+                  <td class="nowrap"><span class="badge green">已整改</span></td>
+                  <td class="nowrap"><span class="badge green">复查通过</span></td>
+                  <td class="nowrap">警告 + 信用扣分</td>
+                  <td class="col-ops"><span class="link" onclick="PMS.toast('已打开检查笔录与现场照片')">查看</span></td>
+                </tr>
+                <tr>
+                  <td class="nowrap fw-600">JC450200202600062</td>
+                  <td class="nowrap">投诉核查</td>
+                  <td class="nowrap">2026-03-06</td>
+                  <td class="nowrap">黄志海</td>
+                  <td class="cell-lg">承租人投诉退租押金未按约定退还，涉及 2 份合同</td>
+                  <td class="nowrap"><span class="badge orange">一般</span></td>
+                  <td class="nowrap">2026-03-20</td>
+                  <td class="nowrap"><span class="badge green">已整改</span></td>
+                  <td class="nowrap"><span class="badge green">复查通过</span></td>
+                  <td class="nowrap">责令退还并书面告诫</td>
+                  <td class="col-ops"><span class="link" onclick="PMS.toast('已打开检查笔录与现场照片')">查看</span></td>
+                </tr>
+                <tr>
+                  <td class="nowrap fw-600">JC450200202500418</td>
+                  <td class="nowrap">年度检查</td>
+                  <td class="nowrap">2025-12-11</td>
+                  <td class="nowrap">韦国强 / 石磊</td>
+                  <td class="cell-lg">未发现问题</td>
+                  <td class="nowrap"><span class="badge green">无</span></td>
+                  <td class="nowrap"><span class="text-3">—</span></td>
+                  <td class="nowrap"><span class="badge green">无需整改</span></td>
+                  <td class="nowrap"><span class="text-3">—</span></td>
+                  <td class="nowrap"><span class="text-3">—</span></td>
+                  <td class="col-ops"><span class="link" onclick="PMS.toast('已打开检查笔录与现场照片')">查看</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="profile-card mt-16">
+        <div class="pc-head">
+          <i class="fa-solid fa-file-invoice" style="color:var(--success)"></i> 年度报告
+          <span class="pc-more">
+            <button type="button" class="btn btn-sm btn-primary" onclick="PMS.confirm({title:'受理年度报告',message:'受理「柳州寓家公寓管理有限公司」2025 年度报告？',detail:'受理后将纳入企业信用档案，并作为下一年度检查计划的依据。',type:'info',okText:'受理',onOk:function(){PMS.toast('已受理 2025 年度报告','success');}})"><i class="fa-solid fa-check"></i> 受理年度报告</button>
+          </span>
+        </div>
+        <div class="pc-body">
+          <div class="table-wrap">
+            <table class="data-table" data-static data-fill="0">
+              <thead>
+                <tr>
+                  <th>报告年度</th><th class="num">经营房源(套)</th><th class="num">新增房源</th><th class="num">退出房源</th>
+                  <th class="num">签订合同</th><th class="num">备案合同</th><th class="num">租金收入(万元)</th><th class="num">租金支出(万元)</th>
+                  <th class="num">账户余额(万元)</th><th class="num">投诉件数</th><th>审核结果</th><th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="nowrap fw-600">2025 年度</td>
+                  <td class="num">3,124</td><td class="num">986</td><td class="num">742</td>
+                  <td class="num">2,864</td><td class="num">2,486</td><td class="num">11,286.4</td><td class="num">9,842.1</td>
+                  <td class="num">642.8</td><td class="num">14</td>
+                  <td class="nowrap"><span class="badge orange">待受理</span></td>
+                  <td class="col-ops"><span class="link" onclick="PMS.toast('已打开年度报告全文')">查看全文</span></td>
+                </tr>
+                <tr>
+                  <td class="nowrap fw-600">2024 年度</td>
+                  <td class="num">2,486</td><td class="num">864</td><td class="num">518</td>
+                  <td class="num">2,214</td><td class="num">1,986</td><td class="num">8,642.7</td><td class="num">7,486.2</td>
+                  <td class="num">728.4</td><td class="num">9</td>
+                  <td class="nowrap"><span class="badge green">已受理</span></td>
+                  <td class="col-ops"><span class="link" onclick="PMS.toast('已打开年度报告全文')">查看全文</span></td>
+                </tr>
+                <tr>
+                  <td class="nowrap fw-600">2023 年度</td>
+                  <td class="num">1,842</td><td class="num">642</td><td class="num">386</td>
+                  <td class="num">1,684</td><td class="num">1,428</td><td class="num">6,124.3</td><td class="num">5,286.9</td>
+                  <td class="num">586.2</td><td class="num">6</td>
+                  <td class="nowrap"><span class="badge green">已受理</span></td>
+                  <td class="col-ops"><span class="link" onclick="PMS.toast('已打开年度报告全文')">查看全文</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 发起检查 -->
+  <div class="drawer-mask" data-close-drawer></div>
+  <div class="drawer" id="drCheck">
+    <div class="drawer-head">
+      <span>发起企业检查</span>
+      <i class="fa-solid fa-xmark" data-close-drawer></i>
+    </div>
+    <div class="drawer-body">
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>被检查企业</label>
+          <input type="text" value="柳州寓家公寓管理有限公司">
+        </div>
+        <div class="form-item">
+          <label>检查类型</label>
+          <select><option>专项检查</option><option>双随机检查</option><option>年度检查</option><option>投诉核查</option><option>复查</option></select>
+        </div>
+        <div class="form-item">
+          <label>计划检查日期</label>
+          <input type="date" value="2026-08-05">
+        </div>
+        <div class="form-item">
+          <label>检查人员</label>
+          <input type="text" value="韦国强、梁敏">
+        </div>
+        <div class="form-item col-full">
+          <label>检查事项</label>
+          <div class="check-group">
+            <label class="check"><input type="checkbox" checked> 房源核验与发布合规</label>
+            <label class="check"><input type="checkbox" checked> 合同网签与备案及时性</label>
+            <label class="check"><input type="checkbox" checked> 租金监管账户开立与留存</label>
+            <label class="check"><input type="checkbox" checked> 长收短付与高进低出经营模式</label>
+            <label class="check"><input type="checkbox"> 租金贷业务合规</label>
+            <label class="check"><input type="checkbox"> 门店与从业人员信息公示</label>
+            <label class="check"><input type="checkbox"> 押金收取与退还</label>
+            <label class="check"><input type="checkbox"> 群租与安全隐患</label>
+          </div>
+        </div>
+        <div class="form-item col-full">
+          <label>检查说明</label>
+          <textarea rows="3" placeholder="填写本次检查的背景、线索来源与重点关注问题"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('检查任务已下达，任务号 JC450200202600312','success')">下达检查任务</button>
+    </div>
+  </div>
+
+  <!-- 双随机抽取 -->
+  <div class="drawer-mask" data-close-drawer></div>
+  <div class="drawer" id="drRandom">
+    <div class="drawer-head">
+      <span>双随机一公开抽取</span>
+      <i class="fa-solid fa-xmark" data-close-drawer></i>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-info">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>随机抽取检查对象、随机选派检查人员，抽取过程与结果全程留痕并向社会公开，D 级与 C 级企业按 3 倍权重进入抽取池。</div>
+      </div>
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>抽取批次名称</label>
+          <input type="text" value="2026 年第三季度住房租赁企业双随机检查">
+        </div>
+        <div class="form-item">
+          <label>抽取范围</label>
+          <select><option>全市在营住房租赁企业（68 家）</option><option>C 级及以下企业（22 家）</option><option>指定城区企业</option></select>
+        </div>
+        <div class="form-item">
+          <label>抽取企业数量</label>
+          <input type="number" value="5" min="1">
+        </div>
+        <div class="form-item">
+          <label>每家检查人数</label>
+          <input type="number" value="2" min="1">
+        </div>
+      </div>
+      <div class="flex items-center gap-8 mt-16">
+        <button type="button" class="btn btn-primary" onclick="doRandom()"><i class="fa-solid fa-shuffle"></i> 随机抽取</button>
+        <span class="text-3 text-sm" id="rdTime">尚未抽取</span>
+      </div>
+      <div class="mt-16" id="rdResult" style="display:none">
+        <div class="fw-600 mb-8">抽取结果</div>
+        <div class="pick-item"><span class="pi-no">1</span><span>XXXX市宜居公寓管理有限公司</span><span style="margin-left:auto" class="text-3">检查人：韦国强、梁敏</span></div>
+        <div class="pick-item"><span class="pi-no">2</span><span>柳州寓家公寓管理有限公司 <span class="badge red">D 级</span></span><span style="margin-left:auto" class="text-3">检查人：周立、石磊</span></div>
+        <div class="pick-item"><span class="pi-no">3</span><span>XXXX市和居住房租赁服务有限公司</span><span style="margin-left:auto" class="text-3">检查人：黄志海、覃海燕</span></div>
+        <div class="pick-item"><span class="pi-no">4</span><span>XXXX市万家优租资产管理有限公司 <span class="badge gray">黑名单</span></span><span style="margin-left:auto" class="text-3">检查人：韦国强、周立</span></div>
+        <div class="pick-item"><span class="pi-no">5</span><span>柳州安寓住房租赁有限公司</span><span style="margin-left:auto" class="text-3">检查人：梁敏、石磊</span></div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('已生成 5 项检查任务并推送至检查人员，抽取结果同步公开','success')">生成检查任务</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+var PROFILE = {
+  yujia: { name: '柳州寓家公寓管理有限公司', no: 'ZLQY45020000038', score: 62, pct: 62, color: 'var(--warning)' },
+  anyu: { name: '柳州安寓住房租赁有限公司', no: 'ZLQY45020000021', score: 96, pct: 96, color: 'var(--success)' }
+};
+function showProfile(key) {
+  var d = PROFILE[key] || PROFILE.yujia;
+  document.getElementById('pfName').textContent = d.name;
+  document.getElementById('pfName2').textContent = d.name;
+  document.getElementById('pfNo').textContent = d.no;
+  var score = document.getElementById('pfScore');
+  score.textContent = d.score;
+  score.style.color = d.color;
+  document.getElementById('pfGauge').style.background =
+    'conic-gradient(' + d.color + ' 0 ' + d.pct + '%, #eef1f6 ' + d.pct + '% 100%)';
+  document.querySelectorAll('[data-tabs-scope] .tabs .tab').forEach(function (t) {
+    t.classList.toggle('active', t.getAttribute('data-tab') === 'profile');
+  });
+  document.querySelectorAll('.tab-panel').forEach(function (p) {
+    p.classList.toggle('active', p.getAttribute('data-panel') === 'profile');
+  });
+}
+function doRandom() {
+  document.getElementById('rdResult').style.display = '';
+  document.getElementById('rdTime').textContent = '抽取时间 2026-08-01 15:32:16 · 抽取种子 20260801-QT3-0007（全程留痕）';
+  PMS.toast('已随机抽取 5 家企业与 10 名检查人员', 'success');
+}
+(function () {
+  PMS.renderPager(document.getElementById('tblQy'), {
+    pageNum: 1, pageSize: 20, total: 68,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+</script>
+</body>
+</html>

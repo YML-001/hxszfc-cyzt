@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>交易条件核验 · 新建商品房网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：12 项校验矩阵格与不通过率条 */
+  .matrix { display: grid; grid-template-columns: repeat(auto-fit, minmax(206px, 1fr)); gap: 10px; }
+  .mx {
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 11px 13px; background: #fff;
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .mx.ok { border-left: 3px solid var(--success); }
+  .mx.bad { border-left: 3px solid var(--danger); }
+  .mx.warn { border-left: 3px solid var(--warning); }
+  .mx.run { border-left: 3px solid var(--primary); }
+  .mx .mx-t { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; }
+  .mx .mx-t .code { color: var(--primary); font-size: 12px; }
+  .mx .mx-t .badge { margin-left: auto; white-space: nowrap; flex-shrink: 0; }
+  .mx .mx-d { font-size: 12px; color: var(--text-3); line-height: 1.6; }
+  .rate-bar { display: flex; align-items: center; gap: 10px; }
+  .rate-bar .progress { flex: 1; min-width: 80px; display: block; }
+  .rate-bar b { width: 52px; text-align: right; font-variant-numeric: tabular-nums; font-size: 12.5px; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsswb-16">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房网签备案管理系统
+        <span class="sep">/</span> 网签备案
+        <span class="sep">/</span> <span class="cur">交易条件核验</span>
+      </div>
+      <div class="page-title">交易条件核验</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" onclick="runAll()"><i class="fa-solid fa-play"></i> 单件核验试算</button>
+      <button type="button" class="btn" onclick="location.href='filing-list.html'">异常件复核队列</button>
+      <button type="button" class="btn" onclick="location.href='overdue-urge.html'">超期未网签督促</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《交易条件核验月度分析》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出分析</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-gears"></i></div>
+      <div><div class="s-label">本月核验件数</div><div class="s-value">1,382</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">一次全通过率</div><div class="s-value">93.6%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-hand"></i></div>
+      <div><div class="s-label">阻断件次</div><div class="s-value">62</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><div class="s-label">警告件次</div><div class="s-value">118</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-user-shield"></i></div>
+      <div><div class="s-label">人工放行件次</div><div class="s-value">42</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-stopwatch"></i></div>
+      <div><div class="s-label">平均校验耗时</div><div class="s-value">2.4 秒</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-bolt"></i>
+    <div>12 项校验<b>并行</b>执行，逐项写入校验记录（校验项代码、结论、是否阻断、是否允许人工放行、依据说明、数据来源、耗时）；阻断项中结论为不通过的一律不予备案。</div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-table-cells-large"></i> 12 项校验矩阵</h3>
+      <span class="sub" id="mxSub">点击「单件核验试算」按合同编号实时跑一遍全部校验项</span>
+    </div>
+    <div class="card-body">
+      <div class="form-grid form-align mb-16" style="grid-template-columns:repeat(3,1fr)">
+        <div class="form-item">
+          <label>合同编号</label>
+          <select id="selCt">
+            <option value="ok">SF450200202601342（彰泰江湾城三期 11-1-2801 · 全通过样例）</option>
+            <option value="bad">SF450200202601288（彰泰江湾城三期 9-1-2202 · JY03 阻断样例）</option>
+            <option value="warn">SF450200202601279（保利柳江府二期 6-1-0902 · JY07 警告样例）</option>
+          </select>
+        </div>
+        <div class="form-item">
+          <label>核验时点</label>
+          <input type="text" value="实时（以当前数据为准）" readonly>
+        </div>
+        <div class="form-item" style="display:flex;align-items:flex-end">
+          <button type="button" class="btn btn-primary" onclick="runAll()"><i class="fa-solid fa-play"></i> 开始核验</button>
+        </div>
+      </div>
+
+      <div class="matrix" id="matrix"></div>
+
+      <div class="alert alert-info mt-16" id="resBox">
+        <i class="fa-solid fa-circle-info"></i>
+        <div id="resTxt">尚未执行核验。核验完成后此处汇总结论：全通过的可自动备案，存在阻断项的不予备案，仅有警告项的可由复核人确认放行。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-sliders"></i> 校验项配置与本月执行情况</h3>
+      <span class="sub">阻断与人工放行口子由参数配置，调整须留痕</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tblCfg" data-static>
+        <thead>
+          <tr>
+            <th>代码</th>
+            <th>校验项</th>
+            <th>是否阻断</th>
+            <th>允许人工放行</th>
+            <th>数据来源</th>
+            <th class="num">本月执行次数</th>
+            <th class="num">不通过次数</th>
+            <th>不通过率</th>
+            <th>启用状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="nowrap fw-600">JY01</td>
+            <td class="nowrap">房源在有效许可房间清单内</td>
+            <td class="nowrap"><span class="badge red">阻断</span></td>
+            <td class="nowrap">否</td>
+            <td class="nowrap">本系统许可房间清单</td>
+            <td class="num nowrap">1,382</td>
+            <td class="num nowrap">14</td>
+            <td><div class="rate-bar"><span class="progress"><span style="width:20%"></span></span><b>1.01%</b></div></td>
+            <td class="nowrap"><span class="badge green">启用</span></td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('JY01 属核心阻断项，不允许停用')">配置</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">JY02</td>
+            <td class="nowrap">房屋销控状态允许签约</td>
+            <td class="nowrap"><span class="badge red">阻断</span></td>
+            <td class="nowrap">否</td>
+            <td class="nowrap">楼盘表销控</td>
+            <td class="num nowrap">1,382</td>
+            <td class="num nowrap">6</td>
+            <td><div class="rate-bar"><span class="progress"><span style="width:9%"></span></span><b>0.43%</b></div></td>
+            <td class="nowrap"><span class="badge green">启用</span></td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('JY02 属核心阻断项，不允许停用')">配置</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">JY03</td>
+            <td class="nowrap">成交价在备案价允许浮动范围内</td>
+            <td class="nowrap"><span class="badge red">阻断</span></td>
+            <td class="nowrap text-danger fw-600">否</td>
+            <td class="nowrap">一房一价备案</td>
+            <td class="num nowrap">1,382</td>
+            <td class="num nowrap">26</td>
+            <td><div class="rate-bar"><span class="progress orange"><span style="width:38%"></span></span><b>1.88%</b></div></td>
+            <td class="nowrap"><span class="badge green">启用</span></td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('JY03 不设人工放行口子，须走价格调整备案')">配置</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">JY04</td>
+            <td class="nowrap">未处于暂停销售</td>
+            <td class="nowrap"><span class="badge red">阻断</span></td>
+            <td class="nowrap">否</td>
+            <td class="nowrap">暂停销售管理</td>
+            <td class="num nowrap">1,382</td>
+            <td class="num nowrap">8</td>
+            <td><div class="rate-bar"><span class="progress"><span style="width:12%"></span></span><b>0.58%</b></div></td>
+            <td class="nowrap"><span class="badge green">启用</span></td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('已打开校验项配置')">配置</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">JY05</td>
+            <td class="nowrap">开发企业资质有效且无禁售处罚</td>
+            <td class="nowrap"><span class="badge red">阻断</span></td>
+            <td class="nowrap">否</td>
+            <td class="nowrap">从业主体与信用监管（wsztxy）</td>
+            <td class="num nowrap">1,382</td>
+            <td class="num nowrap">2</td>
+            <td><div class="rate-bar"><span class="progress"><span style="width:3%"></span></span><b>0.14%</b></div></td>
+            <td class="nowrap"><span class="badge green">启用</span></td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('已打开校验项配置')">配置</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">JY06</td>
+            <td class="nowrap">当事人实名核验通过</td>
+            <td class="nowrap"><span class="badge red">阻断</span></td>
+            <td class="nowrap">否</td>
+            <td class="nowrap">统一身份认证</td>
+            <td class="num nowrap">1,382</td>
+            <td class="num nowrap">4</td>
+            <td><div class="rate-bar"><span class="progress"><span style="width:6%"></span></span><b>0.29%</b></div></td>
+            <td class="nowrap"><span class="badge green">启用</span></td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('已打开校验项配置')">配置</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">JY07</td>
+            <td class="nowrap">买受人限购资格符合</td>
+            <td class="nowrap"><span class="badge orange">警告</span></td>
+            <td class="nowrap">是</td>
+            <td class="nowrap">房产交易政策服务（wsjyzc）</td>
+            <td class="num nowrap">1,382</td>
+            <td class="num nowrap">86</td>
+            <td><div class="rate-bar"><span class="progress orange"><span style="width:62%"></span></span><b>6.22%</b></div></td>
+            <td class="nowrap"><span class="badge green">启用</span></td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('已打开校验项配置')">配置</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">JY08</td>
+            <td class="nowrap">房屋无查封 / 异议 / 限制登记</td>
+            <td class="nowrap"><span class="badge red">阻断</span></td>
+            <td class="nowrap">否</td>
+            <td class="nowrap">不动产登记（共享接口）</td>
+            <td class="num nowrap">1,382</td>
+            <td class="num nowrap">3</td>
+            <td><div class="rate-bar"><span class="progress"><span style="width:4%"></span></span><b>0.22%</b></div></td>
+            <td class="nowrap"><span class="badge green">启用</span></td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('已打开校验项配置')">配置</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">JY09</td>
+            <td class="nowrap">面积与楼盘表及测绘成果一致</td>
+            <td class="nowrap"><span class="badge red">阻断</span></td>
+            <td class="nowrap">是</td>
+            <td class="nowrap">楼盘表 / wschcg</td>
+            <td class="num nowrap">1,382</td>
+            <td class="num nowrap">32</td>
+            <td><div class="rate-bar"><span class="progress orange"><span style="width:46%"></span></span><b>2.32%</b></div></td>
+            <td class="nowrap"><span class="badge green">启用</span></td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('已打开校验项配置')">配置</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">JY10</td>
+            <td class="nowrap">资金监管账户有效且协议在期内</td>
+            <td class="nowrap"><span class="badge red">阻断</span></td>
+            <td class="nowrap">否</td>
+            <td class="nowrap">预售资金监管（wsszjjg）</td>
+            <td class="num nowrap">1,382</td>
+            <td class="num nowrap">5</td>
+            <td><div class="rate-bar"><span class="progress"><span style="width:7%"></span></span><b>0.36%</b></div></td>
+            <td class="nowrap"><span class="badge green">启用</span></td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('已打开校验项配置')">配置</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">JY11</td>
+            <td class="nowrap">合同要素完整性与模板版本合规</td>
+            <td class="nowrap"><span class="badge red">阻断</span></td>
+            <td class="nowrap">否</td>
+            <td class="nowrap">合同示范文本库（wsqy）</td>
+            <td class="num nowrap">1,382</td>
+            <td class="num nowrap">12</td>
+            <td><div class="rate-bar"><span class="progress"><span style="width:17%"></span></span><b>0.87%</b></div></td>
+            <td class="nowrap"><span class="badge green">启用</span></td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('已打开校验项配置')">配置</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">JY12</td>
+            <td class="nowrap">无重复网签</td>
+            <td class="nowrap"><span class="badge red">阻断</span></td>
+            <td class="nowrap">否</td>
+            <td class="nowrap">本系统合同台账</td>
+            <td class="num nowrap">1,382</td>
+            <td class="num nowrap">2</td>
+            <td><div class="rate-bar"><span class="progress"><span style="width:3%"></span></span><b>0.14%</b></div></td>
+            <td class="nowrap"><span class="badge green">启用</span></td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('已打开校验项配置')">配置</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+var ITEMS = [
+  ['JY01', '房源在有效许可房间清单内', '本系统许可房间清单'],
+  ['JY02', '房屋销控状态允许签约', '楼盘表销控'],
+  ['JY03', '成交价在备案价允许浮动范围内', '一房一价备案'],
+  ['JY04', '未处于暂停销售', '暂停销售管理'],
+  ['JY05', '开发企业资质有效且无禁售处罚', 'wsztxy'],
+  ['JY06', '当事人实名核验通过', '统一身份认证'],
+  ['JY07', '买受人限购资格符合', 'wsjyzc'],
+  ['JY08', '房屋无查封 / 异议 / 限制登记', '不动产登记'],
+  ['JY09', '面积与楼盘表及测绘成果一致', '楼盘表 / wschcg'],
+  ['JY10', '资金监管账户有效且协议在期内', 'wsszjjg'],
+  ['JY11', '合同要素完整性与模板版本合规', 'wsqy'],
+  ['JY12', '无重复网签', '本系统合同台账']
+];
+
+/* 三个演示样例：全通过 / JY03 阻断 / JY07 警告 */
+var CASES = {
+  ok: {},
+  bad: { JY03: ['bad', '成交单价 13,961 元/㎡ 超出备案价 12,756 元/㎡ 允许浮动范围（+9.45% > ±3%）'] },
+  warn: { JY07: ['warn', '本市名下已有住房 1 套未超限购，但检测到跨市住房记录 1 条，建议人工核实'] }
+};
+
+function paint(state) {
+  document.getElementById('matrix').innerHTML = ITEMS.map(function (it) {
+    return '<div class="mx" id="mx' + it[0] + '">' +
+      '<div class="mx-t"><span class="code">' + it[0] + '</span>' + it[1] +
+      '<span class="badge gray">' + state + '</span></div>' +
+      '<div class="mx-d">数据来源：' + it[2] + '</div></div>';
+  }).join('');
+}
+
+function runAll() {
+  var kind = document.getElementById('selCt').value;
+  var cs = CASES[kind] || {};
+  paint('校验中');
+  document.getElementById('mxSub').textContent = '正在核验 ' + document.getElementById('selCt').options[document.getElementById('selCt').selectedIndex].text.split('（')[0];
+  var res = document.getElementById('resBox'), txt = document.getElementById('resTxt');
+  res.className = 'alert alert-info mt-16';
+  txt.textContent = '12 项校验并行执行中…';
+
+  ITEMS.forEach(function (it, i) {
+    setTimeout(function () {
+      var box = document.getElementById('mx' + it[0]);
+      var b = box.querySelector('.badge');
+      var hit = cs[it[0]];
+      if (hit && hit[0] === 'bad') {
+        box.className = 'mx bad';
+        b.className = 'badge red'; b.textContent = '不通过';
+        box.querySelector('.mx-d').textContent = hit[1];
+      } else if (hit && hit[0] === 'warn') {
+        box.className = 'mx warn';
+        b.className = 'badge orange'; b.textContent = '警告';
+        box.querySelector('.mx-d').textContent = hit[1];
+      } else {
+        box.className = 'mx ok';
+        b.className = 'badge green'; b.textContent = '通过';
+        box.querySelector('.mx-d').textContent = '数据来源：' + it[2] + ' · 耗时 ' + (30 + i * 18) + ' ms';
+      }
+      if (i === ITEMS.length - 1) setTimeout(function () { finish(kind); }, 300);
+    }, 200 + i * 160);
+  });
+}
+
+function finish(kind) {
+  var res = document.getElementById('resBox'), txt = document.getElementById('resTxt');
+  if (kind === 'bad') {
+    res.className = 'alert alert-danger mt-16';
+    txt.innerHTML = '存在阻断项 <b>JY03</b>（不允许人工放行），<b>不予备案</b>：须由企业先办理价格调整备案后重新网签。' +
+      '<span class="link" onclick="location.href=\'filing-detail.html\'">前往复核处理</span>';
+  } else if (kind === 'warn') {
+    res.className = 'alert alert-warning mt-16';
+    txt.innerHTML = '11 项通过、<b>JY07 警告</b>（允许人工放行）：本件转人工复核，复核人确认后可放行并留痕。' +
+      '<span class="link" onclick="location.href=\'filing-detail.html\'">前往复核处理</span>';
+  } else {
+    res.className = 'alert alert-success mt-16';
+    txt.innerHTML = '12 项<b>全部通过</b>，符合自动备案条件：系统将自动生成备案编号并出具电子备案证明。' +
+      '<span class="link" onclick="location.href=\'filing-cert.html\'">查看备案证明</span>';
+  }
+  PMS.toast('核验完成', kind === 'ok' ? 'success' : 'error');
+}
+
+paint('未执行');
+</script>
+</body>
+</html>

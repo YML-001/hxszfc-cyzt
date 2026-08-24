@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>房屋交易备案簿 · 房屋交易备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：房屋信息卡 + 按年分组的记事时间轴 */
+  .hz-card {
+    display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap;
+    border: 1px solid var(--border); border-radius: var(--radius-lg); background: #fff; padding: 18px 20px;
+  }
+  .hz-card .hz-l { flex: 1; min-width: 420px; }
+  .hz-card .hz-t { font-size: 19px; font-weight: 800; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .hz-card .hz-sub { font-size: 13px; color: var(--text-3); margin-top: 6px; }
+  .hz-meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 18px; margin-top: 14px; }
+  @media (max-width: 1100px) { .hz-meta { grid-template-columns: repeat(2, 1fr); } }
+  .hz-meta .m { font-size: 13px; }
+  .hz-meta .m .mk { color: var(--text-3); font-size: 12px; }
+  .hz-meta .m .mv { font-weight: 600; margin-top: 2px; }
+  .st-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+  .st-dot.r { background: #dc2626; } .st-dot.o { background: #f59e0b; } .st-dot.g { background: #10b981; }
+
+  .yr { display: flex; align-items: center; gap: 12px; margin: 22px 0 14px; }
+  .yr:first-child { margin-top: 4px; }
+  .yr .y {
+    font-size: 17px; font-weight: 800; color: #fff; background: var(--primary);
+    border-radius: 20px; padding: 3px 16px; letter-spacing: 1px;
+  }
+  .yr .yc { font-size: 12.5px; color: var(--text-3); }
+  .yr .yl { flex: 1; height: 1px; background: var(--border); }
+
+  .tl { position: relative; padding-left: 128px; }
+  .tl::before { content: ''; position: absolute; left: 96px; top: 4px; bottom: 4px; width: 2px; background: #dfe5f0; }
+  .tl-item { position: relative; margin-bottom: 14px; }
+  .tl-item .tl-date {
+    position: absolute; left: -128px; top: 14px; width: 84px; text-align: right;
+    font-size: 12.5px; color: var(--text-2); font-weight: 600; font-variant-numeric: tabular-nums;
+  }
+  .tl-item .tl-dot {
+    position: absolute; left: -37px; top: 18px; width: 13px; height: 13px; border-radius: 50%;
+    background: #fff; border: 3px solid var(--primary); z-index: 1;
+  }
+  .tl-item.t-sp .tl-dot { border-color: #2563eb; }
+  .tl-item.t-cf .tl-dot { border-color: #06b6d4; }
+  .tl-item.t-zl .tl-dot { border-color: #10b981; }
+  .tl-item.t-dy .tl-dot { border-color: #f59e0b; }
+  .tl-item.t-cx .tl-dot { border-color: #dc2626; }
+  .tl-item.t-dj .tl-dot { border-color: #8b5cf6; }
+
+  .nt {
+    border: 1px solid var(--border); border-radius: var(--radius); background: #fff; padding: 13px 16px;
+    transition: .16s; position: relative;
+  }
+  .nt:hover { border-color: var(--primary-soft); box-shadow: var(--shadow-sm); }
+  .nt .nt-h { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+  .nt .nt-no {
+    width: 22px; height: 22px; border-radius: 6px; background: #eef2fa; color: var(--text-2);
+    font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .nt .nt-t { font-size: 14.5px; font-weight: 700; }
+  .nt .nt-more { margin-left: auto; font-size: 12.5px; }
+  .nt-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px 16px; margin-top: 11px; }
+  @media (max-width: 1100px) { .nt-grid { grid-template-columns: repeat(2, 1fr); } }
+  .nt-grid .g { font-size: 12.5px; min-width: 0; }
+  .nt-grid .g .gk { color: var(--text-3); }
+  .nt-grid .g .gv { font-weight: 600; margin-top: 1px; word-break: break-all; }
+  .nt-txt {
+    font-size: 12.5px; color: var(--text-2); line-height: 1.7; margin-top: 10px;
+    padding-top: 9px; border-top: 1px dashed var(--row-line);
+  }
+  .nt.void { opacity: .62; background: #fbfcfe; }
+  .nt.void .stamp {
+    position: absolute; right: 18px; top: 12px; border: 2px solid #dc2626; color: #dc2626;
+    border-radius: 6px; font-size: 13px; font-weight: 800; padding: 2px 10px; transform: rotate(-11deg); letter-spacing: 2px;
+  }
+  .nt .void-note { font-size: 12px; color: var(--text-3); margin-top: 8px; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdwb-17">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易备案管理系统
+        <span class="sep">/</span> 查档服务
+        <span class="sep">/</span> <span class="cur">房屋交易备案簿</span>
+      </div>
+      <div class="page-title">房屋交易备案簿</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="PMS.toast('备案簿全本打印预览已打开（共 9 条记事，2 页）')"><i class="fa-solid fa-print"></i> 打印备案簿全本</button>
+      <button type="button" class="btn" onclick="PMS.toast('《房屋交易备案簿》PDF 已生成，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+      <button type="button" class="btn" onclick="location.href='restriction-status.html?code=A'"><i class="fa-solid fa-traffic-light"></i> 查看限制状态</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-book-open"></i>
+    <div><b>一房一簿</b>：以不动产单元号为主键，按时间顺序记载该房屋从认购、网签、抵押、租赁到查封、注销的全部交易备案记事，
+      支撑「一次查询、全程可溯」。记事只增不改，注销通过新增注销记事实现，原记事保留并标注。</div>
+  </div>
+
+  <div class="hz-card">
+    <div class="hz-l">
+      <div class="hz-t">
+        彰泰滨江学府 12 栋 2 单元 1802
+        <span class="badge orange"><span class="st-dot o"></span>有条件可交易</span>
+      </div>
+      <div class="hz-sub">备案簿编号 BAB450202202100862 · 不动产单元号 450202001005GB00123F00020017</div>
+      <div class="hz-meta">
+        <div class="m"><div class="mk">产权证号</div><div class="mv">桂(2023)柳州市不动产权第 0086421 号</div></div>
+        <div class="m"><div class="mk">当前产权人</div><div class="mv">陈**</div></div>
+        <div class="m"><div class="mk">建筑面积</div><div class="mv">118.65 ㎡</div></div>
+        <div class="m"><div class="mk">房屋用途</div><div class="mv">成套住宅</div></div>
+        <div class="m"><div class="mk">记事总条数</div><div class="mv">9 条（有效 8 · 已注销 1）</div></div>
+        <div class="m"><div class="mk">首条记事时间</div><div class="mv">2021-04-18</div></div>
+        <div class="m"><div class="mk">末条记事时间</div><div class="mv">2026-08-01</div></div>
+        <div class="m"><div class="mk">当前限制情形</div><div class="mv">抵押 2 笔 · 存量房网签未办结</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item" style="min-width:280px">
+        <label>业务类型</label>
+        <select id="fType" onchange="applyFilter()">
+          <option value="">全部 18 类</option>
+          <option value="sp">商品房类（认购 / 网签 / 变更 / 撤销）</option>
+          <option value="cf">存量房类（网签 / 备案 / 变更）</option>
+          <option value="zl">租赁类（备案 / 变更 / 注销）</option>
+          <option value="dy">抵押类（预告 / 备案 / 变更 / 注销）</option>
+          <option value="dj">登记类（转移 / 预告 / 异议）</option>
+          <option value="cx">查封类（查封 / 解封）</option>
+        </select>
+      </div>
+      <div class="filter-item"><label>记事时间起</label><input type="date" value="2021-01-01"></div>
+      <div class="filter-item"><label>记事时间止</label><input type="date" value="2026-08-01"></div>
+      <div class="filter-item">
+        <label>记事状态</label>
+        <select id="fVoid" onchange="applyFilter()">
+          <option value="all">含已注销记事</option>
+          <option value="valid">仅看有效记事</option>
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="applyFilter()"><i class="fa-solid fa-magnifying-glass"></i> 筛选</button>
+        <button type="button" class="btn" onclick="resetFilter()"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="card-body" id="tlWrap">
+
+      <div class="yr" data-year="2026"><span class="y">2026</span><span class="yc">3 条记事</span><span class="yl"></span></div>
+      <div class="tl">
+        <div class="tl-item t-dy" data-type="dy" data-void="0">
+          <div class="tl-date">08-01</div><div class="tl-dot"></div>
+          <div class="nt">
+            <div class="nt-h">
+              <span class="nt-no">9</span>
+              <span class="badge orange">抵押备案</span>
+              <span class="nt-t">带押过户新设抵押（第 2 顺位）</span>
+              <span class="badge blue">备案中</span>
+              <a class="link nt-more" href="mortgage-detail.html">查看原业务 <i class="fa-solid fa-arrow-right"></i></a>
+            </div>
+            <div class="nt-grid">
+              <div class="g"><div class="gk">业务编号</div><div class="gv">DY450200202600186</div></div>
+              <div class="g"><div class="gk">备案编号</div><div class="gv">DYBA450200202600186</div></div>
+              <div class="g"><div class="gk">权利人 → 义务人</div><div class="gv">中国建设银行柳州分行 → 陈**</div></div>
+              <div class="g"><div class="gk">被担保债权金额</div><div class="gv">486,000.00 元</div></div>
+              <div class="g"><div class="gk">业务发生时间</div><div class="gv">2026-08-01 09:06</div></div>
+              <div class="g"><div class="gk">建筑面积</div><div class="gv">118.65 ㎡</div></div>
+              <div class="g"><div class="gk">记事单位</div><div class="gv">XXXX市房产交易所</div></div>
+              <div class="g"><div class="gk">记事人</div><div class="gv">韦国强</div></div>
+            </div>
+            <div class="nt-txt">配合存量房带押过户，买受人周**接续原贷款并新设抵押，抵押权人中国建设银行柳州分行，抵押顺位第 2 顺位，债务履行期限 2026-08-01 至 2046-07-20。限制校验编号 JY202608010906004，四项分结果均通过。</div>
+          </div>
+        </div>
+
+        <div class="tl-item t-cf" data-type="cf" data-void="0">
+          <div class="tl-date">06-28</div><div class="tl-dot"></div>
+          <div class="nt">
+            <div class="nt-h">
+              <span class="nt-no">8</span>
+              <span class="badge cyan">存量房网签备案</span>
+              <span class="nt-t">存量房买卖网签备案（带押过户）</span>
+              <span class="badge blue">未办结</span>
+              <a class="link nt-more" href="../wscwb/contract-list.html">查看原业务 <i class="fa-solid fa-arrow-right"></i></a>
+            </div>
+            <div class="nt-grid">
+              <div class="g"><div class="gk">业务编号</div><div class="gv">CF450200202600512</div></div>
+              <div class="g"><div class="gk">备案编号</div><div class="gv">CFBA450200202600512</div></div>
+              <div class="g"><div class="gk">权利人 → 义务人</div><div class="gv">周**（买受人）→ 陈**（出卖人）</div></div>
+              <div class="g"><div class="gk">成交价</div><div class="gv">1,486,000.00 元</div></div>
+              <div class="g"><div class="gk">业务发生时间</div><div class="gv">2026-06-28 15:42</div></div>
+              <div class="g"><div class="gk">经办机构</div><div class="gv">柳州安居房产经纪有限公司</div></div>
+              <div class="g"><div class="gk">记事单位</div><div class="gv">XXXX市房产交易所</div></div>
+              <div class="g"><div class="gk">记事人</div><div class="gv">系统自动</div></div>
+            </div>
+            <div class="nt-txt">存量房买卖合同网签备案成功，成交单价 12,524 元/㎡，采用带押过户方式办理，资金监管账户已缴存首付款 486,000 元。该笔业务尚未完成转移登记，房屋当前为「有条件可交易」。</div>
+          </div>
+        </div>
+
+        <div class="tl-item t-zl" data-type="zl" data-void="0">
+          <div class="tl-date">03-15</div><div class="tl-dot"></div>
+          <div class="nt">
+            <div class="nt-h">
+              <span class="nt-no">7</span>
+              <span class="badge green">租赁备案注销</span>
+              <span class="nt-t">提前解除租赁合同，注销第 6 条记事</span>
+              <span class="badge gray">已办结</span>
+              <a class="link nt-more" href="../wszwb/tenant-filing.html">查看原业务 <i class="fa-solid fa-arrow-right"></i></a>
+            </div>
+            <div class="nt-grid">
+              <div class="g"><div class="gk">业务编号</div><div class="gv">CFJC20260315002</div></div>
+              <div class="g"><div class="gk">原备案编号</div><div class="gv">ZLBA450200202402846</div></div>
+              <div class="g"><div class="gk">权利人 → 义务人</div><div class="gv">陈**（出租人）→ 吴**（承租人）</div></div>
+              <div class="g"><div class="gk">注销原因</div><div class="gv">双方协商提前解除</div></div>
+              <div class="g"><div class="gk">业务发生时间</div><div class="gv">2026-03-15 10:26</div></div>
+              <div class="g"><div class="gk">剩余租期</div><div class="gv">原至 2026-08-31</div></div>
+              <div class="g"><div class="gk">记事单位</div><div class="gv">XXXX市房产交易所</div></div>
+              <div class="g"><div class="gk">记事人</div><div class="gv">韦国强</div></div>
+            </div>
+            <div class="nt-txt">承租人吴**因工作调动提前退租，双方签署解除协议并办理押金结算，租赁备案注销后房屋租赁限制解除，交易限制状态同步刷新。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="yr" data-year="2024"><span class="y">2024</span><span class="yc">1 条记事</span><span class="yl"></span></div>
+      <div class="tl">
+        <div class="tl-item t-zl" data-type="zl" data-void="1">
+          <div class="tl-date">08-15</div><div class="tl-dot"></div>
+          <div class="nt void">
+            <span class="stamp">已注销</span>
+            <div class="nt-h">
+              <span class="nt-no">6</span>
+              <span class="badge green">租赁备案</span>
+              <span class="nt-t">住房租赁合同备案</span>
+              <a class="link nt-more" href="../wszwb/tenant-filing.html">查看原业务 <i class="fa-solid fa-arrow-right"></i></a>
+            </div>
+            <div class="nt-grid">
+              <div class="g"><div class="gk">业务编号</div><div class="gv">ZL450200202402846</div></div>
+              <div class="g"><div class="gk">备案编号</div><div class="gv">ZLBA450200202402846</div></div>
+              <div class="g"><div class="gk">权利人 → 义务人</div><div class="gv">吴**（承租人）→ 陈**（出租人）</div></div>
+              <div class="g"><div class="gk">月租金</div><div class="gv">2,600.00 元</div></div>
+              <div class="g"><div class="gk">租期</div><div class="gv">2024-09-01 至 2026-08-31</div></div>
+              <div class="g"><div class="gk">业务发生时间</div><div class="gv">2024-08-15 16:08</div></div>
+              <div class="g"><div class="gk">记事单位</div><div class="gv">XXXX市房产交易所</div></div>
+              <div class="g"><div class="gk">记事人</div><div class="gv">系统自动</div></div>
+            </div>
+            <div class="nt-txt">整租备案，租赁方式为整租，租金支付方式押一付三，已完成承租人实名核验与房源核验。</div>
+            <div class="void-note"><i class="fa-solid fa-circle-info"></i> 本条记事已由 CFJC20260315002 注销，注销时间 2026-03-15。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="yr" data-year="2023"><span class="y">2023</span><span class="yc">2 条记事</span><span class="yl"></span></div>
+      <div class="tl">
+        <div class="tl-item t-dy" data-type="dy" data-void="0">
+          <div class="tl-date">03-20</div><div class="tl-dot"></div>
+          <div class="nt">
+            <div class="nt-h">
+              <span class="nt-no">5</span>
+              <span class="badge orange">抵押备案</span>
+              <span class="nt-t">预告抵押转正式抵押（第 1 顺位）</span>
+              <span class="badge green">已备案</span>
+              <a class="link nt-more" href="mortgage-detail.html">查看原业务 <i class="fa-solid fa-arrow-right"></i></a>
+            </div>
+            <div class="nt-grid">
+              <div class="g"><div class="gk">业务编号</div><div class="gv">DY450200202300426</div></div>
+              <div class="g"><div class="gk">备案编号</div><div class="gv">DYBA450200202300426</div></div>
+              <div class="g"><div class="gk">权利人 → 义务人</div><div class="gv">中国银行柳州分行 → 陈**</div></div>
+              <div class="g"><div class="gk">被担保债权金额</div><div class="gv">820,000.00 元</div></div>
+              <div class="g"><div class="gk">业务发生时间</div><div class="gv">2023-03-20 09:36</div></div>
+              <div class="g"><div class="gk">债务履行期限</div><div class="gv">2023-03-20 至 2053-03-19</div></div>
+              <div class="g"><div class="gk">记事单位</div><div class="gv">XXXX市房产交易所</div></div>
+              <div class="g"><div class="gk">记事人</div><div class="gv">韦国强</div></div>
+            </div>
+            <div class="nt-txt">预告抵押 YGDY2021052006 在产权登记完成后 8 日内完成转正，抵押方式为一般抵押，抵押顺位第 1 顺位，已推送不动产登记机构并回执成功。</div>
+          </div>
+        </div>
+
+        <div class="tl-item t-dj" data-type="dj" data-void="0">
+          <div class="tl-date">03-12</div><div class="tl-dot"></div>
+          <div class="nt">
+            <div class="nt-h">
+              <span class="nt-no">4</span>
+              <span class="badge purple">转移登记完成</span>
+              <span class="nt-t">不动产转移登记办结，取得产权证</span>
+              <span class="badge green">已办结</span>
+              <span class="link nt-more" onclick="PMS.toast('登记数据由不动产登记机构共享回流，来源系统 BDCDJ，回流时间 2023-03-12 17:20')">查看来源 <i class="fa-solid fa-arrow-right"></i></span>
+            </div>
+            <div class="nt-grid">
+              <div class="g"><div class="gk">业务编号</div><div class="gv">BDC450200202300862</div></div>
+              <div class="g"><div class="gk">产权证号</div><div class="gv">桂(2023)柳州市不动产权第 0086421 号</div></div>
+              <div class="g"><div class="gk">权利人</div><div class="gv">陈**</div></div>
+              <div class="g"><div class="gk">登记类型</div><div class="gv">转移登记（买卖）</div></div>
+              <div class="g"><div class="gk">业务发生时间</div><div class="gv">2023-03-12 15:04</div></div>
+              <div class="g"><div class="gk">建筑面积</div><div class="gv">118.65 ㎡</div></div>
+              <div class="g"><div class="gk">记事单位</div><div class="gv">XXXX市不动产登记中心</div></div>
+              <div class="g"><div class="gk">记事人</div><div class="gv">共享回流</div></div>
+            </div>
+            <div class="nt-txt">商品房买卖完成交付与产权转移登记，房屋由预售状态转为现房产权状态，限售期按规则 XS001 自本次登记之日起算 3 年，限售至 2026-03-12（已届满）。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="yr" data-year="2021"><span class="y">2021</span><span class="yc">3 条记事</span><span class="yl"></span></div>
+      <div class="tl">
+        <div class="tl-item t-dy" data-type="dy" data-void="0">
+          <div class="tl-date">05-20</div><div class="tl-dot"></div>
+          <div class="nt">
+            <div class="nt-h">
+              <span class="nt-no">3</span>
+              <span class="badge orange">预告抵押登记</span>
+              <span class="nt-t">预购商品房抵押（预告抵押）</span>
+              <span class="badge gray">已转正</span>
+              <a class="link nt-more" href="presale-mortgage.html">查看原业务 <i class="fa-solid fa-arrow-right"></i></a>
+            </div>
+            <div class="nt-grid">
+              <div class="g"><div class="gk">业务编号</div><div class="gv">YGDY2021052006</div></div>
+              <div class="g"><div class="gk">权利人 → 义务人</div><div class="gv">中国银行柳州分行 → 陈**</div></div>
+              <div class="g"><div class="gk">贷款金额</div><div class="gv">820,000.00 元</div></div>
+              <div class="g"><div class="gk">贷款类型</div><div class="gv">商业贷款</div></div>
+              <div class="g"><div class="gk">业务发生时间</div><div class="gv">2021-05-20 11:12</div></div>
+              <div class="g"><div class="gk">转正时间</div><div class="gv">2023-03-20</div></div>
+              <div class="g"><div class="gk">记事单位</div><div class="gv">XXXX市房产交易所</div></div>
+              <div class="g"><div class="gk">记事人</div><div class="gv">系统自动</div></div>
+            </div>
+            <div class="nt-txt">凭网签备案合同与首付款缴存凭证办理预告抵押，双校验通过；预告抵押已于 2023-03-20 转为正式抵押备案 DYBA450200202300426。</div>
+          </div>
+        </div>
+
+        <div class="tl-item t-sp" data-type="sp" data-void="0">
+          <div class="tl-date">05-06</div><div class="tl-dot"></div>
+          <div class="nt">
+            <div class="nt-h">
+              <span class="nt-no">2</span>
+              <span class="badge blue">商品房网签备案</span>
+              <span class="nt-t">商品房买卖合同网签备案</span>
+              <span class="badge green">已备案</span>
+              <a class="link nt-more" href="../wsswb/contract-list.html">查看原业务 <i class="fa-solid fa-arrow-right"></i></a>
+            </div>
+            <div class="nt-grid">
+              <div class="g"><div class="gk">业务编号</div><div class="gv">SPF450200202100862</div></div>
+              <div class="g"><div class="gk">备案编号</div><div class="gv">SPFBA450200202100862</div></div>
+              <div class="g"><div class="gk">权利人 → 义务人</div><div class="gv">陈**（买受人）→ 柳州彰泰房地产开发有限公司</div></div>
+              <div class="g"><div class="gk">成交价</div><div class="gv">1,186,000.00 元</div></div>
+              <div class="g"><div class="gk">业务发生时间</div><div class="gv">2021-05-06 14:18</div></div>
+              <div class="g"><div class="gk">建筑面积</div><div class="gv">118.65 ㎡</div></div>
+              <div class="g"><div class="gk">记事单位</div><div class="gv">XXXX市房产交易所</div></div>
+              <div class="g"><div class="gk">记事人</div><div class="gv">系统自动</div></div>
+            </div>
+            <div class="nt-txt">预售商品房网签备案，成交单价 9,996 元/㎡，付款方式为按揭贷款（首付 366,000 元），资金监管账户已缴存首付款，房源销控状态由「可售」变更为「已网签」。</div>
+          </div>
+        </div>
+
+        <div class="tl-item t-sp" data-type="sp" data-void="0">
+          <div class="tl-date">04-18</div><div class="tl-dot"></div>
+          <div class="nt">
+            <div class="nt-h">
+              <span class="nt-no">1</span>
+              <span class="badge blue">商品房认购</span>
+              <span class="nt-t">商品房认购登记（备案簿首条记事）</span>
+              <span class="badge gray">已转网签</span>
+              <a class="link nt-more" href="../wsswb/subscribe-list.html">查看原业务 <i class="fa-solid fa-arrow-right"></i></a>
+            </div>
+            <div class="nt-grid">
+              <div class="g"><div class="gk">业务编号</div><div class="gv">RG450200202100862</div></div>
+              <div class="g"><div class="gk">认购人</div><div class="gv">陈**</div></div>
+              <div class="g"><div class="gk">认购金额</div><div class="gv">1,186,000.00 元</div></div>
+              <div class="g"><div class="gk">定金</div><div class="gv">30,000.00 元</div></div>
+              <div class="g"><div class="gk">业务发生时间</div><div class="gv">2021-04-18 10:36</div></div>
+              <div class="g"><div class="gk">开发企业</div><div class="gv">柳州彰泰房地产开发有限公司</div></div>
+              <div class="g"><div class="gk">记事单位</div><div class="gv">XXXX市房产交易所</div></div>
+              <div class="g"><div class="gk">记事人</div><div class="gv">系统自动</div></div>
+            </div>
+            <div class="nt-txt">认购登记后房源锁定 15 日，已于 2021-05-06 转为正式网签备案，认购定金抵作购房款。本条为该房屋备案簿首条记事。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="empty-state hidden" id="tlEmpty">
+        <i class="fa-solid fa-inbox"></i>
+        <div>当前筛选条件下没有记事</div>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+/* 按业务类型与是否已注销过滤记事，并同步隐藏空年份分组 */
+function applyFilter() {
+  var type = document.getElementById('fType').value;
+  var onlyValid = document.getElementById('fVoid').value === 'valid';
+  var shown = 0;
+  document.querySelectorAll('.tl-item').forEach(function (it) {
+    var ok = (!type || it.getAttribute('data-type') === type) &&
+             (!onlyValid || it.getAttribute('data-void') === '0');
+    it.classList.toggle('hidden', !ok);
+    if (ok) shown++;
+  });
+  document.querySelectorAll('.tl').forEach(function (tl) {
+    var n = tl.querySelectorAll('.tl-item:not(.hidden)').length;
+    tl.classList.toggle('hidden', n === 0);
+    var yr = tl.previousElementSibling;
+    if (yr && yr.classList.contains('yr')) {
+      yr.classList.toggle('hidden', n === 0);
+      var c = yr.querySelector('.yc');
+      if (c) c.textContent = n + ' 条记事';
+    }
+  });
+  document.getElementById('tlEmpty').classList.toggle('hidden', shown > 0);
+  PMS.toast('当前显示 ' + shown + ' 条记事');
+}
+
+function resetFilter() {
+  document.getElementById('fType').value = '';
+  document.getElementById('fVoid').value = 'all';
+  applyFilter();
+}
+</script>
+</body>
+</html>

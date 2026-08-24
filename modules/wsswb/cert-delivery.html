@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>交房即交证联动 · 新建商品房网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：协同双栏与进度色条 */
+  .coop { display: grid; grid-template-columns: 340px 1fr; gap: 14px; }
+  @media (max-width: 1100px) { .coop { grid-template-columns: 1fr; } }
+  .batch-item {
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; cursor: pointer;
+    background: #fff; margin-bottom: 8px; transition: border-color .15s, box-shadow .15s;
+  }
+  .batch-item:hover { border-color: var(--primary-soft); }
+  .batch-item.active { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-light); }
+  .batch-item .bi-t { font-size: 13.5px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .batch-item .bi-m { font-size: 12px; color: var(--text-3); margin-top: 6px; line-height: 1.6; }
+  .pg { display: flex; align-items: center; gap: 8px; min-width: 110px; }
+  .pg .progress { flex: 1; display: block; min-width: 50px; }
+  .pg b { font-variant-numeric: tabular-nums; font-size: 12.5px; width: 40px; text-align: right; }
+  tr.is-err td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsswb-17">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房网签备案管理系统
+        <span class="sep">/</span> 特殊情形销售
+        <span class="sep">/</span> <span class="cur">交房即交证联动</span>
+      </div>
+      <div class="page-title">交房即交证联动</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" onclick="PMS.toast('已向不动产登记中心推送本批次发证申请','success')"><i class="fa-solid fa-share-nodes"></i> 推送不动产登记</button>
+      <button type="button" class="btn" onclick="location.href='filing-cert.html'">备案证明</button>
+      <button type="button" class="btn" onclick="location.href='project-detail.html'">项目档案</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《交房即交证进度表》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-layer-group"></i></div>
+      <div><div class="s-label">交付批次</div><div class="s-value">12</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-users"></i></div>
+      <div><div class="s-label">涉及户数</div><div class="s-value">1,286</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-certificate"></i></div>
+      <div><div class="s-label">已发证</div><div class="s-value">842</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-spinner"></i></div>
+      <div><div class="s-label">进行中</div><div class="s-value">386</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-circle-exclamation"></i></div>
+      <div><div class="s-label">异常</div><div class="s-value">58</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-handshake"></i>
+    <div>交房即交证协同：以交付批次组织逐户发证进度，联动<a class="link" href="filing-cert.html">备案证明</a>与不动产登记中心；交付当日具备登记条件的同步受理，异常户单独跟踪补正。</div>
+  </div>
+
+  <div class="coop">
+    <!-- 批次列表 -->
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-list-ol"></i> 交付批次</h3>
+        <span class="sub">点击切换逐户进度</span>
+      </div>
+      <div class="card-body" style="padding-top:8px">
+        <div class="batch-item active" data-batch="B202607-03" onclick="selectBatch(this,'B202607-03')">
+          <div class="bi-t">彰泰江湾城（三期）· 第三批 <span class="badge blue">进行中</span></div>
+          <div class="bi-m">交付日 2026-07-28 · 218 户 · 已发证 146 · 异常 8<br>完成率 <b>67.0%</b></div>
+          <div class="pg mt-8"><span class="progress"><span style="width:67%"></span></span><b>67%</b></div>
+        </div>
+        <div class="batch-item" data-batch="B202607-02" onclick="selectBatch(this,'B202607-02')">
+          <div class="bi-t">华润万象天地 · 第二批 <span class="badge orange">进行中</span></div>
+          <div class="bi-m">交付日 2026-07-20 · 186 户 · 已发证 102 · 异常 12<br>完成率 <b>54.8%</b></div>
+          <div class="pg mt-8"><span class="progress orange"><span style="width:54.8%"></span></span><b>55%</b></div>
+        </div>
+        <div class="batch-item" data-batch="B202607-01" onclick="selectBatch(this,'B202607-01')">
+          <div class="bi-t">保利柳江府（二期）· 首批 <span class="badge green">已完成</span></div>
+          <div class="bi-m">交付日 2026-07-08 · 124 户 · 已发证 124 · 异常 0<br>完成率 <b>100%</b></div>
+          <div class="pg mt-8"><span class="progress green"><span style="width:100%"></span></span><b>100%</b></div>
+        </div>
+        <div class="batch-item" data-batch="B202606-04" onclick="selectBatch(this,'B202606-04')">
+          <div class="bi-t">龙光玖誉城（四期）· 第四批 <span class="badge red">异常偏多</span></div>
+          <div class="bi-m">交付日 2026-06-26 · 96 户 · 已发证 58 · 异常 18<br>完成率 <b>60.4%</b></div>
+          <div class="pg mt-8"><span class="progress orange"><span style="width:60.4%"></span></span><b>60%</b></div>
+        </div>
+        <div class="batch-item" data-batch="B202606-03" onclick="selectBatch(this,'B202606-03')">
+          <div class="bi-t">柳州万科城（五期）· 第三批 <span class="badge green">已完成</span></div>
+          <div class="bi-m">交付日 2026-06-15 · 168 户 · 已发证 168 · 异常 0<br>完成率 <b>100%</b></div>
+          <div class="pg mt-8"><span class="progress green"><span style="width:100%"></span></span><b>100%</b></div>
+        </div>
+        <div class="batch-item" data-batch="B202608-01" onclick="selectBatch(this,'B202608-01')">
+          <div class="bi-t">彰泰滨江学府 · 首批 <span class="badge blue">待交付</span></div>
+          <div class="bi-m">计划交付 2026-08-12 · 142 户 · 预审通过 128<br>完成率 <b>0%</b></div>
+          <div class="pg mt-8"><span class="progress"><span style="width:0%"></span></span><b>0%</b></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 逐户进度 -->
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-table-list"></i> 逐户发证进度 · <span id="curBatch">B202607-03</span></h3>
+        <span class="sub" id="curSub">彰泰江湾城（三期）第三批 · 218 户</span>
+      </div>
+      <div class="filter-bar">
+        <div class="filter-item"><label>买受人</label><input type="text" placeholder="姓名 / 证件号"></div>
+        <div class="filter-item"><label>房号</label><input type="text" placeholder="如 11-1-2801"></div>
+        <div class="filter-item"><label>登记进度</label><select><option value="">全部</option><option>待受理</option><option>审核中</option><option>已发证</option><option>异常补正</option></select></div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn" onclick="PMS.toast('已向不动产登记中心催办异常户','success')"><i class="fa-solid fa-bell"></i> 催办异常</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="tblHh" data-static>
+          <thead>
+            <tr>
+              <th>买受人</th>
+              <th>房号</th>
+              <th>交付日</th>
+              <th>不动产登记进度</th>
+              <th>证号</th>
+              <th>备案证明</th>
+              <th>状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="nowrap fw-600">李婉婷</td>
+              <td class="nowrap">11-1-2801</td>
+              <td class="nowrap">2026-07-28</td>
+              <td class="nowrap"><span class="badge green">已发证</span></td>
+              <td class="nowrap">桂（2026）柳州市不动产权第 008642 号</td>
+              <td class="nowrap"><a class="link" href="filing-cert.html">ZM450200202601342</a></td>
+              <td class="nowrap"><span class="badge green">完成</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('不动产权证电子证照已推送买受人')">查看证照</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">黄志文</td>
+              <td class="nowrap">11-1-2802</td>
+              <td class="nowrap">2026-07-28</td>
+              <td class="nowrap"><span class="badge green">已发证</span></td>
+              <td class="nowrap">桂（2026）柳州市不动产权第 008643 号</td>
+              <td class="nowrap"><a class="link" href="filing-cert.html">ZM450200202601338</a></td>
+              <td class="nowrap"><span class="badge green">完成</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('不动产权证电子证照已推送买受人')">查看证照</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">周雅琴</td>
+              <td class="nowrap">11-2-1201</td>
+              <td class="nowrap">2026-07-28</td>
+              <td class="nowrap"><span class="badge orange">审核中</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap"><a class="link" href="filing-cert.html">ZM450200202601320</a></td>
+              <td class="nowrap"><span class="badge orange">进行中</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已向不动产登记中心查询办理进度')">查进度</span></td>
+            </tr>
+            <tr class="is-err">
+              <td class="nowrap fw-600">罗建军</td>
+              <td class="nowrap">11-2-1202</td>
+              <td class="nowrap">2026-07-28</td>
+              <td class="nowrap"><span class="badge red">异常补正</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap"><a class="link" href="filing-cert.html">ZM450200202601318</a></td>
+              <td class="nowrap"><span class="badge red">异常</span></td>
+              <td class="col-ops"><span class="link" onclick="openErr('罗建军','11-2-1202')">处置</span><a class="link" href="filing-cert.html">证明</a></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">莫小娟</td>
+              <td class="nowrap">10-1-1501</td>
+              <td class="nowrap">2026-07-28</td>
+              <td class="nowrap"><span class="badge blue">待受理</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap"><a class="link" href="filing-cert.html">ZM450200202601286</a></td>
+              <td class="nowrap"><span class="badge orange">进行中</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已推送不动产登记受理','success')">推送受理</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">石文彬</td>
+              <td class="nowrap">10-1-1502</td>
+              <td class="nowrap">2026-07-28</td>
+              <td class="nowrap"><span class="badge green">已发证</span></td>
+              <td class="nowrap">桂（2026）柳州市不动产权第 008650 号</td>
+              <td class="nowrap"><a class="link" href="filing-cert.html">ZM450200202601284</a></td>
+              <td class="nowrap"><span class="badge green">完成</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('不动产权证电子证照已推送买受人')">查看证照</span></td>
+            </tr>
+            <tr class="is-err">
+              <td class="nowrap fw-600">覃海波</td>
+              <td class="nowrap">10-2-0901</td>
+              <td class="nowrap">2026-07-28</td>
+              <td class="nowrap"><span class="badge red">异常补正</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap"><a class="link" href="filing-cert.html">ZM450200202601272</a></td>
+              <td class="nowrap"><span class="badge red">异常</span></td>
+              <td class="col-ops"><span class="link" onclick="openErr('覃海波','10-2-0901')">处置</span><a class="link" href="project-detail.html">项目</a></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">陆志明</td>
+              <td class="nowrap">9-1-1802</td>
+              <td class="nowrap">2026-07-28</td>
+              <td class="nowrap"><span class="badge orange">审核中</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap"><a class="link" href="filing-cert.html">ZM450200202601260</a></td>
+              <td class="nowrap"><span class="badge orange">进行中</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已向不动产登记中心查询办理进度')">查进度</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">韦丽华</td>
+              <td class="nowrap">9-2-1601</td>
+              <td class="nowrap">2026-07-28</td>
+              <td class="nowrap"><span class="badge green">已发证</span></td>
+              <td class="nowrap">桂（2026）柳州市不动产权第 008658 号</td>
+              <td class="nowrap"><a class="link" href="filing-cert.html">ZM450200202601248</a></td>
+              <td class="nowrap"><span class="badge green">完成</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('不动产权证电子证照已推送买受人')">查看证照</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">陈志远</td>
+              <td class="nowrap">9-2-1602</td>
+              <td class="nowrap">2026-07-28</td>
+              <td class="nowrap"><span class="badge blue">待受理</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap"><a class="link" href="filing-cert.html">ZM450200202601246</a></td>
+              <td class="nowrap"><span class="badge orange">进行中</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('已推送不动产登记受理','success')">推送受理</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 异常处置 -->
+  <div class="drawer-mask"></div>
+  <div class="drawer" id="dwErr">
+    <div class="drawer-head">
+      <h3>发证异常处置 · <span id="eName">—</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-danger">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>房号 <b id="eRm"></b> 不动产登记退回：测绘面积与备案证明不一致，须企业补正后重新推送。</div>
+      </div>
+      <div class="form-grid form-align mt-16">
+        <div class="form-item">
+          <label>处置方式<span class="req">*</span></label>
+          <select><option selected>通知企业补正测绘成果</option><option>更正备案证明后重推</option><option>买受人补充材料</option><option>转线下窗口办理</option></select>
+        </div>
+        <div class="form-item">
+          <label>承诺办结日</label>
+          <input type="date" value="2026-08-05">
+        </div>
+        <div class="form-item col-full">
+          <label>处置说明<span class="req">*</span></label>
+          <textarea>已通知开发企业核对预测绘与实测绘面积差异，补正后重新推送不动产登记。</textarea>
+        </div>
+      </div>
+      <div class="section-title mt-16">协同节点</div>
+      <div class="timeline">
+        <div class="tl-item done"><div class="tl-dot"></div>
+          <div class="tl-title">交付确认</div>
+          <div class="tl-meta">2026-07-28 · 企业经办</div>
+        </div>
+        <div class="tl-item done"><div class="tl-dot"></div>
+          <div class="tl-title">推送不动产登记</div>
+          <div class="tl-meta">2026-07-28 · 系统</div>
+        </div>
+        <div class="tl-item done"><div class="tl-dot"></div>
+          <div class="tl-title">登记退回补正</div>
+          <div class="tl-meta">2026-07-30 · 不动产登记中心</div>
+        </div>
+        <div class="tl-item pending"><div class="tl-dot"></div>
+          <div class="tl-title">补正后重推</div>
+          <div class="tl-meta">待办理</div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn" onclick="location.href='filing-cert.html'">打开备案证明</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer('dwErr');PMS.toast('异常处置已提交，已通知企业补正','success')"><i class="fa-solid fa-check"></i> 提交处置</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+var batchMeta = {
+  'B202607-03': '彰泰江湾城（三期）第三批 · 218 户',
+  'B202607-02': '华润万象天地第二批 · 186 户',
+  'B202607-01': '保利柳江府（二期）首批 · 124 户',
+  'B202606-04': '龙光玖誉城（四期）第四批 · 96 户',
+  'B202606-03': '柳州万科城（五期）第三批 · 168 户',
+  'B202608-01': '彰泰滨江学府首批 · 142 户'
+};
+
+PMS.renderPager(document.getElementById('tblHh'), {
+  pageNum: 1, pageSize: 20, total: 218,
+  onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+});
+
+function selectBatch(el, code) {
+  document.querySelectorAll('.batch-item').forEach(function (x) { x.classList.remove('active'); });
+  el.classList.add('active');
+  document.getElementById('curBatch').textContent = code;
+  document.getElementById('curSub').textContent = batchMeta[code] || code;
+  PMS.toast('已切换批次 ' + code);
+}
+
+function openErr(name, rm) {
+  document.getElementById('eName').textContent = name;
+  document.getElementById('eRm').textContent = rm;
+  PMS.openDrawer('dwErr');
+}
+</script>
+</body>
+</html>

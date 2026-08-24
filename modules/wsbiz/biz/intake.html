@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>统一收件 · 统一工作门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="biz" data-active="intake">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 收件受理
+        <span class="sep">/</span> <span class="cur">统一收件</span>
+      </div>
+      <div class="page-title">统一收件</div>
+    </div>
+    <div class="page-actions">
+      <span class="node-tag"><i class="fa-solid fa-user-shield"></i>窗口受理员</span>
+      <button class="btn" onclick="resetWizard()"><i class="fa-solid fa-rotate-left"></i> 重新填写</button>
+    </div>
+  </div>
+
+  <div class="wizard" id="wz">
+    <div class="w-step active"><span class="w-num">1</span><span class="w-label">选择事项</span></div>
+    <div class="w-line"></div>
+    <div class="w-step"><span class="w-num">2</span><span class="w-label">核验身份</span></div>
+    <div class="w-line"></div>
+    <div class="w-step"><span class="w-num">3</span><span class="w-label">收取材料</span></div>
+    <div class="w-line"></div>
+    <div class="w-step"><span class="w-num">4</span><span class="w-label">确认归口</span></div>
+    <div class="w-line"></div>
+    <div class="w-step"><span class="w-num">5</span><span class="w-label">生成回执</span></div>
+  </div>
+
+  <div id="root"></div>
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/flow-data.js"></script>
+<script src="../assets/js/flow.js"></script>
+<script>
+(function () {
+  var step = 1;
+  var form = {
+    sxdm: '', extras: [], said: '100100', windowSaid: '100100',
+    sqr: '', sqrlx: '1', sqrzjh: '', sqrdh: '', proxy: '',
+    fw: '', fwbm: '', xmmc: '', zl: '', houseSaid: '100100', htbh: '',
+    sjfs: '0', sjly: '01', verified: false, created: null
+  };
+
+  function item(code) {
+    var hit = null;
+    FLOW.get('items').some(function (x) { if (x.sxdm === code) { hit = x; return true; } return false; });
+    return hit;
+  }
+  function syncWizard() {
+    document.querySelectorAll('#wz .w-step').forEach(function (el, i) {
+      el.classList.toggle('active', i + 1 === step);
+      el.classList.toggle('done', i + 1 < step);
+    });
+  }
+
+  function render() {
+    syncWizard();
+    var root = document.getElementById('root');
+    var it = item(form.sxdm);
+    var html = '';
+
+    /* ---------- 第 1 步：选择事项 ---------- */
+    if (step === 1) {
+      html += '<div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>' +
+        '<span>一窗统一收件：一个窗口收取多业务申请，按事项自动路由到对应业务办理流程。勾选<b>关联事项</b>可一次性合并收件，生成 1 个主件加 N 个子件。</span></div>';
+      html += '<div class="card"><div class="card-head"><h3>第一步 · 选择办理事项</h3></div><div class="card-body">' +
+        '<div class="form-grid">' +
+          '<div class="form-item"><label>办理事项<span class="req">*</span></label>' +
+            '<select id="fSxdm" onchange="setField(\'sxdm\',this.value)">' +
+              '<option value="">请选择事项</option>' +
+              FLOW.get('items').map(function (x) {
+                return '<option value="' + x.sxdm + '"' + (form.sxdm === x.sxdm ? ' selected' : '') + '>' +
+                  FLOW.esc(x.sxmc) + '（' + x.sxdm + '）</option>';
+              }).join('') + '</select></div>' +
+          '<div class="form-item"><label>收件方式<span class="req">*</span></label>' +
+            '<select id="fSjfs" data-dict="sjfs" data-selected="' + form.sjfs + '" onchange="setField(\'sjfs\',this.value)"></select></div>' +
+          '<div class="form-item"><label>来源渠道<span class="req">*</span></label>' +
+            '<select id="fSjly" data-dict="sjly" data-selected="' + form.sjly + '" onchange="setField(\'sjly\',this.value)"></select></div>' +
+          '<div class="form-item"><label>受理窗口所属</label>' +
+            '<select id="fWinSaid" data-dict="said" data-selected="' + form.windowSaid + '" onchange="setField(\'windowSaid\',this.value)"></select>' +
+            '<span class="hint">县区窗口只能受理属地办件</span></div>' +
+        '</div>';
+
+      if (it) {
+        html += '<div class="section-title mt-16" data-icon="fa-book">办事指南</div>' +
+          '<dl class="desc-list">' +
+            row('业务大类', FLOW.dict('ywdlm', it.ywdlm)) + row('办理层级', FLOW.dict('bllj', it.bllj)) +
+            row('承办科室', it.dept) + row('收费', FLOW.dict('sflx', it.sflx)) +
+            row('法定时限', it.fdsx + ' 个工作日') + row('承诺时限', it.cnsx + ' 个工作日') +
+            '<div class="desc-item full"><dt>申请条件</dt><dd>' + FLOW.esc(it.cond) + '</dd></div>' +
+          '</dl>';
+        var exempt = it.clist.filter(function (m) { return m.exempt; });
+        if (exempt.length) {
+          html += '<div class="alert alert-success mt-16"><i class="fa-solid fa-circle-check"></i>' +
+            '<span><b>免提交清单一次性告知</b>：' + exempt.map(function (m) { return FLOW.esc(m.clmc); }).join('、') +
+            ' 无需提交纸质材料，由电子证照调用或数据共享代替。</span></div>';
+        }
+        /* 关联事项合并收件 */
+        var rel = FLOW.get('items').filter(function (x) { return x.sxdm !== it.sxdm && x.ywdlm !== it.ywdlm; }).slice(0, 5);
+        html += '<div class="section-title mt-16" data-icon="fa-object-group">关联业务合并收件</div>' +
+          '<div class="grid-3">' + rel.map(function (x) {
+            var on = form.extras.indexOf(x.sxdm) >= 0;
+            return '<label class="quick-item" style="cursor:pointer;flex-direction:row;justify-content:flex-start;padding:12px">' +
+              '<input type="checkbox" data-extra="' + x.sxdm + '"' + (on ? ' checked' : '') + ' onchange="toggleExtra(\'' + x.sxdm + '\')">' +
+              '<span class="q-label" style="text-align:left">' + FLOW.esc(x.sxmc) + '</span></label>';
+          }).join('') + '</div>';
+        if (form.extras.length) {
+          html += '<div class="alert alert-info mt-16"><i class="fa-solid fa-sitemap"></i><span>已勾选 ' +
+            form.extras.length + ' 个关联事项，将生成 1 个一件事主件与 ' + form.extras.length + ' 个子件，一次收取材料。</span></div>';
+        }
+      }
+      html += '<div class="btn-row mt-16"><button class="btn btn-primary" onclick="next()">下一步：核验身份 <i class="fa-solid fa-angle-right"></i></button></div>';
+      html += '</div></div>';
+    }
+
+    /* ---------- 第 2 步：核验身份 ---------- */
+    if (step === 2) {
+      html += '<div class="alert ' + (form.verified ? 'alert-success' : 'alert-warning') + '">' +
+        '<i class="fa-solid ' + (form.verified ? 'fa-circle-check' : 'fa-triangle-exclamation') + '"></i>' +
+        '<span>' + (form.verified ? '身份核验已通过，可进入下一步。' :
+          '未完成身份核验不能收件。完整的核验能力在「身份核验」页，此处做收件前置校验。') + '</span></div>';
+      html += '<div class="card"><div class="card-head"><h3>第二步 · 核验申请人身份</h3>' +
+        '<div class="head-actions"><a class="link" href="identity-verify.html?role=biz">前往身份核验页</a></div></div><div class="card-body">' +
+        '<div class="form-grid">' +
+          '<div class="form-item"><label>主体类型<span class="req">*</span></label>' +
+            '<select id="fZtlx" data-dict="ztlx" data-selected="' + form.sqrlx + '" onchange="setField(\'sqrlx\',this.value)"></select></div>' +
+          '<div class="form-item"><label>申请人<span class="req">*</span></label>' +
+            '<input type="text" id="fSqr" value="' + FLOW.esc(form.sqr) + '" oninput="setField(\'sqr\',this.value)" placeholder="自然人姓名或单位名称"></div>' +
+          '<div class="form-item"><label>证件号<span class="req">*</span></label>' +
+            '<input type="text" id="fZjh" value="' + FLOW.esc(form.sqrzjh) + '" oninput="setField(\'sqrzjh\',this.value)"></div>' +
+          '<div class="form-item"><label>联系电话<span class="req">*</span></label>' +
+            '<input type="text" id="fDh" value="' + FLOW.esc(form.sqrdh) + '" oninput="setField(\'sqrdh\',this.value)"></div>' +
+          '<div class="form-item"><label>代理人（可选）</label>' +
+            '<input type="text" id="fProxy" value="' + FLOW.esc(form.proxy) + '" oninput="setField(\'proxy\',this.value)" placeholder="填写后将校验委托范围">' +
+            '<span class="hint">超出委托事项范围的代办会被拦截</span></div>' +
+        '</div>' +
+        '<div class="btn-row mt-16">' +
+          '<button class="btn" onclick="fillApplicant()"><i class="fa-solid fa-wand-magic-sparkles"></i> 填入库内样本</button>' +
+          '<button class="btn btn-primary" onclick="doVerify()"><i class="fa-solid fa-id-card"></i> 执行核验</button>' +
+        '</div>' +
+        '<div class="btn-row mt-16">' +
+          '<button class="btn" onclick="prev()"><i class="fa-solid fa-angle-left"></i> 上一步</button>' +
+          '<button class="btn btn-primary" onclick="next()">下一步：收取材料 <i class="fa-solid fa-angle-right"></i></button>' +
+        '</div></div></div>';
+    }
+
+    /* ---------- 第 3 步：收取材料 ---------- */
+    if (step === 3) {
+      var all = [form.sxdm].concat(form.extras).map(item).filter(Boolean);
+      html += '<div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>' +
+        '<span>按事项材料清单逐项收取，<b>必要材料未收取不能进入下一步</b>；标记为免提交的材料由电子证照或数据共享代替，无需勾选。</span></div>';
+      html += '<div class="card"><div class="card-head"><h3>第三步 · 收取材料</h3>' +
+        '<span class="sub">共 ' + all.length + ' 个事项</span></div><div class="card-body">';
+      all.forEach(function (x, gi) {
+        html += '<div class="grp-card"><div class="grp-head"><span class="gi"><i class="fa-solid fa-folder-open"></i></span>' +
+          FLOW.esc(x.sxmc) + (gi === 0 && form.extras.length ? ' ' + FLOW.badge('主件', 'purple') : (gi > 0 ? ' ' + FLOW.badge('子件', 'cyan') : '')) + '</div>' +
+          '<div class="table-wrap"><table class="data-table" data-static>' +
+          '<thead><tr><th>材料名称</th><th>是否必要</th><th>提交方式</th><th>收取</th></tr></thead><tbody>' +
+          x.clist.map(function (m) {
+            var key = x.sxdm + '|' + m.cldm;
+            return '<tr><td>' + FLOW.esc(m.clmc) + '</td>' +
+              '<td>' + (m.must ? FLOW.badge('必要', 'red') : FLOW.badge('可选', 'gray')) + '</td>' +
+              '<td>' + (m.exempt ? FLOW.badge('免提交', 'green') : FLOW.dict('tjfs', '0')) + '</td>' +
+              '<td>' + (m.exempt
+                ? '<span class="text-success">无需收取</span>'
+                : '<input type="checkbox" data-mat="' + key + '"' +
+                  (m.must ? '' : ' checked') + ' onchange="onMat()">') + '</td></tr>';
+          }).join('') + '</tbody></table></div></div>';
+      });
+      html += '<div id="matTip"></div>' +
+        '<div class="btn-row mt-16">' +
+          '<button class="btn" onclick="prev()"><i class="fa-solid fa-angle-left"></i> 上一步</button>' +
+          '<button class="btn" onclick="checkAllMat()"><i class="fa-solid fa-check-double"></i> 全部收取</button>' +
+          '<button class="btn btn-primary" onclick="next()">下一步：确认归口 <i class="fa-solid fa-angle-right"></i></button>' +
+        '</div></div></div>';
+    }
+
+    /* ---------- 第 4 步：确认归口 ---------- */
+    if (step === 4) {
+      var rt = FLOW.act.route(form.sxdm, form.said) || {};
+      var terr = FLOW.act.checkTerritory(form.windowSaid, form.houseSaid);
+      html += '<div class="alert ' + (terr.ok ? 'alert-info' : 'alert-danger') + '">' +
+        '<i class="fa-solid ' + (terr.ok ? 'fa-circle-info' : 'fa-ban') + '"></i><span>' +
+        (terr.ok
+          ? '分类受理归口：按事项、办理层级与项目属地自动确定承办科室与承办人范围。'
+          : FLOW.esc(terr.msg)) + '</span></div>';
+
+      html += '<div class="card"><div class="card-head"><h3>第四步 · 确认归口与房屋信息</h3></div><div class="card-body">' +
+        '<div class="form-grid">' +
+          '<div class="form-item"><label>房屋坐落<span class="req">*</span></label>' +
+            '<input type="text" id="fFw" value="' + FLOW.esc(form.fw) + '" oninput="setField(\'fw\',this.value)"></div>' +
+          '<div class="form-item"><label>房屋编码</label>' +
+            '<input type="text" id="fFwbm" value="' + FLOW.esc(form.fwbm) + '" oninput="setField(\'fwbm\',this.value)"></div>' +
+          '<div class="form-item"><label>所属项目</label>' +
+            '<input type="text" id="fXm" value="' + FLOW.esc(form.xmmc) + '" oninput="setField(\'xmmc\',this.value)"></div>' +
+          '<div class="form-item"><label>房屋所在属地<span class="req">*</span></label>' +
+            '<select id="fHouseSaid" data-dict="said" data-selected="' + form.houseSaid + '" onchange="setField(\'houseSaid\',this.value)"></select></div>' +
+          '<div class="form-item"><label>合同编号</label>' +
+            '<input type="text" id="fHtbh" value="' + FLOW.esc(form.htbh) + '" oninput="setField(\'htbh\',this.value)" placeholder="留空自动生成"></div>' +
+          '<div class="form-item"><label>办件属地<span class="req">*</span></label>' +
+            '<select id="fSaid" data-dict="said" data-selected="' + form.said + '" onchange="setField(\'said\',this.value)"></select></div>' +
+        '</div>' +
+        '<div class="btn-row mt-16">' +
+          '<button class="btn" onclick="fillHouse()"><i class="fa-solid fa-wand-magic-sparkles"></i> 填入库内房屋样本</button>' +
+        '</div>' +
+        '<div class="section-title mt-16" data-icon="fa-diagram-project">自动归口结果</div>' +
+        '<dl class="desc-list">' +
+          row('承办科室', rt.dept) + row('承诺时限', (rt.cnsx || '—') + ' 个工作日') +
+          row('办理层级', FLOW.dict('bllj', rt.bllj)) + row('属地口径', rt.note) +
+          '<div class="desc-item full"><dt>可承办人范围</dt><dd>' +
+            ((rt.handlers || []).map(function (u) { return FLOW.esc(u.name) + '（' + FLOW.esc(u.dept) + '）'; }).join('、') || '—') +
+          '</dd></div>' +
+        '</dl>';
+      if (!terr.ok) {
+        html += '<div class="btn-row mt-16">' +
+          '<button class="btn btn-danger" onclick="doTransfer(\'' + terr.to + '\')">' +
+          '<i class="fa-solid fa-share"></i> 转办至 ' + FLOW.dict('said', terr.to) + '</button></div>';
+      }
+      html += '<div class="btn-row mt-16">' +
+          '<button class="btn" onclick="prev()"><i class="fa-solid fa-angle-left"></i> 上一步</button>' +
+          '<button class="btn btn-primary" ' + (terr.ok ? '' : 'disabled') + ' onclick="doIntake()">' +
+          '<i class="fa-solid fa-inbox"></i> 确认收件并生成办件</button>' +
+        '</div></div></div>';
+    }
+
+    /* ---------- 第 5 步：生成回执 ---------- */
+    if (step === 5) {
+      var created = form.created || [];
+      html += '<div class="alert alert-success"><i class="fa-solid fa-circle-check"></i>' +
+        '<span>收件成功，已生成 ' + created.length + ' 个办件与对应待办任务，材料影像已按随办随归推送房产档案。</span></div>' +
+        '<div class="card"><div class="card-head"><h3>第五步 · 收件结果与回执</h3></div><div class="card-body">' +
+        '<div class="table-wrap"><table class="data-table" data-static>' +
+        '<thead><tr><th>收件编号</th><th>事项名称</th><th>关联类型</th><th>承办科室</th><th>承诺完成</th><th>查询码</th><th>操作</th></tr></thead><tbody>' +
+        created.map(function (c) {
+          return '<tr><td>' + FLOW.esc(c.sjbh) + '</td><td>' + FLOW.esc(c.sxmc) + '</td>' +
+            '<td>' + FLOW.badge(FLOW.dict('gllx', c.gllx), c.gllx === '1' ? 'purple' : (c.gllx === '2' ? 'cyan' : 'gray')) + '</td>' +
+            '<td>' + FLOW.esc(c.dept) + '</td><td>' + FLOW.fmt.time(c.cnwcsj) + '</td>' +
+            '<td class="fw-700 text-primary">' + FLOW.esc(c.cxm) + '</td>' +
+            '<td><a class="link" href="intake-receipt.html?role=biz&id=' + c.id + '">出具回执</a> ' +
+            '<a class="link" href="case-detail.html?role=biz&id=' + c.id + '">详情</a></td></tr>';
+        }).join('') + '</tbody></table></div>' +
+        '<div class="btn-row mt-16">' +
+          '<a class="btn btn-primary" href="intake-receipt.html?role=biz&id=' + (created[0] ? created[0].id : '') + '">' +
+            '<i class="fa-solid fa-print"></i> 出具并打印收件回执</a>' +
+          '<a class="btn" href="material-check.html?role=biz&id=' + (created[0] ? created[0].id : '') + '">' +
+            '<i class="fa-solid fa-file-circle-check"></i> 去材料核验</a>' +
+          '<a class="btn" href="task-center.html?role=biz"><i class="fa-solid fa-list-check"></i> 查看待办中心</a>' +
+          '<button class="btn" onclick="resetWizard()"><i class="fa-solid fa-plus"></i> 再收一件</button>' +
+        '</div></div></div>';
+    }
+
+    root.innerHTML = html;
+    PMS.populateDicts(root);
+    if (step === 3) onMat();
+  }
+
+  function row(label, value) {
+    return '<div class="desc-item"><dt>' + label + '</dt><dd>' + FLOW.esc(value == null || value === '' ? '—' : value) + '</dd></div>';
+  }
+
+  window.setField = function (k, v) { form[k] = v; if (k === 'sxdm' || k === 'windowSaid' || k === 'houseSaid' || k === 'said') render(); };
+  window.toggleExtra = function (code) {
+    var i = form.extras.indexOf(code);
+    if (i >= 0) form.extras.splice(i, 1); else form.extras.push(code);
+    render();
+  };
+
+  /* 必要材料齐全校验 */
+  function missing() {
+    var miss = [];
+    document.querySelectorAll('[data-mat]').forEach(function (box) {
+      var tr = box.closest('tr');
+      var must = tr && tr.querySelector('.badge.red');
+      if (must && !box.checked) miss.push(tr.children[0].textContent);
+    });
+    return miss;
+  }
+  window.onMat = function () {
+    var miss = missing();
+    var tip = document.getElementById('matTip');
+    if (!tip) return;
+    tip.innerHTML = miss.length
+      ? '<div class="alert alert-danger"><i class="fa-solid fa-triangle-exclamation"></i><span>缺少必要材料 ' +
+        miss.length + ' 项：' + miss.map(FLOW.esc).join('、') + '</span></div>'
+      : '<div class="alert alert-success"><i class="fa-solid fa-circle-check"></i><span>必要材料已齐全，可进入下一步。</span></div>';
+  };
+  window.checkAllMat = function () {
+    document.querySelectorAll('[data-mat]').forEach(function (b) { b.checked = true; });
+    onMat();
+    PMS.toast('已勾选全部材料', 'success');
+  };
+
+  window.fillApplicant = function () {
+    var c = FLOW.where('cases', function (x) { return x.sqrlx === form.sqrlx; })[0];
+    if (!c) { PMS.toast('库内暂无该主体类型的样本', 'error'); return; }
+    form.sqr = c.sqr; form.sqrzjh = c.sqrzjh; form.sqrdh = c.sqrdh;
+    render();
+    PMS.toast('已填入库内申请人样本');
+  };
+  window.fillHouse = function () {
+    var c = FLOW.get('cases')[Math.floor(Math.random() * FLOW.get('cases').length)];
+    form.fw = c.fw; form.fwbm = c.fwbm; form.xmmc = c.xmmc;
+    form.houseSaid = c.said; form.said = c.said;
+    render();
+    PMS.toast('已填入库内房屋样本');
+  };
+  window.doVerify = function () {
+    if (!form.sqr || !form.sqrzjh) { PMS.toast('请填写申请人与证件号', 'error'); return; }
+    var ok = (form.sqrlx === '1')
+      ? FLOW.act.verifyPerson({ xm: form.sqr, zjh: form.sqrzjh, hyfs: '2' })
+      : FLOW.act.verifyLegal({ xm: form.sqr, zjh: form.sqrzjh, hyfs: '3' });
+    if (ok && form.proxy) {
+      ok = FLOW.act.checkProxyScope(form.proxy, (item(form.sxdm) || {}).sxmc || '');
+    }
+    form.verified = !!ok;
+    render();
+  };
+  window.doTransfer = function (said) {
+    FLOW.act.transferTerritory(said, form);
+  };
+  window.doIntake = function () {
+    var created = FLOW.act.intake(form);
+    if (created) { form.created = created; step = 5; render(); }
+  };
+
+  window.next = function () {
+    if (step === 1) {
+      if (!form.sxdm) { PMS.toast('请选择办理事项', 'error'); return; }
+    }
+    if (step === 2) {
+      if (!form.sqr || !form.sqrzjh || !form.sqrdh) { PMS.toast('申请人、证件号、联系电话均为必填', 'error'); return; }
+      if (!form.verified) { PMS.toast('请先执行身份核验', 'error'); return; }
+    }
+    if (step === 3) {
+      var miss = missing();
+      if (miss.length) { PMS.toast('缺少必要材料 ' + miss.length + ' 项，不能进入下一步', 'error'); return; }
+    }
+    step = Math.min(5, step + 1);
+    render();
+  };
+  window.prev = function () { step = Math.max(1, step - 1); render(); };
+  window.resetWizard = function () {
+    step = 1;
+    form = {
+      sxdm: '', extras: [], said: '100100', windowSaid: '100100',
+      sqr: '', sqrlx: '1', sqrzjh: '', sqrdh: '', proxy: '',
+      fw: '', fwbm: '', xmmc: '', zl: '', houseSaid: '100100', htbh: '',
+      sjfs: '0', sjly: '01', verified: false, created: null
+    };
+    render();
+    PMS.toast('已重置收件表单');
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    /* 门户首页磁贴带 sxdm 进来时预选该事项；直接进入本页时预选第一个热门事项，
+       让办事指南与材料清单一打开就有内容可看 */
+    var pre = FLOW.param('sxdm');
+    if (pre && item(pre)) {
+      form.sxdm = pre;
+    } else {
+      var hot = FLOW.get('items').filter(function (x) { return x.hot; })[0];
+      if (hot) form.sxdm = hot.sxdm;
+    }
+    FLOW.on(render);
+  });
+})();
+</script>
+</body>
+</html>

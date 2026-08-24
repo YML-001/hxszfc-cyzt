@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>大模型本地化部署 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="pt" data-active="model-library" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>模型底座</span>
+      <span class="sep">/</span><span>模型管理</span>
+      <span class="sep">/</span><span class="cur">大模型本地化部署</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-microchip"></i>模型管理 wsai-02</span>
+    <a href="model-library.html?role=pt">算法模型库</a>
+    <a class="active" href="model-deploy.html?role=pt">本地化部署</a>
+    <a href="model-version.html?role=pt">版本管理</a>
+    <a href="model-eval.html?role=pt">效果评估</a>
+    <a href="compute-resource.html?role=pt">算力纳管</a>
+    <a href="agent-orchestrate.html?role=pt">智能体编排</a>
+    <a href="upstream-model.html?role=pt">上级模型复用</a>
+    <a href="corpus-manage.html?role=pt">行业语料</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-shield-halved"></i>
+    <span>模型状态机为 <b>草稿 → 部署中 → 灰度中 / 已发布 → 已下线</b>，不允许跨状态跃迁：
+      草稿不能直接发布，必须先完成部署。只有「已发布」或「灰度中」的模型才能被智能体编排选用。</span>
+  </div>
+
+  <!-- 统一推理服务：本地化部署的对外出口 -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head">
+        <h3>统一推理服务</h3><span class="sub">各业务智能应用的唯一调用入口</span>
+      </div>
+      <div class="card-body">
+        <dl class="desc-list">
+          <div class="desc-item"><dt>服务地址</dt><dd>https://ai.lzfc.gov.cn/v1/inference</dd></div>
+          <div class="desc-item"><dt>部署形态</dt><dd>政务内网信创服务器 · 国密加密</dd></div>
+          <div class="desc-item"><dt>在服模型</dt><dd id="dOn">—</dd></div>
+          <div class="desc-item"><dt>今日调用</dt><dd id="dCalls">—</dd></div>
+          <div class="desc-item"><dt>鉴权方式</dt><dd>统一身份认证 + 场景配额</dd></div>
+          <div class="desc-item"><dt>服务状态</dt><dd><span class="badge green">运行正常</span></dd></div>
+        </dl>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>部署进度</h3><span class="sub">点「部署」推进状态机</span></div>
+      <div class="card-body">
+        <div class="wizard" style="margin-bottom:14px">
+          <div class="w-step done"><span class="w-num"><i class="fa-solid fa-check"></i></span><span class="w-label">算力就绪</span></div>
+          <div class="w-line"></div>
+          <div class="w-step done"><span class="w-num"><i class="fa-solid fa-check"></i></span><span class="w-label">语料准备</span></div>
+          <div class="w-line"></div>
+          <div class="w-step active"><span class="w-num">3</span><span class="w-label">权重加载</span></div>
+          <div class="w-line"></div>
+          <div class="w-step"><span class="w-num">4</span><span class="w-label">服务注册</span></div>
+          <div class="w-line"></div>
+          <div class="w-step"><span class="w-num">5</span><span class="w-label">发布上线</span></div>
+        </div>
+        <div id="deployList"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3>全部模型部署状态</h3>
+      <span class="sub" id="subTip">—</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tDeploy" data-static>
+        <thead><tr>
+          <th>模型名称</th><th>类型</th><th>版本</th><th>状态</th><th>来源</th>
+          <th class="cell-lg">部署说明</th><th>更新时间</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  function paintTop() {
+    document.getElementById('dOn').textContent = AI.stat('models') + ' 个';
+    document.getElementById('dCalls').textContent = AI.num(AI.stat('calls')) + ' 次';
+    var pend = AI.where('models', function (m) { return m.mxzt === '0' || m.mxzt === '1'; });
+    document.getElementById('subTip').textContent = pend.length
+      ? ('还有 ' + pend.length + ' 个模型未发布，未发布的模型不能被智能体选用')
+      : '全部模型均已发布';
+
+    /* 待部署清单：草稿与部署中的模型 */
+    document.getElementById('deployList').innerHTML = pend.length ? pend.map(function (m) {
+      return '<div class="issue ' + (m.mxzt === '1' ? 'fix' : 'pending') + '">' +
+        '<div class="is-h"><span class="is-f">' + AI.esc(m.mc) + '</span>' + AI.mxBadge(m.mxzt) +
+          '<span class="badge gray">' + AI.esc(m.ver) + '</span></div>' +
+        '<div class="is-note">' + AI.esc(m.note) + '</div>' +
+        '<div class="mt-8"><button class="btn btn-primary btn-sm" onclick="AI.act.deployModel(\'' + m.id + '\')">' +
+          '<i class="fa-solid fa-rocket"></i> ' + (m.mxzt === '0' ? '启动本地化部署' : '完成部署并发布') + '</button></div>' +
+        '</div>';
+    }).join('') : '<div class="empty"><i class="fa-regular fa-circle-check"></i><div>没有待部署的模型</div></div>';
+  }
+
+  AI.table({
+    id: 'tDeploy', pageSize: 20,
+    rows: function () { return AI.get('models'); },
+    cells: function (m) {
+      return [
+        '<td>' + AI.esc(m.mc) + '</td>',
+        '<td>' + AI.dict('mxlx', m.mxlx) + '</td>',
+        '<td>' + AI.esc(m.ver) + '</td>',
+        '<td>' + AI.mxBadge(m.mxzt) + '</td>',
+        '<td>' + AI.dict('mxly', m.mxly) + '</td>',
+        '<td class="cell-lg">' + AI.esc(m.note) + '</td>',
+        '<td>' + AI.fmt.date(m.updatedAt) + '</td>',
+        '<td class="col-ops">' +
+          (m.mxzt === '0' || m.mxzt === '1'
+            ? '<button class="btn btn-primary btn-sm" onclick="AI.act.deployModel(\'' + m.id + '\')">' +
+              '<i class="fa-solid fa-rocket"></i> ' + (m.mxzt === '0' ? '部署' : '发布') + '</button>'
+            : '<button class="btn btn-sm" onclick="AI.toast(\'该模型已' + AI.dict('mxzt', m.mxzt) + '，无需重复部署\',\'error\')">' +
+              '<i class="fa-solid fa-check"></i> 已部署</button>') +
+        '</td>'
+      ];
+    },
+    empty: '暂无模型'
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () { paintTop(); AI.repaintAll(); });
+  });
+})();
+</script>
+</body>
+</html>

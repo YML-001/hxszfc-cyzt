@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>合同材料智能审核 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="jb" data-active="contract-review" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>智能应用</span>
+      <span class="sep">/</span><span>智能审核</span>
+      <span class="sep">/</span><span class="cur">合同材料智能审核</span>
+    </div>
+    <div class="page-actions">
+      <span class="node-tag"><i class="fa-solid fa-user-shield"></i>业务经办人</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-file-circle-check"></i>智能审核 wsai-06</span>
+    <a class="active" href="contract-review.html?role=jb">合同材料审核</a>
+    <a href="license-ocr.html?role=jb">证照识别回填</a>
+    <a href="cross-check.html?role=jb">材料交叉校验</a>
+    <span class="sn-label" style="margin-left:10px"><i class="fa-solid fa-magnifying-glass-chart"></i>治理</span>
+    <a href="../admin/review-feedback.html?role=pt">审核结果复核回流</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-robot"></i>
+    <span>AI 基于 OCR 与 NLP 抽取材料关键信息并与系统登记值比对，<b>只输出疑点不下结论</b>。
+      每条疑点都必须由经办人做「采纳 / 修正 / 驳回」，<b>全部疑点确认完才允许推送材料补正</b>。</span>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon ai"><i class="fa-solid fa-file-circle-check"></i></div>
+      <div><div class="s-label">审核任务</div><div class="s-value" id="kTask">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-magnifying-glass"></i></div>
+      <div><div class="s-label">待确认疑点</div><div class="s-value" id="kPend">—</div>
+        <div class="s-trend text-danger">未确认不能推送补正</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-check"></i></div>
+      <div><div class="s-label">已采纳疑点</div><div class="s-value" id="kAdopt">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-xmark"></i></div>
+      <div><div class="s-label">已驳回（误报）</div><div class="s-value" id="kRej">—</div></div>
+    </div>
+  </div>
+
+  <!-- 发起审核 -->
+  <div class="card">
+    <div class="card-head">
+      <h3>发起智能审核</h3>
+      <span class="sub">选择办件后调用合同审核智能体</span>
+      <div class="head-actions">
+        <select id="pickCase" style="width:330px"></select>
+        <button class="btn btn-primary btn-sm" onclick="run()"><i class="fa-solid fa-play"></i> 开始智能审核</button>
+      </div>
+    </div>
+    <div class="card-body tight">
+      <div class="text-3 text-sm">已审核过的办件不会重复生成任务，可直接在下方查看疑点清单。</div>
+    </div>
+  </div>
+
+  <!-- 左原件右疑点 -->
+  <div class="ai-split mt-16" style="min-height:520px">
+    <div class="card">
+      <div class="card-head">
+        <h3>材料原件</h3>
+        <span class="sub" id="matSub">—</span>
+        <div class="head-actions">
+          <select id="pickTask" style="width:250px" onchange="paintDetail()"></select>
+        </div>
+      </div>
+      <div class="card-body" id="matBody"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3>AI 疑点清单</h3>
+        <span class="sub" id="issueSub">—</span>
+        <div class="head-actions">
+          <button class="btn btn-success btn-sm" onclick="adoptAll()"><i class="fa-solid fa-check-double"></i> 全部采纳</button>
+          <button class="btn btn-primary btn-sm" onclick="push()"><i class="fa-solid fa-paper-plane"></i> 推送补正</button>
+        </div>
+      </div>
+      <div class="card-body" id="issueBody"></div>
+    </div>
+  </div>
+
+  <div id="aiPushHint" class="mt-16"></div>
+
+  <div class="card mt-16">
+    <div class="card-head"><h3>全部审核任务</h3><span class="sub">按创建时间倒序</span></div>
+    <div class="table-wrap">
+      <table class="data-table" id="tTask" data-static>
+        <thead><tr>
+          <th>办件编号</th><th>办理事项</th><th>申请人</th><th>模型 / 版本</th>
+          <th class="num">疑点数</th><th class="num">待确认</th><th>任务状态</th><th>补正推送</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var curTask = null;
+
+  function fillPickers() {
+    /* 未审核的办件 */
+    var cs = AI.where('cases', function (c) { return !c.aiChecked; });
+    var sel = document.getElementById('pickCase');
+    sel.innerHTML = cs.length
+      ? cs.map(function (c) {
+          return '<option value="' + c.id + '">' + AI.esc(c.sjbh) + ' · ' + AI.esc(c.sxmc) + ' · ' + AI.esc(c.sqr) + '</option>';
+        }).join('')
+      : '<option value="">全部办件已完成智能审核</option>';
+
+    /* 任务下拉 */
+    var ts = AI.get('reviewTasks');
+    var ps = document.getElementById('pickTask');
+    var keep = ps.value;
+    ps.innerHTML = ts.map(function (t) {
+      var pend = t.issues.filter(function (i) { return i.qrzt === '0'; }).length;
+      return '<option value="' + t.id + '">' + AI.esc(t.sjbh) + '（' + (pend ? pend + ' 项待确认' : '已全部确认') + '）</option>';
+    }).join('');
+    if (keep) ps.value = keep;
+    if (!ps.value && ps.options.length) ps.value = ps.options[0].value;
+    curTask = ps.value || null;
+  }
+
+  function paintKpi() {
+    var ts = AI.get('reviewTasks');
+    var all = [];
+    ts.forEach(function (t) { all = all.concat(t.issues); });
+    document.getElementById('kTask').textContent = ts.length;
+    document.getElementById('kPend').textContent = all.filter(function (i) { return i.qrzt === '0'; }).length;
+    document.getElementById('kAdopt').textContent = all.filter(function (i) { return i.qrzt === '1'; }).length;
+    document.getElementById('kRej').textContent = all.filter(function (i) { return i.qrzt === '3'; }).length;
+  }
+
+  window.run = function () {
+    var id = document.getElementById('pickCase').value;
+    if (!id) { AI.toast('没有待审核的办件', 'error'); return; }
+    var t = AI.act.runReview(id);
+    if (t) { curTask = t.id; document.getElementById('pickTask').value = t.id; paintDetail(); }
+  };
+
+  window.paintDetail = function () {
+    curTask = document.getElementById('pickTask').value;
+    var t = AI.byId('reviewTasks', curTask);
+    if (!t) {
+      document.getElementById('matBody').innerHTML = '<div class="empty"><i class="fa-regular fa-file"></i><div>请先发起智能审核</div></div>';
+      document.getElementById('issueBody').innerHTML = '';
+      document.getElementById('matSub').textContent = '—';
+      document.getElementById('issueSub').textContent = '—';
+      return;
+    }
+    var c = AI.byId('cases', t.caseId);
+    document.getElementById('matSub').textContent = t.sjbh;
+
+    /* 左侧：材料原件与系统登记值 */
+    document.getElementById('matBody').innerHTML =
+      '<div class="grp-card"><div class="grp-head"><span class="gi"><i class="fa-solid fa-file-contract"></i></span>' +
+        AI.esc(t.sxmc) + '</div>' +
+        '<dl class="desc-list">' +
+          '<div class="desc-item"><dt>办件编号</dt><dd>' + AI.esc(t.sjbh) + '</dd></div>' +
+          '<div class="desc-item"><dt>申请人</dt><dd>' + AI.esc(t.sqr) + '</dd></div>' +
+          (c ? '<div class="desc-item full"><dt>房屋坐落</dt><dd>' + AI.esc(c.fw) + '</dd></div>' : '') +
+          (c ? '<div class="desc-item"><dt>合同金额</dt><dd>' + AI.num(c.htje) + ' 万元</dd></div>' : '') +
+          (c ? '<div class="desc-item"><dt>业务大类</dt><dd>' + AI.dict('ywdlm', c.ywdlm) + '</dd></div>' : '') +
+        '</dl></div>' +
+      '<div class="grp-card"><div class="grp-head"><span class="gi"><i class="fa-solid fa-images"></i></span>材料影像</div>' +
+        '<div class="file-up-grid">' +
+          ['合同文本', '不动产权证', '完税凭证', '身份证明'].map(function (n, i) {
+            return '<div class="file-up-tile thumb" title="' + n + '">' +
+              '<img src="https://images.unsplash.com/photo-' +
+              ['1568667256549-094345857637', '1450101499163-c8848c66ca85', '1554224155-6726b3ff858f', '1586281380349-632531db7ed4'][i] +
+              '?auto=format&fit=crop&w=200&q=60" alt="' + n + '">' +
+              '<span class="fname">' + n + '</span></div>';
+          }).join('') +
+        '</div>' +
+        '<div class="text-3 text-sm mt-16">AI 从上述影像中抽取关键字段，与系统登记值逐项比对，比对结果见右侧疑点清单。</div>' +
+      '</div>';
+
+    /* 右侧：疑点清单 */
+    var pend = t.issues.filter(function (i) { return i.qrzt === '0'; }).length;
+    document.getElementById('issueSub').textContent =
+      t.issues.length + ' 项，' + (pend ? pend + ' 项待确认' : '已全部确认');
+    document.getElementById('issueBody').innerHTML =
+      '<div class="ai-source mb-16" style="padding:8px 10px;background:var(--bg-soft);border-radius:6px">' +
+        '<span class="as-model"><i class="fa-solid fa-microchip"></i>' + AI.esc(t.mxmc) + '</span>' +
+        '<span class="as-sep"></span><span>版本 ' + AI.esc(t.ver) + '</span>' +
+        '<span class="as-sep"></span><span>' + AI.fmt.time(t.at) + '</span>' +
+        '<span style="margin-left:auto">' + AI.aiMark(pend ? '0' : '1') + '</span>' +
+      '</div>' +
+      t.issues.map(function (i) {
+        var cls = { '0': 'pending', '1': 'adopt', '2': 'fix', '3': 'reject' }[i.qrzt] || 'pending';
+        return '<div class="issue ' + cls + '">' +
+          '<div class="is-h"><span class="is-f">' + AI.esc(i.field) + '</span>' +
+            (i.same ? '<span class="badge green">一致</span>' : '<span class="badge orange">疑点</span>') +
+            AI.confidence(i.conf) +
+            '<span style="margin-left:auto">' + (i.qrzt === '0'
+              ? '<span class="badge orange">待确认</span>'
+              : AI.qrBadge(i.qrzt)) + '</span></div>' +
+          '<div class="is-cmp">' +
+            '<div class="is-cell ai"><b><i class="fa-solid fa-robot"></i> AI 从材料抽取</b>' + AI.esc(i.aiVal) + '</div>' +
+            '<div class="is-cell"><b><i class="fa-solid fa-database"></i> 系统登记值</b>' + AI.esc(i.sysVal) + '</div>' +
+          '</div>' +
+          '<div class="is-note">' + AI.esc(i.note) + '</div>' +
+          (i.fixVal ? '<div class="is-note text-primary mt-8"><b>人工修正为：</b>' + AI.esc(i.fixVal) + '</div>' : '') +
+          (i.hrBy ? '<div class="text-3 text-sm mt-8">' + AI.esc(i.hrBy) + ' 于 ' + AI.fmt.time(i.hrAt) + ' 处理</div>' : '') +
+          (i.qrzt === '0'
+            ? '<div class="mt-8"><span class="act-triplet">' +
+                '<button class="btn btn-adopt" onclick="ok(\'' + i.id + '\')"><i class="fa-solid fa-check"></i>采纳</button>' +
+                '<button class="btn btn-fix" onclick="fix(\'' + i.id + '\')"><i class="fa-solid fa-pen"></i>修正</button>' +
+                '<button class="btn btn-reject" onclick="no(\'' + i.id + '\')"><i class="fa-solid fa-xmark"></i>驳回</button>' +
+              '</span></div>'
+            : '') +
+          '</div>';
+      }).join('');
+  };
+
+  window.ok = function (iid) { AI.act.confirmIssue(curTask, iid, '1'); };
+  window.no = function (iid) { AI.act.confirmIssue(curTask, iid, '3'); };
+  window.fix = function (iid) {
+    var t = AI.byId('reviewTasks', curTask);
+    var it = null;
+    if (t) t.issues.forEach(function (x) { if (x.id === iid) it = x; });
+    var v = window.prompt('请输入修正后的正确值（将作为纠错样本回流）', it ? it.aiVal : '');
+    if (v == null) return;
+    if (!String(v).trim()) { AI.toast('修正值不能为空', 'error'); return; }
+    AI.act.confirmIssue(curTask, iid, '2', String(v).trim());
+  };
+  window.adoptAll = function () {
+    var t = AI.byId('reviewTasks', curTask);
+    if (!t) { AI.toast('请先选择审核任务', 'error'); return; }
+    var pend = t.issues.filter(function (i) { return i.qrzt === '0'; });
+    if (!pend.length) { AI.toast('该任务的疑点已全部确认', 'error'); return; }
+    AI.confirm({
+      title: '全部采纳', type: 'success', okText: '全部采纳',
+      message: '确定采纳这 ' + pend.length + ' 项 AI 疑点吗？',
+      detail: '采纳后可推送材料补正，并作为正样本回流用于模型调优。',
+      onOk: function () {
+        pend.forEach(function (i) { AI.act.confirmIssue(t.id, i.id, '1'); });
+      }
+    });
+  };
+  window.push = function () {
+    if (!curTask) { AI.toast('请先选择审核任务', 'error'); return; }
+    AI.act.pushCorrection(curTask);
+  };
+
+  AI.table({
+    id: 'tTask', pageSize: 10,
+    rows: function () {
+      return AI.get('reviewTasks').slice().sort(function (a, b) { return b.at - a.at; });
+    },
+    cells: function (t) {
+      var pend = t.issues.filter(function (i) { return i.qrzt === '0'; }).length;
+      return [
+        '<td>' + AI.esc(t.sjbh) + '</td>',
+        '<td>' + AI.esc(t.sxmc) + '</td>',
+        '<td>' + AI.esc(t.sqr) + '</td>',
+        '<td>' + AI.esc(t.mxmc) + '<br><span class="text-3 text-sm">' + AI.esc(t.ver) + '</span></td>',
+        '<td class="num">' + t.issues.length + '</td>',
+        '<td class="num">' + (pend ? '<span class="text-danger fw-600">' + pend + '</span>' : '0') + '</td>',
+        '<td>' + (t.zt === '1' ? '<span class="badge green">已确认完</span>' : '<span class="badge orange">待确认</span>') + '</td>',
+        '<td>' + (t.pushed ? '<span class="badge green">已推送</span>' : '<span class="badge gray">未推送</span>') + '</td>',
+        '<td class="col-ops">' +
+          '<button class="btn btn-sm" onclick="goTask(\'' + t.id + '\')"><i class="fa-solid fa-eye"></i> 查看疑点</button> ' +
+          (!t.pushed
+            ? '<button class="btn btn-primary btn-sm" onclick="AI.act.pushCorrection(\'' + t.id + '\')">' +
+              '<i class="fa-solid fa-paper-plane"></i> 推送补正</button>'
+            : '') +
+        '</td>'
+      ];
+    },
+    empty: '暂无智能审核任务，先在上方发起审核'
+  });
+
+  window.goTask = function (id) {
+    document.getElementById('pickTask').value = id;
+    paintDetail();
+    document.getElementById('issueBody').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () {
+      fillPickers();
+      paintKpi();
+      paintDetail();
+      AI.repaintAll();
+    });
+  });
+})();
+</script>
+</body>
+</html>

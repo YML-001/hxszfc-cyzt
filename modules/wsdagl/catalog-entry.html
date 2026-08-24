@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>档案著录 · 房屋交易档案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  .no-code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; }
+  /* 本页特有：左表单 + 右评分面板 */
+  .ce-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 12px; align-items: start; }
+  @media (max-width: 1200px) { .ce-layout { grid-template-columns: 1fr; } }
+  .ce-side { position: sticky; top: 12px; }
+  /* 本页特有：著录项来源标签 */
+  .src { display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-left: 6px; }
+  .src.auto { background: #dcfce7; color: #15803d; }
+  .src.ai { background: #dbeafe; color: #1d4ed8; }
+  .src.man { background: #eef1f6; color: #64748b; }
+  /* 本页特有：评分面板 */
+  .sc-ring {
+    width: 132px; height: 132px; border-radius: 50%; margin: 4px auto 12px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .sc-ring > i {
+    width: 100px; height: 100px; border-radius: 50%; background: #fff; font-style: normal;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .sc-ring .sv { font-size: 30px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+  .sc-ring .sl { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+  .chk-row {
+    display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; font-size: 13px;
+    border-top: 1px dashed var(--border);
+  }
+  .chk-row:first-child { border-top: 0; }
+  .chk-row .ci { width: 16px; flex-shrink: 0; text-align: center; margin-top: 2px; }
+  .chk-row .ct { flex: 1; min-width: 0; }
+  .chk-row .cs { flex-shrink: 0; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--text-2); }
+  .chk-row.bad .cs { color: var(--warning); }
+  /* 本页特有：标签式输入 */
+  .tag-input {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 36px;
+    border: 1px solid var(--border); border-radius: 8px; padding: 5px 8px; background: #fff;
+  }
+  .tag-input .tg {
+    display: inline-flex; align-items: center; gap: 5px; background: var(--primary-light);
+    color: var(--primary); border-radius: 5px; padding: 2px 6px; font-size: 12.5px;
+  }
+  .tag-input .tg .x { cursor: pointer; opacity: .6; }
+  .tag-input .tg .x:hover { opacity: 1; }
+  .tag-input input { flex: 1; min-width: 90px; border: 0; outline: none; font-size: 13px; height: 24px; }
+  .cnt-hint { font-size: 12px; color: var(--text-3); }
+  .cnt-hint.bad { color: var(--warning); font-weight: 600; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdagl-06">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> <a class="link" href="index.html">房屋交易档案管理系统</a>
+        <span class="sep">/</span> 档案接收整理
+        <span class="sep">/</span> <a class="link" href="archive-list.html">档案案卷台账</a>
+        <span class="sep">/</span> <span class="cur">档案著录</span>
+      </div>
+      <div class="page-title">档案著录</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="archive-detail.html"><i class="fa-solid fa-file-lines"></i> 案卷详情</a>
+      <a class="btn" href="archive-viewer.html"><i class="fa-solid fa-object-group"></i> 图文对照著录</a>
+      <a class="btn" href="category-tree.html"><i class="fa-solid fa-sitemap"></i> 著录规范配置</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body tight">
+      <div class="flex items-center gap-12" style="flex-wrap:wrap">
+        <span class="badge cyan">存量房交易档案</span>
+        <b class="no-code" id="daNo">DA450204202600862</b>
+        <span>彰泰滨江学府12栋2单元1802存量房买卖合同网签备案</span>
+        <span class="text-3">12 件 / 46 页 · 2026 年度 · 分类 02.03.01</span>
+        <span class="badge orange">待著录</span>
+        <div class="flex items-center gap-8" style="margin-left:auto">
+          <span class="text-3 text-sm">著录方式</span>
+          <select style="width:150px" onchange="PMS.toast('著录方式已切换为「' + this.value + '」')">
+            <option>自动提取</option><option>人工著录</option><option>AI 辅助著录</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-success">
+    <i class="fa-solid fa-wand-magic-sparkles"></i>
+    <div>
+      已从办件 <b class="no-code">SJ20260628016</b> 的结构化数据自动提取 <b>14</b> 项著录项（占比 <b>82.4%</b>），
+      请补充<b>摘要</b>与<b>主题词</b>后提交校验。自动提取项已用绿色标签标注，人工只做补充与校对。
+    </div>
+  </div>
+
+  <div class="ce-layout">
+    <div>
+      <div class="card">
+        <div class="card-head"><h3>题名信息</h3></div>
+        <div class="card-body">
+          <div class="form-grid form-align">
+            <div class="form-item col-full">
+              <label>题名<span class="req">*</span><span class="src auto"><i class="fa-solid fa-check"></i> 自动提取</span></label>
+              <input type="text" value="彰泰滨江学府12栋2单元1802存量房买卖合同网签备案案卷">
+            </div>
+            <div class="form-item col-full">
+              <label>并列题名<span class="src auto"><i class="fa-solid fa-check"></i> 自动提取</span></label>
+              <input type="text" value="陈**与周**存量房买卖合同网签备案材料（2026）">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>责任与时间信息</h3></div>
+        <div class="card-body">
+          <div class="form-grid form-align">
+            <div class="form-item">
+              <label>责任者<span class="req">*</span><span class="src auto"><i class="fa-solid fa-check"></i> 自动提取</span></label>
+              <input type="text" value="XXXX市房产交易所">
+            </div>
+            <div class="form-item">
+              <label>文件形成者<span class="src auto"><i class="fa-solid fa-check"></i> 自动提取</span></label>
+              <input type="text" value="XXXX市房产交易所交易备案窗口">
+            </div>
+            <div class="form-item">
+              <label>文件形成时间<span class="req">*</span><span class="src auto"><i class="fa-solid fa-check"></i> 自动提取</span></label>
+              <input type="date" value="2026-06-28">
+            </div>
+            <div class="form-item">
+              <label>起止时间起<span class="src auto"><i class="fa-solid fa-check"></i> 自动提取</span></label>
+              <input type="date" value="2026-06-16">
+            </div>
+            <div class="form-item">
+              <label>起止时间止<span class="src auto"><i class="fa-solid fa-check"></i> 自动提取</span></label>
+              <input type="date" value="2026-06-29">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>内容描述</h3>
+          <div class="head-actions">
+            <button type="button" class="btn btn-sm btn-primary" onclick="genAbs()"><i class="fa-solid fa-wand-magic-sparkles"></i> AI 生成摘要</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="form-grid form-align">
+            <div class="form-item col-full">
+              <label>摘要<span class="req">*</span><span class="src ai"><i class="fa-solid fa-robot"></i> AI 辅助</span></label>
+              <textarea id="absTa" rows="5" oninput="calcScore()">本卷为存量房买卖合同网签备案材料，含合同、身份证明与付款凭证。</textarea>
+              <span class="cnt-hint" id="absCnt">当前 38 字，建议不少于 50 字</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>检索标识</h3></div>
+        <div class="card-body">
+          <div class="form-grid form-align">
+            <div class="form-item col-full">
+              <label>主题词<span class="req">*</span><span class="src ai"><i class="fa-solid fa-robot"></i> AI 辅助</span><span class="src man">人工补充</span></label>
+              <div class="tag-input" id="tagTheme">
+                <span class="tg">存量房交易<i class="fa-solid fa-xmark x" onclick="delTag(this)"></i></span>
+                <span class="tg">网签备案<i class="fa-solid fa-xmark x" onclick="delTag(this)"></i></span>
+                <span class="tg">买卖合同<i class="fa-solid fa-xmark x" onclick="delTag(this)"></i></span>
+                <span class="tg">资金监管<i class="fa-solid fa-xmark x" onclick="delTag(this)"></i></span>
+                <span class="tg">不动产转移<i class="fa-solid fa-xmark x" onclick="delTag(this)"></i></span>
+                <input type="text" placeholder="输入后回车添加" onkeydown="addTag(event,this)">
+              </div>
+              <span class="hint">主题词取自档案主题词表，建议 3 ~ 8 个；已填 <b id="themeCnt">5</b> 个</span>
+            </div>
+            <div class="form-item col-full">
+              <label>关键词<span class="src ai"><i class="fa-solid fa-robot"></i> AI 辅助</span></label>
+              <div class="tag-input" id="tagKey">
+                <span class="tg">彰泰滨江学府<i class="fa-solid fa-xmark x" onclick="delTag(this)"></i></span>
+                <span class="tg">陈**<i class="fa-solid fa-xmark x" onclick="delTag(this)"></i></span>
+                <span class="tg">周**<i class="fa-solid fa-xmark x" onclick="delTag(this)"></i></span>
+                <span class="tg">CFBA450200202600512<i class="fa-solid fa-xmark x" onclick="delTag(this)"></i></span>
+                <span class="tg">118.65㎡<i class="fa-solid fa-xmark x" onclick="delTag(this)"></i></span>
+                <input type="text" placeholder="输入后回车添加" onkeydown="addTag(event,this)">
+              </div>
+              <span class="hint">关键词由 OCR 识别文本与办件数据自动抽取，支撑全文检索</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>分类与著录规范</h3></div>
+        <div class="card-body">
+          <div class="form-grid form-align">
+            <div class="form-item">
+              <label>分类<span class="req">*</span><span class="src auto"><i class="fa-solid fa-check"></i> 自动提取</span></label>
+              <select><option>02.03.01 存量房备案</option><option>02.02.01 存量房网签</option><option>02.01.01 房源核验</option></select>
+            </div>
+            <div class="form-item">
+              <label>文种<span class="src auto"><i class="fa-solid fa-check"></i> 自动提取</span></label>
+              <input type="text" value="合同 · 证明">
+            </div>
+            <div class="form-item">
+              <label>语种<span class="src auto"><i class="fa-solid fa-check"></i> 自动提取</span></label>
+              <select><option>中文</option><option>中文 · 少数民族文字</option><option>外文</option></select>
+            </div>
+            <div class="form-item">
+              <label>著录级别<span class="req">*</span><span class="src auto"><i class="fa-solid fa-check"></i> 自动提取</span></label>
+              <select><option>案卷级</option><option>文件级</option></select>
+            </div>
+            <div class="form-item">
+              <label>著录规则<span class="req">*</span><span class="src auto"><i class="fa-solid fa-check"></i> 自动提取</span></label>
+              <select><option>DA/T 18-2022</option><option>DA/T 18-1999</option><option>本市房产档案著录细则</option></select>
+            </div>
+            <div class="form-item">
+              <label>著录人 / 时间</label>
+              <input type="text" value="韦国强　2026-08-01 14:26" readonly>
+            </div>
+          </div>
+          <div class="mt-16">
+            <a class="link" onclick="var e=document.getElementById('extBox');e.style.display=e.style.display==='none'?'':'none'">
+              <i class="fa-solid fa-angle-down"></i> 展开扩展著录项（JSON）<span class="src man">人工填写</span>
+            </a>
+            <div id="extBox" style="display:none;margin-top:8px">
+              <textarea rows="5" class="no-code">{
+  "成交价格": "1486000.00",
+  "建筑面积": "118.65",
+  "是否带押过户": "是",
+  "资金监管协议号": "ZJJG20260628016"
+}</textarea>
+              <span class="hint">扩展项用于承载业务特有字段，检索时可按键名精确匹配</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          <div class="flex items-center gap-12" style="flex-wrap:wrap">
+            <button type="button" class="btn" onclick="PMS.toast('已暂存，可稍后继续著录','success')"><i class="fa-solid fa-floppy-disk"></i> 暂存</button>
+            <button type="button" class="btn btn-primary" onclick="submitCat()"><i class="fa-solid fa-check"></i> 提交校验</button>
+            <button type="button" class="btn btn-danger" onclick="backCat()"><i class="fa-solid fa-rotate-left"></i> 退回修改</button>
+            <span class="text-warning text-sm" id="lowHint"><i class="fa-solid fa-triangle-exclamation"></i> 评分低于 80 分，提交后将进入待校验并可能被退回修改</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ce-side">
+      <div class="card">
+        <div class="card-head">
+          <h3>著录质量评分</h3>
+          <span class="sub">实时计算</span>
+        </div>
+        <div class="card-body">
+          <div class="sc-ring" id="scRing" style="background:conic-gradient(var(--warning) 0 72%, #e8edf5 72% 100%)">
+            <i><span class="sv text-warning" id="scVal">72</span><span class="sl">合格线 80 分</span></i>
+          </div>
+          <div class="chk-row">
+            <span class="ci text-success"><i class="fa-solid fa-check"></i></span>
+            <span class="ct">必填项完整性</span>
+            <span class="cs">30 / 30</span>
+          </div>
+          <div class="chk-row">
+            <span class="ci text-success"><i class="fa-solid fa-check"></i></span>
+            <span class="ct">题名规范性</span>
+            <span class="cs">20 / 20</span>
+          </div>
+          <div class="chk-row bad" id="chkAbs">
+            <span class="ci text-warning"><i class="fa-solid fa-triangle-exclamation"></i></span>
+            <span class="ct">摘要充分性<br><span class="text-3 text-sm" id="absTip">摘要仅 38 字，建议不少于 50 字</span></span>
+            <span class="cs" id="absScore">12 / 20</span>
+          </div>
+          <div class="chk-row" id="chkTheme">
+            <span class="ci text-success"><i class="fa-solid fa-check"></i></span>
+            <span class="ct">主题词数量<br><span class="text-3 text-sm">已填 <span id="themeCnt2">5</span> 个</span></span>
+            <span class="cs">15 / 15</span>
+          </div>
+          <div class="chk-row">
+            <span class="ci text-success"><i class="fa-solid fa-check"></i></span>
+            <span class="ct">时间逻辑一致性<br><span class="text-3 text-sm">起止时间合理</span></span>
+            <span class="cs">15 / 15</span>
+          </div>
+          <p class="text-3 text-sm mt-16">
+            <i class="fa-solid fa-circle-info"></i>
+            评分低于 80 分的著录须经检查人校验，校验不通过退回修改；评分规则与合格线由业务部门配置。
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>自动提取来源</h3></div>
+        <div class="card-body">
+          <dl class="desc-list" style="grid-template-columns:1fr">
+            <div class="desc-item"><dt>办件</dt><dd class="no-code">SJ20260628016</dd></div>
+            <div class="desc-item"><dt>事项</dt><dd>存量房买卖合同网签备案</dd></div>
+            <div class="desc-item"><dt>提取项数</dt><dd>14 项 / 17 项（82.4%）</dd></div>
+            <div class="desc-item"><dt>待人工填写</dt><dd>摘要、主题词、扩展项</dd></div>
+          </dl>
+          <div class="btn-row mt-8">
+            <a class="btn btn-sm" onclick="PMS.toast('已重新从办件数据提取，覆盖自动提取项')"><i class="fa-solid fa-rotate"></i> 重新提取</a>
+            <a class="btn btn-sm" href="archive-viewer.html"><i class="fa-solid fa-object-group"></i> 对照影像</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function themeCount() { return document.querySelectorAll('#tagTheme .tg').length; }
+function calcScore() {
+  var len = (document.getElementById('absTa').value || '').replace(/\s/g, '').length;
+  var absScore = len >= 50 ? 20 : (len >= 30 ? 12 : 4);
+  var themeScore = themeCount() >= 3 ? 15 : 6;
+  var total = 30 + 20 + absScore + themeScore + 15;
+  var ok = total >= 80;
+  document.getElementById('absCnt').textContent = '当前 ' + len + ' 字' + (len >= 50 ? '，已满足要求' : '，建议不少于 50 字');
+  document.getElementById('absCnt').classList.toggle('bad', len < 50);
+  document.getElementById('absScore').textContent = absScore + ' / 20';
+  document.getElementById('absTip').textContent = len >= 50 ? '摘要 ' + len + ' 字，内容充分' : '摘要仅 ' + len + ' 字，建议不少于 50 字';
+  var rowAbs = document.getElementById('chkAbs');
+  rowAbs.classList.toggle('bad', len < 50);
+  rowAbs.querySelector('.ci').innerHTML = len >= 50
+    ? '<i class="fa-solid fa-check"></i>' : '<i class="fa-solid fa-triangle-exclamation"></i>';
+  rowAbs.querySelector('.ci').className = 'ci ' + (len >= 50 ? 'text-success' : 'text-warning');
+  document.getElementById('themeCnt').textContent = themeCount();
+  document.getElementById('themeCnt2').textContent = themeCount();
+  var color = ok ? 'var(--success)' : 'var(--warning)';
+  document.getElementById('scRing').style.background =
+    'conic-gradient(' + color + ' 0 ' + total + '%, #e8edf5 ' + total + '% 100%)';
+  var sv = document.getElementById('scVal');
+  sv.textContent = total;
+  sv.className = 'sv ' + (ok ? 'text-success' : 'text-warning');
+  document.getElementById('lowHint').style.display = ok ? 'none' : '';
+}
+function genAbs() {
+  document.getElementById('absTa').value =
+    '本卷为陈**将其位于柳州市城中区滨江东路8号彰泰滨江学府12栋2单元1802号房屋（建筑面积 118.65 ㎡）转让给周**的存量房买卖合同网签备案全套材料，' +
+    '成交价格 1,486,000.00 元，交易资金纳入监管，2026 年 6 月 28 日完成网签备案并出具备案证明，同期办理带押过户抵押备案。';
+  calcScore();
+  PMS.toast('AI 已根据办件数据与 OCR 文本生成摘要，请人工校对', 'success');
+}
+function addTag(e, inp) {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  var v = (inp.value || '').trim();
+  if (!v) return;
+  inp.insertAdjacentHTML('beforebegin',
+    '<span class="tg">' + v + '<i class="fa-solid fa-xmark x" onclick="delTag(this)"></i></span>');
+  inp.value = '';
+  calcScore();
+}
+function delTag(x) { x.parentElement.remove(); calcScore(); }
+function submitCat() {
+  var total = parseInt(document.getElementById('scVal').textContent, 10);
+  if (total < 80) {
+    PMS.confirm({
+      title: '提交校验',
+      type: 'warning',
+      message: '当前著录质量评分 ' + total + ' 分，低于 80 分合格线。提交后将进入待校验，检查人可退回修改。',
+      detail: '建议先补充摘要至 50 字以上再提交',
+      okText: '仍然提交',
+      onOk: function () { PMS.toast('已提交校验，检查人：李慧', 'warning'); }
+    });
+    return;
+  }
+  PMS.toast('著录已提交校验，评分 ' + total + ' 分，检查人：李慧', 'success');
+}
+function backCat() {
+  PMS.confirm({
+    title: '退回修改',
+    message: '退回后著录状态置为「需修改」，请填写退回意见。',
+    detail: '案卷 DA450204202600862 · 著录人 韦国强',
+    okText: '确认退回',
+    onOk: function () { PMS.toast('已退回著录人修改', 'warning'); }
+  });
+}
+calcScore();
+</script>
+</body>
+</html>

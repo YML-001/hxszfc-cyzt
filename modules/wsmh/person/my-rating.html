@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的评价与查询授权 · 个人中心</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  /* 我的评价与查询授权专属布局 */
+  .rt-card { border: 1px solid var(--border); border-radius: var(--radius-card); padding: 16px; }
+  .rt-t { font-size: 15px; font-weight: 700; }
+  .rt-m { font-size: 12.5px; color: var(--text-3); margin-top: 7px; line-height: 1.9; }
+  .rt-m b { color: var(--text-2); font-weight: 500; }
+  .stars i { font-size: 27px; color: var(--border-strong); cursor: pointer; margin-right: 7px; transition: .12s; }
+  .stars i.on { color: #f5a623; }
+  .stars i:hover { transform: scale(1.12); }
+  .star-s { color: #f5a623; letter-spacing: 1px; }
+  .star-s i { font-size: 13px; }
+  .au-card { border: 1px solid var(--border); border-radius: var(--radius-card); padding: 16px; margin-bottom: 14px; }
+  .au-card:last-child { margin-bottom: 0; }
+  .au-card.todo { border-color: #f5dab0; background: var(--warning-light); }
+  .au-h { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .au-g { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 16px; margin-top: 12px; }
+  .au-g .lb { font-size: 12.5px; color: var(--text-3); }
+  .au-g .vl { font-size: 14px; font-weight: 500; margin-top: 3px; }
+  .au-acts { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+</style>
+</head>
+<body data-nav="home">
+
+<div class="wrap"><div class="crumb">
+  <a href="../web/home.html">首页</a><i class="fa-solid fa-angle-right"></i>
+  <a href="index.html">个人中心</a><i class="fa-solid fa-angle-right"></i>我的评价与查询授权
+</div></div>
+
+<div class="wrap">
+  <div class="desk">
+    <aside class="side-menu" id="side"></aside>
+    <main class="desk-main" id="dmain">
+
+      <div class="tabs" data-tabs data-scope="mr-box">
+        <a class="on" data-tab="mr-todo" data-fp="wsmh-30-10"><i class="fa-regular fa-star"></i> 待评价</a>
+        <a data-tab="mr-mine" data-fp="wsmh-30-10"><i class="fa-solid fa-comment-dots"></i> 我的评价</a>
+        <a data-tab="mr-auth" data-fp="wsmh-29-01"><i class="fa-solid fa-user-shield"></i> 查询授权</a>
+      </div>
+
+      <div id="mr-box">
+        <!-- Tab 1：待评价（wsmh-30-10） -->
+        <div class="tab-pane on" id="mr-todo">
+          <div class="alert alert-info">
+            <i class="fa-solid fa-circle-info"></i>
+            <span>办件办结后会出现在待评价清单，<b>一人一件一评</b>，评价与实名办件绑定，防止刷评。
+              提交后评价按「好差评」规范回传广西政务服务网，并计入服务效能统计。</span>
+          </div>
+          <div id="todo-list"></div>
+        </div>
+
+        <!-- Tab 2：我的评价 -->
+        <div class="tab-pane" id="mr-mine">
+          <div class="alert alert-info">
+            <i class="fa-solid fa-shield-halved"></i>
+            <span>评价与实名办件绑定，<b>一人一件一评</b>，防止刷评；机构评价计入信用评价，
+              本期在公众端只公示汇总分与评价数量，不公示逐条评语。</span>
+          </div>
+          <div id="mine-box"></div>
+        </div>
+
+        <!-- Tab 3：查询授权（wsmh-29-01） -->
+        <div class="tab-pane" id="mr-auth">
+          <div class="alert alert-warning">
+            <i class="fa-solid fa-user-shield"></i>
+            <span><b>非本人查询必须取得权利人在线授权</b>，授权范围、期限与撤回情况全程可查，查询行为全程留痕。
+              撤回授权后对方立即无法继续查询。
+              <a href="../web/query-auth.html" data-fp="wsmh-29-02">查看查询留痕 <i class="fa-solid fa-angle-right"></i></a></span>
+          </div>
+
+          <div class="desk-card">
+            <div class="card-head">
+              <h3><i class="fa-solid fa-inbox text-primary"></i> 他人申请查询我的房产信息</h3>
+              <span class="sub" id="au-in-count">—</span>
+            </div>
+            <div class="card-body" id="au-in"></div>
+          </div>
+
+          <div class="desk-card">
+            <div class="card-head">
+              <h3><i class="fa-solid fa-paper-plane text-primary"></i> 我发起的授权申请</h3>
+              <span class="sub">向他人申请查询其房产信息</span>
+              <div class="ca"><button class="btn btn-sm btn-primary" id="au-new" data-fp="wsmh-29-01">
+                <i class="fa-solid fa-plus"></i> 发起新申请</button></div>
+            </div>
+            <div class="card-body" id="au-out"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="src-note"></div>
+    </main>
+  </div>
+</div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+var STAR = 5;
+
+function pageInit() {
+  if (!deskGuard('rating')) return;
+  renderAll();
+  document.getElementById('au-new').onclick = openAuthReq;
+  document.getElementById('src-note').innerHTML = UI.sourceNote(
+    '评价数据来源于「好差评」体系，授权与查询留痕来源于查询授权台账，保存期限不少于 3 年。');
+  var t = UI.param('tab');
+  if (t) { var a = document.querySelector('[data-tab="' + t + '"]'); if (a) a.click(); }
+  PORTAL.on(function () { renderSide('rating'); renderAll(); });
+}
+function renderAll() { renderTodo(); renderMine(); renderAuth(); }
+
+/* ============ 个人中心左侧菜单（各页统一） ============ */
+function renderSide(active) {
+  var u = UI.user(), login = UI.isLogin();
+  var c = PORTAL.todoCounts();
+  var M = [
+    ['idx', '个人中心首页', 'fa-gauge', 'index.html', 0, 'wsmh-02-06'],
+    ['case', '我的办件', 'fa-list-check', 'my-case.html', c.fix, 'wsmh-30-01'],
+    ['contract', '我的合同与交易', 'fa-file-contract', 'my-contract.html', 0, 'wsmh-30-02'],
+    ['pay', '我的缴款与贷款', 'fa-money-bill-transfer', 'my-payment.html', c.pay, 'wsmh-30-04'],
+    ['listing', '我的房源与预约', 'fa-house-circle-check', 'my-listing.html', 0, 'wsmh-30-06'],
+    ['cert', '我的证照与消息', 'fa-file-shield', 'my-cert.html', PORTAL.unread(), 'wsmh-30-08'],
+    ['rating', '我的评价与授权', 'fa-star', 'my-rating.html', c.rate, 'wsmh-30-10']
+  ];
+  document.getElementById('side').innerHTML =
+    '<div class="sm-head"><div class="sm-n"><i class="fa-solid fa-circle-user"></i> '
+    + UI.esc(login ? u.name : '未登录') + '</div>'
+    + '<div class="sm-r">' + (login ? '个人用户 · 已实名（等级 ' + u.realname + '）' : '登录后查看办件、合同与证照') + '</div></div>'
+    + '<div class="sm-g"><div class="sm-gt">我的服务</div>'
+    + M.map(function (m) {
+      return '<a href="' + m[3] + '" class="' + (m[0] === active ? 'on' : '') + '" data-fp="' + m[5] + '">'
+        + '<i class="fa-solid ' + m[2] + '"></i>' + m[1]
+        + (login && m[4] ? '<span class="sm-b">' + m[4] + '</span>' : '') + '</a>';
+    }).join('')
+    + '</div><div class="sm-g" style="border-top:1px solid var(--border)">'
+    + '<a href="../web/home.html" data-fp="wsmh-34-01"><i class="fa-solid fa-arrow-left"></i>返回门户首页</a>'
+    + '</div>';
+}
+
+function deskGuard(active) {
+  renderSide(active);
+  if (UI.isLogin()) return true;
+  document.getElementById('dmain').innerHTML =
+    '<div class="desk-card"><div class="empty"><i class="fa-solid fa-user-lock"></i>'
+    + '<div class="em-t">个人中心需要登录后访问</div>'
+    + '<div class="em-d">门户配置的未登录浏览范围为「房源列表与详情、信息公示、办事指南」，评价与查询授权属于需登录实名的范围。</div>'
+    + '<div class="em-a"><a class="btn btn-primary" href="../web/login.html?from=person" data-fp="wsmh-34-06">立即登录</a>'
+    + '<button class="btn" style="margin-left:10px" onclick="demoLogin()" data-fp="wsmh-34-06">演示：一键登录个人用户</button>'
+    + '</div></div></div>';
+  UI.needLogin('我的评价与查询授权');
+  return false;
+}
+
+/* 演示用：保留当前页参数并以个人用户身份登录 */
+function demoLogin() {
+  var parts = location.search.replace(/^\?/, '').split('&').filter(function (x) {
+    return x && x.indexOf('user=') !== 0;
+  });
+  parts.push('user=person');
+  location.href = location.pathname + '?' + parts.join('&');
+}
+
+/* ============ Tab 1：待评价（wsmh-30-10） ============ */
+function renderTodo() {
+  var arr = PORTAL.cases({ zt: '4' }).filter(function (c) { return c.pj === 0; });
+  var box = document.getElementById('todo-list');
+  if (!arr.length) {
+    box.innerHTML = '<div class="desk-card">' + UI.empty('暂无待评价事项',
+      '办件办结后会出现在这里，可对办理速度、服务态度、材料清晰度与网办便捷度作出评价。',
+      '<a class="btn btn-primary" href="my-case.html" data-fp="wsmh-30-01">去我的办件</a>'
+      + '<a class="btn" style="margin-left:10px" href="my-rating.html?tab=mr-mine" data-fp="wsmh-30-10">看我的历史评价</a>')
+      + '</div>';
+    return;
+  }
+  box.innerHTML = '<div class="desk-card"><div class="card-head">'
+    + '<h3><i class="fa-regular fa-star text-accent"></i> 待评价办件</h3>'
+    + '<span class="sub">共 ' + arr.length + ' 件</span></div>'
+    + '<div class="card-body"><div class="grid-2">'
+    + arr.map(function (c) {
+      return '<div class="rt-card">'
+        + '<div class="flex items-center gap-8"><span class="rt-t flex-1">' + UI.esc(c.sxmc) + '</span>'
+        + '<span class="badge orange">待评价</span></div>'
+        + '<div class="rt-m">办件编号：<b>' + c.bh + '</b><br>'
+        + '涉及房屋：<b>' + UI.esc(c.fw) + '</b><br>'
+        + '承办科室：<b>' + UI.esc(c.dept) + '</b>　办结时间：<b>' + c.bjrq + '</b></div>'
+        + '<div class="flex gap-8 mt-12">'
+        + '<button class="btn btn-sm btn-accent" data-rate="' + c.id + '" data-fp="wsmh-30-10">'
+        + '<i class="fa-solid fa-star"></i> 去评价</button>'
+        + '<a class="btn btn-sm" href="my-case-detail.html?id=' + c.id + '" data-fp="wsmh-30-01">查看办件详情</a>'
+        + '</div></div>';
+    }).join('')
+    + '</div></div></div>';
+
+  box.querySelectorAll('[data-rate]').forEach(function (b) {
+    b.onclick = function () { openRate(b.getAttribute('data-rate')); };
+  });
+}
+
+function starHtml(n) {
+  var h = '';
+  for (var i = 1; i <= 5; i++) h += '<i class="fa-solid fa-star' + (i <= n ? ' on' : '') + '" data-s="' + i + '"></i>';
+  return h;
+}
+function starText(n) {
+  return ['', '很不满意', '不满意', '一般', '满意', '非常满意'][n] || '';
+}
+
+function openRate(id) {
+  var c = PORTAL.caseOf(id);
+  if (!c) return;
+  STAR = 5;
+  var DIMS = ['办理速度快', '服务态度好', '材料要求清晰', '网办便捷'];
+  UI.modal('<i class="fa-solid fa-star text-accent"></i> 办件评价（好差评）',
+    '<div class="desc-list mb-16"><dl>'
+    + '<dt>评价对象</dt><dd>' + UI.esc(c.sxmc) + '</dd>'
+    + '<dt>办件编号</dt><dd>' + c.bh + '</dd>'
+    + '<dt>承办科室</dt><dd>' + UI.esc(c.dept) + '</dd>'
+    + '</dl></div>'
+    + '<div class="form-item full mb-16"><label><span class="req">*</span>总体评价</label>'
+    + '<div class="stars" id="rt-star">' + starHtml(5) + '</div>'
+    + '<div class="tip" id="rt-txt">' + starText(5) + '</div></div>'
+    + '<div class="form-item full mb-16"><label>评价维度（可多选）</label>'
+    + '<div class="check-row">' + DIMS.map(function (d) {
+      return '<label><input type="checkbox" class="rt-dim" value="' + d + '" checked>' + d + '</label>';
+    }).join('') + '</div></div>'
+    + '<div class="form-item full"><label>文字评价（选填）</label>'
+    + '<textarea class="textarea" id="rt-note" placeholder="说说办理过程中的体验，或提出改进建议"></textarea></div>'
+    + '<div class="check-row" style="margin-top:10px"><label><input type="checkbox" id="rt-anon">匿名评价（不展示评价人信息）</label></div>'
+    + '<div class="text-xs text-3 mt-12">评价一经提交不可修改，一人一件一评；评价内容将按规范回传广西政务服务网好差评系统。</div>',
+    '<button class="btn" data-act="close-modal">取消</button>'
+    + '<button class="btn btn-primary" id="rt-ok" data-fp="wsmh-30-10">提交评价</button>');
+
+  document.querySelectorAll('#rt-star i').forEach(function (s) {
+    s.onclick = function () {
+      STAR = Number(s.getAttribute('data-s'));
+      document.getElementById('rt-star').innerHTML = starHtml(STAR);
+      document.getElementById('rt-txt').innerHTML = starText(STAR);
+      openRateBind();
+    };
+  });
+  document.getElementById('rt-ok').onclick = function () {
+    var dims = [];
+    document.querySelectorAll('.rt-dim').forEach(function (x) { if (x.checked) dims.push(x.value); });
+    var note = document.getElementById('rt-note').value.trim();
+    var anon = document.getElementById('rt-anon').checked;
+    var text = (dims.length ? dims.join('、') : '') + (note ? (dims.length ? '。' : '') + note : '');
+    if (!text) text = starText(STAR);
+    PORTAL.act('case.rate', { id: id, star: STAR, text: text + (anon ? '（匿名）' : '') });
+    UI.closeModal();
+    UI.toast('评价已提交，感谢您的反馈；办件已从待评价移除，菜单与首页角标 -1', 'success');
+  };
+}
+
+/* 星星重绘后重新绑定 */
+function openRateBind() {
+  document.querySelectorAll('#rt-star i').forEach(function (s) {
+    s.onclick = function () {
+      STAR = Number(s.getAttribute('data-s'));
+      document.getElementById('rt-star').innerHTML = starHtml(STAR);
+      document.getElementById('rt-txt').innerHTML = starText(STAR);
+      openRateBind();
+    };
+  });
+}
+
+/* ============ Tab 2：我的评价 ============ */
+function renderMine() {
+  var arr = PORTAL.ratings();
+  var box = document.getElementById('mine-box');
+  var head = '<div class="desk-card"><div class="card-head">'
+    + '<h3><i class="fa-solid fa-comment-dots text-primary"></i> 我的评价记录</h3>'
+    + '<span class="sub">共 ' + arr.length + ' 条</span>'
+    + '<div class="ca"><button class="btn btn-sm btn-ghost" id="rt-ag" data-fp="wsmh-25-06">'
+    + '<i class="fa-solid fa-star"></i> 评价机构</button></div></div>';
+  if (!arr.length) {
+    box.innerHTML = head + '<div class="card-body">' + UI.empty('暂无评价记录',
+      '办结办件后可对事项作出评价，也可以对提供服务的机构作出评价。',
+      '<a class="btn btn-primary" href="my-rating.html" data-fp="wsmh-30-10">去待评价</a>')
+      + '</div></div>';
+    bindAgency();
+    return;
+  }
+  box.innerHTML = head
+    + '<div class="card-body np"><div class="table-wrap" style="border:0;border-radius:0">'
+    + '<table class="pub-table"><thead><tr>'
+    + '<th>评价对象</th><th style="width:80px">类型</th><th style="width:104px">星级</th>'
+    + '<th>评价内容</th><th style="width:104px">评价时间</th>'
+    + '<th style="width:140px">关联办件编号</th><th style="width:132px">好差评回传</th>'
+    + '</tr></thead><tbody>'
+    + arr.map(function (r) {
+      var st = '';
+      for (var i = 0; i < 5; i++) st += '<i class="fa-' + (i < r.star ? 'solid' : 'regular') + ' fa-star"></i>';
+      var back = r.lx === '事项'
+        ? (r.hc ? '<span class="badge green">已回传</span>' : '<span class="badge orange">待回传</span>')
+        : '<span class="badge gray">不适用</span>';
+      return '<tr><td class="strong">' + UI.esc(r.dx) + '</td>'
+        + '<td><span class="badge blue">' + UI.esc(r.lx) + '</span></td>'
+        + '<td><span class="star-s">' + st + '</span></td>'
+        + '<td>' + (r.c ? UI.esc(r.c) : '<span class="text-3">未填写文字评价</span>') + '</td>'
+        + '<td>' + r.d + '</td>'
+        + '<td>' + (r.bh ? r.bh : '<span class="text-3">—</span>') + '</td>'
+        + '<td>' + back + '</td></tr>';
+    }).join('')
+    + '</tbody></table>'
+    + '<div class="table-note">评价与实名办件绑定，一人一件一评，防止刷评。'
+    + '事项评价按「好差评」规范回传广西政务服务网；机构评价计入信用评价，'
+    + '公众端只公示汇总分与评价数量。</div>'
+    + '</div></div></div>';
+  bindAgency();
+}
+
+function bindAgency() {
+  var b = document.getElementById('rt-ag');
+  if (b) b.onclick = openAgencyRate;
+}
+
+function openAgencyRate() {
+  var ags = PORTAL.agencies({ pub: 1 });
+  STAR = 5;
+  UI.modal('<i class="fa-solid fa-star text-accent"></i> 评价服务机构',
+    '<div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>'
+    + '<span>请对为您提供过服务的机构作出客观评价。评价会<b>计入该机构的信用评价</b>，'
+    + '影响信用分、信用等级与红黑榜位次。恶意评价经核实将不予采纳。</span></div>'
+    + '<div class="form-grid c1">'
+    + '<div class="form-item"><label><span class="req">*</span>选择机构</label>'
+    + '<select class="select" id="ag-sel">' + ags.map(function (a) {
+      return '<option value="' + UI.esc(a.mc) + '">' + UI.esc(a.mc) + '（' + a.lx + ' · 信用 ' + a.dj + ' 级 ' + a.score + ' 分）</option>';
+    }).join('') + '</select></div>'
+    + '<div class="form-item"><label><span class="req">*</span>服务评价</label>'
+    + '<div class="stars" id="ag-star">' + starHtml(5) + '</div>'
+    + '<div class="tip" id="ag-txt">' + starText(5) + '</div></div>'
+    + '<div class="form-item"><label>关联办件编号（选填）</label>'
+    + '<select class="select" id="ag-bh"><option value="">不关联办件</option>'
+    + PORTAL.cases().map(function (c) { return '<option value="' + c.bh + '">' + c.bh + '　' + UI.esc(c.sxmc) + '</option>'; }).join('')
+    + '</select></div>'
+    + '<div class="form-item"><label>评价内容（选填）</label>'
+    + '<textarea class="textarea" id="ag-note" placeholder="描述服务过程中的真实体验"></textarea></div>'
+    + '</div>',
+    '<button class="btn" data-act="close-modal">取消</button>'
+    + '<button class="btn btn-primary" id="ag-ok" data-fp="wsmh-25-06">提交评价</button>');
+
+  bindAgStar();
+  document.getElementById('ag-ok').onclick = function () {
+    var mc = document.getElementById('ag-sel').value;
+    var r = PORTAL.act('rating.agency', {
+      mc: mc, star: STAR, text: document.getElementById('ag-note').value.trim(),
+      bh: document.getElementById('ag-bh').value
+    });
+    UI.closeModal();
+    if (!r) { UI.toast('未找到该机构，请重新选择', 'error'); return; }
+    UI.modal('<i class="fa-solid fa-circle-check text-success"></i> 评价已提交',
+      '<div class="alert alert-success"><i class="fa-solid fa-circle-check"></i>'
+      + '<span>评价已计入该机构信用评价，信用分与红黑榜位次将随之变化。</span></div>'
+      + '<div class="desc-list"><dl>'
+      + '<dt>机构名称</dt><dd>' + UI.esc(r.mc) + '</dd>'
+      + '<dt>最新信用分</dt><dd><b class="text-accent">' + r.score + ' 分</b>　信用等级 ' + r.dj + ' 级</dd>'
+      + '<dt>评价汇总分</dt><dd>' + r.pjscore + ' 分（共 ' + r.pjnum + ' 条评价）</dd>'
+      + '<dt>红黑榜</dt><dd>' + (r.hb ? '<span class="badge red">信用红榜</span>'
+        : r.heb ? '<span class="badge gray">信用黑榜</span>' : '<span class="badge blue">未上榜</span>') + '</dd>'
+      + '</dl></div>',
+      '<button class="btn" data-act="close-modal">关闭</button>'
+      + '<a class="btn btn-primary" href="../web/credit-rank.html" data-fp="wsmh-25-03">去信用评价与红黑榜查看</a>');
+    UI.toast('评价已计入该机构信用评价，信用分与红黑榜位次将随之变化', 'success');
+  };
+}
+
+function bindAgStar() {
+  document.querySelectorAll('#ag-star i').forEach(function (s) {
+    s.onclick = function () {
+      STAR = Number(s.getAttribute('data-s'));
+      document.getElementById('ag-star').innerHTML = starHtml(STAR);
+      document.getElementById('ag-txt').innerHTML = starText(STAR);
+      bindAgStar();
+    };
+  });
+}
+
+/* ============ Tab 3：查询授权（wsmh-29-01） ============ */
+function auBadge(a) {
+  var s = PORTAL.AUTH_ST[a.zt];
+  return '<span class="badge ' + s.c + '">' + s.n + '</span>';
+}
+function auField(l, v) {
+  return '<div><div class="lb">' + l + '</div><div class="vl">' + v + '</div></div>';
+}
+
+function renderAuth() {
+  var me = UI.user().name;
+  var all = PORTAL.auths();
+  var inbox = all.filter(function (a) { return a.qlr === me || a.sqr !== me; });
+  var outbox = all.filter(function (a) { return a.sqr === me; });
+  inbox = inbox.filter(function (a) { return outbox.indexOf(a) < 0; });
+
+  var todo = inbox.filter(function (a) { return a.zt === '0'; }).length;
+  document.getElementById('au-in-count').innerHTML = '共 ' + inbox.length + ' 条，待授权 ' + todo + ' 条';
+
+  var box = document.getElementById('au-in');
+  box.innerHTML = inbox.length ? inbox.map(function (a) {
+    var acts = '';
+    if (a.zt === '0') {
+      acts = '<button class="btn btn-sm btn-primary" data-ok="' + a.id + '" data-fp="wsmh-29-01">'
+        + '<i class="fa-solid fa-check"></i> 同意授权</button>'
+        + '<button class="btn btn-sm" data-no="' + a.id + '" data-fp="wsmh-29-01">'
+        + '<i class="fa-solid fa-xmark"></i> 拒绝</button>';
+    } else if (a.zt === '1') {
+      acts = '<button class="btn btn-sm btn-accent" data-rv="' + a.id + '" data-fp="wsmh-29-01">'
+        + '<i class="fa-solid fa-ban"></i> 撤回授权</button>'
+        + '<a class="btn btn-sm" href="../web/query-house.html" data-fp="wsmh-26-04">去验证（查询中心）</a>';
+    } else {
+      acts = '<span class="text-xs text-3" style="align-self:center">'
+        + (a.zt === '2' ? '已拒绝该申请，对方无法查询您的房产信息。'
+          : a.zt === '3' ? '授权已撤回，对方自撤回时点起无法继续查询。'
+            : '授权已到期自动失效，如需继续查询需重新申请。') + '</span>';
+    }
+    return '<div class="au-card' + (a.zt === '0' ? ' todo' : '') + '">'
+      + '<div class="au-h"><i class="fa-solid fa-user-shield text-primary"></i>'
+      + '<span class="bold" style="font-size:15px">' + UI.esc(a.sqr) + '</span>'
+      + '<span class="text-3 text-sm">申请查询您的房产信息</span>'
+      + auBadge(a)
+      + '<span class="ml-auto text-xs text-3">申请时间 ' + a.d + '</span></div>'
+      + '<div class="au-g">'
+      + auField('查询范围', UI.esc(a.fw))
+      + auField('查询用途', UI.esc(a.yt))
+      + auField('授权期限', a.qx + '（到期自动失效）')
+      + '</div>'
+      + '<div class="au-acts">' + acts + '</div></div>';
+  }).join('') : UI.empty('暂无他人查询申请',
+    '当银行、律师事务所、法院等主体需要查询您的房产信息时，申请会出现在这里等待您授权。',
+    '<a class="btn btn-primary" href="../web/query-auth.html" data-fp="wsmh-29-02">查看查询留痕</a>');
+
+  box.querySelectorAll('[data-ok]').forEach(function (b) {
+    b.onclick = function () { setAuth(b.getAttribute('data-ok'), '1'); };
+  });
+  box.querySelectorAll('[data-no]').forEach(function (b) {
+    b.onclick = function () { setAuth(b.getAttribute('data-no'), '2'); };
+  });
+  box.querySelectorAll('[data-rv]').forEach(function (b) {
+    b.onclick = function () { setAuth(b.getAttribute('data-rv'), '3'); };
+  });
+
+  var out = document.getElementById('au-out');
+  out.innerHTML = outbox.length ? outbox.map(function (a) {
+    return '<div class="au-card">'
+      + '<div class="au-h"><i class="fa-solid fa-paper-plane text-primary"></i>'
+      + '<span class="bold" style="font-size:15px">向 ' + PORTAL.mask('name', a.qlr) + ' 申请查询</span>'
+      + auBadge(a)
+      + '<span class="ml-auto text-xs text-3">申请时间 ' + a.d + '</span></div>'
+      + '<div class="au-g">'
+      + auField('查询范围', UI.esc(a.fw))
+      + auField('查询用途', UI.esc(a.yt))
+      + auField('申请期限', a.qx)
+      + '</div>'
+      + '<div class="au-acts">'
+      + (a.zt === '1'
+        ? '<a class="btn btn-sm btn-primary" href="../web/query-house.html" data-fp="wsmh-26-04">去查询中心查询</a>'
+        : '<span class="text-xs text-3" style="align-self:center">'
+          + (a.zt === '0' ? '等待权利人在线授权，授权结果会推送到我的消息。'
+            : a.zt === '2' ? '权利人已拒绝本次申请。'
+              : a.zt === '3' ? '权利人已撤回授权，无法继续查询。' : '授权已过期。') + '</span>')
+      + '</div></div>';
+  }).join('') : UI.empty('您还没有发起过查询授权申请',
+    '需要查询他人名下房产信息时，须先向权利人发起授权申请，取得同意后方可查询。',
+    '<button class="btn btn-primary" onclick="openAuthReq()" data-fp="wsmh-29-01">发起新申请</button>');
+}
+
+function setAuth(id, zt) {
+  var a = PORTAL.auths().filter(function (x) { return x.id === id; })[0];
+  if (!a) return;
+  if (zt === '1') {
+    UI.confirm('同意授权查询',
+      '同意后，<b>' + UI.esc(a.sqr) + '</b> 可在授权期限（至 ' + a.qx + '）内查询您的'
+      + '「' + UI.esc(a.fw) + '」，用途限于「' + UI.esc(a.yt) + '」。'
+      + '每次查询都会留痕，您可以随时撤回授权。确定同意吗？',
+      function () {
+        PORTAL.act('auth.set', { id: id, zt: '1' });
+        UI.toast('已授权，对方现在可以在查询中心查询您的房产信息', 'success');
+        UI.modal('<i class="fa-solid fa-circle-check text-success"></i> 授权成功',
+          '<div class="alert alert-success"><i class="fa-solid fa-circle-check"></i>'
+          + '<span>已向 <b>' + UI.esc(a.sqr) + '</b> 授权，对方现在可以在<b>查询中心</b>查询您的房产信息，'
+          + '查询结果按脱敏口径展示，每次查询都会记入查询留痕。</span></div>'
+          + '<div class="desc-list"><dl>'
+          + '<dt>授权对象</dt><dd>' + UI.esc(a.sqr) + '</dd>'
+          + '<dt>查询范围</dt><dd>' + UI.esc(a.fw) + '</dd>'
+          + '<dt>授权期限</dt><dd>' + a.qx + '（到期自动失效）</dd>'
+          + '<dt>撤回方式</dt><dd>随时可在本页点「撤回授权」，撤回后对方立即无法查询</dd>'
+          + '</dl></div>',
+          '<button class="btn" data-act="close-modal">关闭</button>'
+          + '<a class="btn" href="../web/query-auth.html" data-fp="wsmh-29-02">查看查询留痕</a>'
+          + '<a class="btn btn-primary" href="../web/query-house.html" data-fp="wsmh-26-04">去验证（查询中心）</a>');
+      }, '同意授权');
+    return;
+  }
+  if (zt === '2') {
+    UI.confirm('拒绝授权申请',
+      '拒绝后，<b>' + UI.esc(a.sqr) + '</b> 无法查询您的房产信息，'
+      + '对方如仍有查询需要，需重新提交申请并说明用途。确定拒绝吗？',
+      function () {
+        PORTAL.act('auth.set', { id: id, zt: '2' });
+        UI.toast('已拒绝该授权申请，对方无法查询您的房产信息；拒绝记录已留痕', 'success');
+      }, '确定拒绝');
+    return;
+  }
+  UI.confirm('撤回授权',
+    '撤回后 <b>' + UI.esc(a.sqr) + '</b> 将<b>立即无法查询</b>您的房产信息，'
+    + '已发生的查询记录仍保留在查询留痕中可追溯。确定撤回吗？',
+    function () {
+      PORTAL.act('auth.set', { id: id, zt: '3' });
+      UI.toast('授权已撤回，对方已无法继续查询您的房产信息', 'success');
+    }, '确定撤回');
+}
+
+/* 发起授权申请 */
+function openAuthReq() {
+  UI.drawer('<i class="fa-solid fa-paper-plane text-primary"></i> 发起查询授权申请',
+    '<div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation"></i>'
+    + '<span>查询他人名下房产信息<b>必须取得权利人在线授权</b>。申请提交后会推送给权利人，'
+    + '权利人同意后方可在查询中心查询，查询行为全程留痕。冒用他人身份申请将依法追究责任。</span></div>'
+    + '<div class="form-grid">'
+    + '<div class="form-item"><label><span class="req">*</span>权利人姓名</label>'
+    + '<input class="input" id="ar-qlr" placeholder="请输入房屋权利人姓名"></div>'
+    + '<div class="form-item"><label><span class="req">*</span>授权期限</label>'
+    + '<input class="input" type="date" id="ar-qx" value="' + PDATA.ymd(PDATA.shift(30)) + '" min="' + UI.today() + '"></div>'
+    + '<div class="form-item full"><label><span class="req">*</span>查询范围</label>'
+    + '<select class="select" id="ar-fw">'
+    + '<option>名下房产套数与状态</option><option>指定房屋权属状况</option>'
+    + '<option>指定房屋抵押与限制情况</option><option>网签备案合同信息</option></select></div>'
+    + '<div class="form-item full"><label><span class="req">*</span>查询用途</label>'
+    + '<select class="select" id="ar-yt">'
+    + '<option>购房资格核验</option><option>贷款审批</option><option>诉讼</option>'
+    + '<option>继承与公证</option><option>婚姻财产核实</option><option>其他（需说明）</option></select></div>'
+    + '<div class="form-item full"><label>补充说明（选填）</label>'
+    + '<textarea class="textarea" id="ar-note" placeholder="说明申请背景，便于权利人判断是否授权"></textarea></div>'
+    + '</div>',
+    '<button class="btn" data-act="close-drawer">取消</button>'
+    + '<button class="btn btn-primary" id="ar-ok" data-fp="wsmh-29-01">提交申请</button>');
+  document.getElementById('ar-ok').onclick = function () {
+    var qlr = document.getElementById('ar-qlr').value.trim();
+    var qx = document.getElementById('ar-qx').value;
+    if (!qlr) { UI.toast('请填写权利人姓名', 'warning'); return; }
+    if (!qx) { UI.toast('请选择授权期限', 'warning'); return; }
+    var note = document.getElementById('ar-note').value.trim();
+    PORTAL.act('auth.request', {
+      sqr: UI.user().name, qlr: qlr,
+      fw: document.getElementById('ar-fw').value,
+      yt: document.getElementById('ar-yt').value + (note ? '（' + note + '）' : ''),
+      qx: qx
+    });
+    UI.closeDrawer();
+    UI.toast('授权申请已提交并推送给权利人，同意后可在查询中心查询，全过程留痕', 'success');
+  };
+}
+</script>
+</body>
+</html>

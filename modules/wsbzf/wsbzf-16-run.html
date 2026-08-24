@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>公开摇号现场 · 保障性住房综合管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/wsbzf.css">
+<style>
+  html,body{height:100%;margin:0}
+  body{font-family:-apple-system,"Microsoft YaHei",sans-serif}
+  .bz-fit{position:fixed;inset:0;overflow:hidden}
+  #stage{position:absolute;top:50%;left:50%;transform-origin:center center}
+  .bz-exit{position:fixed;top:16px;right:18px;z-index:20}
+  .bz-hint{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);z-index:20;color:rgba(255,255,255,.5);font-size:12px;letter-spacing:1px}
+</style>
+</head>
+<body class="bz-stage-scope">
+<div class="bz-fit">
+  <div class="bz-stage" id="stage">
+    <!-- 顶部礼仪栏 -->
+    <div class="bz-stage-top">
+      <div class="emblem"><i class="fa-solid fa-city"></i></div>
+      <div>
+        <div class="ttl">XXXX市配售型保障性住房公开摇号大会</div>
+        <div class="sub">第 3 批 · 幸福里配售型住房项目　|　公证机构：XXXX市××公证处　公证员：李×、覃×</div>
+      </div>
+      <div class="clock"><span>现场时间</span><b id="clock">09:30:00</b></div>
+    </div>
+
+    <!-- 主体三栏 -->
+    <div class="bz-stage-body">
+      <!-- 左信息栏 -->
+      <div class="bz-panel bz-side">
+        <h4>本场信息</h4>
+        <div class="kv"><span class="k">配售名额</span><span class="v hot" id="quota">680</span></div>
+        <div class="kv"><span class="k">参摇户数</span><span class="v">1,286</span></div>
+        <div class="kv"><span class="k">已摇出</span><span class="v" id="drawn">0</span></div>
+        <div class="kv"><span class="k">剩余名额</span><span class="v hot" id="remain">680</span></div>
+        <div class="kv"><span class="k">摇号方式</span><span class="v">电脑摇号·公证</span></div>
+        <div class="kv"><span class="k">随机种子</span><span class="v" style="font-size:13px">2026-BZ-3</span></div>
+        <div style="margin-top:20px;font-size:14px;opacity:.72;line-height:1.9">
+          <div><i class="fa-solid fa-shield-halved"></i> 全程录像·区块链存证</div>
+          <div><i class="fa-solid fa-scale-balanced"></i> 公证现场监督</div>
+          <div><i class="fa-solid fa-signal"></i> 结果实时同步对外公示</div>
+        </div>
+      </div>
+
+      <!-- 中央舞台 -->
+      <div class="bz-panel bz-stage-center" id="center">
+        <div class="bz-confetti" id="confetti"></div>
+        <div class="caption" id="caption">准 备 就 绪</div>
+        <div class="bz-roller" id="roller">
+          <div class="bz-digit">0</div><div class="bz-digit">0</div><div class="bz-digit">0</div><div class="bz-digit">0</div>
+        </div>
+        <div class="bz-reveal" id="reveal">
+          <div class="name" style="opacity:.5">等待开始摇号</div>
+        </div>
+      </div>
+
+      <!-- 右中签榜 -->
+      <div class="bz-panel">
+        <h4>实时中签榜 <span style="margin-left:auto;font-size:13px;opacity:.7;font-weight:400" id="winCount">0 户</span></h4>
+        <div class="bz-winners" id="winners"></div>
+      </div>
+    </div>
+
+    <!-- 底部控制条 -->
+    <div class="bz-stage-foot">
+      <div class="bz-progress"><span id="bar"></span></div>
+      <button class="bz-btn primary" id="btnStart" onclick="LOT.start()"><i class="fa-solid fa-play"></i> 开始摇号</button>
+      <button class="bz-btn" id="btnNext" onclick="LOT.drawOne()" disabled><i class="fa-solid fa-hand-pointer"></i> 抽下一个</button>
+      <button class="bz-btn" id="btnAuto" onclick="LOT.toggleAuto()" disabled><i class="fa-solid fa-forward"></i> 连续抽取</button>
+      <button class="bz-btn danger" id="btnUndo" onclick="LOT.undo()" disabled><i class="fa-solid fa-rotate-left"></i> 撤销重摇</button>
+      <button class="bz-btn" id="btnSound" onclick="LOT.toggleSound()"><i class="fa-solid fa-volume-high"></i> 音效</button>
+      <button class="bz-btn" id="btnEnd" onclick="LOT.finish()" disabled><i class="fa-solid fa-stamp"></i> 结束并封存</button>
+    </div>
+  </div>
+</div>
+
+<button class="bz-btn bz-exit" onclick="window.close();history.length>1&&history.back()"><i class="fa-solid fa-xmark"></i> 退出</button>
+<div class="bz-hint">快捷键：空格 开始/暂停 · Enter 抽取 · F 全屏 · Esc 退出　|　摇号结果实时同步对外公示与移动端</div>
+
+<script>
+/* ---------- 等比缩放（1920×1080 基准） ---------- */
+function fit(){
+  var s = Math.min(window.innerWidth/1920, window.innerHeight/1080);
+  document.getElementById('stage').style.transform = 'translate(-50%,-50%) scale('+s+')';
+}
+window.addEventListener('resize', fit); fit();
+
+/* ---------- 现场时钟 ---------- */
+setInterval(function(){
+  var d = new Date();
+  var p = function(n){return (n<10?'0':'')+n;};
+  document.getElementById('clock').textContent = p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+}, 1000);
+
+/* ---------- 摇号引擎 ---------- */
+var LOT = (function(){
+  var QUOTA = 680, TOTAL = 1286;
+  var pool = [];               // 候选编号池
+  var winners = [];            // 已中签 [{seq,no,name,room}]
+  var auto = false, rolling = false, soundOn = true, actx = null;
+  var surnames = '赵钱孙李周吴郑王冯陈褚卫蒋沈韩杨黄覃韦莫梁陆';
+
+  for (var i=1;i<=TOTAL;i++) pool.push(i);
+
+  function beep(freq, dur){
+    if(!soundOn) return;
+    try{
+      actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+      var o=actx.createOscillator(), g=actx.createGain();
+      o.connect(g); g.connect(actx.destination);
+      o.frequency.value=freq; o.type='triangle';
+      g.gain.setValueAtTime(.12, actx.currentTime);
+      g.gain.exponentialRampToValueAtTime(.001, actx.currentTime+dur);
+      o.start(); o.stop(actx.currentTime+dur);
+    }catch(e){}
+  }
+
+  function pad(n){ n=''+n; while(n.length<4) n='0'+n; return n; }
+  function setRoller(str, cls){
+    var r=document.getElementById('roller');
+    r.className='bz-roller'+(cls?' '+cls:'');
+    r.querySelectorAll('.bz-digit').forEach(function(d,i){ d.textContent=str[i]; });
+  }
+  function updateStats(){
+    var drawn=winners.length;
+    document.getElementById('drawn').textContent=drawn;
+    document.getElementById('remain').textContent=QUOTA-drawn;
+    document.getElementById('winCount').textContent=drawn+' 户';
+    document.getElementById('bar').style.width=(drawn/QUOTA*100)+'%';
+  }
+  function renderWinners(newest){
+    var box=document.getElementById('winners'); box.innerHTML='';
+    winners.slice().reverse().slice(0,9).forEach(function(w,idx){
+      var el=document.createElement('div');
+      el.className='bz-winner'+(idx===0&&newest?' newer':'');
+      el.innerHTML='<div class="seq">'+w.seq+'</div><div class="no">编号 '+pad(w.no)+'</div>'+
+                   '<div class="nm">'+w.name+'</div><div class="rm">'+w.room+'</div>';
+      box.appendChild(el);
+    });
+  }
+  function confetti(){
+    var box=document.getElementById('confetti'); var colors=['#ffd873','#f0a92e','#8ec5ff','#a7f3d0','#fff'];
+    for(var i=0;i<60;i++){
+      var s=document.createElement('i');
+      s.style.left=Math.random()*100+'%';
+      s.style.background=colors[i%colors.length];
+      s.style.animationDuration=(1.6+Math.random()*1.6)+'s';
+      s.style.animationDelay=(Math.random()*.3)+'s';
+      box.appendChild(s);
+      (function(n){ setTimeout(function(){ n.remove(); }, 3200); })(s);
+    }
+  }
+
+  function pick(){ var i=Math.floor(Math.random()*pool.length); return pool.splice(i,1)[0]; }
+
+  function drawOne(){
+    if(rolling) return;
+    if(winners.length>=QUOTA || pool.length===0){ document.getElementById('caption').textContent='本 场 摇 号 结 束'; return; }
+    rolling=true; auto && null;
+    document.getElementById('caption').textContent='摇 号 中';
+    document.getElementById('reveal').innerHTML='<div class="name" style="opacity:.4">— — — —</div>';
+    var t=0, spin=setInterval(function(){
+      setRoller(pad(Math.floor(Math.random()*TOTAL)+1),'rolling');
+      beep(320+Math.random()*120,.03); t++;
+    }, 70);
+    setTimeout(function(){
+      clearInterval(spin);
+      var no=pick();
+      var seq=winners.length+1;
+      var name=surnames[Math.floor(Math.random()*surnames.length)]+'**';
+      var room=(1+Math.floor(Math.random()*8))+'#-'+(1+Math.floor(Math.random()*3))+'-'+((Math.floor(Math.random()*18)+1)*100+Math.floor(Math.random()*4)+1);
+      setRoller(pad(no));
+      var rev=document.getElementById('reveal');
+      rev.className='bz-reveal pop';
+      rev.innerHTML='<div class="name">中签编号 '+pad(no)+'　'+name+'</div><div class="room">选房顺序号 '+seq+' · 预分配 '+room+'</div>';
+      document.getElementById('caption').textContent='恭 喜 中 签';
+      winners.push({seq:seq,no:no,name:name,room:'房 '+room});
+      renderWinners(true); updateStats(); confetti(); beep(880,.18);
+      setTimeout(function(){ beep(1180,.22); },140);
+      rolling=false;
+      if(winners.length>=QUOTA){ auto=false; document.getElementById('caption').textContent='名 额 已 满'; }
+      else if(auto){ setTimeout(drawOne, 900); }
+    }, 2600);
+  }
+
+  return {
+    start:function(){
+      document.getElementById('btnStart').disabled=true;
+      ['btnNext','btnAuto','btnUndo','btnEnd'].forEach(function(id){ document.getElementById(id).disabled=false; });
+      document.getElementById('caption').textContent='就 位';
+      // 3-2-1 倒计时
+      var c=3, rev=document.getElementById('reveal');
+      var cd=setInterval(function(){
+        if(c>0){ rev.className='bz-reveal pop'; rev.innerHTML='<div class="bz-countdown">'+c+'</div>'; beep(560,.2); c--; }
+        else { clearInterval(cd); rev.innerHTML='<div class="name">请点击「抽下一个」或「连续抽取」</div>'; }
+      }, 900);
+    },
+    drawOne:drawOne,
+    toggleAuto:function(){
+      auto=!auto;
+      document.getElementById('btnAuto').innerHTML = auto
+        ? '<i class="fa-solid fa-pause"></i> 暂停连抽' : '<i class="fa-solid fa-forward"></i> 连续抽取';
+      if(auto) drawOne();
+    },
+    undo:function(){
+      if(rolling||!winners.length) return;
+      var w=winners.pop(); pool.push(w.no);
+      renderWinners(false); updateStats();
+      document.getElementById('caption').textContent='已 撤 销 · 待 公 证 确 认';
+    },
+    toggleSound:function(){
+      soundOn=!soundOn;
+      document.getElementById('btnSound').innerHTML = soundOn
+        ? '<i class="fa-solid fa-volume-high"></i> 音效' : '<i class="fa-solid fa-volume-xmark"></i> 静音';
+    },
+    finish:function(){
+      auto=false;
+      document.getElementById('caption').textContent='已 结 束 · 结 果 封 存 公 证';
+      document.getElementById('reveal').innerHTML='<div class="name">共产生 '+winners.length+' 个中签顺序号，已封存并同步公示</div>';
+      ['btnNext','btnAuto','btnUndo'].forEach(function(id){ document.getElementById(id).disabled=true; });
+    }
+  };
+})();
+
+/* ---------- 快捷键 ---------- */
+document.addEventListener('keydown', function(e){
+  if(e.code==='Space'){ e.preventDefault();
+    var s=document.getElementById('btnStart');
+    if(!s.disabled){ LOT.start(); } else { LOT.toggleAuto(); } }
+  else if(e.code==='Enter'){ LOT.drawOne(); }
+  else if(e.key==='f'||e.key==='F'){ if(!document.fullscreenElement) document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen(); else document.exitFullscreen&&document.exitFullscreen(); }
+  else if(e.code==='Escape'){ if(document.fullscreenElement) document.exitFullscreen(); }
+});
+</script>
+</body>
+</html>

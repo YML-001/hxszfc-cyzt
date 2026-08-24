@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>提示词模板管理 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="pt" data-active="prompt-template" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>模型底座</span>
+      <span class="sep">/</span><span>AI 输出治理</span>
+      <span class="sep">/</span><span class="cur">提示词模板管理</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-shield-halved"></i>AI 输出治理 wsai-03</span>
+    <a href="../common/ai-audit-log.html?role=pt">AI 输出留痕</a>
+    <a class="active" href="prompt-template.html?role=pt">提示词模板</a>
+    <a href="content-filter.html?role=pt">内容合规过滤</a>
+    <a href="hallucination-guard.html?role=pt">幻觉防控审核</a>
+    <a href="human-feedback.html?role=pt">人工修正回流</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-comment-dots"></i>
+    <span>提示词是<b>版本化</b>管理的：保存修改会生成新的生效版本、旧版本转为历史版本，引用该模板的智能体自动切到新版本，
+      也可随时回滚到任一历史版本。同一场景同时只能有一个生效版本。</span>
+  </div>
+
+  <!-- 编辑器：左侧场景列表，右侧模板正文 -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head">
+        <h3>生效中的模板</h3>
+        <span class="sub" id="onSub">—</span>
+      </div>
+      <div class="card-body tight">
+        <div class="rp-outline" id="onList"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3>模板正文</h3>
+        <span class="sub" id="edSub">—</span>
+        <div class="head-actions">
+          <button class="btn btn-primary btn-sm" onclick="save()"><i class="fa-solid fa-floppy-disk"></i> 保存为新版本</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="form-item">
+          <label>提示词内容 <span class="req">*</span></label>
+          <textarea id="edText" rows="9" placeholder="约束模型的输出边界，例如：仅依据知识库片段回答并标注引用编号"></textarea>
+          <div class="hint">建议在提示词中明确「仅依据知识库回答」「逐条标注引用编号」「无依据时明确说明并转人工」，
+            这三条与幻觉防控配置共同构成输出可溯源的保障。</div>
+        </div>
+        <div id="edPreview"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3>全部模板版本</h3>
+      <span class="sub">含历史版本，可回滚</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tPrompt" data-static>
+        <thead><tr>
+          <th>应用场景</th><th>版本</th><th>状态</th><th class="cell-lg">提示词内容</th>
+          <th>引用智能体</th><th>操作人</th><th>更新时间</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var curId = null;
+
+  function onPrompts() {
+    return AI.where('prompts', function (p) { return p.zt === '2'; });
+  }
+
+  function paintList() {
+    var list = onPrompts();
+    document.getElementById('onSub').textContent = list.length + ' 个场景有生效模板';
+    document.getElementById('onList').innerHTML = list.map(function (p) {
+      var used = AI.where('agents', function (a) { return a.promptId === p.id; }).length;
+      return '<a class="' + (p.id === curId ? 'active' : '') + '" onclick="pick(\'' + p.id + '\')">' +
+        '<span class="rp-dot" style="background:var(--success)"></span>' +
+        '<span style="flex:1;min-width:0">' + AI.dict('scene', p.scene) + '</span>' +
+        '<span class="badge gray">' + AI.esc(p.ver) + '</span>' +
+        (used ? '<span class="badge ai">' + used + ' 智能体</span>' : '') +
+        '</a>';
+    }).join('');
+  }
+
+  window.pick = function (id) {
+    curId = id;
+    var p = AI.byId('prompts', id);
+    if (!p) return;
+    document.getElementById('edSub').textContent = AI.dict('scene', p.scene) + ' · ' + p.ver + '（生效中）';
+    document.getElementById('edText').value = p.content;
+    var used = AI.where('agents', function (a) { return a.promptId === p.id; });
+    document.getElementById('edPreview').innerHTML = used.length
+      ? '<div class="alert alert-info"><i class="fa-solid fa-robot"></i><span>该模板正被 ' + used.length +
+        ' 个智能体引用：' + used.map(function (a) { return AI.esc(a.mc); }).join('、') +
+        '。保存新版本后这些智能体会自动切换。</span></div>'
+      : '<div class="alert alert-warning"><i class="fa-solid fa-circle-info"></i><span>暂无智能体引用该模板。' +
+        '智能体必须挂接生效状态的提示词才能上架。</span></div>';
+    paintList();
+  };
+
+  window.save = function () {
+    if (!curId) { AI.toast('请先在左侧选择要修改的模板', 'error'); return; }
+    AI.act.savePrompt(curId, document.getElementById('edText').value);
+  };
+
+  AI.table({
+    id: 'tPrompt', pageSize: 10,
+    rows: function () {
+      return AI.get('prompts').slice().sort(function (a, b) {
+        if (a.scene !== b.scene) return a.scene < b.scene ? -1 : 1;
+        return b.updatedAt - a.updatedAt;
+      });
+    },
+    cells: function (p) {
+      var used = AI.where('agents', function (a) { return a.promptId === p.id; });
+      return [
+        '<td>' + AI.dict('scene', p.scene) + '</td>',
+        '<td>' + AI.esc(p.ver) + '</td>',
+        '<td>' + (p.zt === '2'
+          ? '<span class="badge green">生效中</span>'
+          : '<span class="badge gray">历史版本</span>') + '</td>',
+        '<td class="cell-lg">' + AI.esc(p.content) + '</td>',
+        '<td>' + (used.length
+          ? used.map(function (a) { return '<span class="badge ai">' + AI.esc(a.mc) + '</span>'; }).join(' ')
+          : '<span class="text-3">—</span>') + '</td>',
+        '<td>' + AI.esc(p.operator) + '</td>',
+        '<td>' + AI.fmt.time(p.updatedAt) + '</td>',
+        '<td class="col-ops">' +
+          (p.zt === '2'
+            ? '<button class="btn btn-sm" onclick="pick(\'' + p.id + '\')"><i class="fa-solid fa-pen"></i> 编辑</button>'
+            : '<button class="btn btn-primary btn-sm" onclick="AI.act.rollbackPrompt(\'' + p.id + '\')">' +
+              '<i class="fa-solid fa-rotate-left"></i> 回滚到此版本</button>') +
+        '</td>'
+      ];
+    },
+    empty: '暂无提示词模板'
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () {
+      if (!curId) {
+        var first = onPrompts()[0];
+        if (first) { curId = first.id; pick(first.id); }
+      }
+      paintList();
+      AI.repaintAll();
+    });
+  });
+})();
+</script>
+</body>
+</html>

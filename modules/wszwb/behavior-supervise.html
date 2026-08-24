@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>双方行为监管与纠纷调处 · 房屋租赁网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：行为分类卡、纠纷环形图、证据清单 */
+  .bh-card { border: 1px solid var(--border); border-radius: var(--radius); background: #fff; }
+  .bh-card > .bh-head {
+    padding: 10px 14px; border-bottom: 1px solid var(--border); background: #fafbfd;
+    font-size: 13.5px; font-weight: 600; display: flex; align-items: center; gap: 8px;
+  }
+  .bh-card > .bh-head .bh-sum { margin-left: auto; font-size: 12.5px; font-weight: 400; color: var(--text-3); }
+  .bh-card > .bh-body { padding: 6px 14px 10px; }
+  .bh-row {
+    display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 13px;
+    border-bottom: 1px dashed var(--row-line); cursor: pointer;
+  }
+  .bh-row:last-child { border-bottom: none; }
+  .bh-row:hover .bh-n { text-decoration: underline; }
+  .bh-row .bh-n { flex: 0 0 132px; }
+  .bh-row .bh-track { flex: 1; height: 8px; border-radius: 4px; background: #eef1f6; overflow: hidden; }
+  .bh-row .bh-fill { height: 100%; border-radius: 4px; background: var(--primary); }
+  .bh-row.warn .bh-fill { background: var(--warning); }
+  .bh-row.danger .bh-fill { background: var(--danger); }
+  .bh-row .bh-v { flex: 0 0 56px; text-align: right; font-weight: 600; font-family: Consolas, monospace; }
+
+  .donut-wrap { display: flex; align-items: center; gap: 26px; flex-wrap: wrap; }
+  .donut {
+    width: 176px; height: 176px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: conic-gradient(
+      #2656bb 0 34%, #2f80ed 34% 56%, #17a2b8 56% 70%, #15a15a 70% 79%,
+      #7bb241 79% 85%, #e0a91e 85% 89%, #e08a1e 89% 93%, #d9743a 93% 96%,
+      #d64545 96% 99%, #8f96a3 99% 100%);
+  }
+  .donut .d-hole {
+    width: 112px; height: 112px; border-radius: 50%; background: #fff;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .donut-legend { display: grid; grid-template-columns: repeat(2, minmax(190px, 1fr)); gap: 8px 22px; font-size: 13px; }
+  .donut-legend .dl-item { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .donut-legend .dl-item:hover { color: var(--primary); }
+  .donut-legend i { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+  .donut-legend .dl-v { margin-left: auto; font-family: Consolas, monospace; color: var(--text-2); }
+
+  .ev-list { border: 1px solid var(--border); border-radius: 8px; }
+  .ev-item {
+    display: flex; align-items: center; gap: 10px; padding: 9px 12px; font-size: 13px;
+    border-bottom: 1px solid var(--row-line);
+  }
+  .ev-item:last-child { border-bottom: none; }
+  .ev-item .ev-ico { color: var(--primary); }
+  .ev-item .ev-op { margin-left: auto; }
+
+  .upload-box {
+    border: 1px dashed var(--border); border-radius: 8px; padding: 16px; text-align: center;
+    color: var(--text-3); font-size: 13px; cursor: pointer; background: #fafbfd;
+  }
+  .upload-box:hover { border-color: var(--primary); color: var(--primary); }
+  .upload-box i { font-size: 22px; color: var(--primary); display: block; margin-bottom: 6px; }
+
+  .data-table tbody tr.is-warn > td { background: #fff8ed; }
+  .data-table tbody tr.is-warn:hover > td { background: #fdf0d9; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wszwb-05">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋租赁网签备案管理系统
+        <span class="sep">/</span> 租赁主体监管
+        <span class="sep">/</span> <span class="cur">双方行为监管与纠纷调处</span>
+      </div>
+      <div class="page-title">租赁双方行为监管与纠纷调处</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" data-open-drawer="drBh"><i class="fa-solid fa-pen-to-square"></i> 登记违规行为</button>
+      <button type="button" class="btn" data-open-drawer="drJf"><i class="fa-solid fa-scale-balanced"></i> 受理纠纷</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《租赁双方行为监管与纠纷调处台账》Excel','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      调解成功的协议内容可直接作为变更备案或注销备案的依据。一方连续两次被记录同类违规行为的，自动纳入重点关注名单。
+    </div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="bh">履约行为监管</div>
+      <div class="tab" data-tab="jf">纠纷调处</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="bh">
+      <div class="card-body">
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="s-icon orange"><i class="fa-solid fa-clock"></i></div>
+            <div><div class="s-label">本月逾期支付</div><div class="s-value">486</div><div class="s-trend text-3">笔</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="s-icon red"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+            <div><div class="s-label">长期拖欠</div><div class="s-value">62</div><div class="s-trend text-danger">连续 3 期以上未付</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="s-icon purple"><i class="fa-solid fa-coins"></i></div>
+            <div><div class="s-label">押金扣除异常</div><div class="s-value">28</div><div class="s-trend text-3">起</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="s-icon blue"><i class="fa-solid fa-clipboard-list"></i></div>
+            <div><div class="s-label">违规行为记录</div><div class="s-value">146</div><div class="s-trend text-3">条</div></div>
+          </div>
+        </div>
+
+        <div class="grid-2 mt-16">
+          <div class="bh-card">
+            <div class="bh-head"><i class="fa-solid fa-house-user"></i> 出租方行为<span class="bh-sum">合计 291 条</span></div>
+            <div class="bh-body">
+              <div class="bh-row danger" onclick="pickBh('虚假房源')"><span class="bh-n">虚假房源</span><span class="bh-track"><span class="bh-fill" style="width:22.6%"></span></span><span class="bh-v">42</span></div>
+              <div class="bh-row" onclick="pickBh('未按约定交付')"><span class="bh-n">未按约定交付</span><span class="bh-track"><span class="bh-fill" style="width:9.7%"></span></span><span class="bh-v">18</span></div>
+              <div class="bh-row" onclick="pickBh('擅自进入房屋')"><span class="bh-n">擅自进入房屋</span><span class="bh-track"><span class="bh-fill" style="width:3.2%"></span></span><span class="bh-v">6</span></div>
+              <div class="bh-row warn" onclick="pickBh('无故克扣押金')"><span class="bh-n">无故克扣押金</span><span class="bh-track"><span class="bh-fill" style="width:15.1%"></span></span><span class="bh-v">28</span></div>
+              <div class="bh-row" onclick="pickBh('擅自提前解约')"><span class="bh-n">擅自提前解约</span><span class="bh-track"><span class="bh-fill" style="width:5.9%"></span></span><span class="bh-v">11</span></div>
+              <div class="bh-row danger" onclick="pickBh('未备案出租')"><span class="bh-n">未备案出租</span><span class="bh-track"><span class="bh-fill" style="width:100%"></span></span><span class="bh-v">186</span></div>
+            </div>
+          </div>
+          <div class="bh-card">
+            <div class="bh-head"><i class="fa-solid fa-user-group"></i> 承租方行为<span class="bh-sum">合计 104 条</span></div>
+            <div class="bh-body">
+              <div class="bh-row danger" onclick="pickBh('拖欠租金')"><span class="bh-n">拖欠租金</span><span class="bh-track"><span class="bh-fill" style="width:100%"></span></span><span class="bh-v">62</span></div>
+              <div class="bh-row warn" onclick="pickBh('违规转租')"><span class="bh-n">违规转租</span><span class="bh-track"><span class="bh-fill" style="width:22.6%"></span></span><span class="bh-v">14</span></div>
+              <div class="bh-row" onclick="pickBh('擅自改变房屋结构')"><span class="bh-n">擅自改变结构</span><span class="bh-track"><span class="bh-fill" style="width:14.5%"></span></span><span class="bh-v">9</span></div>
+              <div class="bh-row" onclick="pickBh('超员居住')"><span class="bh-n">超员居住</span><span class="bh-track"><span class="bh-fill" style="width:11.3%"></span></span><span class="bh-v">7</span></div>
+              <div class="bh-row" onclick="pickBh('损毁房屋设施')"><span class="bh-n">损毁房屋设施</span><span class="bh-track"><span class="bh-fill" style="width:19.4%"></span></span><span class="bh-v">12</span></div>
+              <div class="bh-row" style="visibility:hidden"><span class="bh-n">占位</span><span class="bh-track"></span><span class="bh-v">0</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-bar mt-16">
+          <div class="filter-item">
+            <label>关键词</label>
+            <input type="text" placeholder="记录编号 / 合同编号 / 坐落 / 行为主体">
+          </div>
+          <div class="filter-item">
+            <label>主体类型</label>
+            <select><option value="">全部</option><option>出租方</option><option>承租方</option></select>
+          </div>
+          <div class="filter-item">
+            <label>行为类型</label>
+            <select id="fBh">
+              <option value="">全部</option>
+              <option>虚假房源</option><option>未按约定交付</option><option>擅自进入房屋</option>
+              <option>无故克扣押金</option><option>擅自提前解约</option><option>未备案出租</option>
+              <option>拖欠租金</option><option>违规转租</option><option>擅自改变房屋结构</option>
+              <option>超员居住</option><option>损毁房屋设施</option>
+            </select>
+          </div>
+          <div class="filter-item">
+            <label>线索来源</label>
+            <select><option value="">全部</option><option>系统监测</option><option>投诉举报</option><option>日常检查</option><option>部门移送</option><option>纠纷调处发现</option></select>
+          </div>
+          <div class="filter-item">
+            <label>是否记入信用</label>
+            <select><option value="">全部</option><option>是</option><option>否</option></select>
+          </div>
+          <div class="filter-item">
+            <label>状态</label>
+            <select><option value="">全部</option><option>待处理</option><option>处理中</option><option>已处理</option><option>已转调处</option></select>
+          </div>
+          <div class="filter-item">
+            <label>发现时间起</label>
+            <input type="date" value="2026-07-01">
+          </div>
+          <div class="filter-actions">
+            <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 146 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table" id="tblBh" data-static>
+            <thead>
+              <tr>
+                <th>记录编号</th>
+                <th>合同编号</th>
+                <th>坐落</th>
+                <th>行为主体</th>
+                <th>主体类型</th>
+                <th>行为类型</th>
+                <th>发现时间</th>
+                <th>线索来源</th>
+                <th>情节描述</th>
+                <th>处理措施</th>
+                <th>记入信用</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="is-warn" data-bh="拖欠租金">
+                <td class="nowrap fw-600">XW2026000846</td>
+                <td class="nowrap">ZLHT450200202600418</td>
+                <td class="cell-lg">城中区文昌路 66 号阳光 100 城市广场 3 栋 2 单元 1602 室</td>
+                <td class="nowrap">覃某某</td>
+                <td class="nowrap"><span class="badge blue">承租方</span></td>
+                <td class="nowrap"><span class="badge red">拖欠租金</span></td>
+                <td class="nowrap">2026-07-28</td>
+                <td class="nowrap">系统监测</td>
+                <td class="cell-lg">连续 3 期未按约支付租金，累计欠付 6,900 元，催告两次未回应</td>
+                <td class="nowrap">已发催告通知</td>
+                <td class="nowrap"><span class="badge orange">是</span></td>
+                <td class="nowrap"><span class="badge orange">处理中</span></td>
+                <td class="col-ops">
+                  <a class="link" href="contract-detail.html">查看合同</a>
+                  <span class="link" onclick="openBhDeal('XW2026000846')">登记措施</span>
+                  <span class="link" onclick="toJf('XW2026000846')">转纠纷调处</span>
+                </td>
+              </tr>
+              <tr data-bh="无故克扣押金">
+                <td class="nowrap fw-600">XW2026000842</td>
+                <td class="nowrap">ZLHT450200202500186</td>
+                <td class="cell-lg">城中区解放北路 41 号天湖国际 2 栋 1 单元 1508 室</td>
+                <td class="nowrap">陈某某</td>
+                <td class="nowrap"><span class="badge purple">出租方</span></td>
+                <td class="nowrap"><span class="badge orange">无故克扣押金</span></td>
+                <td class="nowrap">2026-07-26</td>
+                <td class="nowrap">投诉举报</td>
+                <td class="cell-lg">退租时以「墙面污渍」为由扣除押金 1,800 元，未提供维修票据与验房记录</td>
+                <td class="nowrap">责令限期退还</td>
+                <td class="nowrap"><span class="badge orange">是</span></td>
+                <td class="nowrap"><span class="badge blue">已转调处</span></td>
+                <td class="col-ops">
+                  <a class="link" href="contract-detail.html">查看合同</a>
+                  <span class="link" onclick="openBhDeal('XW2026000842')">登记措施</span>
+                  <a class="link" href="violation-ledger.html">违规台账</a>
+                </td>
+              </tr>
+              <tr class="is-warn" data-bh="未备案出租">
+                <td class="nowrap fw-600">XW2026000838</td>
+                <td class="nowrap"><span class="text-3">—</span></td>
+                <td class="cell-lg">鱼峰区静兰路 18 号荣和公园里 6 栋 3 单元 902 室</td>
+                <td class="nowrap">卢某某</td>
+                <td class="nowrap"><span class="badge purple">出租方</span></td>
+                <td class="nowrap"><span class="badge red">未备案出租</span></td>
+                <td class="nowrap">2026-07-24</td>
+                <td class="nowrap">部门移送</td>
+                <td class="cell-lg">公安流动人口登记显示实际出租，平台无备案记录，同一出租人名下 3 套均未备案</td>
+                <td class="nowrap">责令 10 日内补办</td>
+                <td class="nowrap"><span class="badge orange">是</span></td>
+                <td class="nowrap"><span class="badge orange">待处理</span></td>
+                <td class="col-ops">
+                  <a class="link" href="tenant-filing.html">承租人备案</a>
+                  <span class="link" onclick="openBhDeal('XW2026000838')">登记措施</span>
+                  <a class="link" href="violation-ledger.html">违规台账</a>
+                </td>
+              </tr>
+              <tr data-bh="违规转租">
+                <td class="nowrap fw-600">XW2026000831</td>
+                <td class="nowrap">ZLHT450200202600372</td>
+                <td class="cell-lg">柳南区航鹰大道 8 号龙城华府 1 栋 2 单元 1102 室</td>
+                <td class="nowrap">莫某某</td>
+                <td class="nowrap"><span class="badge blue">承租方</span></td>
+                <td class="nowrap"><span class="badge orange">违规转租</span></td>
+                <td class="nowrap">2026-07-21</td>
+                <td class="nowrap">系统监测</td>
+                <td class="cell-lg">未取得出租人书面同意，将整套房屋分间转租 3 人，转租租金高于原租金 42%</td>
+                <td class="nowrap">责令停止转租</td>
+                <td class="nowrap"><span class="badge orange">是</span></td>
+                <td class="nowrap"><span class="badge orange">处理中</span></td>
+                <td class="col-ops">
+                  <a class="link" href="sublease.html">查看转租</a>
+                  <span class="link" onclick="openBhDeal('XW2026000831')">登记措施</span>
+                  <span class="link" onclick="toJf('XW2026000831')">转纠纷调处</span>
+                </td>
+              </tr>
+              <tr data-bh="虚假房源">
+                <td class="nowrap fw-600">XW2026000824</td>
+                <td class="nowrap"><span class="text-3">—</span></td>
+                <td class="cell-lg">城中区东堤路 12 号江与城 5 栋 1 单元 706 室</td>
+                <td class="nowrap">XXXX市桂中房产经纪有限公司</td>
+                <td class="nowrap"><span class="badge purple">出租方</span></td>
+                <td class="nowrap"><span class="badge red">虚假房源</span></td>
+                <td class="nowrap">2026-07-18</td>
+                <td class="nowrap">系统监测</td>
+                <td class="cell-lg">核验码已失效仍在多渠道展示，房源图片与登记库不一致，命中查重规则</td>
+                <td class="nowrap">强制下架并约谈</td>
+                <td class="nowrap"><span class="badge orange">是</span></td>
+                <td class="nowrap"><span class="badge green">已处理</span></td>
+                <td class="col-ops">
+                  <a class="link" href="publisher-verify.html">身份核验</a>
+                  <span class="link" onclick="openBhDeal('XW2026000824')">登记措施</span>
+                  <a class="link" href="violation-ledger.html">违规台账</a>
+                </td>
+              </tr>
+              <tr data-bh="擅自进入房屋">
+                <td class="nowrap fw-600">XW2026000815</td>
+                <td class="nowrap">ZLHT450200202600296</td>
+                <td class="cell-lg">柳北区跃进路 25 号钢城家园 7 栋 2 单元 403 室</td>
+                <td class="nowrap">韦某某</td>
+                <td class="nowrap"><span class="badge purple">出租方</span></td>
+                <td class="nowrap"><span class="badge orange">擅自进入房屋</span></td>
+                <td class="nowrap">2026-07-15</td>
+                <td class="nowrap">投诉举报</td>
+                <td class="cell-lg">未提前告知擅自开锁进入承租房屋查看，承租人提交门禁记录与录音证据</td>
+                <td class="nowrap">批评教育并书面承诺</td>
+                <td class="nowrap"><span class="badge gray">否</span></td>
+                <td class="nowrap"><span class="badge green">已处理</span></td>
+                <td class="col-ops">
+                  <a class="link" href="contract-detail.html">查看合同</a>
+                  <span class="link" onclick="openBhDeal('XW2026000815')">登记措施</span>
+                </td>
+              </tr>
+              <tr data-bh="损毁房屋设施">
+                <td class="nowrap fw-600">XW2026000806</td>
+                <td class="nowrap">ZLHT450200202500142</td>
+                <td class="cell-lg">鱼峰区屏山大道 66 号奥园誉峰 3 栋 1 单元 1806 室</td>
+                <td class="nowrap">石某某</td>
+                <td class="nowrap"><span class="badge blue">承租方</span></td>
+                <td class="nowrap"><span class="badge orange">损毁房屋设施</span></td>
+                <td class="nowrap">2026-07-09</td>
+                <td class="nowrap">日常检查</td>
+                <td class="cell-lg">退租验房发现油烟机、热水器损坏且未报修，双方对赔偿金额有争议</td>
+                <td class="nowrap">引导协商赔偿</td>
+                <td class="nowrap"><span class="badge gray">否</span></td>
+                <td class="nowrap"><span class="badge blue">已转调处</span></td>
+                <td class="col-ops">
+                  <a class="link" href="contract-cancel.html">退租结算</a>
+                  <span class="link" onclick="openBhDeal('XW2026000806')">登记措施</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="jf">
+      <div class="card-body">
+        <div class="section-title">十类纠纷分布 · 2026 年 1—7 月受理 486 件</div>
+        <div class="donut-wrap">
+          <div class="donut"><div class="d-hole"><div class="text-3 text-sm">累计受理</div><div style="font-size:24px;font-weight:700">486</div><div class="text-3 text-sm">件</div></div></div>
+          <div class="donut-legend">
+            <span class="dl-item" onclick="PMS.toast('已按「押金退还」筛选，共 165 件')"><i style="background:#2656bb"></i>押金退还<span class="dl-v">34%</span></span>
+            <span class="dl-item" onclick="PMS.toast('已按「租金支付」筛选，共 107 件')"><i style="background:#2f80ed"></i>租金支付<span class="dl-v">22%</span></span>
+            <span class="dl-item" onclick="PMS.toast('已按「提前解约」筛选，共 68 件')"><i style="background:#17a2b8"></i>提前解约<span class="dl-v">14%</span></span>
+            <span class="dl-item" onclick="PMS.toast('已按「房屋维修责任」筛选，共 44 件')"><i style="background:#15a15a"></i>房屋维修责任<span class="dl-v">9%</span></span>
+            <span class="dl-item" onclick="PMS.toast('已按「房屋质量与安全」筛选，共 29 件')"><i style="background:#7bb241"></i>房屋质量与安全<span class="dl-v">6%</span></span>
+            <span class="dl-item" onclick="PMS.toast('已按「隐私与居住权」筛选，共 19 件')"><i style="background:#e0a91e"></i>隐私与居住权<span class="dl-v">4%</span></span>
+            <span class="dl-item" onclick="PMS.toast('已按「转租」筛选，共 19 件')"><i style="background:#e08a1e"></i>转租<span class="dl-v">4%</span></span>
+            <span class="dl-item" onclick="PMS.toast('已按「租金贷」筛选，共 15 件')"><i style="background:#d9743a"></i>租金贷<span class="dl-v">3%</span></span>
+            <span class="dl-item" onclick="PMS.toast('已按「中介服务」筛选，共 15 件')"><i style="background:#d64545"></i>中介服务<span class="dl-v">3%</span></span>
+            <span class="dl-item" onclick="PMS.toast('已按「其他」筛选，共 5 件')"><i style="background:#8f96a3"></i>其他<span class="dl-v">1%</span></span>
+          </div>
+        </div>
+
+        <div class="stat-grid mt-16">
+          <div class="stat-card">
+            <div class="s-icon orange"><i class="fa-solid fa-inbox"></i></div>
+            <div><div class="s-label">待受理</div><div class="s-value">12</div><div class="s-trend text-3">件</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="s-icon blue"><i class="fa-solid fa-scale-balanced"></i></div>
+            <div><div class="s-label">调处中</div><div class="s-value">28</div><div class="s-trend text-3">件</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+            <div><div class="s-label">本月办结</div><div class="s-value">86</div><div class="s-trend text-3">件</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="s-icon purple"><i class="fa-solid fa-handshake"></i></div>
+            <div><div class="s-label">调解成功率</div><div class="s-value">78.6%</div><div class="s-trend text-3">近 12 个月</div></div>
+          </div>
+        </div>
+
+        <div class="filter-bar mt-16">
+          <div class="filter-item">
+            <label>关键词</label>
+            <input type="text" placeholder="纠纷编号 / 合同编号 / 坐落 / 当事人">
+          </div>
+          <div class="filter-item">
+            <label>纠纷类型</label>
+            <select>
+              <option value="">全部</option>
+              <option>押金退还</option><option>租金支付</option><option>提前解约</option>
+              <option>房屋维修责任</option><option>房屋质量与安全</option><option>隐私与居住权</option>
+              <option>转租</option><option>租金贷</option><option>中介服务</option><option>其他</option>
+            </select>
+          </div>
+          <div class="filter-item">
+            <label>调处方式</label>
+            <select><option value="">全部</option><option>平台调解</option><option>社区调解</option><option>行业调解</option><option>行政调解</option><option>引导诉讼</option></select>
+          </div>
+          <div class="filter-item">
+            <label>处理状态</label>
+            <select><option value="">全部</option><option>待受理</option><option>调处中</option><option>已办结</option><option>已撤回</option></select>
+          </div>
+          <div class="filter-item">
+            <label>申请方类型</label>
+            <select><option value="">全部</option><option>出租方</option><option>承租方</option><option>租赁企业</option><option>经纪机构</option></select>
+          </div>
+          <div class="filter-item">
+            <label>申请时间起</label>
+            <input type="date" value="2026-07-01">
+          </div>
+          <div class="filter-actions">
+            <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 126 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table" id="tblJf" data-static>
+            <thead>
+              <tr>
+                <th>纠纷编号</th>
+                <th>合同编号</th>
+                <th>坐落</th>
+                <th>纠纷类型</th>
+                <th>申请方</th>
+                <th>申请方类型</th>
+                <th>被申请方</th>
+                <th class="num">争议金额(元)</th>
+                <th>申请时间</th>
+                <th>调处方式</th>
+                <th>调处人</th>
+                <th>处理状态</th>
+                <th>调处结果</th>
+                <th>满意度</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="is-warn">
+                <td class="nowrap fw-600">JF2026000318</td>
+                <td class="nowrap">ZLHT450200202500186</td>
+                <td class="cell-lg">城中区解放北路 41 号天湖国际 2 栋 1 单元 1508 室</td>
+                <td class="nowrap"><span class="badge orange">押金退还</span></td>
+                <td class="nowrap">梁**</td>
+                <td class="nowrap">承租方</td>
+                <td class="nowrap">陈**</td>
+                <td class="num">1,800.00</td>
+                <td class="nowrap">2026-07-27</td>
+                <td class="nowrap"><span class="badge gray">待选择</span></td>
+                <td class="nowrap"><span class="text-3">—</span></td>
+                <td class="nowrap"><span class="badge orange">待受理</span></td>
+                <td class="nowrap"><span class="text-3">—</span></td>
+                <td class="nowrap"><span class="text-3">—</span></td>
+                <td class="col-ops">
+                  <span class="link" onclick="openJf('JF2026000318')">调处办理</span>
+                  <a class="link" href="contract-detail.html">查看合同</a>
+                </td>
+              </tr>
+              <tr>
+                <td class="nowrap fw-600">JF2026000312</td>
+                <td class="nowrap">ZLHT450200202600418</td>
+                <td class="cell-lg">城中区文昌路 66 号阳光 100 城市广场 3 栋 2 单元 1602 室</td>
+                <td class="nowrap"><span class="badge orange">租金支付</span></td>
+                <td class="nowrap">吴**</td>
+                <td class="nowrap">出租方</td>
+                <td class="nowrap">覃**</td>
+                <td class="num">6,900.00</td>
+                <td class="nowrap">2026-07-25</td>
+                <td class="nowrap">平台调解</td>
+                <td class="nowrap">韦国强</td>
+                <td class="nowrap"><span class="badge blue">调处中</span></td>
+                <td class="nowrap"><span class="text-3">—</span></td>
+                <td class="nowrap"><span class="text-3">—</span></td>
+                <td class="col-ops">
+                  <span class="link" onclick="openJf('JF2026000312')">调处办理</span>
+                  <a class="link" href="contract-detail.html">查看合同</a>
+                </td>
+              </tr>
+              <tr>
+                <td class="nowrap fw-600">JF2026000306</td>
+                <td class="nowrap">ZLHT450200202600372</td>
+                <td class="cell-lg">柳南区航鹰大道 8 号龙城华府 1 栋 2 单元 1102 室</td>
+                <td class="nowrap"><span class="badge orange">转租</span></td>
+                <td class="nowrap">黄**</td>
+                <td class="nowrap">出租方</td>
+                <td class="nowrap">莫**</td>
+                <td class="num">4,200.00</td>
+                <td class="nowrap">2026-07-22</td>
+                <td class="nowrap">行政调解</td>
+                <td class="nowrap">柳南区住建局 · 罗某</td>
+                <td class="nowrap"><span class="badge blue">调处中</span></td>
+                <td class="nowrap"><span class="text-3">—</span></td>
+                <td class="nowrap"><span class="text-3">—</span></td>
+                <td class="col-ops">
+                  <span class="link" onclick="openJf('JF2026000306')">调处办理</span>
+                  <a class="link" href="sublease.html">查看转租</a>
+                </td>
+              </tr>
+              <tr>
+                <td class="nowrap fw-600">JF2026000298</td>
+                <td class="nowrap">ZLHT450200202500142</td>
+                <td class="cell-lg">鱼峰区屏山大道 66 号奥园誉峰 3 栋 1 单元 1806 室</td>
+                <td class="nowrap"><span class="badge orange">房屋维修责任</span></td>
+                <td class="nowrap">谭**</td>
+                <td class="nowrap">出租方</td>
+                <td class="nowrap">石**</td>
+                <td class="num">2,600.00</td>
+                <td class="nowrap">2026-07-16</td>
+                <td class="nowrap">社区调解</td>
+                <td class="nowrap">屏山社区 · 覃某</td>
+                <td class="nowrap"><span class="badge green">已办结</span></td>
+                <td class="nowrap"><span class="badge green">调解成功</span></td>
+                <td class="nowrap">满意</td>
+                <td class="col-ops">
+                  <span class="link" onclick="openJf('JF2026000298')">查看</span>
+                  <span class="link" onclick="PMS.toast('已下载《人民调解协议书》PDF','success')">调解协议</span>
+                </td>
+              </tr>
+              <tr>
+                <td class="nowrap fw-600">JF2026000286</td>
+                <td class="nowrap">ZLHT450200202500098</td>
+                <td class="cell-lg">柳北区跃进路 25 号钢城家园 7 栋 2 单元 403 室</td>
+                <td class="nowrap"><span class="badge orange">提前解约</span></td>
+                <td class="nowrap">周**</td>
+                <td class="nowrap">承租方</td>
+                <td class="nowrap">韦**</td>
+                <td class="num">3,600.00</td>
+                <td class="nowrap">2026-07-08</td>
+                <td class="nowrap">平台调解</td>
+                <td class="nowrap">韦国强</td>
+                <td class="nowrap"><span class="badge green">已办结</span></td>
+                <td class="nowrap"><span class="badge green">调解成功</span></td>
+                <td class="nowrap">非常满意</td>
+                <td class="col-ops">
+                  <span class="link" onclick="openJf('JF2026000286')">查看</span>
+                  <a class="link" href="contract-cancel.html">注销备案</a>
+                </td>
+              </tr>
+              <tr>
+                <td class="nowrap fw-600">JF2026000274</td>
+                <td class="nowrap">ZLHT450200202500064</td>
+                <td class="cell-lg">城中区东堤路 12 号江与城 5 栋 1 单元 706 室</td>
+                <td class="nowrap"><span class="badge orange">租金贷</span></td>
+                <td class="nowrap">郑**</td>
+                <td class="nowrap">承租方</td>
+                <td class="nowrap">柳州寓家公寓管理有限公司</td>
+                <td class="num">18,000.00</td>
+                <td class="nowrap">2026-06-28</td>
+                <td class="nowrap">行业调解</td>
+                <td class="nowrap">市房地产业协会 · 蓝某</td>
+                <td class="nowrap"><span class="badge red">已办结</span></td>
+                <td class="nowrap"><span class="badge red">转诉讼</span></td>
+                <td class="nowrap">一般</td>
+                <td class="col-ops">
+                  <span class="link" onclick="openJf('JF2026000274')">查看</span>
+                  <a class="link" href="violation-ledger.html">违规台账</a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 登记违规行为抽屉 -->
+  <div class="drawer-mask" data-close-drawer></div>
+  <div class="drawer" id="drBh">
+    <div class="drawer-head">
+      <span>登记违规行为 · <span id="bhNo">新增</span></span>
+      <i class="fa-solid fa-xmark" data-close-drawer></i>
+    </div>
+    <div class="drawer-body">
+      <div class="section-title">基本信息</div>
+      <div class="form-grid form-align">
+        <div class="form-item col-full">
+          <label>合同编号 / 房源编号</label><span class="req">*</span>
+          <input type="text" value="ZLHT450200202600418">
+        </div>
+        <div class="form-item col-full">
+          <label>房屋坐落</label>
+          <input type="text" value="城中区文昌路 66 号阳光 100 城市广场 3 栋 2 单元 1602 室" readonly>
+        </div>
+        <div class="form-item">
+          <label>行为主体</label><span class="req">*</span>
+          <input type="text" value="覃某某">
+        </div>
+        <div class="form-item">
+          <label>主体类型</label><span class="req">*</span>
+          <select><option>承租方</option><option>出租方</option></select>
+        </div>
+        <div class="form-item">
+          <label>行为类型</label><span class="req">*</span>
+          <select>
+            <option>拖欠租金</option><option>违规转租</option><option>擅自改变房屋结构</option>
+            <option>超员居住</option><option>损毁房屋设施</option><option>虚假房源</option>
+            <option>未按约定交付</option><option>擅自进入房屋</option><option>无故克扣押金</option>
+            <option>擅自提前解约</option><option>未备案出租</option>
+          </select>
+        </div>
+        <div class="form-item">
+          <label>发现时间</label><span class="req">*</span>
+          <input type="date" value="2026-07-28">
+        </div>
+        <div class="form-item">
+          <label>线索来源</label><span class="req">*</span>
+          <select><option>系统监测</option><option>投诉举报</option><option>日常检查</option><option>部门移送</option><option>纠纷调处发现</option></select>
+        </div>
+        <div class="form-item">
+          <label>是否记入信用</label><span class="req">*</span>
+          <select><option>是</option><option>否</option></select>
+        </div>
+        <div class="form-item col-full">
+          <label>情节描述</label><span class="req">*</span>
+          <textarea rows="3">连续 3 期未按约支付租金，累计欠付 6,900 元，出租人两次书面催告未回应。</textarea>
+        </div>
+        <div class="form-item col-full">
+          <label>处理措施</label>
+          <textarea rows="3">已发出催告通知，要求 7 日内结清欠付租金；逾期仍未支付的记入违规台账并推送信用档案。</textarea>
+        </div>
+        <div class="form-item col-full">
+          <label>证据材料</label>
+          <div class="upload-box" onclick="PMS.toast('演示环境不支持真实上传')">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <div>点击或拖拽上传催告通知、支付流水、聊天记录等（PDF / JPG，单个不超过 10MB）</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="saveBh()"><i class="fa-solid fa-check"></i> 保存并记入</button>
+    </div>
+  </div>
+
+  <!-- 纠纷调处办理抽屉 -->
+  <div class="drawer-mask" data-close-drawer></div>
+  <div class="drawer drawer-lg" id="drJf">
+    <div class="drawer-head">
+      <span>纠纷调处办理 · <span id="jfNo">JF2026000318</span></span>
+      <i class="fa-solid fa-xmark" data-close-drawer></i>
+    </div>
+    <div class="drawer-body">
+      <div class="section-title">纠纷描述</div>
+      <dl class="desc-list">
+        <div class="desc-item full"><dt>房屋坐落</dt><dd class="fw-600">城中区解放北路 41 号天湖国际 2 栋 1 单元 1508 室</dd></div>
+        <div class="desc-item"><dt>合同编号</dt><dd>ZLHT450200202500186</dd></div>
+        <div class="desc-item"><dt>纠纷类型</dt><dd>押金退还</dd></div>
+        <div class="desc-item"><dt>申请方</dt><dd>梁**（承租方）</dd></div>
+        <div class="desc-item"><dt>被申请方</dt><dd>陈**（出租方）</dd></div>
+        <div class="desc-item"><dt>争议金额</dt><dd class="fw-600">1,800.00 元</dd></div>
+        <div class="desc-item"><dt>申请时间</dt><dd>2026-07-27 15:42</dd></div>
+        <div class="desc-item full">
+          <dt>诉求说明</dt>
+          <dd>2026-07-20 退租验房通过，出租人以墙面污渍为由扣除押金 1,800 元，未出具维修票据与验房记录，多次沟通无果，请求全额退还押金。</dd>
+        </div>
+      </dl>
+
+      <div class="section-title mt-16">证据材料</div>
+      <div class="ev-list">
+        <div class="ev-item"><i class="fa-solid fa-file-pdf ev-ico"></i> 房屋租赁合同（备案版）.pdf<span class="ev-op link" onclick="PMS.toast('已打开预览')">预览</span></div>
+        <div class="ev-item"><i class="fa-solid fa-image ev-ico"></i> 退租验房现场照片（6 张）.zip<span class="ev-op link" onclick="PMS.toast('已打开预览')">预览</span></div>
+        <div class="ev-item"><i class="fa-solid fa-receipt ev-ico"></i> 押金收款凭证.jpg<span class="ev-op link" onclick="PMS.toast('已打开预览')">预览</span></div>
+        <div class="ev-item"><i class="fa-solid fa-comments ev-ico"></i> 双方沟通记录截图.pdf<span class="ev-op link" onclick="PMS.toast('已打开预览')">预览</span></div>
+      </div>
+
+      <div class="section-title mt-16">调处办理</div>
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>调处方式</label><span class="req">*</span>
+          <select><option>平台调解</option><option>社区调解</option><option>行业调解</option><option>行政调解</option><option>引导诉讼</option></select>
+        </div>
+        <div class="form-item">
+          <label>调处人</label><span class="req">*</span>
+          <input type="text" value="韦国强">
+        </div>
+        <div class="form-item">
+          <label>调处部门</label><span class="req">*</span>
+          <input type="text" value="XXXX市房产交易所 · 租赁监管科">
+        </div>
+        <div class="form-item">
+          <label>调处结果</label><span class="req">*</span>
+          <select id="jfResult"><option>调解成功</option><option>调解不成</option><option>撤回</option><option>转诉讼</option></select>
+        </div>
+        <div class="form-item col-full">
+          <label>调解协议内容</label>
+          <textarea rows="4">经调解，出租人同意于 2026-08-05 前退还押金 1,500 元，承租人承担墙面修复费用 300 元并放弃其他主张，双方就本次租赁事宜再无争议。</textarea>
+        </div>
+        <div class="form-item col-full">
+          <label>协议文件</label>
+          <div class="upload-box" onclick="PMS.toast('演示环境不支持真实上传')">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <div>上传双方签字的《人民调解协议书》扫描件（PDF）</div>
+          </div>
+        </div>
+        <div class="form-item">
+          <label>履行情况</label>
+          <select><option>未履行</option><option>履行中</option><option>已履行完毕</option></select>
+        </div>
+        <div class="form-item">
+          <label>办结时间</label>
+          <input type="date" value="2026-08-01">
+        </div>
+        <div class="form-item">
+          <label>满意度回访</label>
+          <select><option>非常满意</option><option>满意</option><option>一般</option><option>不满意</option><option>未回访</option></select>
+        </div>
+        <div class="form-item">
+          <label>是否作为备案依据</label>
+          <select><option>是 · 用于注销备案</option><option>是 · 用于变更备案</option><option>否</option></select>
+        </div>
+      </div>
+
+      <div class="alert alert-info mt-16">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>调解成功且协议约定解除租赁关系的，可一键推送至注销备案；约定变更租金或期限的，可推送至变更备案。</div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+      <button type="button" class="btn" onclick="PMS.toast('已保存调处过程记录，未办结','success')"><i class="fa-solid fa-floppy-disk"></i> 暂存</button>
+      <button type="button" class="btn btn-primary" onclick="finishJf()"><i class="fa-solid fa-check"></i> 办结并归档</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function pickBh(name) {
+  var sel = document.getElementById('fBh');
+  sel.value = name;
+  document.querySelectorAll('#tblBh tbody tr').forEach(function (tr) {
+    tr.style.display = tr.getAttribute('data-bh') === name ? '' : 'none';
+  });
+  PMS.toast('已按「' + name + '」筛选行为记录');
+}
+
+function openBhDeal(no) {
+  document.getElementById('bhNo').textContent = no;
+  PMS.openDrawer('drBh');
+}
+
+function toJf(no) {
+  PMS.confirm({
+    title: '转纠纷调处',
+    message: '将行为记录 ' + no + ' 转入纠纷调处流程？',
+    detail: '转入后生成纠纷编号并通知双方当事人，由调处人选择调处方式开展调解。',
+    type: 'info',
+    okText: '确认转入',
+    onOk: function () { PMS.toast('已转纠纷调处，纠纷编号 JF2026000319', 'success'); }
+  });
+}
+
+function saveBh() {
+  PMS.closeDrawer();
+  PMS.toast('违规行为已登记并记入信用档案', 'success');
+}
+
+function openJf(no) {
+  document.getElementById('jfNo').textContent = no;
+  PMS.openDrawer('drJf');
+}
+
+function finishJf() {
+  var r = document.getElementById('jfResult').value;
+  PMS.confirm({
+    title: '办结并归档',
+    message: '以「' + r + '」结论办结本次纠纷调处？',
+    detail: '办结后向双方推送调处结果与满意度回访，调解协议同步归档至合同档案。',
+    type: 'info',
+    okText: '办结归档',
+    onOk: function () {
+      PMS.closeDrawer();
+      PMS.toast('纠纷已办结并归档，满意度回访短信已发送', 'success');
+    }
+  });
+}
+
+(function () {
+  PMS.renderPager(document.getElementById('tblBh'), {
+    pageNum: 1, pageSize: 20, total: 146,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+  PMS.renderPager(document.getElementById('tblJf'), {
+    pageNum: 1, pageSize: 20, total: 126,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+</script>
+</body>
+</html>

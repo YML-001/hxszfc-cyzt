@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>价格调整备案 · 新建商品房网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：幅度/频次校验卡与超限行标色 */
+  .vchk { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+  .vchk .vc {
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; background: #fff;
+    display: flex; flex-direction: column; gap: 6px; font-size: 13px;
+  }
+  .vchk .vc.ok { border-left: 3px solid var(--success); }
+  .vchk .vc.bad { border-left: 3px solid var(--danger); background: var(--danger-light); }
+  .vchk .vc .vl { color: var(--text-3); font-size: 12.5px; }
+  .vchk .vc .vv { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .vchk .vc.ok .vv { color: var(--success); }
+  .vchk .vc.bad .vv { color: var(--danger); }
+  .vchk .vc .vr { font-size: 12px; color: var(--text-3); }
+  tr.row-bad td { background: var(--danger-light); }
+  tr.is-signed td { color: var(--text-3); background: #fafbfd; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsswb-10">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房网签备案管理系统
+        <span class="sep">/</span> 预售管理
+        <span class="sep">/</span> <a class="link" href="price-filing.html">一房一价备案</a>
+        <span class="sep">/</span> <span class="cur">价格调整备案</span>
+      </div>
+      <div class="page-title">价格调整备案</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" data-open-drawer="dwNew"><i class="fa-solid fa-plus"></i> 新增调价申请</button>
+      <button type="button" class="btn" onclick="location.href='price-filing.html'">一房一价备案</button>
+      <button type="button" class="btn" onclick="location.href='price-publish.html'">一房一价公示</button>
+      <button type="button" class="btn" onclick="PMS.toast('已打开《一城一策》调价阈值配置','success')"><i class="fa-solid fa-sliders"></i> 调价规则配置</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">待审</div><div class="s-value">9</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-layer-group"></i></div>
+      <div><div class="s-label">本月调价批次</div><div class="s-value">14</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-ban"></i></div>
+      <div><div class="s-label">幅度超限拦截</div><div class="s-value">3</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-clock-rotate-left"></i></div>
+      <div><div class="s-label">频次超限拦截</div><div class="s-value">2</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-danger">
+    <i class="fa-solid fa-shield-halved"></i>
+    <div><b>幅度与频次双阈值拦截</b>：单次调幅、年度累计调幅、两次调价最小间隔由一城一策参数配置；超「提示」档须填理由并上传批准文件，超「拦截」档直接阻断不予备案。调价通过后覆盖备案价并保留调价历史，已签约房屋不受本次调价影响。</div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>调价批次号</label>
+        <input type="text" placeholder="如 PA2026073101">
+      </div>
+      <div class="filter-item">
+        <label>项目</label>
+        <input type="text" placeholder="项目名称关键词">
+      </div>
+      <div class="filter-item">
+        <label>预售许可证号</label>
+        <input type="text" placeholder="如 柳房预售证第〔2026〕0087 号">
+      </div>
+      <div class="filter-item">
+        <label>状态</label>
+        <select><option value="">全部</option><option>待审</option><option>已通过</option><option>已退回</option><option>已拦截</option></select>
+      </div>
+      <div class="filter-item">
+        <label>申请日期起</label>
+        <input type="date" value="2026-01-01">
+      </div>
+      <div class="filter-item">
+        <label>申请日期止</label>
+        <input type="date" value="2026-07-31">
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 14 个批次')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        <button type="button" class="btn" onclick="PMS.toast('已生成《价格调整备案台账》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblPa" data-static>
+        <thead>
+          <tr>
+            <th>批次号</th>
+            <th>项目</th>
+            <th>许可证</th>
+            <th class="num">调价套数</th>
+            <th class="num">均价变动</th>
+            <th class="num">最大幅度%</th>
+            <th class="num">年度累计调次</th>
+            <th>申请日期</th>
+            <th>状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="nowrap fw-600">PA2026073101</td>
+            <td class="nowrap">彰泰江湾城（三期）</td>
+            <td class="nowrap">柳房预售证第〔2026〕0087 号</td>
+            <td class="num nowrap">86</td>
+            <td class="num nowrap text-danger">+386 元</td>
+            <td class="num nowrap">+3.2%</td>
+            <td class="num nowrap">1</td>
+            <td class="nowrap">2026-07-31</td>
+            <td class="nowrap"><span class="badge orange">待审</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openReview('PA2026073101','彰泰江湾城（三期）','ok')">审批</span>
+              <span class="link" onclick="openReview('PA2026073101','彰泰江湾城（三期）','ok')">查看明细</span>
+            </td>
+          </tr>
+          <tr class="row-bad">
+            <td class="nowrap fw-600">PA2026072802</td>
+            <td class="nowrap">龙光玖誉城（四期）</td>
+            <td class="nowrap">柳房预售证第〔2025〕0186 号</td>
+            <td class="num nowrap">124</td>
+            <td class="num nowrap text-danger">+1,286 元</td>
+            <td class="num nowrap text-danger">+12.8%</td>
+            <td class="num nowrap">2</td>
+            <td class="nowrap">2026-07-28</td>
+            <td class="nowrap"><span class="badge red">已拦截</span> <span class="badge red">幅度超限</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openReview('PA2026072802','龙光玖誉城（四期）','amp')">查看</span>
+            </td>
+          </tr>
+          <tr class="row-bad">
+            <td class="nowrap fw-600">PA2026072601</td>
+            <td class="nowrap">中南春风南岸（二期）</td>
+            <td class="nowrap">柳房预售证第〔2026〕0056 号</td>
+            <td class="num nowrap">48</td>
+            <td class="num nowrap text-success">−220 元</td>
+            <td class="num nowrap">−1.8%</td>
+            <td class="num nowrap text-danger">4</td>
+            <td class="nowrap">2026-07-26</td>
+            <td class="nowrap"><span class="badge red">已拦截</span> <span class="badge red">频次超限</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openReview('PA2026072601','中南春风南岸（二期）','freq')">查看</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">PA2026072201</td>
+            <td class="nowrap">华润置地柳州万象天地</td>
+            <td class="nowrap">柳房预售证第〔2026〕0086 号</td>
+            <td class="num nowrap">62</td>
+            <td class="num nowrap text-danger">+520 元</td>
+            <td class="num nowrap">+3.6%</td>
+            <td class="num nowrap">1</td>
+            <td class="nowrap">2026-07-22</td>
+            <td class="nowrap"><span class="badge orange">待审</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openReview('PA2026072201','华润置地柳州万象天地','ok')">审批</span>
+              <span class="link" onclick="openReview('PA2026072201','华润置地柳州万象天地','ok')">查看明细</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">PA2026071801</td>
+            <td class="nowrap">保利柳江府（二期）</td>
+            <td class="nowrap">柳房预售证第〔2026〕0082 号</td>
+            <td class="num nowrap">36</td>
+            <td class="num nowrap text-danger">+180 元</td>
+            <td class="num nowrap">+1.7%</td>
+            <td class="num nowrap">1</td>
+            <td class="nowrap">2026-07-18</td>
+            <td class="nowrap"><span class="badge green">已通过</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openReview('PA2026071801','保利柳江府（二期）','ok')">查看明细</span>
+              <a class="link" href="price-publish.html">公示预览</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">PA2026071201</td>
+            <td class="nowrap">柳州万科城（五期）</td>
+            <td class="nowrap">柳房预售证第〔2026〕0068 号</td>
+            <td class="num nowrap">158</td>
+            <td class="num nowrap text-danger">+640 元</td>
+            <td class="num nowrap">+5.6%</td>
+            <td class="num nowrap">1</td>
+            <td class="nowrap">2026-07-12</td>
+            <td class="nowrap"><span class="badge orange">待审</span> <span class="badge orange">提示档</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openReview('PA2026071201','柳州万科城（五期）','warn')">审批</span>
+              <span class="link" onclick="openReview('PA2026071201','柳州万科城（五期）','warn')">查看明细</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">PA2026070601</td>
+            <td class="nowrap">荣和公园里（一期）</td>
+            <td class="nowrap">柳房预售证第〔2026〕0061 号</td>
+            <td class="num nowrap">42</td>
+            <td class="num nowrap text-success">−310 元</td>
+            <td class="num nowrap">−2.9%</td>
+            <td class="num nowrap">1</td>
+            <td class="nowrap">2026-07-06</td>
+            <td class="nowrap"><span class="badge green">已通过</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openReview('PA2026070601','荣和公园里（一期）','ok')">查看明细</span>
+              <a class="link" href="price-publish.html">公示预览</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">PA2026062801</td>
+            <td class="nowrap">阳光城柳州樾府</td>
+            <td class="nowrap">柳房预售证第〔2026〕0048 号</td>
+            <td class="num nowrap">28</td>
+            <td class="num nowrap text-danger">+260 元</td>
+            <td class="num nowrap">+2.1%</td>
+            <td class="num nowrap">1</td>
+            <td class="nowrap">2026-06-28</td>
+            <td class="nowrap"><span class="badge cyan">已退回</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openReview('PA2026062801','阳光城柳州樾府','ok')">查看明细</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">PA2026061801</td>
+            <td class="nowrap">彰泰江湾城（三期）</td>
+            <td class="nowrap">柳房预售证第〔2026〕0087 号</td>
+            <td class="num nowrap">246</td>
+            <td class="num nowrap text-danger">+440 元</td>
+            <td class="num nowrap">+3.5%</td>
+            <td class="num nowrap">1</td>
+            <td class="nowrap">2026-06-18</td>
+            <td class="nowrap"><span class="badge green">已通过</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openReview('PA2026061801','彰泰江湾城（三期）','ok')">查看明细</span>
+              <a class="link" href="price-publish.html">公示预览</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">PA2026052201</td>
+            <td class="nowrap">龙光玖誉城（四期）</td>
+            <td class="nowrap">柳房预售证第〔2025〕0186 号</td>
+            <td class="num nowrap">96</td>
+            <td class="num nowrap text-danger">+720 元</td>
+            <td class="num nowrap">+7.6%</td>
+            <td class="num nowrap">1</td>
+            <td class="nowrap">2026-05-22</td>
+            <td class="nowrap"><span class="badge green">已通过</span> <span class="badge orange">提示档放行</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openReview('PA2026052201','龙光玖誉城（四期）','warn')">查看明细</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 审批抽屉 -->
+  <div class="drawer-mask"></div>
+  <div class="drawer drawer-lg" id="dwReview">
+    <div class="drawer-head">
+      <h3>调价审批 · <span id="rvNo">—</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <dl class="desc-list">
+        <div class="desc-item"><dt>调价批次号</dt><dd id="rvNo2">—</dd></div>
+        <div class="desc-item"><dt>项目</dt><dd id="rvPj">—</dd></div>
+        <div class="desc-item"><dt>预售许可证号</dt><dd>柳房预售证第〔2026〕0087 号</dd></div>
+        <div class="desc-item"><dt>关联备案批次</dt><dd>PF2026073101</dd></div>
+        <div class="desc-item"><dt>调价套数</dt><dd>86 套</dd></div>
+        <div class="desc-item"><dt>申请日期</dt><dd>2026-07-31</dd></div>
+      </dl>
+
+      <div class="section-title mt-16">幅度 / 频次校验</div>
+      <div class="vchk" id="vBox">
+        <div class="vc ok" data-k="amp">
+          <div class="vl">单次最大幅度</div>
+          <div class="vv" id="vAmp">+3.2%</div>
+          <div class="vr">阈值：提示 ±5% / 拦截 ±10%</div>
+          <div><span class="badge green" id="vAmpBadge">通过</span></div>
+        </div>
+        <div class="vc ok" data-k="year">
+          <div class="vl">年度累计调幅</div>
+          <div class="vv" id="vYear">+3.2%</div>
+          <div class="vr">阈值：拦截 ±15%</div>
+          <div><span class="badge green" id="vYearBadge">通过</span></div>
+        </div>
+        <div class="vc ok" data-k="freq">
+          <div class="vl">距上次调价 / 年度调次</div>
+          <div class="vv" id="vFreq">186 天 / 1 次</div>
+          <div class="vr">阈值：间隔 ≥30 天 · 年度 ≤3 次</div>
+          <div><span class="badge green" id="vFreqBadge">通过</span></div>
+        </div>
+      </div>
+      <div class="alert alert-danger mt-16 hidden" id="blockAlert">
+        <i class="fa-solid fa-ban"></i>
+        <div id="blockMsg">超出拦截阈值，不予备案。请企业调整后重新申报。</div>
+      </div>
+
+      <div class="section-title mt-16">调价明细（节选）</div>
+      <table class="data-table compact">
+        <thead>
+          <tr>
+            <th>房号</th>
+            <th class="num">建筑面积（㎡）</th>
+            <th class="num">原备案单价</th>
+            <th class="num">新备案单价</th>
+            <th class="num">调幅%</th>
+            <th>销控状态</th>
+            <th>说明</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="nowrap">11-1-2801</td>
+            <td class="num">118.65</td>
+            <td class="num">12,860</td>
+            <td class="num">13,176</td>
+            <td class="num">+2.5%</td>
+            <td class="nowrap"><span class="badge green">可售</span></td>
+            <td class="nowrap text-3">—</td>
+          </tr>
+          <tr>
+            <td class="nowrap">11-1-2802</td>
+            <td class="num">96.42</td>
+            <td class="num">12,860</td>
+            <td class="num">13,176</td>
+            <td class="num">+2.5%</td>
+            <td class="nowrap"><span class="badge green">可售</span></td>
+            <td class="nowrap text-3">—</td>
+          </tr>
+          <tr>
+            <td class="nowrap">11-2-2601</td>
+            <td class="num">118.65</td>
+            <td class="num">12,756</td>
+            <td class="num">13,092</td>
+            <td class="num">+2.6%</td>
+            <td class="nowrap"><span class="badge green">可售</span></td>
+            <td class="nowrap text-3">—</td>
+          </tr>
+          <tr class="is-signed">
+            <td class="nowrap">12-1-1802</td>
+            <td class="num">96.42</td>
+            <td class="num">12,504</td>
+            <td class="num">12,504</td>
+            <td class="num">0%</td>
+            <td class="nowrap"><span class="badge cyan">已备案</span></td>
+            <td class="nowrap">本次调价不影响已签约房屋</td>
+          </tr>
+          <tr>
+            <td class="nowrap">12-1-0201</td>
+            <td class="num">142.80</td>
+            <td class="num">11,860</td>
+            <td class="num">12,240</td>
+            <td class="num">+3.2%</td>
+            <td class="nowrap"><span class="badge green">可售</span></td>
+            <td class="nowrap text-3">—</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="section-title mt-16">审批结论</div>
+      <div class="form-grid form-align">
+        <div class="form-item col-full">
+          <label>审批结论<span class="req">*</span></label>
+          <div class="radio-line">
+            <label><input type="radio" name="ar" value="pass" checked onchange="toggleAr()"> 通过</label>
+            <label><input type="radio" name="ar" value="back" onchange="toggleAr()"> 退回补正</label>
+            <label><input type="radio" name="ar" value="no" onchange="toggleAr()"> 不予备案</label>
+          </div>
+        </div>
+        <div class="form-item col-full hidden" id="backBox">
+          <label>退回原因<span class="req">*</span></label>
+          <textarea placeholder="如：部分房号调幅计算口径不一致，请按建筑面积重新测算后申报">部分房号调幅计算口径不一致，请按建筑面积重新测算后申报。</textarea>
+        </div>
+        <div class="form-item">
+          <label>审批人<span class="req">*</span></label>
+          <input type="text" value="韦国强">
+        </div>
+        <div class="form-item">
+          <label>审批日期<span class="req">*</span></label>
+          <input type="date" value="2026-07-31">
+        </div>
+        <div class="form-item col-full">
+          <label>审批意见</label>
+          <textarea id="arOpt">调价明细齐全，幅度与频次均在阈值内，同意覆盖备案价并同步公示。</textarea>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn" onclick="location.href='price-publish.html'"><i class="fa-solid fa-tower-broadcast"></i> 公示预览</button>
+      <button type="button" class="btn btn-primary" id="btnSubmit" onclick="submitReview()"><i class="fa-solid fa-paper-plane"></i> 提交审批结论</button>
+    </div>
+  </div>
+
+  <!-- 新增调价申请 -->
+  <div class="drawer drawer-lg" id="dwNew">
+    <div class="drawer-head">
+      <h3>新增价格调整申请</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>请选择已公示结束或可调价的备案批次；系统将自动校验幅度与频次阈值。</div>
+      </div>
+      <div class="section-title mt-16">申请信息</div>
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>项目<span class="req">*</span></label>
+          <select><option>彰泰江湾城（三期）</option><option>华润置地柳州万象天地</option><option>保利柳江府（二期）</option><option>龙光玖誉城（四期）</option></select>
+        </div>
+        <div class="form-item">
+          <label>原备案批次<span class="req">*</span></label>
+          <select><option>PF2026061801（246 套 · 公示结束）</option><option>PF2026073101（418 套 · 待公示）</option></select>
+        </div>
+        <div class="form-item">
+          <label>调价批次号</label>
+          <input type="text" value="PA2026073102" readonly>
+        </div>
+        <div class="form-item">
+          <label>申请日期<span class="req">*</span></label>
+          <input type="date" value="2026-07-31">
+        </div>
+        <div class="form-item col-full">
+          <label>调价明细表<span class="req">*</span></label>
+          <div class="file-up">
+            <input type="hidden" class="file-up-val" value="彰泰江湾城三期-调价明细.xlsx">
+            <div class="file-up-grid">
+              <div class="file-up-tile file-up-add"><input type="file" accept=".xlsx,.xls"><i class="fa-solid fa-plus"></i><span>上传</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="form-item col-full">
+          <label>调价理由<span class="req">*</span></label>
+          <textarea placeholder="如：工程进度提前，配套交付标准提升，申请小幅上调备案价">工程进度提前，配套交付标准提升，申请小幅上调备案价。</textarea>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer('dwNew');PMS.toast('调价申请已提交，进入幅度与频次校验','success')"><i class="fa-solid fa-paper-plane"></i> 提交申请</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+var curMode = 'ok';
+
+PMS.renderPager(document.getElementById('tblPa'), {
+  pageNum: 1, pageSize: 20, total: 14,
+  onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+});
+
+function setVc(el, bad, vv, badgeText, badgeCls) {
+  el.classList.toggle('ok', !bad);
+  el.classList.toggle('bad', bad);
+  el.querySelector('.vv').textContent = vv;
+  var b = el.querySelector('.badge');
+  b.className = 'badge ' + badgeCls;
+  b.textContent = badgeText;
+}
+
+function openReview(no, pj, mode) {
+  curMode = mode || 'ok';
+  document.getElementById('rvNo').textContent = no;
+  document.getElementById('rvNo2').textContent = no;
+  document.getElementById('rvPj').textContent = pj;
+
+  var amp = document.querySelector('.vc[data-k="amp"]');
+  var year = document.querySelector('.vc[data-k="year"]');
+  var freq = document.querySelector('.vc[data-k="freq"]');
+  var block = document.getElementById('blockAlert');
+  var btn = document.getElementById('btnSubmit');
+
+  setVc(amp, false, '+3.2%', '通过', 'green');
+  setVc(year, false, '+3.2%', '通过', 'green');
+  setVc(freq, false, '186 天 / 1 次', '通过', 'green');
+  block.classList.add('hidden');
+  btn.disabled = false;
+
+  if (mode === 'amp') {
+    setVc(amp, true, '+12.8%', '拦截', 'red');
+    setVc(year, true, '+14.2%', '接近上限', 'orange');
+    document.getElementById('blockMsg').textContent = '单次最大幅度 +12.8% 超出拦截阈值 ±10%，不予备案。';
+    block.classList.remove('hidden');
+  } else if (mode === 'freq') {
+    setVc(freq, true, '18 天 / 4 次', '拦截', 'red');
+    document.getElementById('blockMsg').textContent = '距上次调价仅 18 天且年度累计已 4 次，触发频次拦截阈值，不予备案。';
+    block.classList.remove('hidden');
+  } else if (mode === 'warn') {
+    setVc(amp, false, '+5.6%', '提示', 'orange');
+    amp.classList.remove('ok');
+    amp.style.borderLeftColor = 'var(--warning)';
+    document.getElementById('arOpt').value = '单次调幅进入提示档（±5%～±10%），企业已上传市局批准文件，同意放行并覆盖备案价。';
+  } else {
+    amp.style.borderLeftColor = '';
+    document.getElementById('arOpt').value = '调价明细齐全，幅度与频次均在阈值内，同意覆盖备案价并同步公示。';
+  }
+
+  PMS.openDrawer('dwReview');
+}
+
+function toggleAr() {
+  var v = document.querySelector('input[name="ar"]:checked').value;
+  document.getElementById('backBox').classList.toggle('hidden', v !== 'back');
+  if (v === 'pass') document.getElementById('arOpt').value = '调价明细齐全，幅度与频次均在阈值内，同意覆盖备案价并同步公示。';
+  if (v === 'back') document.getElementById('arOpt').value = '请按退回原因补正后重新申报。';
+  if (v === 'no') document.getElementById('arOpt').value = '调价依据不足或不满足阈值要求，不予备案。';
+}
+
+function submitReview() {
+  if (curMode === 'amp' || curMode === 'freq') {
+    PMS.toast('超出拦截阈值，不予备案', 'error');
+    return;
+  }
+  var v = document.querySelector('input[name="ar"]:checked').value;
+  if (v === 'pass') {
+    PMS.confirm({
+      title: '通过价格调整备案',
+      message: '确认通过本批次调价并覆盖备案价？',
+      detail: '通过后逐房覆盖备案价、保留调价历史，并同步一房一价公示；已签约房屋不受影响。',
+      okText: '确认通过',
+      onOk: function () {
+        PMS.closeDrawer('dwReview');
+        PMS.toast('已覆盖备案价并同步公示，调价历史已留存', 'success');
+      }
+    });
+  } else if (v === 'back') {
+    PMS.closeDrawer('dwReview');
+    PMS.toast('已退回企业补正', 'success');
+  } else {
+    PMS.closeDrawer('dwReview');
+    PMS.toast('已作出不予备案结论', 'success');
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>办件台账 · 统一工作门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="biz" data-active="case-ledger">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 综合查询
+        <span class="sep">/</span> <span class="cur">办件台账</span>
+      </div>
+      <div class="page-title">办件台账</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="doExport()"><i class="fa-solid fa-download"></i> 导出台账</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-folder-open"></i></div><div>
+      <div class="s-label">台账总量</div><div class="s-value" id="kAll">—</div></div></div>
+    <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div><div>
+      <div class="s-label">按时办结率</div><div class="s-value" id="kRate">—</div></div></div>
+    <div class="stat-card"><div class="s-icon orange"><i class="fa-solid fa-clock"></i></div><div>
+      <div class="s-label">临期 / 超期</div><div class="s-value" id="kWarn">—</div><div class="s-trend text-danger">需督办</div></div></div>
+    <div class="stat-card"><div class="s-icon red"><i class="fa-solid fa-rotate-left"></i></div><div>
+      <div class="s-label">退件率</div><div class="s-value" id="kReject">—</div></div></div>
+    <div class="stat-card"><div class="s-icon purple"><i class="fa-solid fa-hourglass-half"></i></div><div>
+      <div class="s-label">平均办理时长</div><div class="s-value" id="kSpan" style="font-size:16px">—</div></div></div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <span>市本级可查看全市及各县区台账，县区只能查看本级（靠系统地区编码做数据隔离）。四色预警口径：剩余时限大于 50% 蓝色正常、50% 至 20% 黄色提示、20% 以内橙色预警、已超期红色严重。</span>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="ledger" onclick="setTab('ledger')">分层级台账</div>
+      <div class="tab" data-tab="warn" onclick="setTab('warn')">超期预警</div>
+      <div class="tab" data-tab="eff" onclick="setTab('eff')">办理效能监督</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="ledger">
+      <div class="filter-bar">
+        <div class="filter-item"><label>关键词</label><input type="text" id="fKw" placeholder="编号 / 事项 / 申请人" oninput="repaint()"></div>
+        <div class="filter-item"><label>属地</label><select id="fSaid" data-dict="said" onchange="repaint()"></select></div>
+        <div class="filter-item"><label>业务大类</label><select id="fYwdlm" data-dict="ywdlm" onchange="repaint()"></select></div>
+        <div class="filter-item"><label>办理状态</label><select id="fBlzt" data-dict="blzt" onchange="repaint()"></select></div>
+        <div class="filter-item"><label>预警级别</label>
+          <select id="fLv" onchange="repaint()">
+            <option value="">全部</option><option value="red">红色 · 严重</option>
+            <option value="orange">橙色 · 预警</option><option value="yellow">黄色 · 提示</option><option value="blue">蓝色 · 正常</option>
+          </select></div>
+        <button class="btn btn-primary" onclick="repaint()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button class="btn" onclick="resetFilter()">重置</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="tbLedger" data-static>
+          <thead><tr><th>收件编号</th><th>事项名称</th><th>申请人</th><th>属地</th>
+                     <th>承办人</th><th>收件时间</th><th>剩余时限</th><th>状态</th><th>操作</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="warn">
+      <div class="card-body" id="warnPanel"></div>
+    </div>
+
+    <div class="tab-panel" data-panel="eff">
+      <div class="filter-bar">
+        <div class="filter-item"><label>统计维度</label>
+          <select id="effBy" onchange="renderEff()">
+            <option value="said">按区县</option><option value="dept">按科室</option><option value="person">按人员</option>
+          </select></div>
+        <div class="spacer"></div>
+      </div>
+      <div class="card-body" id="effPanel"></div>
+    </div>
+  </div>
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/flow-data.js"></script>
+<script src="../assets/js/flow.js"></script>
+<script>
+(function () {
+  var tab = 'ledger';
+  function val(id) { return (document.getElementById(id).value || '').trim(); }
+  window.setTab = function (t) {
+    tab = t;
+    document.querySelectorAll('.tabs .tab').forEach(function (el) {
+      el.classList.toggle('active', el.getAttribute('data-tab') === t);
+    });
+    document.querySelectorAll('.tab-panel').forEach(function (p) {
+      p.classList.toggle('active', p.getAttribute('data-panel') === t);
+    });
+    if (t === 'warn') renderWarn();
+    else if (t === 'eff') renderEff();
+    else FLOW.paint('tbLedger');
+  };
+  window.resetFilter = function () {
+    ['fKw', 'fSaid', 'fYwdlm', 'fBlzt', 'fLv'].forEach(function (id) { document.getElementById(id).value = ''; });
+    repaint(); PMS.toast('已重置查询条件');
+  };
+
+  function rows() {
+    var kw = val('fKw'), said = val('fSaid'), yw = val('fYwdlm'), zt = val('fBlzt'), lv = val('fLv');
+    return FLOW.get('cases').slice().sort(function (a, b) { return b.sjsj - a.sjsj; }).filter(function (c) {
+      if (kw && c.sjbh.indexOf(kw) < 0 && c.sxmc.indexOf(kw) < 0 && c.sqr.indexOf(kw) < 0) return false;
+      if (said && c.said !== said) return false;
+      if (yw && c.ywdlm !== yw) return false;
+      if (zt && c.blzt !== zt) return false;
+      if (lv && FLOW.remain(c).level !== lv) return false;
+      return true;
+    });
+  }
+  window.repaint = function () { FLOW.paint('tbLedger'); syncKpi(); };
+
+  function syncKpi() {
+    document.getElementById('kAll').textContent = FLOW.get('cases').length;
+    document.getElementById('kRate').textContent = FLOW.stat('onTimeRate');
+    document.getElementById('kWarn').textContent = FLOW.stat('warnCount');
+    document.getElementById('kReject').textContent = FLOW.stat('rejectRate');
+    document.getElementById('kSpan').textContent = FLOW.stat('avgSpan');
+  }
+
+  /* 功能点 54 导出 */
+  window.doExport = function () { FLOW.act.exportLedger(val('fSaid')); };
+
+  /* 功能点 55 超期预警 */
+  window.renderWarn = function () {
+    var g = FLOW.act.overdueGroups();
+    var GROUPS = [
+      ['已超期', g.over, 'red', 'fa-triangle-exclamation', '剩余时限已为负，须立即处置'],
+      ['临期预警', g.near, 'orange', 'fa-clock', '剩余时限不足 20%'],
+      ['多次退件', g.multiReject, 'purple', 'fa-rotate-left', '累计退件 2 次及以上'],
+      ['长期挂起', g.hang, 'gray', 'fa-pause', '中止办理中，时限不计时']
+    ];
+    document.getElementById('warnPanel').innerHTML =
+      '<div class="alert alert-warning"><i class="fa-solid fa-bullhorn"></i>' +
+      '<span>四类预警件可逐条推送科室负责人；已超期件在待办中心执行催办时会<b>自动升级为督办</b>。</span></div>' +
+      GROUPS.map(function (x) {
+        return '<div class="grp-card"><div class="grp-head">' +
+          '<span class="gi"><i class="fa-solid ' + x[3] + '"></i></span>' + x[0] +
+          '　' + FLOW.badge(x[1].length + ' 件', x[1].length ? x[2] : 'gray') +
+          '<span class="text-3 text-sm" style="margin-left:auto;font-weight:400">' + x[4] + '</span></div>' +
+          (x[1].length
+            ? '<div class="table-wrap"><table class="data-table" data-static><thead><tr>' +
+              '<th>收件编号</th><th>事项名称</th><th>承办人</th><th>科室</th><th>剩余时限</th><th>操作</th>' +
+              '</tr></thead><tbody>' + x[1].map(function (c) {
+                return '<tr><td>' + FLOW.esc(c.sjbh) + '</td>' +
+                  '<td class="cell-lg">' + FLOW.esc(c.sxmc) + '</td>' +
+                  '<td>' + FLOW.esc(c.jbrmc || '待领办') + '</td>' +
+                  '<td>' + FLOW.esc(c.dept) + '</td>' +
+                  '<td>' + FLOW.remainCell(c) + '</td>' +
+                  '<td><span class="link" onclick="push(\'' + c.id + '\')">推送负责人</span> ' +
+                  '<a class="link" href="case-detail.html?role=biz&id=' + c.id + '">追溯</a></td></tr>';
+              }).join('') + '</tbody></table></div>'
+            : '<div class="text-3 text-sm">暂无此类预警件</div>') + '</div>';
+      }).join('');
+  };
+  window.push = function (id) { FLOW.act.pushOverdue(id); };
+
+  /* 功能点 56 办理效能监督 */
+  window.renderEff = function () {
+    var by = val('effBy') || 'said';
+    var list = FLOW.act.efficiency(by);
+    var maxIntake = 1;
+    list.forEach(function (g) { if (g.intake > maxIntake) maxIntake = g.intake; });
+    document.getElementById('effPanel').innerHTML =
+      '<div class="alert alert-info"><i class="fa-solid fa-ranking-star"></i>' +
+      '<span>按' + ({ said: '区县', dept: '科室', person: '人员' }[by]) +
+      '统计收件量、办结量、平均办理时长、超期率与退件率，排名用于效能监督，不直接作为考核结论。</span></div>' +
+      '<div class="table-wrap"><table class="data-table" data-static><thead><tr>' +
+      '<th>排名</th><th>' + ({ said: '区县', dept: '承办科室', person: '承办人' }[by]) + '</th>' +
+      '<th class="num">收件量</th><th class="num">办结量</th><th>办结进度</th>' +
+      '<th>平均时长</th><th class="num">超期率</th><th class="num">退件率</th></tr></thead><tbody>' +
+      list.map(function (g, i) {
+        var overNum = parseFloat(g.overRate);
+        return '<tr><td>' + (i + 1) + '</td>' +
+          '<td>' + FLOW.esc(g.key) + '</td>' +
+          '<td class="num">' + g.intake + '</td>' +
+          '<td class="num">' + g.done + '</td>' +
+          '<td><div class="progress green" style="min-width:90px"><span style="width:' +
+            Math.round(g.done / g.intake * 100) + '%"></span></div></td>' +
+          '<td>' + g.avg + '</td>' +
+          '<td class="num">' + (overNum > 10 ? '<span class="text-danger fw-600">' + g.overRate + '</span>' : g.overRate) + '</td>' +
+          '<td class="num">' + g.rejectRate + '</td></tr>';
+      }).join('') + '</tbody></table></div>' +
+      '<div class="section-title mt-16">收件量对比</div>' +
+      FLOW.barChart(list.slice(0, 8).map(function (g) {
+        return { l: g.key.length > 4 ? g.key.slice(0, 4) : g.key, v: g.intake };
+      }));
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    FLOW.table({
+      id: 'tbLedger', pageSize: 10, empty: '没有匹配的办件', icon: 'fa-folder-open',
+      rows: rows,
+      cells: function (c) {
+        return [
+          '<td>' + FLOW.esc(c.sjbh) + '</td>',
+          '<td>' + FLOW.esc(c.sxmc) + '</td>',
+          '<td>' + FLOW.esc(c.sqr) + '</td>',
+          '<td>' + FLOW.esc(FLOW.dict('said', c.said)) + '</td>',
+          '<td>' + FLOW.esc(c.jbrmc || '待领办') + '</td>',
+          '<td>' + FLOW.fmt.date(c.sjsj) + '</td>',
+          '<td>' + FLOW.remainCell(c) + '</td>',
+          '<td>' + FLOW.ztBadge(c.blzt) + '</td>',
+          '<td><a class="link" href="case-detail.html?role=biz&id=' + c.id + '">追溯</a></td>'
+        ];
+      },
+      attrs: function (c) { return ' class="clickable" data-focus="' + c.id + '" onclick="FLOW.goto(\'case-detail.html\',{id:\'' + c.id + '\'})"'; },
+      after: syncKpi
+    });
+    FLOW.on(function () {
+      if (tab === 'ledger') FLOW.paint('tbLedger');
+      else if (tab === 'warn') renderWarn();
+      else renderEff();
+      syncKpi();
+    });
+  });
+})();
+</script>
+</body>
+</html>

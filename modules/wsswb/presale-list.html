@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>预售许可 · 新建商品房网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：好房子项目置顶行的金色标识条 */
+  tr.is-good td:first-child { box-shadow: inset 3px 0 0 #d99b1c; }
+  .gh-flag { color: #b8860b; margin-right: 4px; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsswb-08">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房网签备案管理系统
+        <span class="sep">/</span> 预售管理
+        <span class="sep">/</span> <span class="cur">预售许可</span>
+      </div>
+      <div class="page-title">预售许可</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" onclick="location.href='presale-apply.html'"><i class="fa-solid fa-plus"></i> 新增许可申请</button>
+      <button type="button" class="btn" onclick="location.href='presale-plan.html'">预售方案备案</button>
+      <button type="button" class="btn" onclick="location.href='presale-change.html'">许可变更与延期</button>
+      <button type="button" class="btn" onclick="location.href='presale-threshold.html'">预售门槛配置</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《预售许可台账》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出台账</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-certificate"></i></div>
+      <div><div class="s-label">有效许可</div><div class="s-value">214</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-stamp"></i></div>
+      <div><div class="s-label">本月核发</div><div class="s-value">9</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-inbox"></i></div>
+      <div><div class="s-label">待受理</div><div class="s-value">12</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-spinner"></i></div>
+      <div><div class="s-label">审核中</div><div class="s-value">7</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-hourglass-end"></i></div>
+      <div><div class="s-label">临期 30 天</div><div class="s-value">5</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-calendar-xmark"></i></div>
+      <div><div class="s-label">已过期</div><div class="s-value">18</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-danger">
+    <i class="fa-solid fa-shield-halved"></i>
+    <div>预售许可控制到<b>房间粒度</b>：网签校验的是该房是否在某张有效许可证的房间清单里，而不是这栋楼有没有许可证。清单外的房间一律拦截认购与网签。</div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>关键词</label>
+        <input type="text" placeholder="许可证号 / 项目名称 / 项目编号">
+      </div>
+      <div class="filter-item">
+        <label>行政区划</label>
+        <select><option value="">全部</option><option>城中区</option><option>鱼峰区</option><option>柳南区</option><option>柳北区</option><option>柳江区</option><option>鹿寨县</option></select>
+      </div>
+      <div class="filter-item">
+        <label>开发企业</label>
+        <input type="text" placeholder="企业名称关键词">
+      </div>
+      <div class="filter-item">
+        <label>许可状态</label>
+        <select><option value="">全部</option><option>有效</option><option>临期</option><option>已过期</option><option>已变更</option><option>已注销</option></select>
+      </div>
+      <div class="filter-item">
+        <label>发证日期起</label>
+        <input type="date" value="2026-01-01">
+      </div>
+      <div class="filter-item">
+        <label>发证日期止</label>
+        <input type="date" value="2026-07-31">
+      </div>
+      <div class="filter-item">
+        <label>是否好房子</label>
+        <select><option value="">全部</option><option>是</option><option>否</option></select>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 251 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="ok">有效</div>
+      <div class="tab" data-tab="warn">临期 30 天 <span class="badge orange">5</span></div>
+      <div class="tab" data-tab="bad">已过期 <span class="badge red">18</span></div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblLic" data-static>
+        <thead>
+          <tr>
+            <th>预售许可证号</th>
+            <th>项目</th>
+            <th>开发企业</th>
+            <th>许可范围</th>
+            <th class="num">许可套数</th>
+            <th class="num">许可面积（㎡）</th>
+            <th class="num">住宅套数</th>
+            <th>发证机关</th>
+            <th>发证日期</th>
+            <th>有效期止</th>
+            <th>许可状态</th>
+            <th>监管账户</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="ok" class="is-good">
+            <td class="nowrap fw-600"><i class="fa-solid fa-award gh-flag"></i>柳房预售证第〔2026〕0087 号</td>
+            <td class="nowrap">彰泰江湾城（三期） <span class="badge orange">好房子</span></td>
+            <td class="nowrap">柳州彰泰置业有限公司</td>
+            <td class="nowrap">8# 9# 幢（1—2 单元，1—26 层）</td>
+            <td class="num nowrap">610</td>
+            <td class="num nowrap">68,420.55</td>
+            <td class="num nowrap">610</td>
+            <td class="nowrap">XXXX市住房和城乡建设局</td>
+            <td class="nowrap">2026-06-18</td>
+            <td class="nowrap">2027-06-17</td>
+            <td class="nowrap"><span class="badge green">有效</span></td>
+            <td class="nowrap">建行 4500×××1276</td>
+            <td class="col-ops">
+              <a class="link" href="presale-license.html">查看</a>
+              <span class="link" onclick="openRooms('柳房预售证第〔2026〕0087 号','彰泰江湾城（三期）')">房间清单</span>
+              <a class="link" href="presale-change.html">变更</a>
+            </td>
+          </tr>
+          <tr data-st="ok" class="is-good">
+            <td class="nowrap fw-600"><i class="fa-solid fa-award gh-flag"></i>柳房预售证第〔2026〕0086 号</td>
+            <td class="nowrap">华润置地柳州万象天地 <span class="badge orange">好房子</span></td>
+            <td class="nowrap">柳州华润置地房地产开发有限公司</td>
+            <td class="nowrap">1# 2# 3# 幢（1—2 单元）</td>
+            <td class="num nowrap">492</td>
+            <td class="num nowrap">56,286.30</td>
+            <td class="num nowrap">468</td>
+            <td class="nowrap">XXXX市住房和城乡建设局</td>
+            <td class="nowrap">2026-07-22</td>
+            <td class="nowrap">2027-07-21</td>
+            <td class="nowrap"><span class="badge green">有效</span></td>
+            <td class="nowrap">工行 2101×××3862</td>
+            <td class="col-ops">
+              <a class="link" href="presale-license.html">查看</a>
+              <span class="link" onclick="openRooms('柳房预售证第〔2026〕0086 号','华润置地柳州万象天地')">房间清单</span>
+              <a class="link" href="presale-change.html">变更</a>
+            </td>
+          </tr>
+          <tr data-st="ok">
+            <td class="nowrap fw-600">柳房预售证第〔2026〕0082 号</td>
+            <td class="nowrap">保利柳江府（二期）</td>
+            <td class="nowrap">柳州保利房地产开发有限公司</td>
+            <td class="nowrap">5# 6# 幢（1—2 单元）</td>
+            <td class="num nowrap">368</td>
+            <td class="num nowrap">42,186.40</td>
+            <td class="num nowrap">368</td>
+            <td class="nowrap">XXXX市住房和城乡建设局</td>
+            <td class="nowrap">2026-07-06</td>
+            <td class="nowrap">2027-07-05</td>
+            <td class="nowrap"><span class="badge green">有效</span></td>
+            <td class="nowrap">中行 6110×××0426</td>
+            <td class="col-ops">
+              <a class="link" href="presale-license.html">查看</a>
+              <span class="link" onclick="openRooms('柳房预售证第〔2026〕0082 号','保利柳江府（二期）')">房间清单</span>
+              <a class="link" href="presale-change.html">变更</a>
+            </td>
+          </tr>
+          <tr data-st="ok">
+            <td class="nowrap fw-600">柳房预售证第〔2026〕0072 号</td>
+            <td class="nowrap">彰泰江湾城（三期）</td>
+            <td class="nowrap">柳州彰泰置业有限公司</td>
+            <td class="nowrap">10# 幢（1—2 单元，1—24 层）</td>
+            <td class="num nowrap">232</td>
+            <td class="num nowrap">26,842.10</td>
+            <td class="num nowrap">232</td>
+            <td class="nowrap">XXXX市住房和城乡建设局</td>
+            <td class="nowrap">2026-04-18</td>
+            <td class="nowrap">2027-04-17</td>
+            <td class="nowrap"><span class="badge green">有效</span></td>
+            <td class="nowrap">建行 4500×××1276</td>
+            <td class="col-ops">
+              <a class="link" href="presale-license.html">查看</a>
+              <span class="link" onclick="openRooms('柳房预售证第〔2026〕0072 号','彰泰江湾城（三期）')">房间清单</span>
+              <a class="link" href="presale-change.html">变更</a>
+            </td>
+          </tr>
+          <tr data-st="warn">
+            <td class="nowrap fw-600">柳房预售证第〔2025〕0186 号</td>
+            <td class="nowrap">龙光玖誉城（四期）</td>
+            <td class="nowrap">柳州龙光房地产开发有限公司</td>
+            <td class="nowrap">12# 13# 幢</td>
+            <td class="num nowrap">486</td>
+            <td class="num nowrap">52,420.80</td>
+            <td class="num nowrap">486</td>
+            <td class="nowrap">XXXX市住房和城乡建设局</td>
+            <td class="nowrap">2025-08-26</td>
+            <td class="nowrap text-warning">2026-08-25（剩 25 天）</td>
+            <td class="nowrap"><span class="badge orange">临期</span></td>
+            <td class="nowrap">农行 2011×××7742</td>
+            <td class="col-ops">
+              <a class="link" href="presale-license.html">查看</a>
+              <a class="link" href="presale-change.html">延期</a>
+              <span class="link" onclick="openRooms('柳房预售证第〔2025〕0186 号','龙光玖誉城（四期）')">房间清单</span>
+            </td>
+          </tr>
+          <tr data-st="warn">
+            <td class="nowrap fw-600">柳房预售证第〔2025〕0162 号</td>
+            <td class="nowrap">阳光城翡丽湾</td>
+            <td class="nowrap">柳州阳光城房地产开发有限公司</td>
+            <td class="nowrap">3# 幢（1 单元）</td>
+            <td class="num nowrap">148</td>
+            <td class="num nowrap">16,420.60</td>
+            <td class="num nowrap">148</td>
+            <td class="nowrap">XXXX市住房和城乡建设局</td>
+            <td class="nowrap">2025-08-12</td>
+            <td class="nowrap text-warning">2026-08-11（剩 11 天）</td>
+            <td class="nowrap"><span class="badge orange">临期</span></td>
+            <td class="nowrap">建行 4500×××2286</td>
+            <td class="col-ops">
+              <a class="link" href="presale-license.html">查看</a>
+              <a class="link" href="presale-change.html">延期</a>
+              <span class="link" onclick="openRooms('柳房预售证第〔2025〕0162 号','阳光城翡丽湾')">房间清单</span>
+            </td>
+          </tr>
+          <tr data-st="bad">
+            <td class="nowrap fw-600">柳房预售证第〔2024〕0126 号</td>
+            <td class="nowrap">恒兴时代广场 <span class="badge red">问题项目</span></td>
+            <td class="nowrap">柳州恒兴房地产开发有限公司</td>
+            <td class="nowrap">A# B# 幢</td>
+            <td class="num nowrap">324</td>
+            <td class="num nowrap">36,880.20</td>
+            <td class="num nowrap">286</td>
+            <td class="nowrap">XXXX市住房和城乡建设局</td>
+            <td class="nowrap">2024-06-18</td>
+            <td class="nowrap text-danger">2026-06-17（已过期 44 天）</td>
+            <td class="nowrap"><span class="badge red">已过期</span></td>
+            <td class="nowrap">工行 2101×××1108</td>
+            <td class="col-ops">
+              <a class="link" href="presale-license.html">查看</a>
+              <span class="link" onclick="PMS.toast('有效期届满后须重新申请预售许可，不能再走延期','error')">延期</span>
+              <span class="link" onclick="openRooms('柳房预售证第〔2024〕0126 号','恒兴时代广场')">房间清单</span>
+            </td>
+          </tr>
+          <tr data-st="ok" class="is-good">
+            <td class="nowrap fw-600"><i class="fa-solid fa-award gh-flag"></i>柳房预售证第〔2026〕0068 号</td>
+            <td class="nowrap">柳州万科城（五期） <span class="badge orange">好房子</span></td>
+            <td class="nowrap">柳州万科房地产开发有限公司</td>
+            <td class="nowrap">18# 19# 20# 幢（1—2 单元，1—32 层）</td>
+            <td class="num nowrap">1,486</td>
+            <td class="num nowrap">146,820.40</td>
+            <td class="num nowrap">1,486</td>
+            <td class="nowrap">XXXX市住房和城乡建设局</td>
+            <td class="nowrap">2026-03-10</td>
+            <td class="nowrap">2027-03-09</td>
+            <td class="nowrap"><span class="badge green">有效</span></td>
+            <td class="nowrap">建行 4500×××2842</td>
+            <td class="col-ops">
+              <a class="link" href="presale-license.html">查看</a>
+              <a class="link" href="presale-change.html">延期</a>
+              <span class="link" onclick="openRooms('柳房预售证第〔2026〕0068 号','柳州万科城（五期）')">房间清单</span>
+            </td>
+          </tr>
+          <tr data-st="ok">
+            <td class="nowrap fw-600">柳房预售证第〔2026〕0061 号</td>
+            <td class="nowrap">荣和公园里（一期）</td>
+            <td class="nowrap">柳州荣和房地产开发有限公司</td>
+            <td class="nowrap">6# 7# 幢（1—2 单元，1—26 层）</td>
+            <td class="num nowrap">386</td>
+            <td class="num nowrap">38,642.80</td>
+            <td class="num nowrap">386</td>
+            <td class="nowrap">XXXX市住房和城乡建设局</td>
+            <td class="nowrap">2026-02-24</td>
+            <td class="nowrap">2027-02-23</td>
+            <td class="nowrap"><span class="badge green">有效</span></td>
+            <td class="nowrap">中行 6210×××0486</td>
+            <td class="col-ops">
+              <a class="link" href="presale-license.html">查看</a>
+              <a class="link" href="presale-change.html">延期</a>
+              <span class="link" onclick="openRooms('柳房预售证第〔2026〕0061 号','荣和公园里（一期）')">房间清单</span>
+            </td>
+          </tr>
+          <tr data-st="warn">
+            <td class="nowrap fw-600">柳房预售证第〔2025〕0148 号</td>
+            <td class="nowrap">中南春风南岸（二期）</td>
+            <td class="nowrap">柳州中南房地产开发有限公司</td>
+            <td class="nowrap">9# 10# 幢</td>
+            <td class="num nowrap">324</td>
+            <td class="num nowrap">34,286.60</td>
+            <td class="num nowrap">324</td>
+            <td class="nowrap">XXXX市住房和城乡建设局</td>
+            <td class="nowrap">2025-08-26</td>
+            <td class="nowrap text-warning">2026-08-25（剩 25 天）</td>
+            <td class="nowrap"><span class="badge orange">临期</span></td>
+            <td class="nowrap">农行 4501×××1682</td>
+            <td class="col-ops">
+              <a class="link" href="presale-license.html">查看</a>
+              <a class="link" href="presale-change.html">延期</a>
+              <span class="link" onclick="openRooms('柳房预售证第〔2025〕0148 号','中南春风南岸（二期）')">房间清单</span>
+            </td>
+          </tr>
+          <tr data-st="bad">
+            <td class="nowrap fw-600">柳房预售证第〔2024〕0108 号</td>
+            <td class="nowrap">融创柳江壹号院</td>
+            <td class="nowrap">柳州融创房地产开发有限公司</td>
+            <td class="nowrap">2# 3# 幢</td>
+            <td class="num nowrap">268</td>
+            <td class="num nowrap">28,486.20</td>
+            <td class="num nowrap">246</td>
+            <td class="nowrap">XXXX市住房和城乡建设局</td>
+            <td class="nowrap">2024-04-12</td>
+            <td class="nowrap text-danger">2026-04-11（已过期 111 天）</td>
+            <td class="nowrap"><span class="badge red">已过期</span></td>
+            <td class="nowrap">交行 3210×××0742</td>
+            <td class="col-ops">
+              <a class="link" href="presale-license.html">查看</a>
+              <span class="link" onclick="PMS.toast('有效期届满后须重新申请预售许可，不能再走延期','error')">延期</span>
+              <span class="link" onclick="openRooms('柳房预售证第〔2024〕0108 号','融创柳江壹号院')">房间清单</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 许可房间清单 -->
+  <div class="drawer-mask"></div>
+  <div class="drawer drawer-lg" id="dwRooms">
+    <div class="drawer-head">
+      <h3>许可房间清单 · <span id="rsLic">—</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-warning">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div><b>网签校验以本清单为准。</b>清单外的房间即使同属一栋楼，也不允许发起认购与网签备案。</div>
+      </div>
+
+      <dl class="desc-list mt-16">
+        <div class="desc-item"><dt>项目</dt><dd id="rsPj">—</dd></div>
+        <div class="desc-item"><dt>许可证号</dt><dd id="rsLic2">—</dd></div>
+        <div class="desc-item"><dt>清单房间数</dt><dd>610 套（住宅 610 / 非住宅 0）</dd></div>
+      </dl>
+
+      <div class="section-title mt-16">8# 幢 · 1 单元（共 104 套）</div>
+      <table class="data-table compact">
+        <thead><tr><th>房号</th><th class="num">建筑面积（㎡）</th><th>房屋用途</th><th>当前销控状态</th><th>备案单价（元/㎡）</th></tr></thead>
+        <tbody>
+          <tr><td class="nowrap">8-1-2601</td><td class="num">118.65</td><td class="nowrap">成套住宅</td><td class="nowrap"><span class="badge green">可售</span></td><td class="num">13,092</td></tr>
+          <tr><td class="nowrap">8-1-2602</td><td class="num">96.42</td><td class="nowrap">成套住宅</td><td class="nowrap"><span class="badge green">可售</span></td><td class="num">13,092</td></tr>
+          <tr><td class="nowrap">8-1-1801</td><td class="num">118.65</td><td class="nowrap">成套住宅</td><td class="nowrap"><span class="badge cyan">已备案</span></td><td class="num">12,756</td></tr>
+          <tr><td class="nowrap">8-1-1802</td><td class="num">96.42</td><td class="nowrap">成套住宅</td><td class="nowrap"><span class="badge blue">已签约</span></td><td class="num">12,756</td></tr>
+          <tr><td class="nowrap">8-1-1201</td><td class="num">118.65</td><td class="nowrap">成套住宅</td><td class="nowrap"><span class="badge orange">已认购</span></td><td class="num">12,504</td></tr>
+          <tr><td class="nowrap">8-1-0601</td><td class="num">118.65</td><td class="nowrap">成套住宅</td><td class="nowrap"><span class="badge gray">已抵押</span></td><td class="num">12,252</td></tr>
+          <tr><td class="nowrap">8-1-0303</td><td class="num">142.80</td><td class="nowrap">成套住宅</td><td class="nowrap"><span class="badge red">限制销售</span></td><td class="num">12,126</td></tr>
+        </tbody>
+      </table>
+
+      <div class="section-title mt-16">8# 幢 · 2 单元（共 104 套）</div>
+      <table class="data-table compact">
+        <thead><tr><th>房号</th><th class="num">建筑面积（㎡）</th><th>房屋用途</th><th>当前销控状态</th><th>备案单价（元/㎡）</th></tr></thead>
+        <tbody>
+          <tr><td class="nowrap">8-2-2601</td><td class="num">118.65</td><td class="nowrap">成套住宅</td><td class="nowrap"><span class="badge green">可售</span></td><td class="num">13,092</td></tr>
+          <tr><td class="nowrap">8-2-2002</td><td class="num">96.42</td><td class="nowrap">成套住宅</td><td class="nowrap"><span class="badge cyan">已备案</span></td><td class="num">12,840</td></tr>
+          <tr><td class="nowrap">8-2-1503</td><td class="num">142.80</td><td class="nowrap">成套住宅</td><td class="nowrap"><span class="badge green">可售</span></td><td class="num">12,630</td></tr>
+          <tr><td class="nowrap">8-2-0804</td><td class="num">89.36</td><td class="nowrap">成套住宅</td><td class="nowrap"><span class="badge blue">已签约</span></td><td class="num">12,336</td></tr>
+        </tbody>
+      </table>
+
+      <p class="text-3 text-sm mt-16">
+        <i class="fa-solid fa-circle-info"></i>
+        演示仅展示部分房号；完整清单可在楼盘表销控图中按幢单元逐层查看。
+      </p>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+      <button type="button" class="btn" onclick="location.href='building-table.html'"><i class="fa-solid fa-table-cells"></i> 打开销控图</button>
+      <button type="button" class="btn" onclick="PMS.toast('《许可房间清单》Excel 已生成，正在下载','success')"><i class="fa-solid fa-download"></i> 导出清单</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  var table = document.getElementById('tblLic');
+  document.getElementById('stTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var name = tab.getAttribute('data-tab');
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.style.display = (name === 'all' || tr.getAttribute('data-st') === name) ? '' : 'none';
+    });
+  });
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 251,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+
+function openRooms(lic, pj) {
+  document.getElementById('rsLic').textContent = lic;
+  document.getElementById('rsLic2').textContent = lic;
+  document.getElementById('rsPj').textContent = pj;
+  PMS.openDrawer('dwRooms');
+}
+</script>
+</body>
+</html>

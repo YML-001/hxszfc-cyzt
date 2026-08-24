@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>办件看板 · 统一工作门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="biz" data-active="my-board">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 待办任务
+        <span class="sep">/</span> <span class="cur">办件看板</span>
+      </div>
+      <div class="page-title">办件看板</div>
+    </div>
+    <div class="page-actions">
+      <span class="node-tag"><i class="fa-solid fa-user-shield"></i>业务审核员 · 个人视角</span>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <span>本看板只统计<b>本人经办</b>的办件，仅作个人改进参考，不用于考核评分；全市与各科室的效能排名在「综合查询 / 办件台账」。点击任一数字可下钻到对应清单。</span>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card clickable" onclick="drill('doing')" style="cursor:pointer">
+      <div class="s-icon blue"><i class="fa-solid fa-folder-open"></i></div><div>
+      <div class="s-label">我的在办</div><div class="s-value" id="kDoing">—</div><div class="s-trend text-primary">点击下钻</div></div></div>
+    <div class="stat-card clickable" onclick="drill('done')" style="cursor:pointer">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div><div>
+      <div class="s-label">本月办结</div><div class="s-value" id="kDone">—</div><div class="s-trend text-success">点击下钻</div></div></div>
+    <div class="stat-card clickable" onclick="drill('warn')" style="cursor:pointer">
+      <div class="s-icon orange"><i class="fa-solid fa-clock"></i></div><div>
+      <div class="s-label">临期 / 超期</div><div class="s-value" id="kWarn">—</div><div class="s-trend text-danger">需优先处理</div></div></div>
+    <div class="stat-card clickable" onclick="drill('reject')" style="cursor:pointer">
+      <div class="s-icon red"><i class="fa-solid fa-rotate-left"></i></div><div>
+      <div class="s-label">退件</div><div class="s-value" id="kReject">—</div><div class="s-trend text-3" id="kRejectRate">—</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-percent"></i></div><div>
+      <div class="s-label">按时办结率</div><div class="s-value" id="kRate">—</div></div></div>
+    <div class="stat-card"><div class="s-icon purple"><i class="fa-solid fa-hourglass-half"></i></div><div>
+      <div class="s-label">平均办理时长</div><div class="s-value" id="kSpan" style="font-size:16px">—</div></div></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head"><h3>近 6 个月我的办结量</h3><span class="sub">按出件办结时间归集</span></div>
+      <div class="card-body"><div id="chMonth"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>我的在办件时限分布</h3><span class="sub">四色预警</span></div>
+      <div class="card-body"><div id="chLevel"></div></div>
+    </div>
+  </div>
+
+  <div class="grid-2 mt-16">
+    <div class="card">
+      <div class="card-head"><h3>我的服务评价</h3>
+        <a class="home-more" href="service-review.html?role=biz">去服务评价 <i class="fa-solid fa-angle-right"></i></a>
+      </div>
+      <div class="card-body"><div id="chReview"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>常见退件与补正原因分布</h3><span class="sub">用于个人改进</span></div>
+      <div class="card-body"><div id="chReason"></div></div>
+    </div>
+  </div>
+
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3 id="listTitle">我的在办件</h3>
+      <span class="sub" id="listSub">点击上方统计卡切换清单</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tbBoard" data-static>
+        <thead>
+          <tr><th>收件编号</th><th>事项名称</th><th>申请人</th><th>当前环节</th>
+              <th>受理时间</th><th>已用时长</th><th>剩余时限</th><th>办理状态</th><th>操作</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/flow-data.js"></script>
+<script src="../assets/js/flow.js"></script>
+<script>
+(function () {
+  var mode = 'doing';
+  var TITLE = {
+    doing: ['我的在办件', '办理中与待补正的办件'],
+    done: ['我的本月办结件', '本月内已出件办结的办件'],
+    warn: ['我的临期与超期件', '剩余时限不足 20% 或已超期'],
+    reject: ['我的退件', '不予受理或逾期未补正退件']
+  };
+  window.drill = function (m) { mode = m; repaint(); };
+
+  function myCases() { return FLOW.where('cases', function (c) { return c.jbr === FLOW.me.id; }); }
+
+  function rows() {
+    var all = myCases();
+    if (mode === 'doing') return all.filter(function (c) { return c.blzt === '1' || c.blzt === '5' || c.blzt === '6'; });
+    if (mode === 'done') {
+      var d = new Date(); var ms = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+      return all.filter(function (c) { return c.blzt === '2' && c.bjsj >= ms; });
+    }
+    if (mode === 'warn') return all.filter(function (c) {
+      if (c.blzt !== '1' && c.blzt !== '5') return false;
+      var r = FLOW.remain(c);
+      return r.level === 'orange' || r.level === 'red';
+    });
+    return all.filter(function (c) { return c.blzt === '4'; });
+  }
+
+  function render() {
+    document.getElementById('kDoing').textContent = FLOW.stat('myDoing');
+    document.getElementById('kDone').textContent = FLOW.stat('myMonthDone');
+    document.getElementById('kWarn').textContent = FLOW.stat('myWarn');
+    document.getElementById('kReject').textContent = FLOW.stat('myReject');
+    document.getElementById('kRate').textContent = FLOW.stat('myOnTimeRate');
+    document.getElementById('kSpan').textContent = FLOW.stat('myAvgSpan');
+    var all = myCases();
+    document.getElementById('kRejectRate').textContent = all.length
+      ? ('退件率 ' + (Math.round(FLOW.stat('myReject') / all.length * 1000) / 10) + '%') : '—';
+
+    /* 近 6 个月办结量柱状图：按办结时间归集，在办件尚未办结不计入 */
+    var now = new Date();
+    var months = [];
+    for (var i = 5; i >= 0; i--) {
+      var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      var from = d.getTime(), to = new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime();
+      months.push({
+        l: (d.getMonth() + 1) + '月',
+        v: all.filter(function (c) { return c.blzt === '2' && c.bjsj >= from && c.bjsj < to; }).length
+      });
+    }
+    document.getElementById('chMonth').innerHTML = FLOW.barChart(months);
+
+    /* 四色预警环形图 */
+    var lv = { blue: 0, yellow: 0, orange: 0, red: 0 };
+    var doing = all.filter(function (c) { return c.blzt === '1' || c.blzt === '5'; });
+    doing.forEach(function (c) { lv[FLOW.remain(c).level]++; });
+    document.getElementById('chLevel').innerHTML = FLOW.donut([
+      { c: 'red', l: '红色 · 已超期', v: lv.red },
+      { c: 'orange', l: '橙色 · 预警', v: lv.orange },
+      { c: 'yellow', l: '黄色 · 提示', v: lv.yellow },
+      { c: 'blue', l: '蓝色 · 正常', v: lv.blue }
+    ], doing.length, '在办件');
+
+    /* 我的服务评价 */
+    var ids = all.map(function (c) { return c.id; });
+    var rs = FLOW.where('reviews', function (r) { return r.jbr === FLOW.me.id && r.pjdj; });
+    var pj = { good: 0, mid: 0, bad: 0 };
+    rs.forEach(function (r) {
+      if (r.pjdj <= '2') pj.good++; else if (r.pjdj === '3') pj.mid++; else pj.bad++;
+    });
+    document.getElementById('chReview').innerHTML = rs.length
+      ? FLOW.donut([
+          { c: 'blue', l: '满意及以上', v: pj.good },
+          { c: 'yellow', l: '基本满意', v: pj.mid },
+          { c: 'red', l: '不满意', v: pj.bad }
+        ], rs.length, '条评价')
+      : '<div class="empty"><i class="fa-regular fa-face-smile"></i><div>本人经办件暂无评价数据</div></div>';
+
+    /* 退件与补正原因分布 */
+    var reasons = {};
+    FLOW.get('corrections').forEach(function (bz) {
+      var c = FLOW.byId('cases', bz.bjzj);
+      if (!c || c.jbr !== FLOW.me.id) return;
+      (bz.items || []).forEach(function (n) { reasons[n] = (reasons[n] || 0) + 1; });
+    });
+    FLOW.get('caseLogs').forEach(function (l) {
+      if (l.czlx !== '4' || !l.yj) return;
+      var c = FLOW.byId('cases', l.bjzj);
+      if (!c || c.jbr !== FLOW.me.id) return;
+      var key = l.yj.length > 16 ? l.yj.slice(0, 16) + '…' : l.yj;
+      reasons[key] = (reasons[key] || 0) + 1;
+    });
+    var list = Object.keys(reasons).map(function (k) { return { l: k, v: reasons[k] }; })
+      .sort(function (a, b) { return b.v - a.v; }).slice(0, 6);
+    var max = 1;
+    list.forEach(function (x) { if (x.v > max) max = x.v; });
+    document.getElementById('chReason').innerHTML = list.length ? list.map(function (x) {
+      return '<div class="mb-16"><div class="flex justify-between text-sm mb-8">' +
+        '<span class="text-2">' + FLOW.esc(x.l) + '</span><span class="fw-600">' + x.v + ' 次</span></div>' +
+        '<div class="progress orange"><span style="width:' + Math.round(x.v / max * 100) + '%"></span></div></div>';
+    }).join('') : '<div class="empty"><i class="fa-regular fa-thumbs-up"></i><div>本人经办件暂无退件与补正记录</div></div>';
+
+    document.getElementById('listTitle').textContent = TITLE[mode][0];
+    document.getElementById('listSub').textContent = TITLE[mode][1];
+    FLOW.paint('tbBoard');
+  }
+  window.repaint = render;
+  window.viewCase = function (id) { FLOW.goto('case-detail.html', { id: id }); };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    FLOW.table({
+      id: 'tbBoard', pageSize: 8, empty: '该口径下暂无办件', icon: 'fa-folder-open',
+      rows: rows,
+      cells: function (c) {
+        return [
+          '<td>' + FLOW.esc(c.sjbh) + '</td>',
+          '<td class="cell-lg">' + FLOW.esc(c.sxmc) + '</td>',
+          '<td>' + FLOW.esc(c.sqr) + '</td>',
+          '<td>' + FLOW.esc(c.jd) + '</td>',
+          '<td>' + FLOW.fmt.time(c.slsj) + '</td>',
+          '<td>' + FLOW.fmt.span(FLOW.used(c)) + '</td>',
+          '<td>' + FLOW.remainCell(c) + '</td>',
+          '<td>' + FLOW.ztBadge(c.blzt) + '</td>',
+          '<td><span class="link" onclick="event.stopPropagation();viewCase(\'' + c.id + '\')">详情</span></td>'
+        ];
+      },
+      attrs: function (c) { return ' class="clickable" data-focus="' + c.id + '" onclick="viewCase(\'' + c.id + '\')"'; }
+    });
+    FLOW.on(render);
+  });
+})();
+</script>
+</body>
+</html>

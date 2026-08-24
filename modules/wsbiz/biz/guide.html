@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>业务指引 · 统一工作门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="biz" data-active="guide">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 指引动态
+        <span class="sep">/</span> <span class="cur">业务指引</span>
+      </div>
+      <div class="page-title">业务指引</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-primary" onclick="openCase()"><i class="fa-solid fa-plus"></i> 提交疑难案例</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <span>三类内部知识：<b>办理指引</b>按业务与环节给出审核要点与常见退件原因，审批页可随时唤出；<b>政策制度速查</b>标注生效状态与适用层级，收藏后出现在工作台；<b>疑难案例库</b>须经业务科室审核发布后才能被检索到。</span>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="guide" onclick="setTab('guide')">业务办理指引</div>
+      <div class="tab" data-tab="policy" onclick="setTab('policy')">政策制度速查</div>
+      <div class="tab" data-tab="case" onclick="setTab('case')">疑难案例库</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="guide">
+      <div class="filter-bar">
+        <div class="filter-item"><label>事项名称</label><input type="text" id="gKw" placeholder="事项名称或代码" oninput="renderGuide()"></div>
+        <div class="filter-item"><label>业务大类</label><select id="gYwdlm" data-dict="ywdlm" onchange="renderGuide()"></select></div>
+        <div class="spacer"></div>
+      </div>
+      <div class="card-body" id="guidePanel"></div>
+    </div>
+
+    <div class="tab-panel" data-panel="policy">
+      <div class="filter-bar">
+        <div class="filter-item"><label>文号 / 标题</label><input type="text" id="pKw" placeholder="文号或标题" oninput="renderPolicy()"></div>
+        <div class="filter-item"><label>分类</label><select id="pCat" onchange="renderPolicy()"></select></div>
+        <div class="filter-item"><label>生效状态</label>
+          <select id="pStatus" onchange="renderPolicy()">
+            <option value="">全部</option><option value="现行有效">现行有效</option><option value="已废止">已废止</option>
+          </select></div>
+        <div class="filter-item"><label>适用层级</label><select id="pBllj" data-dict="bllj" onchange="renderPolicy()"></select></div>
+        <div class="spacer"></div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="tbPolicy" data-static>
+          <thead><tr><th>文号</th><th>标题</th><th>分类</th><th>适用层级</th><th>生效状态</th><th>发布时间</th><th>操作</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="case">
+      <div class="filter-bar">
+        <div class="filter-item"><label>案例标题</label><input type="text" id="cKw" placeholder="标题关键词" oninput="renderCase()"></div>
+        <div class="filter-item"><label>业务分类</label><select id="cCat" onchange="renderCase()"></select></div>
+        <div class="filter-item"><label>发布状态</label>
+          <select id="cStatus" onchange="renderCase()">
+            <option value="">全部</option><option value="已发布">已发布</option>
+            <option value="待审核">待审核</option><option value="已退回">已退回</option>
+          </select></div>
+        <div class="spacer"></div>
+      </div>
+      <div class="card-body" id="casePanel"></div>
+    </div>
+  </div>
+</main>
+
+<!-- 提交疑难案例 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="caseDrawer">
+  <div class="drawer-head"><h3>提交疑难案例</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>
+      <span>提交后进入待审核状态，由业务科室审核发布；发布前不会出现在检索结果中。</span></div>
+    <div class="form-grid">
+      <div class="form-item col-full"><label>案例标题<span class="req">*</span></label>
+        <input type="text" id="nTitle" placeholder="如：夫妻一方在境外如何完成存量房网签"></div>
+      <div class="form-item"><label>业务分类<span class="req">*</span></label><select id="nCat"></select></div>
+      <div class="form-item col-full"><label>处理要点<span class="req">*</span></label>
+        <textarea id="nBody" rows="5" placeholder="按「核验当事人身份与授权、核验房屋权属与限制状态、核验合同要件与税费凭证」的顺序写清处理步骤与依据"></textarea></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="doSubmitCase()"><i class="fa-solid fa-paper-plane"></i> 提交审核</button>
+  </div>
+</div>
+
+<!-- 案例详情与审核 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="viewDrawer">
+  <div class="drawer-head"><h3 id="vTitle">案例详情</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body" id="viewBody"></div>
+  <div class="drawer-foot" id="viewFoot"></div>
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/flow-data.js"></script>
+<script src="../assets/js/flow.js"></script>
+<script>
+(function () {
+  var tab = 'guide', curCase = null;
+  function val(id) { return (document.getElementById(id).value || '').trim(); }
+  window.setTab = function (t) {
+    tab = t;
+    document.querySelectorAll('.tabs .tab').forEach(function (el) {
+      el.classList.toggle('active', el.getAttribute('data-tab') === t);
+    });
+    document.querySelectorAll('.tab-panel').forEach(function (p) {
+      p.classList.toggle('active', p.getAttribute('data-panel') === t);
+    });
+    render();
+  };
+
+  /* 功能点 61 业务办理指引 */
+  window.renderGuide = function () {
+    var kw = val('gKw'), yw = val('gYwdlm');
+    var list = FLOW.where('items', function (it) {
+      if (kw && it.sxmc.indexOf(kw) < 0 && it.sxdm.indexOf(kw) < 0) return false;
+      if (yw && it.ywdlm !== yw) return false;
+      return true;
+    });
+    document.getElementById('guidePanel').innerHTML = list.length
+      ? list.map(function (it) {
+          return '<div class="grp-card"><div class="grp-head">' +
+            '<span class="gi"><i class="fa-solid fa-book-open"></i></span>' + FLOW.esc(it.sxmc) +
+            '　' + FLOW.badge(FLOW.dict('ywdlm', it.ywdlm), 'blue') +
+            '<span class="text-3 text-sm" style="margin-left:auto;font-weight:400">' +
+              '法定 ' + it.fdsx + ' 日 · 承诺 ' + it.cnsx + ' 日 · ' + FLOW.esc(it.dept) + '</span></div>' +
+            '<div class="grid-2">' +
+              '<div><div class="section-title">办理环节</div><div class="timeline">' +
+                (it.flow || []).map(function (n, i) {
+                  return '<div class="tl-item ' + (i === 0 ? 'done' : '') + '"><div class="tl-dot"></div>' +
+                    '<div class="tl-title">' + FLOW.esc(n) + '</div>' +
+                    '<div class="tl-meta">第 ' + (i + 1) + ' 环节</div></div>';
+                }).join('') + '</div></div>' +
+              '<div><div class="section-title">审核要点</div>' +
+                (it.points || []).map(function (p) {
+                  return '<div class="flex gap-8 mb-8"><i class="fa-solid fa-circle-check text-success" style="margin-top:4px"></i>' +
+                    '<span class="text-2 text-sm">' + FLOW.esc(p) + '</span></div>';
+                }).join('') +
+                '<div class="section-title mt-16">常见退件原因</div>' +
+                (it.rejects || []).map(function (p) {
+                  return '<div class="flex gap-8 mb-8"><i class="fa-solid fa-triangle-exclamation text-danger" style="margin-top:4px"></i>' +
+                    '<span class="text-2 text-sm">' + FLOW.esc(p) + '</span></div>';
+                }).join('') +
+              '</div>' +
+            '</div>' +
+            '<div class="btn-row mt-16">' +
+              '<a class="btn btn-sm" href="item-catalog.html?role=biz">查看事项配置</a>' +
+              '<a class="btn btn-sm" href="intake.html?role=biz&sxdm=' + it.sxdm + '">按此事项收件</a>' +
+            '</div></div>';
+        }).join('')
+      : '<div class="empty"><i class="fa-regular fa-folder-open"></i><div>没有匹配的事项指引</div></div>';
+  };
+
+  /* 功能点 62 政策制度速查 */
+  window.renderPolicy = function () { FLOW.paint('tbPolicy'); };
+  function policyRows() {
+    var kw = val('pKw'), cat = val('pCat'), st = val('pStatus'), lj = val('pBllj');
+    return FLOW.where('policies', function (p) {
+      if (kw && p.wh.indexOf(kw) < 0 && p.title.indexOf(kw) < 0) return false;
+      if (cat && p.cat !== cat) return false;
+      if (st && p.status !== st) return false;
+      if (lj && p.bllj !== lj) return false;
+      return true;
+    });
+  }
+  window.doFav = function (id) { FLOW.act.favPolicy(id); };
+
+  /* 功能点 63 疑难案例库 */
+  window.renderCase = function () {
+    var kw = val('cKw'), cat = val('cCat'), st = val('cStatus');
+    var list = FLOW.where('hardCases', function (a) {
+      if (kw && a.title.indexOf(kw) < 0) return false;
+      if (cat && a.cat !== cat) return false;
+      if (st && a.status !== st) return false;
+      return true;
+    });
+    document.getElementById('casePanel').innerHTML = list.length
+      ? '<div class="grid-2">' + list.map(function (a) {
+          var color = a.status === '已发布' ? 'green' : (a.status === '待审核' ? 'orange' : 'red');
+          return '<div class="grp-card" style="cursor:pointer" onclick="openView(\'' + a.id + '\')" data-focus="' + a.id + '">' +
+            '<div class="grp-head"><span class="gi"><i class="fa-solid fa-lightbulb"></i></span>' +
+              '<span style="flex:1;min-width:0">' + FLOW.esc(a.title) + '</span>' +
+              FLOW.badge(a.status, color) + '</div>' +
+            '<div class="text-2 text-sm" style="line-height:1.7">' +
+              FLOW.esc(a.body.length > 90 ? a.body.slice(0, 90) + '…' : a.body) + '</div>' +
+            '<div class="flex justify-between items-center mt-16 text-3 text-sm">' +
+              '<span>' + FLOW.badge(a.cat, 'blue') + '　' + FLOW.esc(a.author) + '</span>' +
+              '<span>' + FLOW.fmt.date(a.createdAt) + '　' + a.views + ' 次查看</span>' +
+            '</div></div>';
+        }).join('') + '</div>'
+      : '<div class="empty"><i class="fa-regular fa-lightbulb"></i><div>没有匹配的案例；待审核的案例发布后才能被检索到</div></div>';
+  };
+  window.openCase = function () {
+    document.getElementById('nTitle').value = '';
+    document.getElementById('nBody').value = '';
+    PMS.openDrawer('caseDrawer');
+  };
+  window.doSubmitCase = function () {
+    if (FLOW.act.submitHardCase({ title: val('nTitle'), cat: val('nCat'), body: val('nBody') })) {
+      PMS.closeDrawer('caseDrawer');
+      document.getElementById('cStatus').value = '待审核';
+      setTab('case');
+    }
+  };
+  window.openView = function (id) {
+    curCase = id;
+    var a = FLOW.byId('hardCases', id);
+    if (!a) return;
+    a.views++;
+    document.getElementById('vTitle').textContent = a.title;
+    document.getElementById('viewBody').innerHTML =
+      '<div class="alert ' + (a.status === '已发布' ? 'alert-success' : (a.status === '待审核' ? 'alert-warning' : 'alert-danger')) + '">' +
+        '<i class="fa-solid fa-circle-info"></i><span>当前状态：' + FLOW.esc(a.status) +
+        (a.auditNote ? '　审核意见：' + FLOW.esc(a.auditNote) : '') +
+        (a.status === '待审核' ? '　待业务科室审核发布后方可被检索到。' : '') + '</span></div>' +
+      '<dl class="desc-list">' +
+        row('业务分类', a.cat) + row('提交人', a.author) +
+        row('提交时间', FLOW.fmt.time(a.createdAt)) + row('查看次数', a.views + ' 次') +
+      '</dl>' +
+      '<div class="section-title mt-16" data-icon="fa-list-check">处理要点</div>' +
+      '<div class="text-2" style="line-height:2">' + FLOW.esc(a.body) + '</div>';
+    var foot = ['<button class="btn" data-close-drawer>关闭</button>'];
+    if (a.status === '待审核') {
+      foot.push('<button class="btn btn-danger" onclick="doAudit(false)"><i class="fa-solid fa-xmark"></i> 退回修改</button>');
+      foot.push('<button class="btn btn-primary" onclick="doAudit(true)"><i class="fa-solid fa-check"></i> 审核发布</button>');
+    }
+    document.getElementById('viewFoot').innerHTML = foot.join('');
+    FLOW.commit();
+    PMS.openDrawer('viewDrawer');
+  };
+  window.doAudit = function (pass) {
+    if (!pass) {
+      PMS.confirm({
+        title: '退回修改', type: 'warning', okText: '退回',
+        message: '确认退回该案例？', detail: '退回后作者可修改再次提交。',
+        onOk: function () {
+          FLOW.act.auditHardCase(curCase, false, '内容需补充法律依据与具体操作步骤');
+          PMS.closeDrawer('viewDrawer');
+        }
+      });
+      return;
+    }
+    if (FLOW.act.auditHardCase(curCase, true)) PMS.closeDrawer('viewDrawer');
+  };
+  function row(label, value) {
+    return '<div class="desc-item"><dt>' + label + '</dt><dd>' + FLOW.esc(value == null || value === '' ? '—' : value) + '</dd></div>';
+  }
+
+  function render() {
+    if (tab === 'guide') renderGuide();
+    else if (tab === 'policy') renderPolicy();
+    else renderCase();
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    /* 分类下拉取真实数据 */
+    var pcats = {}, ccats = {};
+    FLOW.get('policies').forEach(function (p) { pcats[p.cat] = 1; });
+    FLOW.get('hardCases').forEach(function (a) { ccats[a.cat] = 1; });
+    document.getElementById('pCat').innerHTML = '<option value="">全部</option>' +
+      Object.keys(pcats).map(function (c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
+    var ccatOpts = Object.keys(ccats).map(function (c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
+    document.getElementById('cCat').innerHTML = '<option value="">全部</option>' + ccatOpts;
+    document.getElementById('nCat').innerHTML = ccatOpts;
+
+    FLOW.table({
+      id: 'tbPolicy', pageSize: 10, empty: '没有匹配的政策文件', icon: 'fa-file-lines',
+      rows: policyRows,
+      cells: function (p) {
+        return [
+          '<td>' + FLOW.esc(p.wh) + '</td>',
+          '<td class="cell-lg">' + FLOW.esc(p.title) + '</td>',
+          '<td>' + FLOW.badge(p.cat, 'blue') + '</td>',
+          '<td>' + FLOW.esc(FLOW.dict('bllj', p.bllj)) + '</td>',
+          '<td>' + (p.status === '现行有效' ? FLOW.badge('现行有效', 'green') : FLOW.badge('已废止', 'gray')) + '</td>',
+          '<td>' + FLOW.fmt.date(p.pubAt) + '</td>',
+          '<td><span class="link" onclick="event.stopPropagation();doFav(\'' + p.id + '\')">' +
+            (p.fav ? '取消收藏' : '收藏') + '</span></td>'
+        ];
+      },
+      attrs: function (p) { return ' data-focus="' + p.id + '"'; }
+    });
+    FLOW.on(render);
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>行业语料管理 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="pt" data-active="model-library" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>模型底座</span>
+      <span class="sep">/</span><span>模型管理</span>
+      <span class="sep">/</span><span class="cur">行业语料管理</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-microchip"></i>模型管理 wsai-02</span>
+    <a href="model-library.html?role=pt">算法模型库</a>
+    <a href="model-deploy.html?role=pt">本地化部署</a>
+    <a href="model-version.html?role=pt">版本管理</a>
+    <a href="model-eval.html?role=pt">效果评估</a>
+    <a href="compute-resource.html?role=pt">算力纳管</a>
+    <a href="agent-orchestrate.html?role=pt">智能体编排</a>
+    <a href="upstream-model.html?role=pt">上级模型复用</a>
+    <a class="active" href="corpus-manage.html?role=pt">行业语料</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-lock"></i>
+    <span>语料发布是硬门槛：<b>必须同时完成脱敏与国密加密存储</b>才允许发布，否则被拦截。
+      已发布语料才能用于检索增强与轻量微调；语料版本可追溯。</span>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon ai"><i class="fa-solid fa-layer-group"></i></div>
+      <div><div class="s-label">语料集</div><div class="s-value" id="kSet">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-file-lines"></i></div>
+      <div><div class="s-label">语料篇数</div><div class="s-value" id="kDoc">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">已发布可训练</div><div class="s-value" id="kPub">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-user-secret"></i></div>
+      <div><div class="s-label">未脱敏</div><div class="s-value" id="kNoTmh">—</div>
+        <div class="s-trend text-danger">不得发布</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-lock-open"></i></div>
+      <div><div class="s-label">未加密</div><div class="s-value" id="kNoJm">—</div>
+        <div class="s-trend text-danger">不得发布</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>语料集清单</h3>
+      <span class="sub">脱敏与加密两项都通过才能发布</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tCorpus" data-static>
+        <thead><tr>
+          <th>语料集名称</th><th>类型</th><th class="num">篇数</th><th>版本</th>
+          <th>脱敏</th><th>国密加密</th><th>状态</th><th class="cell-lg">合规说明</th>
+          <th>更新时间</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  function paintKpi() {
+    var cs = AI.get('corpus');
+    document.getElementById('kSet').textContent = cs.length;
+    document.getElementById('kDoc').textContent = AI.num(cs.reduce(function (s, c) { return s + c.docs; }, 0));
+    document.getElementById('kPub').textContent = cs.filter(function (c) { return c.zt === '2'; }).length;
+    document.getElementById('kNoTmh').textContent = cs.filter(function (c) { return !c.tmh; }).length;
+    document.getElementById('kNoJm').textContent = cs.filter(function (c) { return !c.jm; }).length;
+  }
+
+  function flag(ok, okText, noText) {
+    return ok
+      ? '<span class="badge green"><i class="fa-solid fa-check"></i>' + okText + '</span>'
+      : '<span class="badge red"><i class="fa-solid fa-xmark"></i>' + noText + '</span>';
+  }
+
+  AI.table({
+    id: 'tCorpus', pageSize: 10,
+    rows: function () { return AI.get('corpus'); },
+    cells: function (c) {
+      return [
+        '<td>' + AI.esc(c.mc) + '</td>',
+        '<td>' + AI.esc(c.lx) + '</td>',
+        '<td class="num">' + AI.num(c.docs) + '</td>',
+        '<td>' + AI.esc(c.ver) + '</td>',
+        '<td>' + flag(c.tmh, '已脱敏', '未脱敏') + '</td>',
+        '<td>' + flag(c.jm, '已加密', '未加密') + '</td>',
+        '<td>' + (c.zt === '2'
+          ? '<span class="badge green">已发布</span>'
+          : '<span class="badge gray">未发布</span>') + '</td>',
+        '<td class="cell-lg">' + AI.esc(c.note) + '</td>',
+        '<td>' + AI.fmt.date(c.updatedAt) + '</td>',
+        '<td class="col-ops">' +
+          (!c.tmh
+            ? '<button class="btn btn-sm" onclick="AI.act.desensitize(\'' + c.id + '\')"><i class="fa-solid fa-user-secret"></i> 执行脱敏</button> '
+            : '') +
+          (!c.jm
+            ? '<button class="btn btn-sm" onclick="AI.act.encryptCorpus(\'' + c.id + '\')"><i class="fa-solid fa-lock"></i> 国密加密</button> '
+            : '') +
+          (c.zt === '2'
+            ? '<button class="btn btn-sm" onclick="AI.toast(\'该语料集已发布，可用于检索增强与轻量微调\',\'error\')"><i class="fa-solid fa-check"></i> 已发布</button>'
+            : '<button class="btn btn-primary btn-sm" onclick="AI.act.publishCorpus(\'' + c.id + '\')"><i class="fa-solid fa-upload"></i> 发布</button>') +
+        '</td>'
+      ];
+    },
+    empty: '暂无语料集'
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () { paintKpi(); AI.repaintAll(); });
+  });
+})();
+</script>
+</body>
+</html>

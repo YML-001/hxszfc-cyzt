@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>分层分户图接入配图 · 房屋交易面积信息管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：配图统计、命名规则说明条、置信度色标、缩略图占位、级联下拉 */
+  .ms { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .ms .mc { border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; background: #fff; }
+  .ms .mc .l { font-size: 12px; color: var(--text-3); }
+  .ms .mc .v { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; margin-top: 1px; }
+  .ms .mc.ok { background: #f0fdf4; border-color: #bbf7d0; } .ms .mc.ok .v { color: var(--success); }
+  .ms .mc.warn { background: #fffbeb; border-color: #fde68a; } .ms .mc.warn .v { color: #b45309; }
+  .rule {
+    margin-top: 10px; background: var(--bg-soft); border: 1px dashed var(--border-strong); border-radius: var(--radius);
+    padding: 9px 13px; font-size: 12.5px; color: var(--text-2); line-height: 1.7;
+  }
+  .rule code { background: #fff; border: 1px solid var(--border); padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #b45309; }
+  .th {
+    width: 54px; height: 42px; border: 1px solid var(--border); border-radius: 5px;
+    background: repeating-linear-gradient(45deg, #f8fafc, #f8fafc 7px, #f1f5f9 7px, #f1f5f9 14px);
+    display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 15px;
+  }
+  .cf { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .cf.hi { color: var(--success); } .cf.mid { color: var(--warning); } .cf.low { color: var(--danger); }
+  .cas { display: flex; gap: 4px; }
+  .cas select { width: 66px !important; height: 28px; font-size: 12px; padding: 0 5px; }
+  .pr { font-size: 12.5px; color: var(--text-2); line-height: 1.5; }
+  .pr b { color: var(--text-1); }
+  .amt { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wschcg-14">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易面积信息管理系统
+        <span class="sep">/</span> 测绘图管理
+        <span class="sep">/</span> <span class="cur">分层分户图接入配图</span>
+      </div>
+      <div class="page-title">分层分户图接入配图</div>
+    </div>
+    <div class="page-actions">
+      <select style="width:250px" onchange="PMS.toast('已切换配图对象：' + this.value)">
+        <option>CG450200202600186 · 荣和公园大道二期 8 栋 V2.0</option>
+        <option>CG450200202600180 · 万科城 5 栋 V2.0</option>
+      </select>
+      <button type="button" class="btn" onclick="reMatch()"><i class="fa-solid fa-wand-magic-sparkles"></i> 重新自动配图</button>
+      <button type="button" class="btn" onclick="location.href='drawing-list.html'"><i class="fa-solid fa-images"></i> 测绘图台账</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.toast('已打开图纸上传窗口，支持批量拖拽（单文件 ≤ 50 MB）')"><i class="fa-solid fa-upload"></i> 补传图纸</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3>自动配图统计</h3><span class="sub">按文件命名规则解析幢号、单元号、层号、房号自动配图</span></div>
+    <div class="card-body">
+      <div class="ms">
+        <div class="mc"><div class="l">上传图纸</div><div class="v">105</div></div>
+        <div class="mc ok"><div class="l">自动配图成功</div><div class="v" id="okN">101</div></div>
+        <div class="mc warn"><div class="l">待人工配图</div><div class="v" id="leftN">4</div></div>
+        <div class="mc"><div class="l">解析失败</div><div class="v">0</div></div>
+      </div>
+      <div class="rule">
+        <b>命名规则</b>：<code>项目简称_幢号_单元号_层号_房号_图形类型.格式</code>，例如 <code>RHGYDD2Q_8_2_18_1806_FHT.pdf</code>；
+        分层图省略房号（<code>RHGYDD2Q_8_15_FCT.pdf</code>），幢级图纸省略单元与层号（<code>RHGYDD2Q_8_ZPMT.pdf</code>）。
+        图形类型缩写：FHT 分户图 · FCT 分层平面图 · ZPMT 总平面图 · ZDT 宗地图 · GYBWT 共有部位图 · LMT 立面图 · PMT 剖面图。
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>待人工配图清单</h3>
+      <span class="sub">未按命名规则或解析置信度不足的图纸，须人工确认关联对象</span>
+      <div class="head-actions">
+        <button type="button" class="btn btn-sm" onclick="acceptAll()"><i class="fa-solid fa-check-double"></i> 采纳全部建议</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="table-wrap">
+        <table class="data-table compact" data-static>
+          <thead>
+            <tr>
+              <th>文件名</th><th>格式</th><th class="text-right">大小</th><th>缩略图</th>
+              <th>解析结果</th><th>建议匹配对象</th><th class="text-center">置信度</th>
+              <th>手动指定关联对象</th><th>图形类型</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr id="m1">
+              <td class="fw-600">8栋2单元18层1806分户图.pdf</td>
+              <td class="nowrap">PDF</td><td class="text-right amt">2.38 MB</td>
+              <td><div class="th"><i class="fa-regular fa-file-pdf"></i></div></td>
+              <td class="pr">幢 <b>8</b>、单元 <b>2</b>、层 <b>18</b>、房号 <b>1806</b><br><span class="text-3">中文命名，未按规则</span></td>
+              <td class="nowrap">8 栋 2 单元 18 层 1806</td>
+              <td class="text-center"><span class="cf hi">92%</span></td>
+              <td>
+                <div class="cas">
+                  <select><option>8 栋</option><option>9 栋</option></select>
+                  <select><option>2 单元</option><option>1 单元</option><option>3 单元</option></select>
+                  <select><option>18 层</option><option>15 层</option></select>
+                  <select><option>1806</option><option>1802</option></select>
+                </div>
+              </td>
+              <td><select style="width:118px"><option>分户图</option><option>分层平面图</option><option>共有部位图</option><option>现场照片</option></select></td>
+              <td class="col-ops">
+                <span class="link" onclick="okOne('m1','8 栋 2 单元 18 层 1806')">确认配图</span>
+                <span class="link" onclick="markNone('m1')">标记无关</span>
+                <span class="link danger" onclick="delOne('m1')">删除</span>
+              </td>
+            </tr>
+            <tr id="m2">
+              <td class="fw-600">RHGYDD2Q_8_B1_FCT.pdf</td>
+              <td class="nowrap">PDF</td><td class="text-right amt">4.12 MB</td>
+              <td><div class="th"><i class="fa-regular fa-file-pdf"></i></div></td>
+              <td class="pr">幢 <b>8</b>、层 <b>B1</b><br><span class="text-3">缺单元号，按幢级分层图处理</span></td>
+              <td class="nowrap">8 栋 地下 1 层 分层图</td>
+              <td class="text-center"><span class="cf hi">86%</span></td>
+              <td>
+                <div class="cas">
+                  <select><option>8 栋</option><option>9 栋</option></select>
+                  <select><option>—</option><option>1 单元</option></select>
+                  <select><option>地下 1 层</option><option>1 层</option></select>
+                  <select><option>—</option></select>
+                </div>
+              </td>
+              <td><select style="width:118px"><option>分层平面图</option><option>分户图</option><option>车位平面图</option></select></td>
+              <td class="col-ops">
+                <span class="link" onclick="okOne('m2','8 栋 地下 1 层')">确认配图</span>
+                <span class="link" onclick="markNone('m2')">标记无关</span>
+                <span class="link danger" onclick="delOne('m2')">删除</span>
+              </td>
+            </tr>
+            <tr id="m3">
+              <td class="fw-600">补测_2603.pdf</td>
+              <td class="nowrap">PDF</td><td class="text-right amt">1.96 MB</td>
+              <td><div class="th"><i class="fa-regular fa-file-pdf"></i></div></td>
+              <td class="pr">房号 <b>2603</b><br><span class="text-3">缺幢号与层号，按房号反查</span></td>
+              <td class="nowrap">8 栋 1 单元 26 层 2603（顶层跃层）</td>
+              <td class="text-center"><span class="cf mid">64%</span></td>
+              <td>
+                <div class="cas">
+                  <select><option>8 栋</option><option>9 栋</option></select>
+                  <select><option>1 单元</option><option>2 单元</option><option>3 单元</option></select>
+                  <select><option>26 层</option><option>25 层</option></select>
+                  <select><option>2603</option><option>2602</option></select>
+                </div>
+              </td>
+              <td><select style="width:118px"><option>分户图</option><option>分层平面图</option></select></td>
+              <td class="col-ops">
+                <span class="link" onclick="okOne('m3','8 栋 1 单元 26 层 2603')">确认配图</span>
+                <span class="link" onclick="markNone('m3')">标记无关</span>
+                <span class="link danger" onclick="delOne('m3')">删除</span>
+              </td>
+            </tr>
+            <tr id="m4">
+              <td class="fw-600">现场照片_20260722.jpg</td>
+              <td class="nowrap">JPG</td><td class="text-right amt">3.42 MB</td>
+              <td><div class="th"><i class="fa-regular fa-image"></i></div></td>
+              <td class="pr text-3">未解析出幢层户信息</td>
+              <td class="nowrap text-3">无建议，需人工指定</td>
+              <td class="text-center"><span class="text-3">—</span></td>
+              <td>
+                <div class="cas">
+                  <select><option>请选择</option><option selected>8 栋</option></select>
+                  <select><option>—</option><option>1 单元</option></select>
+                  <select><option>—</option><option>1 层</option></select>
+                  <select><option>—</option></select>
+                </div>
+              </td>
+              <td><select style="width:118px"><option>现场照片</option><option>立面图</option><option>其他</option></select></td>
+              <td class="col-ops">
+                <span class="link" onclick="okOne('m4','8 栋（幢级现场照片）')">确认配图</span>
+                <span class="link" onclick="markNone('m4')">标记无关</span>
+                <span class="link danger" onclick="delOne('m4')">删除</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="mt-16 text-sm text-3">
+        <i class="fa-solid fa-lightbulb"></i>
+        置信度 ≥ 85% 绿色可直接采纳；60% ~ 85% 橙色建议人工复核；&lt; 60% 红色须人工指定。确认配图后自动写入图形文件与幢层户的关联关系。
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3>图数一致性校验</h3><span class="sub">配图完成后校验图纸数量与结构记录数是否匹配</span></div>
+    <div class="card-body">
+      <div class="alert alert-danger" id="ckBad">
+        <i class="fa-solid fa-circle-xmark"></i>
+        <div>
+          户表 <b>96</b> 条，已配分户图 <b>94</b> 个，<b>缺失 2 个</b>：<b>8-2-1806</b>、<b>8-3-902</b>，请补传后方可进入质检。<br>
+          <span class="text-3">分层图 8 个 / 应有 8 个 ✓　总平面图 1 个 ✓　共有部位图 2 个 ✓　技术报告 1 份 ✓　面积计算表 1 份 ✓</span>
+        </div>
+      </div>
+      <div class="alert alert-success" id="ckOk" style="display:none">
+        <i class="fa-solid fa-circle-check"></i>
+        <div>
+          户表 <b>96</b> 条，已配分户图 <b>96</b> 个，<b>图数一致</b>，可进入质检。<br>
+          <span class="text-3">分层图 8 个 ✓　总平面图 1 个 ✓　共有部位图 2 个 ✓　技术报告 1 份 ✓　面积计算表 1 份 ✓</span>
+        </div>
+      </div>
+      <div class="flex gap-8 mt-16">
+        <button type="button" class="btn" onclick="reCheck()"><i class="fa-solid fa-rotate"></i> 重新校验图数</button>
+        <button type="button" class="btn" onclick="location.href='import-error.html'"><i class="fa-solid fa-triangle-exclamation"></i> 查看接入异常</button>
+        <button type="button" class="btn btn-primary" id="btnNext" disabled onclick="location.href='result-check.html'"><i class="fa-solid fa-list-check"></i> 进入成果质检</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+var done = {}, TOTAL = 4;
+
+function refresh() {
+  var n = TOTAL - Object.keys(done).length;
+  document.getElementById('leftN').textContent = String(n);
+  document.getElementById('okN').textContent = String(101 + Object.keys(done).length);
+  var ok = n === 0;
+  document.getElementById('ckBad').style.display = ok ? 'none' : '';
+  document.getElementById('ckOk').style.display = ok ? '' : 'none';
+  document.getElementById('btnNext').disabled = !ok;
+}
+
+function okOne(id, obj) {
+  var tr = document.getElementById(id);
+  if (done[id]) return;
+  done[id] = 1;
+  tr.style.opacity = '.62';
+  tr.querySelector('.col-ops').innerHTML = '<span class="badge green"><i class="fa-solid fa-check"></i> 已配图</span>';
+  tr.querySelectorAll('select').forEach(function (s) { s.disabled = true; });
+  PMS.toast('已配图：' + obj + '（关联关系已写入并留痕）', 'success');
+  refresh();
+}
+
+function acceptAll() {
+  PMS.confirm({
+    title: '采纳全部建议',
+    message: '按系统建议匹配对象批量确认 4 个待配图文件？',
+    detail: '置信度低于 85% 的 2 个文件（补测_2603.pdf、现场照片_20260722.jpg）建议人工复核后再确认；批量采纳后仍可单独调整。',
+    type: 'info', okText: '全部采纳',
+    onOk: function () {
+      ['m1', 'm2', 'm3', 'm4'].forEach(function (id) {
+        var tr = document.getElementById(id);
+        if (!tr || done[id]) return;
+        done[id] = 1;
+        tr.style.opacity = '.62';
+        tr.querySelector('.col-ops').innerHTML = '<span class="badge green"><i class="fa-solid fa-check"></i> 已配图</span>';
+        tr.querySelectorAll('select').forEach(function (s) { s.disabled = true; });
+      });
+      refresh();
+      PMS.toast('4 个文件已按建议完成配图', 'success');
+    }
+  });
+}
+
+function markNone(id) {
+  PMS.confirm({
+    title: '标记无关',
+    message: '将该文件标记为与本成果无关？',
+    detail: '标记后该文件不计入图数一致性校验，保留在台账中可后续重新配图。',
+    type: 'warning', okText: '标记无关',
+    onOk: function () {
+      var tr = document.getElementById(id);
+      done[id] = 1;
+      tr.style.opacity = '.62';
+      tr.querySelector('.col-ops').innerHTML = '<span class="badge">已标记无关</span>';
+      tr.querySelectorAll('select').forEach(function (s) { s.disabled = true; });
+      refresh();
+      PMS.toast('已标记为与本成果无关', 'success');
+    }
+  });
+}
+
+function delOne(id) {
+  PMS.confirm({
+    title: '删除文件',
+    message: '确认删除该图形文件？',
+    detail: '删除后文件从暂存区移除，需由测绘机构重新上传；删除操作留痕不可撤销。',
+    type: 'danger', okText: '确认删除',
+    onOk: function () {
+      document.getElementById(id).remove();
+      done[id] = 1;
+      refresh();
+      PMS.toast('文件已删除并留痕', 'success');
+    }
+  });
+}
+
+function reMatch() {
+  PMS.toast('正在按命名规则解析 105 个图纸文件…');
+  setTimeout(function () { PMS.toast('自动配图完成：成功 101 个，待人工配图 4 个，解析失败 0 个', 'success'); }, 900);
+}
+
+function reCheck() {
+  PMS.toast('正在校验图数一致性…');
+  setTimeout(function () {
+    var n = TOTAL - Object.keys(done).length;
+    PMS.toast(n === 0
+      ? '图数校验通过：分户图 96 / 96，分层图 8 / 8，可进入质检'
+      : '图数校验未通过：分户图 94 / 96，缺失 8-2-1806、8-3-902', n === 0 ? 'success' : 'warning');
+  }, 700);
+}
+</script>
+</body>
+</html>

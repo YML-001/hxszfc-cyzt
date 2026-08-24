@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>征收安置房源管理 · 新建商品房网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  tr.row-dup td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
+  .dup-box { border: 1px solid var(--danger); border-radius: var(--radius); padding: 12px 14px; background: #fef2f2; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsswb-20">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房网签备案管理系统
+        <span class="sep">/</span> 征收安置房源
+        <span class="sep">/</span> <span class="cur">安置房源管理</span>
+      </div>
+      <div class="page-title">征收安置房源管理</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" data-open-drawer="dwReg"><i class="fa-solid fa-plus"></i> 登记房源</button>
+      <button type="button" class="btn" data-open-drawer="dwAlloc"><i class="fa-solid fa-people-arrows"></i> 分配登记</button>
+      <button type="button" class="btn" onclick="location.href='house-ticket.html'">房票安置</button>
+      <button type="button" class="btn" onclick="location.href='policy-list.html'">政策性住房备案</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《征收安置房源台账》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-building"></i></div>
+      <div><div class="s-label">安置房源套数</div><div class="s-value">1,286</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-user-check"></i></div>
+      <div><div class="s-label">已分配</div><div class="s-value">968</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-warehouse"></i></div>
+      <div><div class="s-label">待分配</div><div class="s-value">286</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-file-signature"></i></div>
+      <div><div class="s-label">已安置备案</div><div class="s-value">842</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-scale-balanced"></i></div>
+      <div><div class="s-label">本月分配</div><div class="s-value">42</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-ban"></i></div>
+      <div><div class="s-label">防重拦截</div><div class="s-value">3</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-danger">
+    <i class="fa-solid fa-lock"></i>
+    <div><b>一房一户防重</b>：同一房源不得重复分配给不同被征收户；同一被征收户主在同一安置项目中不得重复占房。系统按「项目 + 楼栋 + 房号」与「征收协议号 / 户主证件号」双向校验，冲突即拦截。</div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item"><label>房源编号</label><input type="text" placeholder="如 AZFY450200000862"></div>
+      <div class="filter-item"><label>安置项目</label><input type="text" placeholder="项目名称关键词"></div>
+      <div class="filter-item"><label>房号</label><input type="text" placeholder="如 2-1-0802"></div>
+      <div class="filter-item"><label>征收项目</label><input type="text" placeholder="征收地块 / 项目"></div>
+      <div class="filter-item"><label>分配状态</label><select><option value="">全部</option><option>待分配</option><option>已分配</option><option>已备案</option><option>防重锁定</option></select></div>
+      <div class="filter-item"><label>行政区划</label><select><option value="">全部</option><option>城中区</option><option>鱼峰区</option><option>柳南区</option><option>柳北区</option><option>柳江区</option></select></div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 1,286 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="wait">待分配 <span class="badge cyan">286</span></div>
+      <div class="tab" data-tab="alloc">已分配</div>
+      <div class="tab" data-tab="file">已备案</div>
+      <div class="tab" data-tab="lock">防重锁定 <span class="badge red">3</span></div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblAz" data-static>
+        <thead>
+          <tr>
+            <th>房源编号</th>
+            <th>安置项目</th>
+            <th>房号</th>
+            <th class="num">建筑面积（㎡）</th>
+            <th>征收项目</th>
+            <th>被征收户</th>
+            <th>征收协议号</th>
+            <th>分配状态</th>
+            <th>防重校验</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">AZFY450200000862</td>
+            <td class="nowrap">柳州城投·和园（安置房）</td>
+            <td class="nowrap">2-1-0802</td>
+            <td class="num nowrap">96.42</td>
+            <td class="nowrap">城中区五菱大道片区征收</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap"><span class="badge cyan">待分配</span></td>
+            <td class="nowrap"><span class="badge green">空闲可配</span></td>
+            <td class="col-ops"><span class="link" onclick="openAlloc('AZFY450200000862','2-1-0802')">分配</span><span class="link" onclick="openView('AZFY450200000862')">查看</span></td>
+          </tr>
+          <tr data-st="alloc">
+            <td class="nowrap fw-600">AZFY450200000848</td>
+            <td class="nowrap">柳州城投·和园（安置房）</td>
+            <td class="nowrap">1-2-0602</td>
+            <td class="num nowrap">89.36</td>
+            <td class="nowrap">城中区五菱大道片区征收</td>
+            <td class="nowrap">罗美英</td>
+            <td class="nowrap">AZ2020-0862</td>
+            <td class="nowrap"><span class="badge blue">已分配</span></td>
+            <td class="nowrap"><span class="badge green">一房一户</span></td>
+            <td class="col-ops"><span class="link" onclick="openView('AZFY450200000848')">查看</span><span class="link" onclick="PMS.toast('安置备案申请已提交，转政策性住房备案','success')">安置备案</span></td>
+          </tr>
+          <tr data-st="file">
+            <td class="nowrap fw-600">AZFY450200000836</td>
+            <td class="nowrap">柳州城投·和园（安置房）</td>
+            <td class="nowrap">5-1-0402</td>
+            <td class="num nowrap">92.60</td>
+            <td class="nowrap">鱼峰区屏山大道片区征收</td>
+            <td class="nowrap">卢秀兰</td>
+            <td class="nowrap">AZ2018-0426</td>
+            <td class="nowrap"><span class="badge green">已备案</span></td>
+            <td class="nowrap"><span class="badge green">一房一户</span></td>
+            <td class="col-ops"><span class="link" onclick="openView('AZFY450200000836')">查看</span><a class="link" href="filing-cert.html">备案证明</a></td>
+          </tr>
+          <tr data-st="lock" class="row-dup">
+            <td class="nowrap fw-600">AZFY450200000824</td>
+            <td class="nowrap">柳州城投·和园（安置房）</td>
+            <td class="nowrap">3-1-1102</td>
+            <td class="num nowrap">96.42</td>
+            <td class="nowrap">城中区五菱大道片区征收</td>
+            <td class="nowrap">莫建平 / 争议</td>
+            <td class="nowrap">AZ2023-0318</td>
+            <td class="nowrap"><span class="badge red">防重锁定</span></td>
+            <td class="nowrap"><span class="badge red">房号冲突</span></td>
+            <td class="col-ops"><span class="link" onclick="openDup('AZFY450200000824','3-1-1102')">防重详情</span><span class="link" onclick="PMS.toast('已解除锁定？须先撤销冲突分配','error')">解锁</span></td>
+          </tr>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">AZFY450200000812</td>
+            <td class="nowrap">柳州城投·和园（安置房）</td>
+            <td class="nowrap">4-2-1602</td>
+            <td class="num nowrap">86.20</td>
+            <td class="nowrap">柳南区柳石路片区征收</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap"><span class="badge cyan">待分配</span></td>
+            <td class="nowrap"><span class="badge green">空闲可配</span></td>
+            <td class="col-ops"><span class="link" onclick="openAlloc('AZFY450200000812','4-2-1602')">分配</span><span class="link" onclick="openView('AZFY450200000812')">查看</span></td>
+          </tr>
+          <tr data-st="alloc">
+            <td class="nowrap fw-600">AZFY450200000798</td>
+            <td class="nowrap">柳州人才安居·锦华苑</td>
+            <td class="nowrap">2-1-0802</td>
+            <td class="num nowrap">86.20</td>
+            <td class="nowrap">柳北区跃进路片区征收</td>
+            <td class="nowrap">梁建国</td>
+            <td class="nowrap">AZ2020-0618</td>
+            <td class="nowrap"><span class="badge blue">已分配</span></td>
+            <td class="nowrap"><span class="badge green">一房一户</span></td>
+            <td class="col-ops"><span class="link" onclick="openView('AZFY450200000798')">查看</span><span class="link" onclick="PMS.toast('安置备案申请已提交','success')">安置备案</span></td>
+          </tr>
+          <tr data-st="file">
+            <td class="nowrap fw-600">AZFY450200000786</td>
+            <td class="nowrap">柳州城投·和园（安置房）</td>
+            <td class="nowrap">6-1-0902</td>
+            <td class="num nowrap">108.26</td>
+            <td class="nowrap">城中区文昌路片区征收</td>
+            <td class="nowrap">韦文彬</td>
+            <td class="nowrap">AZ2019-0520</td>
+            <td class="nowrap"><span class="badge green">已备案</span></td>
+            <td class="nowrap"><span class="badge green">一房一户</span></td>
+            <td class="col-ops"><span class="link" onclick="openView('AZFY450200000786')">查看</span><a class="link" href="filing-cert.html">备案证明</a></td>
+          </tr>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">AZFY450200000772</td>
+            <td class="nowrap">柳州城投·和园（安置房）</td>
+            <td class="nowrap">7-2-1206</td>
+            <td class="num nowrap">118.65</td>
+            <td class="nowrap">柳江区拉堡镇片区征收</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap"><span class="badge cyan">待分配</span></td>
+            <td class="nowrap"><span class="badge green">空闲可配</span></td>
+            <td class="col-ops"><span class="link" onclick="openAlloc('AZFY450200000772','7-2-1206')">分配</span><span class="link" onclick="openView('AZFY450200000772')">查看</span></td>
+          </tr>
+          <tr data-st="lock" class="row-dup">
+            <td class="nowrap fw-600">AZFY450200000758</td>
+            <td class="nowrap">柳州城投·和园（安置房）</td>
+            <td class="nowrap">8-1-1502</td>
+            <td class="num nowrap">92.48</td>
+            <td class="nowrap">鱼峰区白云路片区征收</td>
+            <td class="nowrap">覃志刚</td>
+            <td class="nowrap">AZ2019-1206</td>
+            <td class="nowrap"><span class="badge red">防重锁定</span></td>
+            <td class="nowrap"><span class="badge red">户主重复占房</span></td>
+            <td class="col-ops"><span class="link" onclick="openDup('AZFY450200000758','8-1-1502')">防重详情</span></td>
+          </tr>
+          <tr data-st="file">
+            <td class="nowrap fw-600">AZFY450200000746</td>
+            <td class="nowrap">柳州人才安居·锦华苑</td>
+            <td class="nowrap">3-1-1802</td>
+            <td class="num nowrap">118.65</td>
+            <td class="nowrap">城中区五菱大道片区征收</td>
+            <td class="nowrap">黄晓峰</td>
+            <td class="nowrap">AZ2018-1112</td>
+            <td class="nowrap"><span class="badge green">已备案</span></td>
+            <td class="nowrap"><span class="badge green">一房一户</span></td>
+            <td class="col-ops"><span class="link" onclick="openView('AZFY450200000746')">查看</span><a class="link" href="filing-cert.html">备案证明</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 分配登记 -->
+  <div class="drawer-mask"></div>
+  <div class="drawer drawer-lg" id="dwAlloc">
+    <div class="drawer-head">
+      <h3>安置房源分配登记 · <span id="alFy">—</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="section-title">房源信息</div>
+      <dl class="desc-list">
+        <div class="desc-item"><dt>房源编号</dt><dd id="alFy2">—</dd></div>
+        <div class="desc-item"><dt>安置项目</dt><dd>柳州城投·和园（安置房）</dd></div>
+        <div class="desc-item"><dt>房号</dt><dd id="alRm">—</dd></div>
+        <div class="desc-item"><dt>建筑面积</dt><dd>96.42 ㎡</dd></div>
+        <div class="desc-item"><dt>户型</dt><dd>三室两厅</dd></div>
+        <div class="desc-item"><dt>当前状态</dt><dd><span class="badge cyan">待分配</span></dd></div>
+      </dl>
+
+      <div class="section-title mt-16">被征收户</div>
+      <div class="form-grid form-align">
+        <div class="form-item"><label>征收协议号<span class="req">*</span></label><input type="text" value="AZ2020-0862"></div>
+        <div class="form-item"><label>户主姓名<span class="req">*</span></label><input type="text" value="梁建国"></div>
+        <div class="form-item"><label>户主证件号<span class="req">*</span></label><input type="text" value="4502**********1826"></div>
+        <div class="form-item"><label>征收项目<span class="req">*</span></label><select><option>城中区五菱大道片区征收</option><option>鱼峰区屏山大道片区征收</option><option>柳南区柳石路片区征收</option></select></div>
+        <div class="form-item"><label>家庭人口<span class="req">*</span></label><input type="number" value="3"></div>
+        <div class="form-item"><label>应安置面积（㎡）</label><input type="text" value="96.00"></div>
+        <div class="form-item col-full">
+          <label>是否校验一房一户<span class="req">*</span></label>
+          <div class="radio-line">
+            <label><input type="radio" name="chk" value="y" checked> 是（强制防重）</label>
+            <label><input type="radio" name="chk" value="n"> 否（仅管理员可跳过，须留痕）</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert alert-info mt-16">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>提交时系统将校验：① 该房号是否已分配；② 该户主 / 协议号是否已占用其他安置房。任一冲突将拦截并生成防重锁定记录。</div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn" onclick="runChk()"><i class="fa-solid fa-shield-halved"></i> 预检防重</button>
+      <button type="button" class="btn btn-primary" onclick="submitAlloc()"><i class="fa-solid fa-check"></i> 确认分配</button>
+    </div>
+  </div>
+
+  <!-- 防重详情 -->
+  <div class="drawer drawer-lg" id="dwDup">
+    <div class="drawer-head">
+      <h3>一房一户防重详情 · <span id="dpRm">—</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="dup-box">
+        <div class="fw-600 mb-8"><i class="fa-solid fa-ban text-danger"></i> 检测到分配冲突，房源已锁定</div>
+        <div class="text-2 text-sm">冲突类型：同一房号存在两条有效分配记录，或同一户主在本项目占用多套房源。</div>
+      </div>
+      <div class="section-title mt-16">冲突对照</div>
+      <table class="data-table compact">
+        <thead><tr><th>记录</th><th>房源编号</th><th>房号</th><th>户主</th><th>协议号</th><th>分配日期</th><th>状态</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="nowrap">主记录</td>
+            <td class="nowrap" id="dpFy">—</td>
+            <td class="nowrap" id="dpRm2">—</td>
+            <td class="nowrap">莫建平</td>
+            <td class="nowrap">AZ2023-0318</td>
+            <td class="nowrap">2026-07-18</td>
+            <td class="nowrap"><span class="badge red">锁定中</span></td>
+          </tr>
+          <tr>
+            <td class="nowrap">冲突记录</td>
+            <td class="nowrap">AZFY450200000824-B</td>
+            <td class="nowrap" id="dpRm3">—</td>
+            <td class="nowrap">李国荣</td>
+            <td class="nowrap">AZ2023-0320</td>
+            <td class="nowrap">2026-07-20</td>
+            <td class="nowrap"><span class="badge red">冲突</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="form-item mt-16">
+        <label>处置意见<span class="req">*</span></label>
+        <textarea>拟撤销冲突记录（李国荣 / AZ2023-0320），保留先分配的主记录，解锁后重新分配其他空闲房源。</textarea>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+      <button type="button" class="btn btn-danger" onclick="PMS.closeDrawer('dwDup');PMS.toast('已撤销冲突分配记录，房源恢复待分配','success')"><i class="fa-solid fa-trash"></i> 撤销冲突记录</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer('dwDup');PMS.toast('已解锁主记录，保持当前分配','success')"><i class="fa-solid fa-unlock"></i> 确认主记录并解锁</button>
+    </div>
+  </div>
+
+  <!-- 查看 -->
+  <div class="drawer drawer-lg" id="dwView">
+    <div class="drawer-head">
+      <h3>安置房源档案 · <span id="vFy">—</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <dl class="desc-list">
+        <div class="desc-item"><dt>房源编号</dt><dd id="vFy2">—</dd></div>
+        <div class="desc-item"><dt>安置项目</dt><dd>柳州城投·和园（安置房）</dd></div>
+        <div class="desc-item"><dt>坐落</dt><dd>城中区五菱大道东侧</dd></div>
+        <div class="desc-item"><dt>规划用途</dt><dd>住宅（征收安置）</dd></div>
+        <div class="desc-item"><dt>登记日期</dt><dd>2025-11-18</dd></div>
+        <div class="desc-item"><dt>权属单位</dt><dd>XXXX市城市投资建设发展集团</dd></div>
+      </dl>
+      <div class="section-title mt-16">分配与备案轨迹</div>
+      <table class="data-table compact">
+        <thead><tr><th>时间</th><th>事项</th><th>经办人</th><th>结果</th></tr></thead>
+        <tbody>
+          <tr><td class="nowrap">2025-11-18</td><td class="nowrap">房源登记入库</td><td class="nowrap">系统</td><td class="nowrap"><span class="badge green">完成</span></td></tr>
+          <tr><td class="nowrap">2026-03-12</td><td class="nowrap">一房一户预检</td><td class="nowrap">系统</td><td class="nowrap"><span class="badge green">通过</span></td></tr>
+          <tr><td class="nowrap">2026-03-12</td><td class="nowrap">分配登记</td><td class="nowrap">覃某某</td><td class="nowrap"><span class="badge blue">已分配</span></td></tr>
+          <tr><td class="nowrap">2026-04-08</td><td class="nowrap">安置备案</td><td class="nowrap">韦国强</td><td class="nowrap"><span class="badge green">已备案</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+      <button type="button" class="btn" onclick="location.href='policy-list.html'">转交易备案</button>
+    </div>
+  </div>
+
+  <!-- 登记房源 -->
+  <div class="drawer drawer-lg" id="dwReg">
+    <div class="drawer-head">
+      <h3>登记安置房源</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="form-grid form-align">
+        <div class="form-item"><label>安置项目<span class="req">*</span></label><select><option>柳州城投·和园（安置房）</option><option>柳州人才安居·锦华苑</option></select></div>
+        <div class="form-item"><label>楼栋<span class="req">*</span></label><input type="text" value="2"></div>
+        <div class="form-item"><label>单元<span class="req">*</span></label><input type="text" value="1"></div>
+        <div class="form-item"><label>房号<span class="req">*</span></label><input type="text" value="0802"></div>
+        <div class="form-item"><label>建筑面积（㎡）<span class="req">*</span></label><input type="number" value="96.42" step="0.01"></div>
+        <div class="form-item"><label>套内面积（㎡）</label><input type="number" value="82.60" step="0.01"></div>
+        <div class="form-item"><label>户型</label><select><option>三室两厅</option><option>两室两厅</option><option>四室两厅</option></select></div>
+        <div class="form-item"><label>权属单位<span class="req">*</span></label><input type="text" value="XXXX市城市投资建设发展集团"></div>
+        <div class="form-item col-full">
+          <label>入库前防重校验<span class="req">*</span></label>
+          <div class="radio-line">
+            <label><input type="radio" name="regChk" checked> 校验项目+楼栋+房号唯一</label>
+            <label><input type="radio" name="regChk"> 跳过（须管理员授权）</label>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer('dwReg');PMS.toast('房源已登记入库，防重校验通过：项目+楼栋+房号唯一','success')"><i class="fa-solid fa-check"></i> 登记入库</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  var table = document.getElementById('tblAz');
+  document.getElementById('stTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var name = tab.getAttribute('data-tab');
+    document.querySelectorAll('#stTabs .tab').forEach(function (t) {
+      t.classList.toggle('active', t.getAttribute('data-tab') === name);
+    });
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.style.display = (name === 'all' || tr.getAttribute('data-st') === name) ? '' : 'none';
+    });
+  });
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 1286,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+
+function openAlloc(fy, rm) {
+  document.getElementById('alFy').textContent = fy;
+  document.getElementById('alFy2').textContent = fy;
+  document.getElementById('alRm').textContent = rm;
+  PMS.openDrawer('dwAlloc');
+}
+
+function openView(fy) {
+  document.getElementById('vFy').textContent = fy;
+  document.getElementById('vFy2').textContent = fy;
+  PMS.openDrawer('dwView');
+}
+
+function openDup(fy, rm) {
+  document.getElementById('dpFy').textContent = fy;
+  document.getElementById('dpRm').textContent = rm;
+  document.getElementById('dpRm2').textContent = rm;
+  document.getElementById('dpRm3').textContent = rm;
+  PMS.openDrawer('dwDup');
+}
+
+function runChk() {
+  PMS.toast('防重预检通过：房号空闲、户主未占用其他安置房', 'success');
+}
+
+function submitAlloc() {
+  PMS.closeDrawer('dwAlloc');
+  PMS.toast('分配成功：一房一户校验通过，房源状态更新为已分配', 'success');
+}
+</script>
+</body>
+</html>

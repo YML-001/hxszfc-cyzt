@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>告警与调用审计 · 统一应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../../assets/css/app.css">
+<link rel="stylesheet" href="../../../assets/css/wssvc.css">
+</head>
+<body data-role="admin" data-active="wssvc-66">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 统一应用服务平台
+        <span class="sep">/</span> 服务接入与治理 <span class="sep">/</span> <span class="cur">告警与调用审计</span>
+      </div>
+      <div class="page-title">告警与调用审计</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="monitor.html"><i class="fa-solid fa-heart-pulse"></i> 运行监控</a>
+      <a class="btn" href="call-log.html"><i class="fa-solid fa-list"></i> 调用日志</a>
+      <button class="btn" onclick="SVC.exportAsync('告警与审计记录')"><i class="fa-solid fa-download"></i> 导出</button>
+      <button class="btn btn-primary" onclick="PMS.openDrawer('ruleDrawer')"><i class="fa-solid fa-plus"></i> 新增告警规则</button>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-bell"></i>
+    <div><b>告警发出去没人接，等于没告警</b>。所以这里管的是闭环：谁签收、几时处置、怎么关闭，
+      超时未签收自动升级到科室负责人。审计管的是另一件事——
+      <b>敏感接口调了什么、日志被谁导走了</b>，这两类动作要能按人、按应用倒查，
+      出了数据泄露才有据可依。</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><div class="s-label">待处理告警</div><div class="s-value">7</div><div class="s-trend text-danger">2 条超 4 小时未签收</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-user-clock"></i></div>
+      <div><div class="s-label">处理中</div><div class="s-value">3</div><div class="s-trend">平均已处置 6 小时</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">本月已闭环</div><div class="s-value">64</div><div class="s-trend text-success">平均闭环 3.2 小时</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-sliders"></i></div>
+      <div><div class="s-label">生效告警规则</div><div class="s-value">18</div><div class="s-trend">覆盖四类服务</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-shield-halved"></i></div>
+      <div><div class="s-label">本月审计事件</div><div class="s-value">126</div><div class="s-trend">日志导出 34 · 敏感调用 92</div></div>
+    </div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="alarm">告警处置 10</div>
+      <div class="tab" data-tab="rule">告警规则</div>
+      <div class="tab" data-tab="audit">调用审计</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="alarm">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>紧急度</label><select><option value="">全部</option><option>紧急</option><option>重要</option><option>一般</option></select></div>
+          <div class="filter-item"><label>服务</label><select><option value="">全部</option><option>统一签约服务</option><option>政银直连服务</option><option>统一文件服务</option><option>统一消息服务</option><option>平台级</option></select></div>
+          <div class="filter-item"><label>状态</label><select><option value="">全部</option><option>待签收</option><option>处理中</option><option>已闭环</option><option>已忽略</option></select></div>
+          <div class="filter-item"><label>责任人</label><select><option value="">全部</option><option>韦志明</option><option>罗建国</option><option>覃海燕</option></select></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已检索告警','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="PMS.toast('已重置为默认条件')">重置</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>告警时间</th><th>紧急度</th><th>服务</th><th>告警内容</th><th>触发规则</th><th>责任人</th><th>已过</th><th>状态</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr class="clickable" onclick="PMS.openDrawer('alarmDrawer')">
+                <td class="nowrap">17:24</td><td><span class="badge red">紧急</span></td><td>政银直连</td>
+                <td class="cell-lg">桂林银行「到账流水推送」连续失败 18 次，成功率跌至 94.6%</td>
+                <td class="cell-lg">连续失败 ≥ 10 次</td><td class="nowrap">罗建国</td><td class="text-danger">4h12m</td>
+                <td><span class="badge red">待签收</span></td>
+                <td><span class="link danger" onclick="event.stopPropagation();PMS.toast('已签收，进入处理中','success')">签收</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('alarmDrawer')">
+                <td class="nowrap">昨日 09:00</td><td><span class="badge red">紧急</span></td><td>平台级</td>
+                <td class="cell-lg">建设银行接口证书 2026-08-28 到期，剩 27 天</td>
+                <td class="cell-lg">证书临期 ≤ 30 天</td><td class="nowrap">韦志明</td><td class="text-danger">1天12h</td>
+                <td><span class="badge red">待签收</span></td>
+                <td><span class="link danger" onclick="event.stopPropagation();PMS.toast('已签收，进入处理中','success')">签收</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('alarmDrawer')">
+                <td class="nowrap">19:36</td><td><span class="badge orange">重要</span></td><td>统一消息</td>
+                <td class="cell-lg">移动短信通道余额 8,420 条，低于告警线 1 万条</td>
+                <td class="cell-lg">通道余额 ≤ 10000 条</td><td class="nowrap">覃海燕</td><td>2h00m</td>
+                <td><span class="badge orange">处理中</span></td>
+                <td><span class="link" onclick="event.stopPropagation();PMS.toast('已提交充值申请单','success')">去充值</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('alarmDrawer')">
+                <td class="nowrap">09:00</td><td><span class="badge orange">重要</span></td><td>平台级</td>
+                <td class="cell-lg">3 把接入密钥超 180 天未轮换，最久 198 天</td>
+                <td class="cell-lg">密钥超轮换周期</td><td class="nowrap">韦志明</td><td>12h36m</td>
+                <td><span class="badge orange">处理中</span></td>
+                <td><a class="link" href="key-cert.html">去轮换</a></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('alarmDrawer')">
+                <td class="nowrap">15:42</td><td><span class="badge orange">重要</span></td><td>统一签约</td>
+                <td class="cell-lg">4 份合同落章失败，自治区签章平台返回「印章未授权给该应用」</td>
+                <td class="cell-lg">同类失败 ≥ 3 次</td><td class="nowrap">覃海燕</td><td>5h54m</td>
+                <td><span class="badge orange">处理中</span></td>
+                <td><a class="link" href="../sign/call-log.html">看失败</a></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('alarmDrawer')">
+                <td class="nowrap">21:12</td><td><span class="badge orange">重要</span></td><td>统一文件</td>
+                <td class="cell-lg">AI 平台 OCR 配额已用 98%，预计 22:10 耗尽</td>
+                <td class="cell-lg">配额水位 ≥ 95%</td><td class="nowrap">韦志明</td><td>24m</td>
+                <td><span class="badge red">待签收</span></td>
+                <td><a class="link" href="quota.html">去提额</a></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('alarmDrawer')">
+                <td class="nowrap">16:40</td><td><span class="badge orange">重要</span></td><td>平台级</td>
+                <td class="cell-lg">中介与经纪机构管理系统回调地址连续 12 次不可达</td>
+                <td class="cell-lg">回调失败 ≥ 10 次</td><td class="nowrap">韦志明</td><td>4h56m</td>
+                <td><span class="badge red">待签收</span></td>
+                <td><a class="link" href="app-access.html">看应用</a></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('alarmDrawer')">
+                <td class="nowrap">18:22</td><td><span class="badge blue">一般</span></td><td>平台级</td>
+                <td class="cell-lg">来自 113.12.**.** 的非白名单调用被拒绝</td>
+                <td class="cell-lg">非白名单来源</td><td class="nowrap">韦志明</td><td>3h14m</td>
+                <td><span class="badge red">待签收</span></td>
+                <td><span class="link" onclick="event.stopPropagation();PMS.toast('已转安全审计，核查来源归属','success')">转审计</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('alarmDrawer')">
+                <td class="nowrap">08:00</td><td><span class="badge blue">一般</span></td><td>统一文件</td>
+                <td class="cell-lg">存储水位 68%，按近 30 日增速预计 11 月触及 80% 扩容线</td>
+                <td class="cell-lg">存储水位 ≥ 65%</td><td class="nowrap">韦志明</td><td>13h36m</td>
+                <td><span class="badge red">待签收</span></td>
+                <td><a class="link" href="../file/overview.html">看容量</a></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('alarmDrawer')">
+                <td class="nowrap">昨日 14:20</td><td><span class="badge blue">一般</span></td><td>平台级</td>
+                <td class="cell-lg">文件服务 v1 版本下线倒计时剩 14 天，仍有 1 个应用在调</td>
+                <td class="cell-lg">下线倒计时 ≤ 15 天</td><td class="nowrap">韦志明</td><td>1天7h</td>
+                <td><span class="badge orange">处理中</span></td>
+                <td><a class="link" href="service-catalog.html">去催办</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="rule">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>规则要留够「不误报」的余量。比如成功率告警不能按单次算，
+            要按「5 分钟窗口内至少 20 次调用且成功率跌破阈值」才触发，
+            否则夜里跑两笔失败一笔就报警，<b>报多了大家就不看了</b>。</div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>规则名称</th><th>适用范围</th><th>触发条件</th><th>紧急度</th><th>通知方式</th><th>责任人</th><th>升级规则</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr class="clickable" onclick="PMS.openDrawer('ruleDrawer')"><td class="cell-lg">接口连续失败</td><td>全部服务</td><td class="cell-lg">同接口连续失败 ≥ 10 次</td><td><span class="badge red">紧急</span></td><td>短信 + 站内 + 邮件</td><td class="nowrap">按服务归属</td><td>2 小时未签收升科长</td><td><span class="badge green">启用</span></td><td><span class="link">编辑</span></td></tr>
+              <tr class="clickable" onclick="PMS.openDrawer('ruleDrawer')"><td class="cell-lg">成功率跌破阈值</td><td>全部服务</td><td class="cell-lg">5 分钟内调用 ≥ 20 次且成功率 &lt; 95%</td><td><span class="badge red">紧急</span></td><td>短信 + 站内</td><td class="nowrap">按服务归属</td><td>2 小时未签收升科长</td><td><span class="badge green">启用</span></td><td><span class="link">编辑</span></td></tr>
+              <tr class="clickable" onclick="PMS.openDrawer('ruleDrawer')"><td class="cell-lg">响应时延超标</td><td>全部服务</td><td class="cell-lg">P95 连续 3 个统计周期 &gt; 1500 ms</td><td><span class="badge orange">重要</span></td><td>站内 + 邮件</td><td class="nowrap">按服务归属</td><td>4 小时未签收升科长</td><td><span class="badge green">启用</span></td><td><span class="link">编辑</span></td></tr>
+              <tr class="clickable" onclick="PMS.openDrawer('ruleDrawer')"><td class="cell-lg">数据到达超时</td><td>政银直连</td><td class="cell-lg">到账推送超约定时限 5 分钟</td><td><span class="badge red">紧急</span></td><td>短信 + 站内</td><td class="nowrap">罗建国</td><td>2 小时未签收升科长</td><td><span class="badge green">启用</span></td><td><span class="link">编辑</span></td></tr>
+              <tr class="clickable" onclick="PMS.openDrawer('ruleDrawer')"><td class="cell-lg">配额水位告警</td><td>全部服务</td><td class="cell-lg">日配额已用 ≥ 95%</td><td><span class="badge orange">重要</span></td><td>站内</td><td class="nowrap">韦志明</td><td>不升级</td><td><span class="badge green">启用</span></td><td><span class="link">编辑</span></td></tr>
+              <tr class="clickable" onclick="PMS.openDrawer('ruleDrawer')"><td class="cell-lg">证书密钥临期</td><td>平台级</td><td class="cell-lg">证书剩 ≤ 90 天 / 密钥超轮换周期</td><td><span class="badge orange">重要</span></td><td>站内 + 邮件</td><td class="nowrap">韦志明</td><td>剩 30 天升科长</td><td><span class="badge green">启用</span></td><td><span class="link">编辑</span></td></tr>
+              <tr class="clickable" onclick="PMS.openDrawer('ruleDrawer')"><td class="cell-lg">短信通道余额不足</td><td>统一消息</td><td class="cell-lg">通道余额 ≤ 10000 条</td><td><span class="badge orange">重要</span></td><td>短信 + 站内</td><td class="nowrap">覃海燕</td><td>余额 ≤ 3000 升科长</td><td><span class="badge green">启用</span></td><td><span class="link">编辑</span></td></tr>
+              <tr class="clickable" onclick="PMS.openDrawer('ruleDrawer')"><td class="cell-lg">存储水位告警</td><td>统一文件</td><td class="cell-lg">存储占用 ≥ 65%</td><td><span class="badge blue">一般</span></td><td>站内</td><td class="nowrap">韦志明</td><td>≥ 85% 升科长</td><td><span class="badge green">启用</span></td><td><span class="link">编辑</span></td></tr>
+              <tr class="clickable" onclick="PMS.openDrawer('ruleDrawer')"><td class="cell-lg">非白名单来源调用</td><td>平台级</td><td class="cell-lg">来源 IP 不在白名单内</td><td><span class="badge blue">一般</span></td><td>站内 + 记审计</td><td class="nowrap">韦志明</td><td>同日 ≥ 20 次升紧急</td><td><span class="badge green">启用</span></td><td><span class="link">编辑</span></td></tr>
+              <tr class="clickable" onclick="PMS.openDrawer('ruleDrawer')"><td class="cell-lg">回调地址不可达</td><td>平台级</td><td class="cell-lg">同应用回调连续失败 ≥ 10 次</td><td><span class="badge orange">重要</span></td><td>站内 + 邮件</td><td class="nowrap">韦志明</td><td>不升级</td><td><span class="badge green">启用</span></td><td><span class="link">编辑</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="audit">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-shield-halved"></i>
+          <div>进审计的是两类动作：<b>敏感接口调用</b>（涉及身份证号、账户号、合同全文的接口）
+            与<b>日志导出</b>。审计记录只增不改不删，保存三年，
+            按人、按应用、按时段都能倒查。</div>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-item"><label>事件类型</label><select><option value="">全部</option><option>敏感接口调用</option><option>日志导出</option><option>配置变更</option><option>密钥轮换</option><option>应用停用</option></select></div>
+          <div class="filter-item"><label>操作人</label><input type="text" placeholder="姓名或账号"></div>
+          <div class="filter-item"><label>涉及应用</label><select><option value="">全部</option><option>存量房网签备案系统</option><option>预售资金监管系统</option><option>AI 应用服务平台</option></select></div>
+          <div class="filter-item"><label>时间范围</label><select><option>近 7 日</option><option>近 30 日</option><option>近 90 日</option><option>自定义</option></select></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已检索审计记录','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="PMS.toast('已重置为默认条件')">重置</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>时间</th><th>事件类型</th><th>操作人 / 应用</th><th>动作</th><th>涉及数据</th><th>来源 IP</th><th>结果</th></tr></thead>
+            <tbody>
+              <tr><td class="nowrap">2026-08-01 20:42</td><td><span class="badge purple">日志导出</span></td><td class="nowrap">韦志明 · 信息科</td><td class="cell-lg">导出政银直连近 7 日调用日志</td><td class="cell-lg">12,486 条，含账户号（脱敏）</td><td class="nowrap">10.86.10.24</td><td><span class="badge green">成功</span></td></tr>
+              <tr><td class="nowrap">2026-08-01 16:18</td><td><span class="badge blue">敏感调用</span></td><td class="nowrap">存量房网签备案系统</td><td class="cell-lg">调用实名核验接口 486 次</td><td class="cell-lg">身份证号 486 个</td><td class="nowrap">10.86.12.8</td><td><span class="badge green">正常</span></td></tr>
+              <tr><td class="nowrap">2026-08-01 15:06</td><td><span class="badge orange">配置变更</span></td><td class="nowrap">韦志明 · 信息科</td><td class="cell-lg">调整 AI 平台 OCR 日配额 3000 → 5000</td><td class="cell-lg">配额策略 QT-0042</td><td class="nowrap">10.86.10.24</td><td><span class="badge green">成功</span></td></tr>
+              <tr><td class="nowrap">2026-08-01 11:24</td><td><span class="badge blue">敏感调用</span></td><td class="nowrap">预售资金监管系统</td><td class="cell-lg">批量查询监管账户流水</td><td class="cell-lg">账户 128 个，流水 3,462 条</td><td class="nowrap">10.86.14.6</td><td><span class="badge green">正常</span></td></tr>
+              <tr><td class="nowrap">2026-08-01 09:42</td><td><span class="badge red">应用拒绝</span></td><td class="nowrap">旧版档案系统</td><td class="cell-lg">已停用应用尝试调用文件上传</td><td class="cell-lg">—</td><td class="nowrap">10.86.11.6</td><td><span class="badge red">已拒绝</span></td></tr>
+              <tr><td class="nowrap">2026-07-31 18:22</td><td><span class="badge red">异常来源</span></td><td class="nowrap">未知调用方</td><td class="cell-lg">非白名单 IP 尝试调用文件下载</td><td class="cell-lg">—</td><td class="nowrap">113.12.**.**</td><td><span class="badge red">已拒绝</span></td></tr>
+              <tr><td class="nowrap">2026-07-31 14:50</td><td><span class="badge purple">日志导出</span></td><td class="nowrap">覃海燕 · 信息科</td><td class="cell-lg">导出短信发送流水用于月度账单核对</td><td class="cell-lg">26,184 条，含手机号（脱敏）</td><td class="nowrap">10.86.10.31</td><td><span class="badge green">成功</span></td></tr>
+              <tr><td class="nowrap">2026-07-14 10:24</td><td><span class="badge orange">密钥轮换</span></td><td class="nowrap">韦志明 · 信息科</td><td class="cell-lg">轮换 AI 应用服务平台接入密钥</td><td class="cell-lg">APP-AI-0010</td><td class="nowrap">10.86.10.24</td><td><span class="badge green">成功</span></td></tr>
+              <tr><td class="nowrap">2026-06-28 16:40</td><td><span class="badge red">应用停用</span></td><td class="nowrap">韦志明 · 信息科</td><td class="cell-lg">停用旧版档案系统全部调用</td><td class="cell-lg">APP-OLD-0018，证书一并吊销</td><td class="nowrap">10.86.10.24</td><td><span class="badge green">成功</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="drawer-mask" onclick="PMS.closeDrawer('alarmDrawer')"></div>
+  <div class="drawer" id="alarmDrawer">
+    <div class="drawer-head">
+      <h3>告警处置 · 桂林银行到账流水推送连续失败</h3>
+      <span class="close" onclick="PMS.closeDrawer('alarmDrawer')"><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="svc-resp bad">
+        <span><i class="fa-solid fa-triangle-exclamation"></i> <b>紧急</b></span>
+        <span>触发 <b>17:24</b></span>
+        <span>已过 <b>4h12m</b></span>
+        <span>状态 <b>待签收</b></span>
+      </div>
+      <dl class="svc-kv">
+        <dt>触发规则</dt><dd>接口连续失败 ≥ 10 次（实际 18 次）</dd>
+        <dt>服务 / 接口</dt><dd>政银直连服务 / 到账流水推送</dd>
+        <dt>三方</dt><dd>桂林银行柳州分行</dd>
+        <dt>业务影响</dt><dd>18 笔缴存流水未自动入账，涉及 3 个预售项目、金额约 486 万元</dd>
+        <dt>责任人</dt><dd>罗建国 · 资金监管科</dd>
+        <dt>升级状态</dt><dd class="text-danger">已超 2 小时未签收，19:24 已自动升级至科室负责人</dd>
+      </dl>
+      <div class="section-title mt-16">处置过程</div>
+      <div class="timeline">
+        <div class="tl-item"><span class="tl-dot"></span>
+          <div class="tl-title">系统自动触发告警</div>
+          <div class="tl-meta">17:24 · 规则「接口连续失败」</div>
+          <div class="tl-desc">短信与站内消息已发给罗建国，抄送资金监管科科长。</div>
+        </div>
+        <div class="tl-item"><span class="tl-dot"></span>
+          <div class="tl-title">自动重试三轮全部超时</div>
+          <div class="tl-meta">17:24 - 17:27 · 系统</div>
+          <div class="tl-desc">按重试策略间隔 30 秒、1 分钟、1 分钟各推一次，均无响应，已入待人工处置队列。</div>
+        </div>
+        <div class="tl-item"><span class="tl-dot"></span>
+          <div class="tl-title">告警升级至科室负责人</div>
+          <div class="tl-meta">19:24 · 系统</div>
+          <div class="tl-desc">超 2 小时未签收，按升级规则通知资金监管科科长。</div>
+        </div>
+      </div>
+      <div class="form-grid mt-16">
+        <div class="form-item"><label>处置方式 <span class="req">*</span></label>
+          <select><option>联系三方排查</option><option>调整参数规避</option><option>切换备用通道</option><option>转人工登记差错</option><option>误报，忽略</option></select>
+        </div>
+        <div class="form-item"><label>预计完成</label><input type="date" value="2026-08-04"></div>
+        <div class="form-item col-full"><label>处置说明 <span class="req">*</span></label>
+          <textarea placeholder="请输入">已电话联系桂林银行科技部值班人员，对方确认 21:00 后日终批处理与推送接口共用连接池导致排队。已发函要求 8 月 10 日前完成连接池隔离；在此之前，先在直连参数配置里把该行接收时窗避开 21:00-23:00，改由平台次日 08:00 主动拉取补齐，18 笔流水已用接口调试台的模拟回传补录完成。</textarea>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn" onclick="PMS.closeDrawer('alarmDrawer')">取消</button>
+      <button class="btn" onclick="PMS.toast('已签收，进入处理中','success')"><i class="fa-solid fa-hand"></i> 签收</button>
+      <button class="btn btn-primary" onclick="PMS.confirm({title:'闭环告警',message:'确认处置完成并关闭本条告警？',detail:'关闭后若同一接口再次连续失败，会重新触发新的告警。',okText:'闭环',onOk:function(){PMS.toast('告警已闭环','success');PMS.closeDrawer('alarmDrawer')}})"><i class="fa-solid fa-check"></i> 处置完成并闭环</button>
+    </div>
+  </div>
+
+  <div class="drawer-mask" onclick="PMS.closeDrawer('ruleDrawer')"></div>
+  <div class="drawer" id="ruleDrawer">
+    <div class="drawer-head">
+      <h3>告警规则 · 接口连续失败</h3>
+      <span class="close" onclick="PMS.closeDrawer('ruleDrawer')"><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="form-grid">
+        <div class="form-item"><label>规则名称 <span class="req">*</span></label><input type="text" value="接口连续失败"></div>
+        <div class="form-item"><label>适用范围 <span class="req">*</span></label><select><option>全部服务</option><option>统一签约服务</option><option>政银直连服务</option><option>统一文件服务</option><option>统一消息服务</option><option>平台级</option></select></div>
+        <div class="form-item"><label>指标</label><select><option>连续失败次数</option><option>成功率</option><option>P95 时延</option><option>数据到达时延</option><option>配额水位</option></select></div>
+        <div class="form-item"><label>阈值 <span class="req">*</span></label><input type="number" value="10"></div>
+        <div class="form-item"><label>统计窗口</label><select><option>不设窗口（连续计数）</option><option>1 分钟</option><option>5 分钟</option><option>15 分钟</option></select></div>
+        <div class="form-item"><label>最小样本量</label><input type="number" value="0" placeholder="窗口内至少多少次调用才判定"></div>
+        <div class="form-item"><label>紧急度</label><select><option>紧急</option><option>重要</option><option>一般</option></select></div>
+        <div class="form-item"><label>静默期</label><select><option>30 分钟</option><option>1 小时</option><option>不静默</option></select></div>
+        <div class="form-item col-full"><label>通知方式</label>
+          <div class="svc-chips">
+            <span class="on" onclick="SVC.chip(this)">短信</span>
+            <span class="on" onclick="SVC.chip(this)">站内消息</span>
+            <span class="on" onclick="SVC.chip(this)">邮件</span>
+            <span onclick="SVC.chip(this)">企业微信</span>
+            <span onclick="SVC.chip(this)">电话外呼</span>
+          </div>
+        </div>
+        <div class="form-item"><label>责任人指派</label><select><option>按服务归属自动指派</option><option>固定指派</option></select></div>
+        <div class="form-item"><label>未签收升级</label><select><option>2 小时升科室负责人</option><option>4 小时升科室负责人</option><option>不升级</option></select></div>
+        <div class="form-item col-full"><label>规则说明</label>
+          <textarea>同一接口连续失败达到阈值即触发，不看比例只看连续次数——这类故障通常是对方服务挂了或证书过期，早报早处置。静默期内同一接口不重复报，避免刷屏。</textarea>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn" onclick="PMS.closeDrawer('ruleDrawer')">取消</button>
+      <button class="btn" onclick="PMS.toast('按近 30 日历史数据回放：本规则会触发 42 次，其中误报 3 次')"><i class="fa-solid fa-flask"></i> 历史回放校验</button>
+      <button class="btn btn-primary" onclick="PMS.toast('规则已保存并生效','success');PMS.closeDrawer('ruleDrawer')"><i class="fa-solid fa-check"></i> 保存</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../../assets/js/app.js"></script>
+<script src="../../../assets/js/wssvc.js"></script>
+</body>
+</html>

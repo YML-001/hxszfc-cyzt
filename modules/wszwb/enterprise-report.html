@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>企业开业报告与名录 · 房屋租赁网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：材料核对清单、对外公开名录卡 */
+  .card.list-card > .tab-panel.active > .card-body { flex: 1 1 auto; min-height: 0; overflow: auto; }
+
+  .mat-row {
+    display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: var(--radius); background: #fff;
+  }
+  .mat-row + .mat-row { margin-top: 8px; }
+  .mat-row input[type=checkbox] { margin-top: 3px; }
+  .mat-row .mr-t { font-size: 13.5px; font-weight: 600; }
+  .mat-row .mr-d { font-size: 12.5px; color: var(--text-3); margin-top: 3px; }
+  .mat-row .mr-op { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+
+  .pub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+  .pub-card {
+    position: relative; border: 1px solid var(--border); border-radius: var(--radius);
+    background: #fff; padding: 15px 16px; overflow: hidden;
+  }
+  .pub-card .pc-n { font-size: 14.5px; font-weight: 700; color: var(--text-1); line-height: 1.5; }
+  .pub-card .pc-tp { font-size: 12.5px; color: var(--text-3); margin-top: 5px; }
+  .pub-card .pc-m { display: flex; gap: 22px; margin-top: 11px; }
+  .pub-card .pc-m div { font-size: 12px; color: var(--text-3); }
+  .pub-card .pc-m b { display: block; font-size: 17px; font-weight: 700; color: var(--text-1); letter-spacing: -.5px; }
+  .pub-card .pc-b { position: absolute; right: 14px; top: 14px; }
+  .pub-card.black { border-color: #fecaca; background: #fff6f6; }
+  .pub-card .pc-ban {
+    margin: 12px -16px -15px; padding: 9px 16px; background: #fee2e2; color: #b91c1c;
+    font-size: 12.5px; font-weight: 600; display: flex; align-items: center; gap: 7px;
+  }
+
+  .data-table tbody tr.is-warn > td { background: #fff8ed; }
+  .data-table tbody tr.is-warn:hover > td { background: #fdf0d9; }
+  .data-table tbody tr.is-bad > td { background: #fff5f5; }
+  .data-table tbody tr.is-bad:hover > td { background: #ffecec; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wszwb-19">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋租赁网签备案管理系统
+        <span class="sep">/</span> 租赁备案服务
+        <span class="sep">/</span> <span class="cur">企业开业报告与名录</span>
+      </div>
+      <div class="page-title">租赁企业开业报告与备案名录</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" onclick="PMS.openDrawer('drAdd')"><i class="fa-solid fa-plus"></i> 新增开业报告</button>
+      <button type="button" class="btn" onclick="PMS.openModal('mdPub')"><i class="fa-solid fa-globe"></i> 名录对外公开设置</button>
+      <button type="button" class="btn" onclick="PMS.toast('已导出《企业开业报告与门店名录》Excel','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-building"></i></div>
+      <div><div class="s-label">已报告企业</div><div class="s-value">68 <small>家</small></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-plus"></i></div>
+      <div><div class="s-label">本月新增</div><div class="s-value">6 <small>家</small></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-store"></i></div>
+      <div><div class="s-label">备案门店</div><div class="s-value">214 <small>家</small></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-ban"></i></div>
+      <div><div class="s-label">已注销</div><div class="s-value">12 <small>家</small></div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      未完成开业报告的住房租赁企业不得在平台内签约。企业经营状态变更为注销或吊销的，其门店备案同步失效，名录中标红公示。
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="tabs" data-tabs-scope>
+      <div class="tab active" data-tab="report">开业报告受理</div>
+      <div class="tab" data-tab="store">门店备案名录</div>
+      <div class="tab" data-tab="pub">对外公开名录预览</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="report">
+      <div class="filter-bar">
+        <div class="filter-item"><label>关键词</label><input type="text" placeholder="企业名称 / 统一社会信用代码 / 报告编号"></div>
+        <div class="filter-item">
+          <label>企业类型</label>
+          <select>
+            <option value="">全部</option>
+            <option>住房租赁经营企业（自持出租）</option><option>住房租赁经营企业（转租）</option>
+            <option>房地产经纪机构</option><option>物业服务企业兼营</option><option>公租房运营机构</option>
+            <option>保障性租赁住房运营机构</option><option>其他</option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <label>开业报告状态</label>
+          <select><option value="">全部</option><option>未报告</option><option>已报告</option><option>已注销</option></select>
+        </div>
+        <div class="filter-item">
+          <label>经营状态</label>
+          <select><option value="">全部</option><option>正常</option><option>异常</option><option>注销</option><option>吊销</option></select>
+        </div>
+        <div class="filter-item"><label>报告时间起</label><input type="date" value="2026-01-01"></div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 80 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table" id="tblQy" data-static>
+          <thead>
+            <tr>
+              <th>开业报告编号</th><th>企业名称</th><th>统一社会信用代码</th><th>企业类型</th><th>法定代表人</th>
+              <th class="num">注册资本(万元)</th><th>成立日期</th><th>报告时间</th><th>报告状态</th><th>经营状态</th>
+              <th class="num">门店数</th><th class="num">从业人员</th><th class="num">管理房源(套)</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="nowrap fw-600">KYBG20260026</td>
+              <td class="cell-lg">柳州安居住房租赁有限公司</td>
+              <td class="nowrap">91450200MA5N8K2X3F</td>
+              <td class="nowrap">住房租赁经营企业（自持出租）</td>
+              <td class="nowrap">韦国强</td>
+              <td class="num">5,000.00</td>
+              <td class="nowrap">2019-06-18</td>
+              <td class="nowrap">2026-03-12</td>
+              <td class="nowrap"><span class="badge green">已报告</span></td>
+              <td class="nowrap"><span class="badge green">正常</span></td>
+              <td class="num">18</td>
+              <td class="num">126</td>
+              <td class="num">3,286</td>
+              <td class="col-ops">
+                <a class="link" href="enterprise-supervise.html">查看详情</a>
+                <span class="link" onclick="openAudit('柳州安居住房租赁有限公司')">受理审核</span>
+                <span class="link" onclick="PMS.openDrawer('drChange')">变更</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">KYBG20260031</td>
+              <td class="cell-lg">XXXX市安家房地产经纪有限公司</td>
+              <td class="nowrap">91450200MA5P2L7Q8K</td>
+              <td class="nowrap">房地产经纪机构</td>
+              <td class="nowrap">莫建国</td>
+              <td class="num">500.00</td>
+              <td class="nowrap">2021-03-08</td>
+              <td class="nowrap">2026-04-02</td>
+              <td class="nowrap"><span class="badge green">已报告</span></td>
+              <td class="nowrap"><span class="badge green">正常</span></td>
+              <td class="num">6</td>
+              <td class="num">48</td>
+              <td class="num">862</td>
+              <td class="col-ops">
+                <a class="link" href="enterprise-supervise.html">查看详情</a>
+                <span class="link" onclick="openAudit('XXXX市安家房地产经纪有限公司')">受理审核</span>
+                <span class="link" onclick="PMS.openDrawer('drChange')">变更</span>
+              </td>
+            </tr>
+            <tr class="is-warn">
+              <td class="nowrap text-3">—</td>
+              <td class="cell-lg">柳州星宿公寓管理有限公司</td>
+              <td class="nowrap">91450200MA5T6R4W2N</td>
+              <td class="nowrap">住房租赁经营企业（转租）</td>
+              <td class="nowrap">卢某某</td>
+              <td class="num">200.00</td>
+              <td class="nowrap">2026-05-18</td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap"><span class="badge red">未报告</span></td>
+              <td class="nowrap"><span class="badge green">正常</span></td>
+              <td class="num">2</td>
+              <td class="num">11</td>
+              <td class="num">186</td>
+              <td class="col-ops">
+                <span class="link" onclick="openAudit('柳州星宿公寓管理有限公司')">受理审核</span>
+                <span class="link" onclick="PMS.toast('已发送开业报告催办短信','success')">催报</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">KYBG20260018</td>
+              <td class="cell-lg">柳州人才发展集团有限公司</td>
+              <td class="nowrap">91450200MA5J9H1D6M</td>
+              <td class="nowrap">保障性租赁住房运营机构</td>
+              <td class="nowrap">陆某某</td>
+              <td class="num">20,000.00</td>
+              <td class="nowrap">2022-09-01</td>
+              <td class="nowrap">2026-02-20</td>
+              <td class="nowrap"><span class="badge green">已报告</span></td>
+              <td class="nowrap"><span class="badge green">正常</span></td>
+              <td class="num">9</td>
+              <td class="num">86</td>
+              <td class="num">2,486</td>
+              <td class="col-ops">
+                <a class="link" href="enterprise-supervise.html">查看详情</a>
+                <span class="link" onclick="openAudit('柳州人才发展集团有限公司')">受理审核</span>
+                <span class="link" onclick="PMS.openDrawer('drChange')">变更</span>
+              </td>
+            </tr>
+            <tr class="is-bad">
+              <td class="nowrap fw-600">KYBG20250142</td>
+              <td class="cell-lg">柳州快住公寓服务有限公司</td>
+              <td class="nowrap">91450200MA5W3X8Y5P</td>
+              <td class="nowrap">住房租赁经营企业（转租）</td>
+              <td class="nowrap">黄某某</td>
+              <td class="num">100.00</td>
+              <td class="nowrap">2023-04-12</td>
+              <td class="nowrap">2025-08-06</td>
+              <td class="nowrap"><span class="badge gray">已注销</span></td>
+              <td class="nowrap"><span class="badge red">吊销</span><br><span class="text-3 text-sm">已列入黑名单</span></td>
+              <td class="num">0</td>
+              <td class="num">0</td>
+              <td class="num">0</td>
+              <td class="col-ops">
+                <a class="link" href="violation-ledger.html">违规记录</a>
+                <a class="link" href="enterprise-supervise.html">查看详情</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">KYBG20260009</td>
+              <td class="cell-lg">XXXX市城投住房租赁有限公司</td>
+              <td class="nowrap">91450200MA5K7F2B9L</td>
+              <td class="nowrap">公租房运营机构</td>
+              <td class="nowrap">周某某</td>
+              <td class="num">10,000.00</td>
+              <td class="nowrap">2020-11-26</td>
+              <td class="nowrap">2026-01-16</td>
+              <td class="nowrap"><span class="badge green">已报告</span></td>
+              <td class="nowrap"><span class="badge green">正常</span></td>
+              <td class="num">12</td>
+              <td class="num">94</td>
+              <td class="num">4,182</td>
+              <td class="col-ops">
+                <a class="link" href="enterprise-supervise.html">查看详情</a>
+                <span class="link" onclick="openAudit('XXXX市城投住房租赁有限公司')">受理审核</span>
+                <span class="link" onclick="cancelCorp('XXXX市城投住房租赁有限公司')">注销</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="store">
+      <div class="filter-bar">
+        <div class="filter-item"><label>关键词</label><input type="text" placeholder="门店编号 / 门店名称 / 所属企业"></div>
+        <div class="filter-item">
+          <label>备案状态</label>
+          <select><option value="">全部</option><option>已备案</option><option>变更中</option><option>已停业</option></select>
+        </div>
+        <div class="filter-item">
+          <label>经营状态</label>
+          <select><option value="">全部</option><option>正常</option><option>异常</option><option>停业</option></select>
+        </div>
+        <div class="filter-item">
+          <label>是否公示信息</label>
+          <select><option value="">全部</option><option>是</option><option>否</option></select>
+        </div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 214 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table" id="tblMd" data-static>
+          <thead>
+            <tr>
+              <th>门店编号</th><th>门店名称</th><th>所属企业</th><th>门店地址</th><th>负责人</th><th>联系电话</th>
+              <th class="num">门店面积(㎡)</th><th class="num">从业人员</th><th>开业日期</th><th>备案状态</th><th>经营状态</th>
+              <th>是否公示</th><th>最近检查</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="nowrap fw-600">MD450200000186</td>
+              <td class="cell-lg">安居租赁 · 文昌路旗舰店</td>
+              <td class="cell-lg">柳州安居住房租赁有限公司</td>
+              <td class="cell-lg">城中区文昌路 68 号 1 层 102 号</td>
+              <td class="nowrap">莫小芳</td>
+              <td class="nowrap">0772-268****</td>
+              <td class="num">168.00</td>
+              <td class="num">12</td>
+              <td class="nowrap">2021-05-08</td>
+              <td class="nowrap"><span class="badge green">已备案</span></td>
+              <td class="nowrap"><span class="badge green">正常</span></td>
+              <td class="nowrap"><span class="badge green">是</span></td>
+              <td class="nowrap">2026-06-18</td>
+              <td class="col-ops">
+                <a class="link" href="enterprise-supervise.html">查看</a>
+                <span class="link" onclick="PMS.openDrawer('drChange')">变更备案</span>
+                <span class="link" onclick="stopStore('MD450200000186')">停业备案</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">MD450200000214</td>
+              <td class="cell-lg">安家经纪 · 屏山大道店</td>
+              <td class="cell-lg">XXXX市安家房地产经纪有限公司</td>
+              <td class="cell-lg">鱼峰区屏山大道 122 号 1 层 8 号</td>
+              <td class="nowrap">李冬梅</td>
+              <td class="nowrap">0772-386****</td>
+              <td class="num">96.00</td>
+              <td class="num">8</td>
+              <td class="nowrap">2022-08-16</td>
+              <td class="nowrap"><span class="badge green">已备案</span></td>
+              <td class="nowrap"><span class="badge green">正常</span></td>
+              <td class="nowrap"><span class="badge green">是</span></td>
+              <td class="nowrap">2026-05-22</td>
+              <td class="col-ops">
+                <a class="link" href="enterprise-supervise.html">查看</a>
+                <span class="link" onclick="PMS.openDrawer('drChange')">变更备案</span>
+                <span class="link" onclick="stopStore('MD450200000214')">停业备案</span>
+              </td>
+            </tr>
+            <tr class="is-warn">
+              <td class="nowrap fw-600">MD450200000268</td>
+              <td class="cell-lg">星宿公寓 · 跃进路店</td>
+              <td class="cell-lg">柳州星宿公寓管理有限公司</td>
+              <td class="cell-lg">柳北区跃进路 35 号 2 层 205 号</td>
+              <td class="nowrap">卢某某</td>
+              <td class="nowrap">0772-512****</td>
+              <td class="num">62.00</td>
+              <td class="num">5</td>
+              <td class="nowrap">2026-05-26</td>
+              <td class="nowrap"><span class="badge orange">变更中</span></td>
+              <td class="nowrap"><span class="badge orange">异常</span><br><span class="text-3 text-sm">所属企业未报开业</span></td>
+              <td class="nowrap"><span class="badge red">否</span></td>
+              <td class="nowrap">2026-07-08</td>
+              <td class="col-ops">
+                <a class="link" href="enterprise-supervise.html">检查记录</a>
+                <span class="link" onclick="PMS.openDrawer('drChange')">变更备案</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">MD450200000142</td>
+              <td class="cell-lg">人才驿站 · 柳东运营中心</td>
+              <td class="cell-lg">柳州人才发展集团有限公司</td>
+              <td class="cell-lg">柳东新区花岭路 8 号 A 座 1 层</td>
+              <td class="nowrap">周建华</td>
+              <td class="nowrap">0772-628****</td>
+              <td class="num">240.00</td>
+              <td class="num">16</td>
+              <td class="nowrap">2023-01-12</td>
+              <td class="nowrap"><span class="badge green">已备案</span></td>
+              <td class="nowrap"><span class="badge green">正常</span></td>
+              <td class="nowrap"><span class="badge green">是</span></td>
+              <td class="nowrap">2026-07-02</td>
+              <td class="col-ops">
+                <a class="link" href="enterprise-supervise.html">查看</a>
+                <span class="link" onclick="PMS.openDrawer('drChange')">变更备案</span>
+                <span class="link" onclick="stopStore('MD450200000142')">停业备案</span>
+              </td>
+            </tr>
+            <tr class="is-bad">
+              <td class="nowrap fw-600">MD450200000097</td>
+              <td class="cell-lg">快住公寓 · 白露大道店</td>
+              <td class="cell-lg">柳州快住公寓服务有限公司</td>
+              <td class="cell-lg">柳北区白露大道 79 号 1 层 3 号</td>
+              <td class="nowrap">黄某某</td>
+              <td class="nowrap">0772-448****</td>
+              <td class="num">78.00</td>
+              <td class="num">0</td>
+              <td class="nowrap">2023-05-20</td>
+              <td class="nowrap"><span class="badge gray">已停业</span></td>
+              <td class="nowrap"><span class="badge red">停业</span><br><span class="text-3 text-sm">所属企业已吊销</span></td>
+              <td class="nowrap"><span class="badge red">否</span></td>
+              <td class="nowrap">2026-03-14</td>
+              <td class="col-ops">
+                <a class="link" href="violation-ledger.html">违规记录</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="pub">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>以下为统一服务门户（wsmh）对外公开的租赁企业名录展示效果，公开字段与展示顺序可在「名录对外公开设置」中调整。</div>
+        </div>
+        <div class="pub-grid">
+          <div class="pub-card">
+            <div class="pc-b"><span class="badge green">信用 A</span></div>
+            <div class="pc-n">柳州人才发展集团有限公司</div>
+            <div class="pc-tp">保障性租赁住房运营机构 · 已开业报告</div>
+            <div class="pc-m">
+              <div><b>2,486</b> 管理房源(套)</div>
+              <div><b>9</b> 门店(家)</div>
+              <div><b>2</b> 投诉(件)</div>
+            </div>
+          </div>
+          <div class="pub-card">
+            <div class="pc-b"><span class="badge blue">信用 B</span></div>
+            <div class="pc-n">柳州安居住房租赁有限公司</div>
+            <div class="pc-tp">住房租赁经营企业（自持出租） · 已开业报告</div>
+            <div class="pc-m">
+              <div><b>3,286</b> 管理房源(套)</div>
+              <div><b>18</b> 门店(家)</div>
+              <div><b>9</b> 投诉(件)</div>
+            </div>
+          </div>
+          <div class="pub-card">
+            <div class="pc-b"><span class="badge green">信用 A</span></div>
+            <div class="pc-n">XXXX市城投住房租赁有限公司</div>
+            <div class="pc-tp">公租房运营机构 · 已开业报告</div>
+            <div class="pc-m">
+              <div><b>4,182</b> 管理房源(套)</div>
+              <div><b>12</b> 门店(家)</div>
+              <div><b>4</b> 投诉(件)</div>
+            </div>
+          </div>
+          <div class="pub-card">
+            <div class="pc-b"><span class="badge blue">信用 B</span></div>
+            <div class="pc-n">XXXX市安家房地产经纪有限公司</div>
+            <div class="pc-tp">房地产经纪机构 · 已开业报告</div>
+            <div class="pc-m">
+              <div><b>862</b> 管理房源(套)</div>
+              <div><b>6</b> 门店(家)</div>
+              <div><b>6</b> 投诉(件)</div>
+            </div>
+          </div>
+          <div class="pub-card">
+            <div class="pc-b"><span class="badge orange">信用 C</span></div>
+            <div class="pc-n">柳州星宿公寓管理有限公司</div>
+            <div class="pc-tp">住房租赁经营企业（转租） · <span class="text-danger">未开业报告</span></div>
+            <div class="pc-m">
+              <div><b>186</b> 管理房源(套)</div>
+              <div><b>2</b> 门店(家)</div>
+              <div><b>14</b> 投诉(件)</div>
+            </div>
+          </div>
+          <div class="pub-card black">
+            <div class="pc-b"><span class="badge red">黑名单</span></div>
+            <div class="pc-n">柳州快住公寓服务有限公司</div>
+            <div class="pc-tp">住房租赁经营企业（转租） · 已吊销</div>
+            <div class="pc-m">
+              <div><b>0</b> 管理房源(套)</div>
+              <div><b>0</b> 门店(家)</div>
+              <div><b>42</b> 投诉(件)</div>
+            </div>
+            <div class="pc-ban"><i class="fa-solid fa-triangle-exclamation"></i> 已列入黑名单，请谨慎交易</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 受理审核抽屉 -->
+  <div class="drawer-mask" data-close-drawer></div>
+  <div class="drawer drawer-lg" id="drAudit">
+    <div class="drawer-head"><span>开业报告受理审核 · <span id="auName">柳州安居住房租赁有限公司</span></span><i class="fa-solid fa-xmark" data-close-drawer></i></div>
+    <div class="drawer-body">
+      <div class="section-title">企业基本信息</div>
+      <dl class="desc-list">
+        <div class="desc-item"><dt>企业名称</dt><dd class="fw-600" id="auName2">柳州安居住房租赁有限公司</dd></div>
+        <div class="desc-item"><dt>统一社会信用代码</dt><dd>91450200MA5N8K2X3F</dd></div>
+        <div class="desc-item"><dt>企业类型</dt><dd>住房租赁经营企业（自持出租）</dd></div>
+        <div class="desc-item"><dt>法定代表人</dt><dd>韦国强</dd></div>
+        <div class="desc-item"><dt>注册资本</dt><dd>5,000.00 万元</dd></div>
+        <div class="desc-item"><dt>成立日期</dt><dd>2019-06-18</dd></div>
+        <div class="desc-item"><dt>注册地址</dt><dd>柳州市城中区文昌路 68 号 12 层</dd></div>
+        <div class="desc-item"><dt>联系电话</dt><dd>0772-268****</dd></div>
+      </dl>
+
+      <div class="section-title mt-16">材料清单核对</div>
+      <div class="mat-row">
+        <input type="checkbox" class="mt-ck" checked>
+        <div><div class="mr-t">营业执照</div><div class="mr-d">经营范围含住房租赁经营，有效期内</div></div>
+        <div class="mr-op"><span class="badge green">齐全</span><span class="link" onclick="PMS.toast('已打开材料预览（演示）')">预览</span></div>
+      </div>
+      <div class="mat-row">
+        <input type="checkbox" class="mt-ck" checked>
+        <div><div class="mr-t">法定代表人身份证明</div><div class="mr-d">身份证正反面影像，与工商登记一致</div></div>
+        <div class="mr-op"><span class="badge green">齐全</span><span class="link" onclick="PMS.toast('已打开材料预览（演示）')">预览</span></div>
+      </div>
+      <div class="mat-row">
+        <input type="checkbox" class="mt-ck" checked>
+        <div><div class="mr-t">经营场所证明</div><div class="mr-d">房屋租赁合同或产权证明，含 18 家门店地址</div></div>
+        <div class="mr-op"><span class="badge green">齐全</span><span class="link" onclick="PMS.toast('已打开材料预览（演示）')">预览</span></div>
+      </div>
+      <div class="mat-row">
+        <input type="checkbox" class="mt-ck" checked>
+        <div><div class="mr-t">从业人员名单</div><div class="mr-d">126 人，含身份信息与岗位，经纪人员 42 人已登记执业编号</div></div>
+        <div class="mr-op"><span class="badge green">齐全</span><span class="link" onclick="PMS.toast('已打开材料预览（演示）')">预览</span></div>
+      </div>
+      <div class="mat-row">
+        <input type="checkbox" class="mt-ck" checked>
+        <div><div class="mr-t">房源管理制度</div><div class="mr-d">含房源核验、发布审核、租金收付与投诉处理制度</div></div>
+        <div class="mr-op"><span class="badge green">齐全</span><span class="link" onclick="PMS.toast('已打开材料预览（演示）')">预览</span></div>
+      </div>
+      <div class="mat-row">
+        <input type="checkbox" class="mt-ck" checked>
+        <div><div class="mr-t">租金监管账户开户证明</div><div class="mr-d">桂林银行柳州分行营业部，账号 6217****3086</div></div>
+        <div class="mr-op"><span class="badge green">齐全</span><span class="link" onclick="PMS.toast('已打开材料预览（演示）')">预览</span></div>
+      </div>
+
+      <div class="form-grid form-align mt-16">
+        <div class="form-item col-full"><label>受理意见</label><textarea rows="3">材料齐全，符合法定形式，企业类型与经营范围一致，同意受理并出具开业报告回执。</textarea></div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn" onclick="PMS.closeDrawer();PMS.toast('已退回补正并短信告知企业','success')">退回补正</button>
+      <button type="button" class="btn btn-primary" onclick="passAudit()">受理通过</button>
+    </div>
+  </div>
+
+  <!-- 变更抽屉 -->
+  <div class="drawer" id="drChange">
+    <div class="drawer-head"><span>变更备案</span><i class="fa-solid fa-xmark" data-close-drawer></i></div>
+    <div class="drawer-body">
+      <div class="form-grid form-align">
+        <div class="form-item col-full">
+          <label>变更事项<span class="req">*</span></label>
+          <select><option>企业名称</option><option>法定代表人</option><option selected>门店地址</option><option>联系电话</option><option>从业人员</option><option>监管账户</option></select>
+        </div>
+        <div class="form-item col-full"><label>变更前</label><input type="text" readonly value="城中区文昌路 68 号 1 层 102 号"></div>
+        <div class="form-item col-full"><label>变更后<span class="req">*</span></label><input type="text" value="城中区文昌路 68 号 1 层 106 号"></div>
+        <div class="form-item"><label>变更生效日期</label><input type="date" value="2026-08-10"></div>
+        <div class="form-item"><label>变更材料</label><input type="file"></div>
+        <div class="form-item col-full"><label>变更说明</label><textarea rows="3">因商铺租约到期，门店迁至同一楼栋 106 号，面积与人员不变。</textarea></div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('变更备案已提交受理','success')">提交</button>
+    </div>
+  </div>
+
+  <!-- 名录公开设置弹窗 -->
+  <div class="modal-mask" id="mdPub">
+  <div class="modal modal-sm" style="width:640px;max-width:calc(100vw - 40px)">
+    <div class="modal-head"><span>名录对外公开设置</span><i class="fa-solid fa-xmark" data-close-modal style="float:right;cursor:pointer"></i></div>
+    <div class="modal-body">
+      <div class="section-title">公开字段</div>
+      <div class="form-grid form-align" style="grid-template-columns:1fr 1fr">
+        <div class="form-item col-full">
+          <label>企业信息</label>
+          <div style="display:flex;flex-wrap:wrap;gap:14px">
+            <label><input type="checkbox" checked> 企业名称</label>
+            <label><input type="checkbox" checked> 企业类型</label>
+            <label><input type="checkbox" checked> 信用等级</label>
+            <label><input type="checkbox" checked> 开业报告状态</label>
+            <label><input type="checkbox" checked> 管理房源数</label>
+            <label><input type="checkbox" checked> 门店数</label>
+            <label><input type="checkbox" checked> 投诉件数</label>
+            <label><input type="checkbox"> 统一社会信用代码</label>
+            <label><input type="checkbox"> 法定代表人</label>
+          </div>
+        </div>
+        <div class="form-item">
+          <label>排序方式</label>
+          <select><option selected>按信用等级降序</option><option>按管理房源数降序</option><option>按投诉件数升序</option></select>
+        </div>
+        <div class="form-item">
+          <label>黑名单展示</label>
+          <select><option selected>置底并标红提示</option><option>不予展示</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" data-close-modal>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeModal();PMS.toast('名录公开设置已保存并同步至统一服务门户','success')">保存</button>
+    </div>
+  </div>
+  </div>
+
+  <!-- 新增开业报告抽屉 -->
+  <div class="drawer" id="drAdd">
+    <div class="drawer-head"><span>新增开业报告</span><i class="fa-solid fa-xmark" data-close-drawer></i></div>
+    <div class="drawer-body">
+      <div class="form-grid form-align">
+        <div class="form-item col-full"><label>企业名称<span class="req">*</span></label><input type="text" placeholder="请输入企业全称"></div>
+        <div class="form-item"><label>统一社会信用代码<span class="req">*</span></label><input type="text" placeholder="18 位"></div>
+        <div class="form-item">
+          <label>企业类型<span class="req">*</span></label>
+          <select>
+            <option>住房租赁经营企业（自持出租）</option><option>住房租赁经营企业（转租）</option>
+            <option>房地产经纪机构</option><option>物业服务企业兼营</option><option>公租房运营机构</option>
+            <option>保障性租赁住房运营机构</option><option>其他</option>
+          </select>
+        </div>
+        <div class="form-item"><label>法定代表人<span class="req">*</span></label><input type="text"></div>
+        <div class="form-item"><label>注册资本(万元)</label><input type="number" step="0.01"></div>
+        <div class="form-item"><label>成立日期</label><input type="date"></div>
+        <div class="form-item"><label>联系电话<span class="req">*</span></label><input type="text"></div>
+        <div class="form-item col-full"><label>注册地址<span class="req">*</span></label><input type="text"></div>
+        <div class="form-item"><label>门店数</label><input type="number" value="1"></div>
+        <div class="form-item"><label>从业人员数</label><input type="number" value="0"></div>
+        <div class="form-item col-full"><label>租金监管账户</label><input type="text" placeholder="开户行 + 账号"></div>
+        <div class="form-item col-full"><label>报告材料</label><input type="file" multiple></div>
+      </div>
+      <div class="alert alert-info mt-16">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>住房租赁企业应当自开展经营业务之日起 30 日内报送开业信息；未报送的不得在平台内签约。</div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('开业报告已提交，报告编号 KYBG20260032','success')">提交</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function openAudit(name) {
+  document.getElementById('auName').textContent = name;
+  document.getElementById('auName2').textContent = name;
+  PMS.openDrawer('drAudit');
+}
+
+function passAudit() {
+  var all = Array.prototype.every.call(document.querySelectorAll('.mt-ck'), function (c) { return c.checked; });
+  if (!all) { PMS.toast('材料清单尚未逐项核对完成', 'error'); return; }
+  PMS.closeDrawer();
+  PMS.toast('受理通过，已生成开业报告回执并纳入公开名录', 'success');
+}
+
+function cancelCorp(name) {
+  PMS.confirm({
+    title: '注销开业报告',
+    message: '注销「' + name + '」的开业报告？',
+    detail: '注销后该企业不得在平台内签约，其门店备案同步失效，公开名录中标注已注销。',
+    type: 'danger',
+    okText: '注销',
+    onOk: function () { PMS.toast('开业报告已注销，门店备案同步失效', 'success'); }
+  });
+}
+
+function stopStore(no) {
+  PMS.confirm({
+    title: '停业备案',
+    message: '为门店「' + no + '」办理停业备案？',
+    detail: '停业后该门店不再对外公示，其名下在办业务须先行结清。',
+    type: 'warning',
+    okText: '办理停业',
+    onOk: function () { PMS.toast('停业备案已办理', 'success'); }
+  });
+}
+
+(function () {
+  PMS.renderPager(document.getElementById('tblQy'), {
+    pageNum: 1, pageSize: 20, total: 80,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+  PMS.renderPager(document.getElementById('tblMd'), {
+    pageNum: 1, pageSize: 20, total: 214,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+</script>
+</body>
+</html>

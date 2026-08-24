@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>抵押备案总台账 · 房屋交易备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：抵押顺位徽标与房屋限制状态圆点 */
+  .rk {
+    display: inline-block; min-width: 52px; text-align: center; padding: 2px 8px;
+    border-radius: 5px; font-size: 12px; font-weight: 600; color: #fff;
+  }
+  .rk.r1 { background: var(--primary); }
+  .rk.r2 { background: var(--warning); }
+  .rk.r3 { background: var(--danger); }
+  .st-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+  .st-dot.r { background: #dc2626; } .st-dot.o { background: #f59e0b; } .st-dot.g { background: #10b981; }
+  tr.is-dup td:first-child { box-shadow: inset 3px 0 0 var(--warning); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdwb-02">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易备案管理系统
+        <span class="sep">/</span> 抵押合同备案
+        <span class="sep">/</span> <span class="cur">抵押备案总台账</span>
+      </div>
+      <div class="page-title">抵押备案总台账</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" onclick="location.href='mortgage-create.html'"><i class="fa-solid fa-file-circle-plus"></i> 新增抵押备案</button>
+      <button type="button" class="btn" onclick="location.href='bank-online.html'">银行线上办理</button>
+      <button type="button" class="btn" onclick="batchPush()"><i class="fa-solid fa-paper-plane"></i> 批量推送登记</button>
+      <button type="button" class="btn" onclick="PMS.toast('《抵押备案台账》Excel 已生成，正在下载','success')"><i class="fa-solid fa-download"></i> 导出台账</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-file-contract"></i></div>
+      <div><div class="s-label">在办抵押备案</div><div class="s-value">68</div><div class="s-trend text-success">较昨日 +12</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-lock"></i></div>
+      <div><div class="s-label">有效抵押笔数</div><div class="s-value">12,486</div><div class="s-trend text-3">涉及房屋 11,203 套</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-layer-group"></i></div>
+      <div><div class="s-label">第 2 顺位及以上</div><div class="s-value">1,286</div><div class="s-trend text-3">占比 10.3%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-clock-rotate-left"></i></div>
+      <div><div class="s-label">预告抵押未转正</div><div class="s-value">428</div><div class="s-trend text-danger">临期 14 笔</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">本月备案办结</div><div class="s-value">386</div><div class="s-trend text-3">平均办结 1.6 天</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><div class="s-label">推送登记失败</div><div class="s-value">5</div><div class="s-trend text-danger">需重试或转人工</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>预购商品房、在建工程、存量房三类抵押在本台账统一呈现。新增抵押须核验在先抵押并明确顺位；<b>第 2 顺位及以上标橙</b>，重复抵押的行左侧带橙色标记。房屋处于查封状态的一律不得新增抵押。</div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>备案 / 合同编号</label>
+        <input type="text" placeholder="如 DYBA450200202600186">
+      </div>
+      <div class="filter-item">
+        <label>抵押类型</label>
+        <select><option value="">全部</option><option>一般抵押</option><option>最高额抵押</option><option>组合抵押</option><option>转按揭抵押</option></select>
+      </div>
+      <div class="filter-item">
+        <label>抵押物类型</label>
+        <select><option value="">全部</option><option>存量房</option><option>预购商品房</option><option>在建工程</option></select>
+      </div>
+      <div class="filter-item">
+        <label>抵押人</label>
+        <input type="text" placeholder="姓名或名称">
+      </div>
+      <div class="filter-item">
+        <label>抵押权人</label>
+        <select>
+          <option value="">全部</option>
+          <option>中国建设银行柳州分行</option><option>中国银行柳州分行</option>
+          <option>中国工商银行柳州分行</option><option>柳州银行</option>
+          <option>XXXX市住房公积金管理中心</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>房屋坐落</label>
+        <input type="text" placeholder="小区 / 楼栋 / 房号">
+      </div>
+      <div class="filter-item">
+        <label>备案状态</label>
+        <select><option value="">全部</option><option>已备案</option><option>备案中</option><option>已变更</option><option>已注销</option></select>
+      </div>
+      <div class="filter-item">
+        <label>是否重复抵押</label>
+        <select><option value="">全部</option><option>是</option><option>否</option></select>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 12,486 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="ing">备案中 <span class="badge blue">68</span></div>
+      <div class="tab" data-tab="ok">已备案</div>
+      <div class="tab" data-tab="chg">已变更</div>
+      <div class="tab" data-tab="del">已注销</div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblDy" data-static>
+        <thead>
+          <tr>
+            <th>备案编号</th>
+            <th>抵押合同编号</th>
+            <th>抵押物类型</th>
+            <th>房屋坐落</th>
+            <th>抵押人</th>
+            <th>抵押权人</th>
+            <th>被担保债权金额</th>
+            <th>抵押顺位</th>
+            <th>债务履行期限止</th>
+            <th>备案状态</th>
+            <th>房屋限制状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="ing" class="is-dup">
+            <td class="nowrap fw-600">DYBA450200202600186</td>
+            <td class="nowrap">DY450200202600186</td>
+            <td class="nowrap"><span class="badge cyan">存量房</span></td>
+            <td>彰泰滨江学府 12-2-1802</td>
+            <td class="nowrap">陈**</td>
+            <td class="nowrap">中国建设银行柳州分行</td>
+            <td class="num nowrap">486,000.00</td>
+            <td class="nowrap"><span class="rk r2">第 2 顺位</span></td>
+            <td class="nowrap">2046-07-20</td>
+            <td class="nowrap"><span class="badge blue">备案中</span></td>
+            <td class="nowrap"><a class="link" href="restriction-status.html?code=A"><span class="st-dot o"></span>有条件可交易</a></td>
+            <td class="col-ops">
+              <a class="link" href="mortgage-detail.html">详情</a>
+              <a class="link" href="mortgage-change.html">变更</a>
+              <a class="link" href="mortgage-cancel.html">注销</a>
+            </td>
+          </tr>
+          <tr data-st="ok">
+            <td class="nowrap fw-600">DYBA450200202600184</td>
+            <td class="nowrap">DY450200202600184</td>
+            <td class="nowrap"><span class="badge blue">预购商品房</span></td>
+            <td>华润万象天地 2-1-1802</td>
+            <td class="nowrap">黄**</td>
+            <td class="nowrap">中国银行柳州分行</td>
+            <td class="num nowrap">1,286,000.00</td>
+            <td class="nowrap"><span class="rk r1">第 1 顺位</span></td>
+            <td class="nowrap">2056-06-18</td>
+            <td class="nowrap"><span class="badge green">已备案</span></td>
+            <td class="nowrap"><a class="link" href="restriction-status.html"><span class="st-dot o"></span>有条件可交易</a></td>
+            <td class="col-ops">
+              <a class="link" href="mortgage-detail.html">详情</a>
+              <a class="link" href="mortgage-change.html">变更</a>
+              <a class="link" href="mortgage-cancel.html">注销</a>
+            </td>
+          </tr>
+          <tr data-st="ok">
+            <td class="nowrap fw-600">DYBA450200202600178</td>
+            <td class="nowrap">DY450200202600178</td>
+            <td class="nowrap"><span class="badge orange">在建工程</span></td>
+            <td>荣和公园大道项目二期 8 ~ 12 栋</td>
+            <td class="nowrap">柳州荣和房地产开发有限公司</td>
+            <td class="nowrap">中国工商银行柳州分行</td>
+            <td class="num nowrap">180,000,000.00</td>
+            <td class="nowrap"><span class="rk r1">第 1 顺位</span></td>
+            <td class="nowrap">2029-04-17</td>
+            <td class="nowrap"><span class="badge green">已备案</span></td>
+            <td class="nowrap"><a class="link" href="restriction-status.html"><span class="st-dot r"></span>不可交易</a></td>
+            <td class="col-ops">
+              <a class="link" href="project-mortgage.html">详情</a>
+              <a class="link" href="mortgage-change.html">变更</a>
+              <a class="link" href="mortgage-cancel.html">部分注销</a>
+            </td>
+          </tr>
+          <tr data-st="ok">
+            <td class="nowrap fw-600">DYBA450200202600172</td>
+            <td class="nowrap">DY450200202600172</td>
+            <td class="nowrap"><span class="badge cyan">存量房</span></td>
+            <td>阳光100城市广场 3-1-1602</td>
+            <td class="nowrap">莫**</td>
+            <td class="nowrap">柳州银行</td>
+            <td class="num nowrap">368,000.00</td>
+            <td class="nowrap"><span class="rk r1">第 1 顺位</span></td>
+            <td class="nowrap">2041-05-26</td>
+            <td class="nowrap"><span class="badge green">已备案</span></td>
+            <td class="nowrap"><a class="link" href="restriction-status.html"><span class="st-dot r"></span>不可交易</a></td>
+            <td class="col-ops">
+              <a class="link" href="mortgage-detail.html">详情</a>
+              <a class="link" href="mortgage-change.html">变更</a>
+              <a class="link" href="mortgage-cancel.html">注销</a>
+            </td>
+          </tr>
+          <tr data-st="ok" class="is-dup">
+            <td class="nowrap fw-600">DYBA450200202600168</td>
+            <td class="nowrap">DY450200202600168</td>
+            <td class="nowrap"><span class="badge cyan">存量房</span></td>
+            <td>恒大城 8-1-2201</td>
+            <td class="nowrap">吴**</td>
+            <td class="nowrap">中国建设银行柳州分行</td>
+            <td class="num nowrap">240,000.00</td>
+            <td class="nowrap"><span class="rk r3">第 3 顺位</span></td>
+            <td class="nowrap">2036-05-12</td>
+            <td class="nowrap"><span class="badge green">已备案</span></td>
+            <td class="nowrap"><a class="link" href="restriction-status.html"><span class="st-dot r"></span>不可交易</a></td>
+            <td class="col-ops">
+              <a class="link" href="mortgage-detail.html">详情</a>
+              <a class="link" href="mortgage-change.html">变更</a>
+              <a class="link" href="mortgage-cancel.html">注销</a>
+            </td>
+          </tr>
+          <tr data-st="ok">
+            <td class="nowrap fw-600">DYBA450200202600156</td>
+            <td class="nowrap">DY450200202600156</td>
+            <td class="nowrap"><span class="badge blue">预购商品房</span></td>
+            <td>荣和公园大道 8-1-1502</td>
+            <td class="nowrap">李**</td>
+            <td class="nowrap">中国建设银行柳州分行</td>
+            <td class="num nowrap">620,000.00</td>
+            <td class="nowrap"><span class="rk r1">第 1 顺位</span></td>
+            <td class="nowrap">2056-07-01</td>
+            <td class="nowrap"><span class="badge green">已备案</span></td>
+            <td class="nowrap"><a class="link" href="restriction-status.html"><span class="st-dot o"></span>有条件可交易</a></td>
+            <td class="col-ops">
+              <a class="link" href="presale-mortgage.html">详情</a>
+              <a class="link" href="presale-mortgage.html">办理转正</a>
+              <a class="link" href="mortgage-cancel.html">注销</a>
+            </td>
+          </tr>
+          <tr data-st="chg">
+            <td class="nowrap fw-600">DYBA450200202600142</td>
+            <td class="nowrap">DY450200202600142</td>
+            <td class="nowrap"><span class="badge cyan">存量房</span></td>
+            <td>彰泰江湾城 11-1-2801</td>
+            <td class="nowrap">李**</td>
+            <td class="nowrap">中国银行柳州分行</td>
+            <td class="num nowrap">862,000.00</td>
+            <td class="nowrap"><span class="rk r1">第 1 顺位</span></td>
+            <td class="nowrap">2051-03-18</td>
+            <td class="nowrap"><span class="badge orange">已变更</span></td>
+            <td class="nowrap"><a class="link" href="restriction-status.html"><span class="st-dot o"></span>有条件可交易</a></td>
+            <td class="col-ops">
+              <a class="link" href="mortgage-detail.html">详情</a>
+              <a class="link" href="mortgage-change.html">变更记录</a>
+              <a class="link" href="mortgage-cancel.html">注销</a>
+            </td>
+          </tr>
+          <tr data-st="ok">
+            <td class="nowrap fw-600">DYBA450200202600138</td>
+            <td class="nowrap">DY450200202600138</td>
+            <td class="nowrap"><span class="badge cyan">存量房</span></td>
+            <td>万科城 5-2-803</td>
+            <td class="nowrap">黄**</td>
+            <td class="nowrap">柳州银行</td>
+            <td class="num nowrap">420,000.00</td>
+            <td class="nowrap"><span class="rk r1">第 1 顺位</span></td>
+            <td class="nowrap">2042-11-05</td>
+            <td class="nowrap"><span class="badge green">已备案</span></td>
+            <td class="nowrap"><a class="link" href="restriction-status.html?code=B"><span class="st-dot r"></span>不可交易</a></td>
+            <td class="col-ops">
+              <a class="link" href="mortgage-detail.html">详情</a>
+              <span class="link" onclick="PMS.toast('该房屋已被柳南区人民法院查封（CF45020420260126），查封期间不得办理抵押变更','error')">变更</span>
+              <a class="link" href="mortgage-cancel.html">注销</a>
+            </td>
+          </tr>
+          <tr data-st="ok">
+            <td class="nowrap fw-600">DYBA450200202600126</td>
+            <td class="nowrap">DY450200202600126</td>
+            <td class="nowrap"><span class="badge blue">预购商品房</span></td>
+            <td>保利柳江府二期 5-2-1201</td>
+            <td class="nowrap">周**</td>
+            <td class="nowrap">XXXX市住房公积金管理中心</td>
+            <td class="num nowrap">600,000.00</td>
+            <td class="nowrap"><span class="rk r1">第 1 顺位</span></td>
+            <td class="nowrap">2054-10-28</td>
+            <td class="nowrap"><span class="badge green">已备案</span></td>
+            <td class="nowrap"><a class="link" href="restriction-status.html"><span class="st-dot r"></span>不可交易</a></td>
+            <td class="col-ops">
+              <a class="link" href="presale-mortgage.html">详情</a>
+              <a class="link" href="mortgage-change.html">变更</a>
+              <a class="link" href="mortgage-cancel.html">注销</a>
+            </td>
+          </tr>
+          <tr data-st="del">
+            <td class="nowrap fw-600">DYBA450200202300742</td>
+            <td class="nowrap">DY450200202300742</td>
+            <td class="nowrap"><span class="badge cyan">存量房</span></td>
+            <td>彰泰滨江学府 12-2-1802</td>
+            <td class="nowrap">陈**</td>
+            <td class="nowrap">中国银行柳州分行</td>
+            <td class="num nowrap">820,000.00</td>
+            <td class="nowrap"><span class="rk r1">第 1 顺位</span></td>
+            <td class="nowrap">2048-03-19</td>
+            <td class="nowrap"><span class="badge gray">已注销</span></td>
+            <td class="nowrap"><a class="link" href="restriction-status.html?code=A"><span class="st-dot o"></span>有条件可交易</a></td>
+            <td class="col-ops">
+              <a class="link" href="mortgage-detail.html">详情</a>
+              <a class="link" href="mortgage-cancel.html">注销单据</a>
+              <a class="link" href="archive-book.html">备案簿</a>
+            </td>
+          </tr>
+          <tr data-st="ing">
+            <td class="nowrap fw-600">DYBA450200202600188</td>
+            <td class="nowrap">DY450200202600188</td>
+            <td class="nowrap"><span class="badge cyan">存量房</span></td>
+            <td>荣和公园大道 12-1-703</td>
+            <td class="nowrap">覃**</td>
+            <td class="nowrap">中国工商银行柳州分行</td>
+            <td class="num nowrap">538,000.00</td>
+            <td class="nowrap"><span class="rk r1">第 1 顺位</span></td>
+            <td class="nowrap">2046-07-30</td>
+            <td class="nowrap"><span class="badge blue">备案中</span></td>
+            <td class="nowrap"><a class="link" href="restriction-status.html"><span class="st-dot g"></span>可交易</a></td>
+            <td class="col-ops">
+              <a class="link" href="mortgage-detail.html">详情</a>
+              <a class="link" href="mortgage-change.html">变更</a>
+              <a class="link" href="mortgage-cancel.html">注销</a>
+            </td>
+          </tr>
+          <tr data-st="ing">
+            <td class="nowrap fw-600">DYBA450200202600190</td>
+            <td class="nowrap">DY450200202600190</td>
+            <td class="nowrap"><span class="badge cyan">存量房</span></td>
+            <td>荣和公园大道 3-1-902</td>
+            <td class="nowrap">韦**</td>
+            <td class="nowrap">中国建设银行柳州分行</td>
+            <td class="num nowrap">452,000.00</td>
+            <td class="nowrap"><span class="rk r1">第 1 顺位</span></td>
+            <td class="nowrap">2046-08-01</td>
+            <td class="nowrap"><span class="badge blue">备案中</span></td>
+            <td class="nowrap"><a class="link" href="restriction-status.html?code=C"><span class="st-dot g"></span>可交易</a></td>
+            <td class="col-ops">
+              <a class="link" href="mortgage-detail.html">详情</a>
+              <a class="link" href="mortgage-change.html">变更</a>
+              <a class="link" href="mortgage-cancel.html">注销</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  var table = document.getElementById('tblDy');
+  document.getElementById('stTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var name = tab.getAttribute('data-tab');
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.style.display = (name === 'all' || tr.getAttribute('data-st') === name) ? '' : 'none';
+    });
+  });
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 12486,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+
+function batchPush() {
+  PMS.confirm({
+    title: '批量推送不动产登记',
+    message: '确认将勾选的 12 笔已备案抵押批量推送至不动产登记机构？',
+    detail: '推送后可在「登记推送监控」查看推送状态与回传的登记证明号；失败的按 1min / 5min / 30min 三次重试，仍失败转人工。',
+    type: 'info',
+    okText: '确认推送',
+    onOk: function () {
+      PMS.toast('已提交 12 笔推送任务', 'success');
+      setTimeout(function () { location.href = 'registry-push.html'; }, 900);
+    }
+  });
+}
+</script>
+</body>
+</html>

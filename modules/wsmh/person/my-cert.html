@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的证照与消息 · 个人中心</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  /* 我的证照与消息专属布局 */
+  .cert-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .cert-i { border: 1px solid var(--border); border-radius: var(--radius-card); padding: 16px; display: flex; gap: 14px; }
+  .cert-i.exp { border-color: #f7cdca; background: #fffafa; }
+  .cert-ico {
+    width: 52px; height: 52px; border-radius: 12px; flex: none; display: flex; align-items: center;
+    justify-content: center; font-size: 22px; background: var(--primary-light); color: var(--primary);
+  }
+  .cert-i.exp .cert-ico { background: var(--accent-soft); color: var(--accent); }
+  .cert-n { flex: 1; min-width: 0; }
+  .cert-t { font-size: 15px; font-weight: 700; }
+  .cert-m { font-size: 12.5px; color: var(--text-3); margin-top: 6px; line-height: 1.9; }
+  .cert-m b { color: var(--text-2); font-weight: 500; }
+  .cert-acts { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .cert-view { border: 2px solid var(--primary-soft); border-radius: 8px; padding: 22px 26px; background: #fdfdff; }
+  .cert-view .cv-t { text-align: center; font-size: 20px; font-weight: 700; letter-spacing: 3px; }
+  .cert-view .cv-s { text-align: center; font-size: 13px; color: var(--text-3); margin-top: 6px; }
+  .cert-view .cv-b { font-size: 14.5px; line-height: 2.1; margin-top: 18px; text-indent: 2em; }
+  .cert-view .cv-f { display: flex; align-items: flex-end; margin-top: 22px; }
+  .cert-view .cv-qr {
+    width: 92px; height: 92px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-soft);
+    display: flex; align-items: center; justify-content: center; font-size: 40px; color: var(--primary);
+  }
+  .cert-view .cv-sign { margin-left: auto; text-align: right; font-size: 14px; line-height: 2; }
+  /* 证明内的描述列表固定单列，避免宽弹窗下标签与值错位 */
+  .cert-view .desc-list dd { flex: none; width: calc(100% - 160px); min-width: 0; }
+  .msg-i { display: flex; gap: 11px; padding: 12px 14px; border-bottom: 1px solid var(--row-line); cursor: pointer; }
+  .msg-i:last-child { border-bottom: 0; }
+  .msg-i:hover { background: var(--row-hover); }
+  .msg-i.unread { background: var(--primary-light-2); }
+  .msg-i.unread:hover { background: #e9f0fd; }
+  .msg-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; margin-top: 8px; }
+  .msg-dot.read { background: var(--border-strong); }
+  .msg-n { flex: 1; min-width: 0; }
+  .msg-c { font-size: 13px; color: var(--text-2); margin-top: 6px; line-height: 1.8; }
+  .msg-c.fold { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sub-row {
+    display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px dashed var(--row-line);
+  }
+  .sub-row:last-child { border-bottom: 0; }
+  .sub-row .sr-n { flex: 1; min-width: 0; }
+  .sub-row .sr-t { font-size: 14.5px; font-weight: 500; }
+  .sub-row .sr-d { font-size: 12.5px; color: var(--text-3); margin-top: 3px; }
+  .sw { position: relative; display: inline-block; width: 46px; height: 24px; flex: none; }
+  .sw input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .sw span { position: absolute; inset: 0; background: var(--border-strong); border-radius: 12px; cursor: pointer; transition: .2s; }
+  .sw span::before {
+    content: ''; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px;
+    background: #fff; border-radius: 50%; transition: .2s;
+  }
+  .sw input:checked + span { background: var(--primary); }
+  .sw input:checked + span::before { transform: translateX(22px); }
+</style>
+</head>
+<body data-nav="home">
+
+<div class="wrap"><div class="crumb">
+  <a href="../web/home.html">首页</a><i class="fa-solid fa-angle-right"></i>
+  <a href="index.html">个人中心</a><i class="fa-solid fa-angle-right"></i>我的证照与消息
+</div></div>
+
+<div class="wrap">
+  <div class="desk">
+    <aside class="side-menu" id="side"></aside>
+    <main class="desk-main" id="dmain">
+
+      <div class="tabs" data-tabs data-scope="mc-box">
+        <a class="on" data-tab="mc-cert" data-fp="wsmh-30-08"><i class="fa-solid fa-file-shield"></i> 证照与票据</a>
+        <a data-tab="mc-msg" data-fp="wsmh-30-09"><i class="fa-solid fa-envelope"></i> 我的消息与订阅</a>
+      </div>
+
+      <div id="mc-box">
+        <!-- Tab 1：证照与票据（wsmh-30-08） -->
+        <div class="tab-pane on" id="mc-cert">
+          <div class="alert alert-warning">
+            <i class="fa-solid fa-shield-halved"></i>
+            <span><b>敏感字段默认遮蔽，查看需二次身份核验，查看行为全程留痕。</b>
+              权利人姓名、证件号与完整房号在证明中默认显示为遮蔽状态；电子证明与纸质件具有同等效力，
+              可扫码或凭验真码核验真伪。</span>
+          </div>
+          <div id="cert-list"></div>
+        </div>
+
+        <!-- Tab 2：我的消息与订阅（wsmh-30-09） -->
+        <div class="tab-pane" id="mc-msg">
+          <div class="desk-card">
+            <div class="card-head">
+              <h3><i class="fa-solid fa-envelope text-primary"></i> 我的消息</h3>
+              <span class="sub" id="msg-count">—</span>
+              <div class="ca">
+                <button class="btn btn-sm" id="msg-all" data-fp="wsmh-30-09"><i class="fa-solid fa-check-double"></i> 全部标记已读</button>
+              </div>
+            </div>
+            <div class="card-body" style="padding-bottom:12px">
+              <div class="pill-tabs" id="msg-tabs"></div>
+            </div>
+            <div class="card-body np" id="msg-list"></div>
+          </div>
+
+          <!-- 订阅设置 -->
+          <div class="desk-card">
+            <div class="card-head">
+              <h3><i class="fa-solid fa-bell text-primary"></i> 订阅设置</h3>
+              <span class="sub">关闭后不再接收该类推送，站内消息与短信同时生效</span>
+            </div>
+            <div class="card-body" id="sub-set"></div>
+          </div>
+
+          <!-- 我的公示订阅 -->
+          <div class="desk-card">
+            <div class="card-head">
+              <h3><i class="fa-solid fa-rss text-primary"></i> 我的公示订阅</h3>
+              <span class="sub">订阅栏目有新增时推送提醒</span>
+              <div class="ca"><a class="btn btn-sm" href="../web/public-index.html" data-fp="wsmh-05-12">去公示中心添加订阅</a></div>
+            </div>
+            <div class="card-body" id="sub-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="src-note"></div>
+    </main>
+  </div>
+</div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+/* 演示用完整证件号（虚构），默认脱敏展示，查看需二次核验 */
+var ID_NO = '450202198703152816';
+var CERT_SHOW = {}, MSG_F = '', OPEN = {};
+
+function pageInit() {
+  if (!deskGuard('cert')) return;
+  buildMsgTabs();
+  renderAll();
+  document.getElementById('msg-all').onclick = function () {
+    if (!PORTAL.unread()) { UI.toast('当前没有未读消息', 'info'); return; }
+    PORTAL.act('msg.read', { all: 1 });
+    UI.toast('已将全部消息标记为已读，菜单未读角标同步清零', 'success');
+  };
+  document.getElementById('src-note').innerHTML = UI.sourceNote(
+    '证照与票据来源于办件办结后自动出具的电子证明，验真码与「查询中心 → 扫码验真」同源。');
+  var t = UI.param('tab');
+  if (t) { var a = document.querySelector('[data-tab="' + t + '"]'); if (a) a.click(); }
+  PORTAL.on(function () { renderSide('cert'); renderAll(); });
+}
+function renderAll() { renderCerts(); renderMsgs(); renderSubSet(); renderSubs(); }
+
+/* ============ 个人中心左侧菜单（各页统一） ============ */
+function renderSide(active) {
+  var u = UI.user(), login = UI.isLogin();
+  var c = PORTAL.todoCounts();
+  var M = [
+    ['idx', '个人中心首页', 'fa-gauge', 'index.html', 0, 'wsmh-02-06'],
+    ['case', '我的办件', 'fa-list-check', 'my-case.html', c.fix, 'wsmh-30-01'],
+    ['contract', '我的合同与交易', 'fa-file-contract', 'my-contract.html', 0, 'wsmh-30-02'],
+    ['pay', '我的缴款与贷款', 'fa-money-bill-transfer', 'my-payment.html', c.pay, 'wsmh-30-04'],
+    ['listing', '我的房源与预约', 'fa-house-circle-check', 'my-listing.html', 0, 'wsmh-30-06'],
+    ['cert', '我的证照与消息', 'fa-file-shield', 'my-cert.html', PORTAL.unread(), 'wsmh-30-08'],
+    ['rating', '我的评价与授权', 'fa-star', 'my-rating.html', c.rate, 'wsmh-30-10']
+  ];
+  document.getElementById('side').innerHTML =
+    '<div class="sm-head"><div class="sm-n"><i class="fa-solid fa-circle-user"></i> '
+    + UI.esc(login ? u.name : '未登录') + '</div>'
+    + '<div class="sm-r">' + (login ? '个人用户 · 已实名（等级 ' + u.realname + '）' : '登录后查看办件、合同与证照') + '</div></div>'
+    + '<div class="sm-g"><div class="sm-gt">我的服务</div>'
+    + M.map(function (m) {
+      return '<a href="' + m[3] + '" class="' + (m[0] === active ? 'on' : '') + '" data-fp="' + m[5] + '">'
+        + '<i class="fa-solid ' + m[2] + '"></i>' + m[1]
+        + (login && m[4] ? '<span class="sm-b">' + m[4] + '</span>' : '') + '</a>';
+    }).join('')
+    + '</div><div class="sm-g" style="border-top:1px solid var(--border)">'
+    + '<a href="../web/home.html" data-fp="wsmh-34-01"><i class="fa-solid fa-arrow-left"></i>返回门户首页</a>'
+    + '</div>';
+}
+
+function deskGuard(active) {
+  renderSide(active);
+  if (UI.isLogin()) return true;
+  document.getElementById('dmain').innerHTML =
+    '<div class="desk-card"><div class="empty"><i class="fa-solid fa-user-lock"></i>'
+    + '<div class="em-t">个人中心需要登录后访问</div>'
+    + '<div class="em-d">门户配置的未登录浏览范围为「房源列表与详情、信息公示、办事指南」，我的证照与消息属于需登录实名的范围。</div>'
+    + '<div class="em-a"><a class="btn btn-primary" href="../web/login.html?from=person" data-fp="wsmh-34-06">立即登录</a>'
+    + '<button class="btn" style="margin-left:10px" onclick="demoLogin()" data-fp="wsmh-34-06">演示：一键登录个人用户</button>'
+    + '</div></div></div>';
+  UI.needLogin('我的证照与消息');
+  return false;
+}
+
+/* 演示用：保留当前页参数并以个人用户身份登录 */
+function demoLogin() {
+  var parts = location.search.replace(/^\?/, '').split('&').filter(function (x) {
+    return x && x.indexOf('user=') !== 0;
+  });
+  parts.push('user=person');
+  location.href = location.pathname + '?' + parts.join('&');
+}
+
+/* ============ Tab 1：证照与票据 ============ */
+function certOf(id) { return PORTAL.certs().filter(function (c) { return c.id === id; })[0]; }
+
+function renderCerts() {
+  var arr = PORTAL.certs();
+  var box = document.getElementById('cert-list');
+  if (!arr.length) {
+    box.innerHTML = '<div class="desk-card">' + UI.empty('暂无证照与票据',
+      '办件办结后备案证明会自动进入这里，也可以在办件详情页手动获取证明。',
+      '<a class="btn btn-primary" href="my-case.html" data-fp="wsmh-30-01">去我的办件</a>'
+      + '<a class="btn" style="margin-left:10px" href="../web/cert-print.html" data-fp="wsmh-27-01">去证明打印出证</a>')
+      + '</div>';
+    return;
+  }
+  box.innerHTML = '<div class="desk-card"><div class="card-head">'
+    + '<h3><i class="fa-solid fa-file-shield text-primary"></i> 我的证照与票据</h3>'
+    + '<span class="sub">共 ' + arr.length + ' 份，有效 '
+    + arr.filter(function (c) { return c.zt === '1'; }).length + ' 份</span></div>'
+    + '<div class="card-body"><div class="cert-grid">'
+    + arr.map(function (c) {
+      var exp = c.zt !== '1';
+      return '<div class="cert-i' + (exp ? ' exp' : '') + '">'
+        + '<div class="cert-ico"><i class="fa-solid fa-file-shield"></i></div>'
+        + '<div class="cert-n">'
+        + '<div class="cert-t">' + UI.esc(c.lx) + '</div>'
+        + '<div class="cert-m">'
+        + '证明编号：<b>' + c.bh + '</b><br>'
+        + '涉及房屋：<b>' + UI.esc(PORTAL.mask('fh', c.fw)) + '</b><br>'
+        + '出证时间：<b>' + c.d + '</b>　用途：<b>' + UI.esc(c.yt) + '</b><br>'
+        + '有效期至：<b>' + c.yxq + '</b>　'
+        + (exp ? '<span class="badge red">已过期</span>' : '<span class="badge green">有效</span>')
+        + '</div>'
+        + '<div class="cert-acts">'
+        + '<button class="btn btn-sm btn-primary" data-see="' + c.id + '" data-fp="wsmh-30-08"><i class="fa-regular fa-eye"></i> 查看</button>'
+        + '<button class="btn btn-sm" data-dl="' + c.id + '" data-fp="wsmh-30-08"><i class="fa-solid fa-file-arrow-down"></i> 下载</button>'
+        + '<a class="btn btn-sm" href="../web/query-verify.html?code=' + c.yzm + '" data-fp="wsmh-26-02"><i class="fa-solid fa-qrcode"></i> 扫码验真</a>'
+        + '<a class="btn btn-sm" href="../web/cert-print.html" data-fp="wsmh-27-01"><i class="fa-solid fa-print"></i> 重新打印</a>'
+        + '</div></div></div>';
+    }).join('')
+    + '</div>'
+    + '<div class="text-xs text-3 mt-16">电子证明与纸质证明具有同等效力；重复出证按次留痕，出证记录可在「查询中心 → 证明打印出证 → 出证记录」查看。</div>'
+    + '</div></div>';
+
+  box.querySelectorAll('[data-see]').forEach(function (b) {
+    b.onclick = function () { openCert(b.getAttribute('data-see')); };
+  });
+  box.querySelectorAll('[data-dl]').forEach(function (b) {
+    b.onclick = function () {
+      var c = certOf(b.getAttribute('data-dl'));
+      UI.toast('证明 ' + c.bh + ' 已生成 PDF 下载任务，文件含二维码与验真码防伪', 'success');
+    };
+  });
+}
+
+function openCert(id) {
+  var c = certOf(id);
+  if (!c) return;
+  var open = CERT_SHOW[id] === 1;
+  var nameCell = open
+    ? UI.esc(UI.user().name)
+    : '<span class="text-3">***</span><a class="unmask" data-uk="name" data-fp="wsmh-35-06">查看</a>';
+  var idCell = open
+    ? ID_NO
+    : '<span class="text-3">***</span><a class="unmask" data-uk="id" data-fp="wsmh-35-06">查看</a>';
+  var fwCell = open
+    ? UI.esc(c.fw)
+    : UI.esc(PORTAL.mask('fh', c.fw)) + '<a class="unmask" data-uk="fw" data-fp="wsmh-35-06">查看完整房号</a>';
+  var body = open
+    ? UI.esc(c.nr)
+    : '证明正文包含权利人姓名与完整房号，按对外展示脱敏口径默认遮蔽。'
+      + '<a class="unmask" data-uk="nr" data-fp="wsmh-35-06">二次核验后查看全文</a>';
+
+  UI.modal('<i class="fa-solid fa-file-shield text-primary"></i> ' + UI.esc(c.lx),
+    '<div class="cert-view">'
+    + '<div class="cv-t">' + UI.esc(c.lx) + '</div>'
+    + '<div class="cv-s">编号：' + c.bh + '　'
+    + (c.zt === '1' ? '<span class="badge green">有效</span>' : '<span class="badge red">已过期</span>') + '</div>'
+    + '<div class="desc-list mt-16"><dl>'
+    + '<dt>权利人姓名</dt><dd class="' + (open ? '' : 'mask') + '">' + nameCell + '</dd>'
+    + '<dt>证件号码</dt><dd class="' + (open ? '' : 'mask') + '">' + idCell + '</dd>'
+    + '<dt>房屋坐落</dt><dd class="' + (open ? '' : 'mask') + '">' + fwCell + '</dd>'
+    + '<dt>证明用途</dt><dd>' + UI.esc(c.yt) + '</dd>'
+    + '<dt>出证时间</dt><dd>' + c.d + '</dd>'
+    + '<dt>有效期至</dt><dd>' + c.yxq + '</dd>'
+    + '<dt>出证单位</dt><dd>XXXX市房产交易管理中心</dd>'
+    + '</dl></div>'
+    + '<div class="cv-b">' + body + '</div>'
+    + '<div class="cv-f"><div><div class="cv-qr"><i class="fa-solid fa-qrcode"></i></div>'
+    + '<div class="text-xs text-3" style="margin-top:6px">验真码 <b style="font-family:Menlo,Consolas,monospace">' + c.yzm + '</b></div></div>'
+    + '<div class="cv-sign">XXXX市房产交易管理中心<br>' + String(c.d).slice(0, 10) + '</div></div>'
+    + '</div>'
+    + (open ? '<div class="alert alert-warning mt-16" style="margin-bottom:0">'
+      + '<i class="fa-solid fa-eye"></i><span>本次敏感字段查看已记入查询留痕，可在'
+      + '<a href="../web/query-auth.html" data-fp="wsmh-29-02">查询授权与留痕</a>页核对。</span></div>' : ''),
+    '<button class="btn" data-act="close-modal">关闭</button>'
+    + '<a class="btn" href="../web/query-verify.html?code=' + c.yzm + '" data-fp="wsmh-26-02">扫码验真</a>'
+    + '<a class="btn btn-primary" href="../web/cert-print.html" data-fp="wsmh-27-01">重新打印</a>', true);
+
+  document.querySelectorAll('[data-uk]').forEach(function (a) {
+    a.onclick = function () {
+      var kind = a.getAttribute('data-uk');
+      var name = kind === 'name' ? '权利人姓名' : kind === 'id' ? '权利人证件号码'
+        : kind === 'fw' ? '房屋完整房号' : '证明全文';
+      UI.verifyIdentity(name, function () { CERT_SHOW[id] = 1; openCert(id); });
+    };
+  });
+}
+
+/* ============ Tab 2：消息 ============ */
+var MSG_GROUP = {
+  '': null,
+  'case': ['办件通知', '办结通知', '退件通知', '选房通知', '取号成功'],
+  'fix': ['补正提醒'],
+  'pay': ['缴款到账'],
+  'sub': ['公示订阅'],
+  'auth': ['授权申请']
+};
+
+function buildMsgTabs() {
+  var T = [['', '全部'], ['case', '办件通知'], ['fix', '补正提醒'], ['pay', '缴款到账'],
+    ['sub', '公示订阅'], ['auth', '授权申请']];
+  document.getElementById('msg-tabs').innerHTML = T.map(function (t) {
+    return '<a class="' + (MSG_F === t[0] ? 'on' : '') + '" data-f="' + t[0] + '" data-fp="wsmh-30-09">' + t[1] + '</a>';
+  }).join('');
+  document.getElementById('msg-tabs').querySelectorAll('[data-f]').forEach(function (a) {
+    a.onclick = function () { MSG_F = a.getAttribute('data-f'); buildMsgTabs(); renderMsgs(); };
+  });
+}
+
+function msgColor(lx) {
+  var M = { '补正提醒': 'orange', '退件通知': 'red', '办结通知': 'green', '缴款到账': 'green',
+    '公示订阅': 'cyan', '授权申请': 'purple', '出证通知': 'blue', '投诉受理': 'orange',
+    '投诉反馈': 'green', '反馈受理': 'gray' };
+  return M[lx] || 'blue';
+}
+function msgLink(lx) {
+  if (lx === '补正提醒') return ['去在线补交材料', 'my-case.html?zt=3', 'wsmh-30-01'];
+  if (lx === '缴款到账') return ['查看缴款凭证', 'my-payment.html', 'wsmh-30-04'];
+  if (lx === '公示订阅') return ['查看公示中心', '../web/public-index.html', 'wsmh-05-12'];
+  if (lx === '授权申请') return ['去处理授权申请', 'my-rating.html?tab=mr-auth', 'wsmh-29-01'];
+  if (lx === '出证通知') return ['查看我的证照', 'my-cert.html', 'wsmh-30-08'];
+  if (lx === '办结通知') return ['去评价', 'my-rating.html', 'wsmh-30-10'];
+  if (lx === '投诉受理' || lx === '投诉反馈') return ['查看投诉进度', '../web/complaint.html', 'wsmh-32-03'];
+  return ['查看我的办件', 'my-case.html', 'wsmh-30-01'];
+}
+
+function renderMsgs() {
+  var all = PORTAL.msgs();
+  var g = MSG_GROUP[MSG_F];
+  var arr = g ? all.filter(function (m) { return g.indexOf(m.lx) >= 0; }) : all;
+  document.getElementById('msg-count').innerHTML = '共 ' + all.length + ' 条，未读 '
+    + PORTAL.unread() + ' 条' + (MSG_F ? '　当前分类 ' + arr.length + ' 条' : '');
+  var box = document.getElementById('msg-list');
+  if (!arr.length) {
+    box.innerHTML = UI.empty('该分类下暂无消息', '切换分类或到公示中心订阅感兴趣的栏目。',
+      '<a class="btn btn-primary" href="../web/public-index.html" data-fp="wsmh-05-12">去公示中心订阅</a>');
+    return;
+  }
+  box.innerHTML = arr.map(function (m) {
+    var open = OPEN[m.id] === 1;
+    var lk = msgLink(m.lx);
+    return '<div class="msg-i' + (m.r ? '' : ' unread') + '" data-msg="' + m.id + '">'
+      + '<span class="msg-dot' + (m.r ? ' read' : '') + '"></span>'
+      + '<div class="msg-n">'
+      + '<div class="flex items-center gap-8">'
+      + '<span class="badge ' + msgColor(m.lx) + '">' + UI.esc(m.lx) + '</span>'
+      + '<span class="bold">' + UI.esc(m.bt) + '</span>'
+      + (m.r ? '' : '<span class="badge red">未读</span>')
+      + '<span class="ml-auto text-xs text-3">' + m.d + '</span>'
+      + '<i class="fa-solid fa-angle-' + (open ? 'up' : 'down') + ' text-3"></i></div>'
+      + '<div class="msg-c' + (open ? '' : ' fold') + '">' + UI.esc(m.c) + '</div>'
+      + (open ? '<div class="mt-8"><a class="btn btn-sm btn-ghost" href="' + lk[1] + '" data-fp="' + lk[2] + '">'
+        + lk[0] + ' <i class="fa-solid fa-angle-right"></i></a></div>' : '')
+      + '</div></div>';
+  }).join('');
+
+  box.querySelectorAll('[data-msg]').forEach(function (el) {
+    el.onclick = function (e) {
+      if (e.target.closest('a')) return;
+      var id = el.getAttribute('data-msg');
+      OPEN[id] = OPEN[id] === 1 ? 0 : 1;
+      var m = PORTAL.msgs().filter(function (x) { return x.id === id; })[0];
+      if (m && !m.r) { PORTAL.act('msg.read', { id: id }); }
+      else renderMsgs();
+    };
+  });
+}
+
+/* ============ 订阅设置 ============ */
+function renderSubSet() {
+  var st = PORTAL.prefs().subTypes;
+  var S = [
+    ['case', '办件通知', '受理、审核、办结、退件等办件状态变化提醒'],
+    ['pay', '缴款提醒', '待缴款项、缴款到账与凭证生成提醒'],
+    ['notice', '通知公告', '业务通知、办事调整与政策发布提醒'],
+    ['presale', '预售楼盘公示', '新增预售许可与可售房源公示提醒'],
+    ['credit', '信用红黑榜', '从业主体信用评价与红黑榜更新提醒']
+  ];
+  document.getElementById('sub-set').innerHTML = S.map(function (x) {
+    return '<div class="sub-row"><div class="sr-n"><div class="sr-t">' + x[1] + '</div>'
+      + '<div class="sr-d">' + x[2] + '</div></div>'
+      + '<span class="badge ' + (st[x[0]] ? 'green' : 'gray') + '">' + (st[x[0]] ? '已开启' : '已关闭') + '</span>'
+      + '<label class="sw"><input type="checkbox" data-sub="' + x[0] + '"' + (st[x[0]] ? ' checked' : '')
+      + ' data-fp="wsmh-30-09"><span></span></label></div>';
+  }).join('')
+    + '<div class="text-xs text-3 mt-12">推送方式：站内消息 + 短信；办件通知与缴款提醒建议保持开启，避免错过补正与缴款时限。</div>';
+
+  document.getElementById('sub-set').querySelectorAll('[data-sub]').forEach(function (ck) {
+    ck.onchange = function () {
+      var k = ck.getAttribute('data-sub');
+      PORTAL.act('prefs.sub', { k: k, v: ck.checked ? 1 : 0 });
+      UI.toast('订阅设置已保存，' + (ck.checked ? '将接收该类推送' : '关闭后不再接收该类推送'), 'success');
+    };
+  });
+}
+
+/* ============ 我的公示订阅 ============ */
+function renderSubs() {
+  var arr = PORTAL.subs();
+  var box = document.getElementById('sub-list');
+  if (!arr.length) {
+    box.innerHTML = UI.empty('暂无公示订阅',
+      '可在信息公示页面点「订阅此类」添加，订阅栏目有新增时会推送到我的消息。',
+      '<a class="btn btn-primary" href="../web/public-index.html" data-fp="wsmh-05-12">去公示中心订阅</a>');
+    return;
+  }
+  box.innerHTML = '<div class="table-wrap"><table class="pub-table">'
+    + '<thead><tr><th>订阅栏目</th><th style="width:180px">关键字</th><th style="width:120px">订阅时间</th>'
+    + '<th style="width:170px">推送方式</th><th style="width:110px">操作</th></tr></thead><tbody>'
+    + arr.map(function (s) {
+      return '<tr><td class="strong">' + UI.esc(s.lmmc || s.lm) + '</td>'
+        + '<td>' + (s.kw ? UI.esc(s.kw) : '<span class="text-3">全部内容</span>') + '</td>'
+        + '<td>' + s.d + '</td><td>' + UI.esc(s.way) + '</td>'
+        + '<td class="acts"><a href="javascript:;" data-unsub="' + s.id + '" data-fp="wsmh-05-12">取消订阅</a></td></tr>';
+    }).join('')
+    + '</tbody></table></div>';
+
+  box.querySelectorAll('[data-unsub]').forEach(function (a) {
+    a.onclick = function () {
+      PORTAL.act('sub.del', { id: a.getAttribute('data-unsub') });
+      UI.toast('已取消订阅，不再接收该栏目的新增推送', 'success');
+    };
+  });
+}
+</script>
+</body>
+</html>

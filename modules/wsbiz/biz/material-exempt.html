@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>材料免提交 · 统一工作门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="biz" data-active="material-exempt">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 材料证照
+        <span class="sep">/</span> <span class="cur">材料免提交</span>
+      </div>
+      <div class="page-title">材料免提交</div>
+    </div>
+    <div class="page-actions">
+      <span class="node-tag"><i class="fa-solid fa-user-shield"></i>窗口受理员 · 事项管理员</span>
+    </div>
+  </div>
+
+  <div class="alert alert-success">
+    <i class="fa-solid fa-circle-check"></i>
+    <span>三条免提交路径：<b>电子证照调用</b>（政务电子证照库与本平台备案证明）、<b>历史材料复用</b>（申请人材料库）、<b>数据共享代替</b>（不动产、税务、公积金、婚姻）。免提交清单按事项发布，收件时一次性告知申请人。</span>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-shield-halved"></i></div><div>
+      <div class="s-label">已免提交材料</div><div class="s-value" id="kExempt">—</div></div></div>
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-id-badge"></i></div><div>
+      <div class="s-label">电子证照调用</div><div class="s-value" id="kLic">—</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-recycle"></i></div><div>
+      <div class="s-label">历史材料复用</div><div class="s-value" id="kReuse">—</div></div></div>
+    <div class="stat-card"><div class="s-icon purple"><i class="fa-solid fa-share-nodes"></i></div><div>
+      <div class="s-label">数据共享代替</div><div class="s-value" id="kShare">—</div></div></div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item" style="flex:1"><label>选择办件</label>
+        <select id="caseSel" onchange="pick(this.value)" style="width:100% !important"></select></div>
+    </div>
+  </div>
+
+  <div class="card mt-16" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="lic" onclick="setTab('lic')">电子证照调用</div>
+      <div class="tab" data-tab="reuse" onclick="setTab('reuse')">历史材料复用</div>
+      <div class="tab" data-tab="share" onclick="setTab('share')">数据共享代替</div>
+      <div class="tab" data-tab="list" onclick="setTab('list')">免提交清单管理</div>
+    </div>
+    <div class="card-body" id="panel"></div>
+  </div>
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/flow-data.js"></script>
+<script src="../assets/js/flow.js"></script>
+<script>
+(function () {
+  var tab = 'lic', cid = null;
+  var SHARE = [
+    ['不动产登记', 'fa-building-columns', '不动产权证书、查封与抵押状态', ['不动产权证书', '国有土地使用权证']],
+    ['税务', 'fa-file-invoice-dollar', '契税完税凭证与计税价格', ['契税完税凭证']],
+    ['公积金', 'fa-piggy-bank', '公积金缴存与贷款状态', ['借款合同']],
+    ['民政婚姻', 'fa-heart', '婚姻登记状况', ['结婚证', '婚姻状况证明']]
+  ];
+
+  window.setTab = function (t) {
+    tab = t;
+    document.querySelectorAll('.tabs .tab').forEach(function (el) {
+      el.classList.toggle('active', el.getAttribute('data-tab') === tab);
+    });
+    render();
+  };
+  window.pick = function (id) { cid = id; render(); };
+
+  function render() {
+    var list = FLOW.where('cases', function (c) { return c.blzt === '0' || c.blzt === '1' || c.blzt === '5'; });
+    if (!list.length) list = FLOW.get('cases');
+    if (!cid || !FLOW.byId('cases', cid)) cid = list[0] ? list[0].id : null;
+    document.getElementById('caseSel').innerHTML = list.map(function (c) {
+      return '<option value="' + c.id + '"' + (cid === c.id ? ' selected' : '') + '>' +
+        FLOW.esc(c.sjbh) + '　' + FLOW.esc(c.sxmc) + '　' + FLOW.esc(c.sqr) + '</option>';
+    }).join('');
+
+    /* KPI 全局统计 */
+    var all = FLOW.get('materials');
+    document.getElementById('kExempt').textContent = all.filter(function (m) { return m.tjfs >= '2' && m.tjfs <= '5'; }).length;
+    document.getElementById('kLic').textContent = all.filter(function (m) { return m.tjfs === '2'; }).length;
+    document.getElementById('kReuse').textContent = all.filter(function (m) { return m.tjfs === '3'; }).length;
+    document.getElementById('kShare').textContent = all.filter(function (m) { return m.tjfs === '4'; }).length;
+
+    var c = FLOW.byId('cases', cid);
+    var panel = document.getElementById('panel');
+    if (!c) { panel.innerHTML = '<div class="empty"><i class="fa-regular fa-folder-open"></i><div>暂无办件</div></div>'; return; }
+    var mats = FLOW.where('materials', function (m) { return m.bjzj === c.id; });
+
+    /* ---- 电子证照调用 ---- */
+    if (tab === 'lic') {
+      panel.innerHTML =
+        '<div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>' +
+        '<span>调用政务电子证照库与本平台生成的电子备案证明替代纸质材料；调用成功后该材料提交方式置为「免提交-电子证照调用」。</span></div>' +
+        '<div class="table-wrap"><table class="data-table" data-static><thead><tr>' +
+        '<th>材料名称</th><th>是否必要</th><th>当前提交方式</th><th>可调用证照</th><th>操作</th></tr></thead><tbody>' +
+        mats.map(function (m) {
+          var can = ['居民身份证', '营业执照', '不动产权证书', '结婚证', '商品房预售许可证',
+                     '国有土地使用权证', '建设工程规划许可证', '居住证'].indexOf(m.clmc) >= 0;
+          return '<tr><td>' + FLOW.esc(m.clmc) + '</td>' +
+            '<td>' + (m.must ? FLOW.badge('必要', 'red') : FLOW.badge('可选', 'gray')) + '</td>' +
+            '<td>' + tjfsCell(m) + '</td>' +
+            '<td>' + (can ? FLOW.badge('政务电子证照库', 'blue') : '<span class="text-3">无对应证照</span>') + '</td>' +
+            '<td>' + (can && m.tjfs !== '2'
+              ? '<span class="link" onclick="callLic(\'' + m.id + '\')">调用证照</span>'
+              : (m.tjfs === '2' ? '<span class="text-success">已免提交</span>' : '<span class="text-3">—</span>')) + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+      return;
+    }
+
+    /* ---- 历史材料复用 ---- */
+    if (tab === 'reuse') {
+      var hist = FLOW.act.applicantMaterials(c.sqr).filter(function (m) { return m.bjzj !== c.id; });
+      var histNames = {};
+      hist.forEach(function (m) { histNames[m.clmc] = 1; });
+      panel.innerHTML =
+        '<div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>' +
+        '<span>申请人 <b>' + FLOW.esc(c.sqr) + '</b> 在平台历史提交过 ' + Object.keys(histNames).length +
+        ' 类材料，其中标记可复用且在有效期内的可勾选确认免交。</span></div>' +
+        '<div class="table-wrap"><table class="data-table" data-static><thead><tr>' +
+        '<th>材料名称</th><th>本次是否需要</th><th>历史提交记录</th><th>可复用</th><th>操作</th></tr></thead><tbody>' +
+        mats.map(function (m) {
+          var def = null;
+          FLOW.get('materialDefs').some(function (d) { if (d.clmc === m.clmc) { def = d; return true; } return false; });
+          var has = !!histNames[m.clmc];
+          var reuse = def && def.reuse && has;
+          return '<tr><td>' + FLOW.esc(m.clmc) + '</td>' +
+            '<td>' + (m.must ? FLOW.badge('必要', 'red') : FLOW.badge('可选', 'gray')) + '</td>' +
+            '<td>' + (has ? FLOW.badge('有历史记录', 'cyan') : '<span class="text-3">无</span>') + '</td>' +
+            '<td>' + (def && def.reuse ? FLOW.badge('允许复用', 'green') : FLOW.badge('不允许', 'gray')) + '</td>' +
+            '<td>' + (reuse && m.tjfs !== '3'
+              ? '<span class="link" onclick="reuseOne(\'' + m.id + '\')">勾选复用</span>'
+              : (m.tjfs === '3' ? '<span class="text-success">已复用免交</span>' : '<span class="text-3">—</span>')) + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+      return;
+    }
+
+    /* ---- 数据共享代替 ---- */
+    if (tab === 'share') {
+      panel.innerHTML =
+        '<div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>' +
+        '<span>通过共享接口获取数据，直接代替申请人提交纸质材料。接口状态与共享目录由数据共享与接口监控系统统一管理。</span></div>' +
+        '<div class="grid-2">' + SHARE.map(function (s) {
+          var hit = mats.filter(function (m) { return s[3].indexOf(m.clmc) >= 0; });
+          var doneAll = hit.length && hit.every(function (m) { return m.tjfs === '4'; });
+          return '<div class="grp-card">' +
+            '<div class="grp-head"><span class="gi"><i class="fa-solid ' + s[1] + '"></i></span>' + s[0] +
+              '　' + FLOW.badge('接口正常', 'green') + '</div>' +
+            '<div class="text-2 text-sm mb-8">' + s[2] + '</div>' +
+            '<dl class="desc-list" style="grid-template-columns:1fr">' +
+              '<div class="desc-item"><dt>本次可代替</dt><dd>' +
+                (hit.length ? hit.map(function (m) { return FLOW.esc(m.clmc) + '（' + FLOW.dict('tjfs', m.tjfs).replace('免提交-', '') + '）'; }).join('、')
+                            : '本办件无对应材料') + '</dd></div>' +
+            '</dl>' +
+            '<div class="btn-row mt-16">' +
+              (hit.length && !doneAll
+                ? '<button class="btn btn-sm btn-primary" onclick="fetchShare(\'' + s[0] + '\')"><i class="fa-solid fa-cloud-arrow-down"></i> 获取数据并免提交</button>'
+                : '<button class="btn btn-sm" disabled>' + (doneAll ? '已通过共享代替' : '无可代替材料') + '</button>') +
+            '</div></div>';
+        }).join('') + '</div>';
+      return;
+    }
+
+    /* ---- 免提交清单管理 ---- */
+    var it = FLOW.itemOf(c) || { clist: [] };
+    panel.innerHTML =
+      '<div class="alert alert-warning"><i class="fa-solid fa-bullhorn"></i>' +
+      '<span>按事项发布免提交清单，收件时在统一收件页<b>一次性告知</b>申请人；发布后新收的办件自动应用该清单。</span></div>' +
+      '<div class="section-title">事项：' + FLOW.esc(it.sxmc || c.sxmc) + '</div>' +
+      '<div class="table-wrap"><table class="data-table" data-static><thead><tr>' +
+      '<th>材料名称</th><th>是否必要</th><th>纳入免提交清单</th><th>可复用</th></tr></thead><tbody>' +
+      it.clist.map(function (m) {
+        var def = null;
+        FLOW.get('materialDefs').some(function (d) { if (d.cldm === m.cldm) { def = d; return true; } return false; });
+        return '<tr><td>' + FLOW.esc(m.clmc) + '</td>' +
+          '<td>' + (m.must ? FLOW.badge('必要', 'red') : FLOW.badge('可选', 'gray')) + '</td>' +
+          '<td><input type="checkbox" data-pick="' + m.cldm + '"' + (m.exempt ? ' checked' : '') + '></td>' +
+          '<td>' + (def && def.reuse ? FLOW.badge('可复用', 'green') : FLOW.badge('不可复用', 'gray')) + '</td></tr>';
+      }).join('') + '</tbody></table></div>' +
+      '<div class="btn-row mt-16">' +
+        '<button class="btn btn-primary" onclick="publishList()"><i class="fa-solid fa-bullhorn"></i> 发布免提交清单</button>' +
+        '<a class="btn" href="intake.html?role=biz&sxdm=' + FLOW.esc(it.sxdm || '') + '">去统一收件查看告知效果</a>' +
+      '</div>';
+  }
+
+  function tjfsCell(m) {
+    var ex = (m.tjfs >= '2' && m.tjfs <= '5');
+    return ex ? FLOW.badge(FLOW.dict('tjfs', m.tjfs).replace('免提交-', ''), 'green')
+              : FLOW.esc(FLOW.dict('tjfs', m.tjfs));
+  }
+
+  window.callLic = function (mid) { FLOW.act.callLicense(mid); };
+  window.reuseOne = function (mid) { FLOW.act.reuseHistory(mid); };
+  window.fetchShare = function (src) {
+    var s = null;
+    SHARE.some(function (x) { if (x[0] === src) { s = x; return true; } return false; });
+    if (!s) return;
+    var mats = FLOW.where('materials', function (m) { return m.bjzj === cid && s[3].indexOf(m.clmc) >= 0 && m.tjfs !== '4'; });
+    if (!mats.length) { PMS.toast('该接口本次没有可代替的材料', 'error'); return; }
+    PMS.toast('正在通过 ' + src + ' 共享接口获取数据…');
+    setTimeout(function () {
+      mats.forEach(function (m) { FLOW.act.fetchShared(m.id, src); });
+    }, 500);
+  };
+  window.publishList = function () {
+    var codes = FLOW.checked('panel');
+    var c = FLOW.byId('cases', cid);
+    var it = FLOW.itemOf(c);
+    if (!it) return;
+    FLOW.act.publishExempt(it.sxdm, codes);
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    cid = FLOW.param('id');
+    var sqr = FLOW.param('sqr');
+    if (!cid && sqr) {
+      var c = FLOW.where('cases', function (x) { return x.sqr === sqr; })[0];
+      if (c) cid = c.id;
+    }
+    FLOW.on(render);
+  });
+})();
+</script>
+</body>
+</html>

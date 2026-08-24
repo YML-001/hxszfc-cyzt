@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>补贴注销与退房退款 · 新建商品房网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  .sync-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--row-line); font-size: 13.5px; }
+  .sync-item:last-child { border-bottom: 0; }
+  .sync-item .badge { margin-left: auto; }
+  tr.row-warn td:first-child { box-shadow: inset 3px 0 0 var(--warning); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsswb-19">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房网签备案管理系统
+        <span class="sep">/</span> <a class="link" href="policy-list.html">政策性住房备案</a>
+        <span class="sep">/</span> <span class="cur">补贴注销与退房</span>
+      </div>
+      <div class="page-title">补贴注销与退房退款办理</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" data-open-drawer="dwNew"><i class="fa-solid fa-plus"></i> 新增注销 / 退房</button>
+      <button type="button" class="btn" onclick="location.href='subsidy.html'">补贴办理台账</button>
+      <button type="button" class="btn" onclick="location.href='policy-list.html'">政策性住房备案</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《补贴注销与退房退款台账》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-file-circle-xmark"></i></div>
+      <div><div class="s-label">本月注销申请</div><div class="s-value">26</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-house-circle-xmark"></i></div>
+      <div><div class="s-label">退房退款</div><div class="s-value">12</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-rotate-left"></i></div>
+      <div><div class="s-label">已核销补贴</div><div class="s-value">18</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-coins"></i></div>
+      <div><div class="s-label">已生成退款指令</div><div class="s-value">14</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-warehouse"></i></div>
+      <div><div class="s-label">已回收房源</div><div class="s-value">8</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">待办结</div><div class="s-value">9</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>补贴注销须核销已发放金额并生成退款指令；政策性住房退房须同步回收房源。办结结果同步交易备案、档案与上级报送，不得仅做本地注销。</div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item"><label>办理编号</label><input type="text" placeholder="如 BTZX20260731016"></div>
+      <div class="filter-item"><label>原补贴编号</label><input type="text" placeholder="如 GFBT20260712028"></div>
+      <div class="filter-item"><label>当事人</label><input type="text" placeholder="姓名关键词"></div>
+      <div class="filter-item"><label>办理类型</label><select><option value="">全部</option><option>补贴注销撤销</option><option>政策性住房退房</option><option>注销并退房</option></select></div>
+      <div class="filter-item"><label>办理状态</label><select><option value="">全部</option><option>待核销</option><option>待退款</option><option>待回收房源</option><option>已办结</option><option>已驳回</option></select></div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 26 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="hx">待核销 <span class="badge orange">6</span></div>
+      <div class="tab" data-tab="tk">待退款</div>
+      <div class="tab" data-tab="hs">待回收房源</div>
+      <div class="tab" data-tab="done">已办结</div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblZx" data-static>
+        <thead>
+          <tr>
+            <th>办理编号</th>
+            <th>办理类型</th>
+            <th>原补贴编号</th>
+            <th>当事人</th>
+            <th>项目 / 房号</th>
+            <th class="num">已发补贴（元）</th>
+            <th class="num">应退金额（元）</th>
+            <th>核销状态</th>
+            <th>房源回收</th>
+            <th>办理状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="hx">
+            <td class="nowrap fw-600">BTZX20260731016</td>
+            <td class="nowrap"><span class="badge orange">注销并退房</span></td>
+            <td class="nowrap">GFBT20260712028</td>
+            <td class="nowrap">谭俊杰</td>
+            <td class="nowrap">彰泰江湾城（三期） 11-2-0802</td>
+            <td class="num nowrap">21,720</td>
+            <td class="num nowrap">21,720</td>
+            <td class="nowrap"><span class="badge orange">待核销</span></td>
+            <td class="nowrap"><span class="badge gray">未回收</span></td>
+            <td class="nowrap"><span class="badge orange">待核销</span></td>
+            <td class="col-ops"><span class="link" onclick="openHandle('BTZX20260731016','注销并退房')">办理</span><span class="link" onclick="openView('BTZX20260731016')">查看</span></td>
+          </tr>
+          <tr data-st="tk">
+            <td class="nowrap fw-600">BTZX20260730014</td>
+            <td class="nowrap"><span class="badge blue">补贴注销撤销</span></td>
+            <td class="nowrap">QSBT20260726028</td>
+            <td class="nowrap">秦丽娟</td>
+            <td class="nowrap">华润置地润府 6-1-1502</td>
+            <td class="num nowrap">9,320</td>
+            <td class="num nowrap">9,320</td>
+            <td class="nowrap"><span class="badge green">已核销</span></td>
+            <td class="nowrap"><span class="badge gray">不适用</span></td>
+            <td class="nowrap"><span class="badge cyan">待退款</span></td>
+            <td class="col-ops"><span class="link" onclick="openHandle('BTZX20260730014','补贴注销撤销')">办理</span><span class="link" onclick="openView('BTZX20260730014')">查看</span></td>
+          </tr>
+          <tr data-st="hs" class="row-warn">
+            <td class="nowrap fw-600">BTZX20260728012</td>
+            <td class="nowrap"><span class="badge purple">政策性住房退房</span></td>
+            <td class="nowrap">GFBT20260708016</td>
+            <td class="nowrap">周建华</td>
+            <td class="nowrap">柳州城投·和园 2-1-1002</td>
+            <td class="num nowrap">10,890</td>
+            <td class="num nowrap">10,890</td>
+            <td class="nowrap"><span class="badge green">已核销</span></td>
+            <td class="nowrap"><span class="badge orange">待回收</span></td>
+            <td class="nowrap"><span class="badge orange">待回收房源</span></td>
+            <td class="col-ops"><span class="link" onclick="openHandle('BTZX20260728012','政策性住房退房')">办理</span><span class="link" onclick="openView('BTZX20260728012')">查看</span></td>
+          </tr>
+          <tr data-st="done">
+            <td class="nowrap fw-600">BTZX20260726010</td>
+            <td class="nowrap"><span class="badge orange">注销并退房</span></td>
+            <td class="nowrap">JGBT20260726016</td>
+            <td class="nowrap">韦某某</td>
+            <td class="nowrap">城中区广场路 28 号 3 栋 502</td>
+            <td class="num nowrap">30,000</td>
+            <td class="num nowrap">30,000</td>
+            <td class="nowrap"><span class="badge green">已核销</span></td>
+            <td class="nowrap"><span class="badge green">已回收</span></td>
+            <td class="nowrap"><span class="badge green">已办结</span></td>
+            <td class="col-ops"><span class="link" onclick="openView('BTZX20260726010')">查看</span><span class="link" onclick="PMS.toast('已同步档案与上级报送','success')">同步记录</span></td>
+          </tr>
+          <tr data-st="hx">
+            <td class="nowrap fw-600">BTZX20260724008</td>
+            <td class="nowrap"><span class="badge blue">补贴注销撤销</span></td>
+            <td class="nowrap">GFBT20260726058</td>
+            <td class="nowrap">陈志远</td>
+            <td class="nowrap">华润置地润府 2-1-0902</td>
+            <td class="num nowrap">17,790</td>
+            <td class="num nowrap">17,790</td>
+            <td class="nowrap"><span class="badge orange">待核销</span></td>
+            <td class="nowrap"><span class="badge gray">不适用</span></td>
+            <td class="nowrap"><span class="badge orange">待核销</span></td>
+            <td class="col-ops"><span class="link" onclick="openHandle('BTZX20260724008','补贴注销撤销')">办理</span><span class="link" onclick="openView('BTZX20260724008')">查看</span></td>
+          </tr>
+          <tr data-st="tk">
+            <td class="nowrap fw-600">BTZX20260722006</td>
+            <td class="nowrap"><span class="badge purple">政策性住房退房</span></td>
+            <td class="nowrap">QSBT20260715014</td>
+            <td class="nowrap">卢秀兰</td>
+            <td class="nowrap">中南春风南岸（三期） 9-1-1602</td>
+            <td class="num nowrap">7,140</td>
+            <td class="num nowrap">7,140</td>
+            <td class="nowrap"><span class="badge green">已核销</span></td>
+            <td class="nowrap"><span class="badge orange">待回收</span></td>
+            <td class="nowrap"><span class="badge cyan">待退款</span></td>
+            <td class="col-ops"><span class="link" onclick="openHandle('BTZX20260722006','政策性住房退房')">办理</span><span class="link" onclick="openView('BTZX20260722006')">查看</span></td>
+          </tr>
+          <tr data-st="done">
+            <td class="nowrap fw-600">BTZX20260718004</td>
+            <td class="nowrap"><span class="badge blue">补贴注销撤销</span></td>
+            <td class="nowrap">QSBT20260712008</td>
+            <td class="nowrap">杨明辉</td>
+            <td class="nowrap">彰泰江湾城（三期） 5-1-0702</td>
+            <td class="num nowrap">8,430</td>
+            <td class="num nowrap">8,430</td>
+            <td class="nowrap"><span class="badge green">已核销</span></td>
+            <td class="nowrap"><span class="badge gray">不适用</span></td>
+            <td class="nowrap"><span class="badge green">已办结</span></td>
+            <td class="col-ops"><span class="link" onclick="openView('BTZX20260718004')">查看</span><span class="link" onclick="PMS.toast('退款指令 RK20260718004 已支付完成','success')">退款凭证</span></td>
+          </tr>
+          <tr data-st="done">
+            <td class="nowrap fw-600">BTZX20260715002</td>
+            <td class="nowrap"><span class="badge orange">注销并退房</span></td>
+            <td class="nowrap">GFBT20260722046</td>
+            <td class="nowrap">罗美英</td>
+            <td class="nowrap">阳光城翡丽湾 6-2-1102</td>
+            <td class="num nowrap">13,920</td>
+            <td class="num nowrap">13,920</td>
+            <td class="nowrap"><span class="badge green">已核销</span></td>
+            <td class="nowrap"><span class="badge green">已回收</span></td>
+            <td class="nowrap"><span class="badge green">已办结</span></td>
+            <td class="col-ops"><span class="link" onclick="openView('BTZX20260715002')">查看</span><span class="link" onclick="PMS.toast('已同步档案与上级报送','success')">同步记录</span></td>
+          </tr>
+          <tr data-st="hx">
+            <td class="nowrap fw-600">BTZX20260712001</td>
+            <td class="nowrap"><span class="badge blue">补贴注销撤销</span></td>
+            <td class="nowrap">JGBT20260715006</td>
+            <td class="nowrap">吴某某</td>
+            <td class="nowrap">鱼峰区白云路 42 号 4 栋 801</td>
+            <td class="num nowrap">32,000</td>
+            <td class="num nowrap">32,000</td>
+            <td class="nowrap"><span class="badge orange">待核销</span></td>
+            <td class="nowrap"><span class="badge gray">不适用</span></td>
+            <td class="nowrap"><span class="badge orange">待核销</span></td>
+            <td class="col-ops"><span class="link" onclick="openHandle('BTZX20260712001','补贴注销撤销')">办理</span><span class="link" onclick="openView('BTZX20260712001')">查看</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 办理抽屉 -->
+  <div class="drawer-mask"></div>
+  <div class="drawer drawer-lg" id="dwHandle">
+    <div class="drawer-head">
+      <h3>注销 / 退房办理 · <span id="hdNo">—</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <dl class="desc-list">
+        <div class="desc-item"><dt>办理编号</dt><dd id="hdNo2">—</dd></div>
+        <div class="desc-item"><dt>办理类型</dt><dd id="hdType">—</dd></div>
+        <div class="desc-item"><dt>当事人</dt><dd>谭俊杰</dd></div>
+        <div class="desc-item"><dt>原补贴编号</dt><dd>GFBT20260712028</dd></div>
+        <div class="desc-item"><dt>项目 / 房号</dt><dd>彰泰江湾城（三期） 11-2-0802</dd></div>
+        <div class="desc-item"><dt>已发补贴（元）</dt><dd class="fw-600">21,720</dd></div>
+      </dl>
+
+      <div class="section-title mt-16">核销与退款</div>
+      <div class="form-grid form-align">
+        <div class="form-item"><label>应核销金额（元）</label><input type="text" value="21,720" readonly></div>
+        <div class="form-item"><label>应退金额（元）<span class="req">*</span></label><input type="number" value="21720"></div>
+        <div class="form-item"><label>退款账户<span class="req">*</span></label><input type="text" value="柳州银行 · 尾号 0802"></div>
+        <div class="form-item"><label>退款原因<span class="req">*</span></label><select><option>合同解除 / 退房</option><option>资格取消</option><option>重复申领核销</option><option>政策调整撤销</option></select></div>
+        <div class="form-item col-full">
+          <label>是否生成退款指令<span class="req">*</span></label>
+          <div class="radio-line">
+            <label><input type="radio" name="refund" value="y" checked> 是（推送财政）</label>
+            <label><input type="radio" name="refund" value="n"> 否（仅核销台账）</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title mt-16">房源回收</div>
+      <div class="form-grid form-align">
+        <div class="form-item col-full">
+          <label>是否回收房源<span class="req">*</span></label>
+          <div class="radio-line">
+            <label><input type="radio" name="recycle" value="y" checked> 是（政策性住房退房）</label>
+            <label><input type="radio" name="recycle" value="n"> 否（仅补贴注销）</label>
+          </div>
+        </div>
+        <div class="form-item"><label>回收后用途</label><select><option>重新纳入配售</option><option>转保障性租赁住房</option><option>待处置</option></select></div>
+        <div class="form-item"><label>销控状态更新</label><input type="text" value="可售 → 待分配" readonly></div>
+      </div>
+
+      <div class="section-title mt-16">联动同步</div>
+      <div>
+        <div class="sync-item"><i class="fa-solid fa-database text-primary"></i> 交易备案状态更新为已注销 / 已退房<span class="badge gray">待执行</span></div>
+        <div class="sync-item"><i class="fa-solid fa-folder-open text-primary"></i> 档案归档《补贴注销决定书》《退款指令》<span class="badge gray">待执行</span></div>
+        <div class="sync-item"><i class="fa-solid fa-cloud-arrow-up text-primary"></i> 上级报送核销与退房结果<span class="badge gray">待执行</span></div>
+      </div>
+
+      <div class="form-item mt-16">
+        <label>办理意见<span class="req">*</span></label>
+        <textarea>当事人申请解除购房合同并退房，已核实补贴已发放 21,720 元，拟全额核销并生成退款指令，同步回收房源。</textarea>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn" onclick="PMS.toast('已核销补贴并生成退款指令 RK20260731016','success')"><i class="fa-solid fa-rotate-left"></i> 核销并退款</button>
+      <button type="button" class="btn btn-primary" onclick="submitHandle()"><i class="fa-solid fa-stamp"></i> 办结并同步</button>
+    </div>
+  </div>
+
+  <!-- 查看 -->
+  <div class="drawer drawer-lg" id="dwView">
+    <div class="drawer-head">
+      <h3>办理详情 · <span id="vNo">—</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <dl class="desc-list">
+        <div class="desc-item"><dt>办理编号</dt><dd id="vNo2">—</dd></div>
+        <div class="desc-item"><dt>申请人</dt><dd>谭俊杰</dd></div>
+        <div class="desc-item"><dt>申请日期</dt><dd>2026-07-31</dd></div>
+        <div class="desc-item"><dt>经办人</dt><dd>覃某某</dd></div>
+      </dl>
+      <div class="section-title mt-16">办理轨迹</div>
+      <table class="data-table compact">
+        <thead><tr><th>时间</th><th>环节</th><th>办理人</th><th>结果</th></tr></thead>
+        <tbody>
+          <tr><td class="nowrap">2026-07-31 09:40</td><td class="nowrap">受理</td><td class="nowrap">系统</td><td class="nowrap"><span class="badge green">已受理</span></td></tr>
+          <tr><td class="nowrap">2026-07-31 11:20</td><td class="nowrap">补贴核销</td><td class="nowrap">—</td><td class="nowrap"><span class="badge orange">待核销</span></td></tr>
+          <tr><td class="nowrap">—</td><td class="nowrap">退款指令</td><td class="nowrap">—</td><td class="nowrap"><span class="badge gray">未生成</span></td></tr>
+          <tr><td class="nowrap">—</td><td class="nowrap">房源回收</td><td class="nowrap">—</td><td class="nowrap"><span class="badge gray">未回收</span></td></tr>
+          <tr><td class="nowrap">—</td><td class="nowrap">档案 / 报送</td><td class="nowrap">—</td><td class="nowrap"><span class="badge gray">未同步</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+    </div>
+  </div>
+
+  <!-- 新增 -->
+  <div class="drawer drawer-lg" id="dwNew">
+    <div class="drawer-head">
+      <h3>新增注销 / 退房申请</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>办理类型<span class="req">*</span></label>
+          <select><option>补贴注销撤销</option><option>政策性住房退房</option><option>注销并退房</option></select>
+        </div>
+        <div class="form-item"><label>原补贴编号<span class="req">*</span></label><input type="text" placeholder="输入后带出发放信息" value="GFBT20260712028"></div>
+        <div class="form-item"><label>当事人<span class="req">*</span></label><input type="text" value="谭俊杰"></div>
+        <div class="form-item"><label>证件号码<span class="req">*</span></label><input type="text" value="4502**********2408"></div>
+        <div class="form-item"><label>项目 / 房号</label><input type="text" value="彰泰江湾城（三期） 11-2-0802" readonly></div>
+        <div class="form-item"><label>已发补贴（元）</label><input type="text" value="21,720" readonly></div>
+        <div class="form-item col-full">
+          <label>申请事由<span class="req">*</span></label>
+          <textarea placeholder="说明注销或退房原因">购房合同解除，申请注销已发放购房补贴并办理退房退款。</textarea>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer('dwNew');PMS.toast('注销 / 退房申请已受理，进入核销办理','success')"><i class="fa-solid fa-paper-plane"></i> 提交受理</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  var table = document.getElementById('tblZx');
+  document.getElementById('stTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var name = tab.getAttribute('data-tab');
+    document.querySelectorAll('#stTabs .tab').forEach(function (t) {
+      t.classList.toggle('active', t.getAttribute('data-tab') === name);
+    });
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.style.display = (name === 'all' || tr.getAttribute('data-st') === name) ? '' : 'none';
+    });
+  });
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 26,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+
+function openHandle(no, type) {
+  document.getElementById('hdNo').textContent = no;
+  document.getElementById('hdNo2').textContent = no;
+  document.getElementById('hdType').textContent = type;
+  PMS.openDrawer('dwHandle');
+}
+
+function openView(no) {
+  document.getElementById('vNo').textContent = no;
+  document.getElementById('vNo2').textContent = no;
+  PMS.openDrawer('dwView');
+}
+
+function submitHandle() {
+  PMS.closeDrawer('dwHandle');
+  PMS.toast('已办结：补贴已核销、退款指令已生成、房源已回收，并同步备案 / 档案 / 上级报送', 'success');
+}
+</script>
+</body>
+</html>

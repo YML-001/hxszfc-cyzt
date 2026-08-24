@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>异常成交价核查 · 存量房交易网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：四色预警灯与规则卡 */
+  .lv-dot { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; }
+  .lv-dot i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .lv-red i { background: var(--danger); } .lv-red { color: var(--danger); }
+  .lv-orange i { background: var(--warning); } .lv-orange { color: #b45309; }
+  .lv-yellow i { background: #eab308; } .lv-yellow { color: #a16207; }
+  .lv-blue i { background: var(--info); } .lv-blue { color: var(--info); }
+  .rule-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .rule-card {
+    border: 1px solid var(--border); border-left: 3px solid var(--primary); border-radius: var(--radius);
+    padding: 14px; background: #fff;
+  }
+  .rule-card .rc-name { font-size: 13.5px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .rule-card .rc-name .no {
+    width: 20px; height: 20px; border-radius: 5px; background: var(--primary-light); color: var(--primary);
+    font-size: 11.5px; display: flex; align-items: center; justify-content: center;
+  }
+  .rule-card .rc-desc { font-size: 12.5px; color: var(--text-2); line-height: 1.75; margin-top: 8px; }
+  .rule-card .rc-hit { font-size: 12px; color: var(--text-3); margin-top: 8px; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wscwb-19">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 存量房交易网签备案管理系统
+        <span class="sep">/</span> 成交信息管理
+        <span class="sep">/</span> <span class="cur">异常成交价核查</span>
+      </div>
+      <div class="page-title">异常成交价核查</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="deal-ledger.html"><i class="fa-solid fa-table-list"></i> 成交台账</a>
+      <a class="btn" href="appraisal.html"><i class="fa-solid fa-scale-balanced"></i> 价格评估管理</a>
+      <button type="button" class="btn" data-open-modal="mdRule"><i class="fa-solid fa-sliders"></i> 预警规则配置</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《异常成交价核查台账》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-circle-exclamation"></i></div>
+      <div><div class="s-label">红色 · 严重异常</div><div class="s-value">3</div><div class="s-trend text-danger">须核查通过方可发布</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><div class="s-label">橙色 · 较大偏离</div><div class="s-value">6</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-circle-info"></i></div>
+      <div><div class="s-label">黄色 · 轻度偏离</div><div class="s-value">21</div><div class="s-trend">记录留痕，不阻断</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-eye"></i></div>
+      <div><div class="s-label">蓝色 · 观察提示</div><div class="s-value">48</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-scale-unbalanced"></i>
+    <div>
+      四条预警规则本月共命中 <b>78</b> 宗：R1 小区中位价偏离 52 宗、R2 明显低于评估价 4 宗、R3 短期价格跳变 11 宗、R4 关联主体交易 11 宗；
+      多规则命中按最高等级取值。<span class="link" data-open-modal="mdRule">查看规则与阈值</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>核查编号</label>
+        <input type="text" placeholder="如 HC202607009">
+      </div>
+      <div class="filter-item">
+        <label>成交记录号</label>
+        <input type="text" placeholder="CJ450200…">
+      </div>
+      <div class="filter-item">
+        <label>坐落 / 小区</label>
+        <input type="text" placeholder="支持模糊查询">
+      </div>
+      <div class="filter-item">
+        <label>预警等级</label>
+        <select><option value="">全部</option><option>红色</option><option>橙色</option><option>黄色</option><option>蓝色</option></select>
+      </div>
+      <div class="filter-item">
+        <label>命中规则</label>
+        <select><option value="">全部</option><option>R1 小区中位价偏离</option><option>R2 明显低于评估价</option><option>R3 短期价格跳变</option><option>R4 关联主体交易</option></select>
+      </div>
+      <div class="filter-item">
+        <label>核查状态</label>
+        <select><option value="">全部</option><option>待核查</option><option>核查中</option><option>核查通过</option><option>核查异常</option></select>
+      </div>
+      <div class="filter-item">
+        <label>预警月份</label>
+        <input type="month" value="2026-07">
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 78 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="wait">待核查 <span class="badge red">9</span></div>
+      <div class="tab" data-tab="doing">核查中</div>
+      <div class="tab" data-tab="pass">核查通过</div>
+      <div class="tab" data-tab="bad">核查异常</div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblWarn" data-static>
+        <thead>
+          <tr>
+            <th>核查编号</th>
+            <th>成交记录号</th>
+            <th>房屋坐落</th>
+            <th class="num">成交单价(元/㎡)</th>
+            <th class="num">中位价(元/㎡)</th>
+            <th>偏离度</th>
+            <th>命中规则</th>
+            <th>预警等级</th>
+            <th>核查状态</th>
+            <th>预警时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">HC202607009</td>
+            <td class="nowrap">CJ450200202600309</td>
+            <td class="cell-lg">阳光 100 城市广场 A 座 1608</td>
+            <td class="num">5,981</td>
+            <td class="num">7,808</td>
+            <td class="nowrap text-danger fw-600">-23.40%</td>
+            <td class="nowrap">R1、R2</td>
+            <td class="nowrap"><span class="lv-dot lv-red"><i></i> 红色</span></td>
+            <td class="nowrap"><span class="badge red">待核查</span></td>
+            <td class="nowrap">2026-07-30 10:17</td>
+            <td class="col-ops">
+              <span class="link" onclick="openCheck('HC202607009','阳光 100 城市广场 A 座 1608','-23.40%')">去核查</span>
+              <a class="link" href="deal-ledger.html">看成交</a>
+            </td>
+          </tr>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">HC202607008</td>
+            <td class="nowrap">CJ450200202600301</td>
+            <td class="cell-lg">中航郡府 8-1-3301</td>
+            <td class="num">21,017</td>
+            <td class="num">14,738</td>
+            <td class="nowrap text-danger fw-600">+42.60%</td>
+            <td class="nowrap">R1</td>
+            <td class="nowrap"><span class="lv-dot lv-red"><i></i> 红色</span></td>
+            <td class="nowrap"><span class="badge red">待核查</span></td>
+            <td class="nowrap">2026-07-27 11:09</td>
+            <td class="col-ops">
+              <span class="link" onclick="openCheck('HC202607008','中航郡府 8-1-3301','+42.60%')">去核查</span>
+              <a class="link" href="deal-ledger.html">看成交</a>
+            </td>
+          </tr>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">HC202607007</td>
+            <td class="nowrap">CJ450200202600294</td>
+            <td class="cell-lg">恒大城 6-1-1802</td>
+            <td class="num">6,240</td>
+            <td class="num">10,485</td>
+            <td class="nowrap text-danger fw-600">-40.49%</td>
+            <td class="nowrap">R2、R4</td>
+            <td class="nowrap"><span class="lv-dot lv-red"><i></i> 红色</span></td>
+            <td class="nowrap"><span class="badge red">待核查</span></td>
+            <td class="nowrap">2026-07-25 16:44</td>
+            <td class="col-ops">
+              <span class="link" onclick="openCheck('HC202607007','恒大城 6-1-1802','-40.49%')">去核查</span>
+              <a class="link" href="deal-ledger.html">看成交</a>
+            </td>
+          </tr>
+          <tr data-st="doing">
+            <td class="nowrap fw-600">HC202607006</td>
+            <td class="nowrap">CJ450200202600287</td>
+            <td class="cell-lg">彰泰春天 3-2-1502</td>
+            <td class="num">8,410</td>
+            <td class="num">11,326</td>
+            <td class="nowrap text-warning fw-600">-25.75%</td>
+            <td class="nowrap">R1、R3</td>
+            <td class="nowrap"><span class="lv-dot lv-orange"><i></i> 橙色</span></td>
+            <td class="nowrap"><span class="badge orange">核查中</span></td>
+            <td class="nowrap">2026-07-24 09:31</td>
+            <td class="col-ops">
+              <span class="link" onclick="openCheck('HC202607006','彰泰春天 3-2-1502','-25.75%')">继续核查</span>
+              <a class="link" href="deal-ledger.html">看成交</a>
+            </td>
+          </tr>
+          <tr data-st="pass">
+            <td class="nowrap fw-600">HC202607005</td>
+            <td class="nowrap">CJ450200202600281</td>
+            <td class="cell-lg">荣和千千树 2-1-401</td>
+            <td class="num">9,022</td>
+            <td class="num">11,655</td>
+            <td class="nowrap text-warning">-22.59%</td>
+            <td class="nowrap">R1</td>
+            <td class="nowrap"><span class="lv-dot lv-orange"><i></i> 橙色</span></td>
+            <td class="nowrap"><span class="badge green">核查通过</span></td>
+            <td class="nowrap">2026-07-22 14:08</td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.toast('核查结论：房屋为一楼带院，采光受限且未装修，价格合理')">核查结论</span>
+              <a class="link" href="deal-ledger.html">看成交</a>
+            </td>
+          </tr>
+          <tr data-st="bad">
+            <td class="nowrap fw-600">HC202607004</td>
+            <td class="nowrap">CJ450200202600276</td>
+            <td class="cell-lg">金龙湾 9-3-2201</td>
+            <td class="num">6,880</td>
+            <td class="num">10,988</td>
+            <td class="nowrap text-danger">-37.39%</td>
+            <td class="nowrap">R2、R4</td>
+            <td class="nowrap"><span class="lv-dot lv-red"><i></i> 红色</span></td>
+            <td class="nowrap"><span class="badge red">核查异常</span></td>
+            <td class="nowrap">2026-07-20 10:52</td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.toast('核查结论：疑似阴阳合同，已移送税务部门核查')">核查结论</span>
+              <span class="link danger" onclick="PMS.toast('已移送市税务局稽查部门，并抄送市住建局信用管理科','error')">移送处置</span>
+            </td>
+          </tr>
+          <tr data-st="pass">
+            <td class="nowrap fw-600">HC202607003</td>
+            <td class="nowrap">CJ450200202600268</td>
+            <td class="cell-lg">保利大江郡 3-1-1101</td>
+            <td class="num">15,880</td>
+            <td class="num">12,730</td>
+            <td class="nowrap text-warning">+24.74%</td>
+            <td class="nowrap">R1</td>
+            <td class="nowrap"><span class="lv-dot lv-yellow"><i></i> 黄色</span></td>
+            <td class="nowrap"><span class="badge green">核查通过</span></td>
+            <td class="nowrap">2026-07-18 15:26</td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.toast('核查结论：顶楼复式带露台，精装全配，价格合理')">核查结论</span>
+              <a class="link" href="deal-ledger.html">看成交</a>
+            </td>
+          </tr>
+          <tr data-st="pass">
+            <td class="nowrap fw-600">HC202607002</td>
+            <td class="nowrap">CJ450200202600255</td>
+            <td class="cell-lg">万科城 12-2-905</td>
+            <td class="num">13,650</td>
+            <td class="num">11,502</td>
+            <td class="nowrap text-warning">+18.67%</td>
+            <td class="nowrap">R1、R4</td>
+            <td class="nowrap"><span class="lv-dot lv-blue"><i></i> 蓝色</span></td>
+            <td class="nowrap"><span class="badge green">核查通过</span></td>
+            <td class="nowrap">2026-07-15 11:03</td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.toast('核查结论：父子间转让，价格接近市场价，无违规情形')">核查结论</span>
+              <a class="link" href="deal-ledger.html">看成交</a>
+            </td>
+          </tr>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">HC202607010</td>
+            <td class="nowrap">CJ450200202600318</td>
+            <td class="cell-lg">彰泰滨江学府 12-2-1802</td>
+            <td class="num">12,524</td>
+            <td class="num">10,800</td>
+            <td class="nowrap text-warning">+15.96%</td>
+            <td class="nowrap">R1</td>
+            <td class="nowrap"><span class="lv-dot lv-yellow"><i></i> 黄色</span></td>
+            <td class="nowrap"><span class="badge orange">待核查</span></td>
+            <td class="nowrap">2026-07-31 11:28</td>
+            <td class="col-ops">
+              <span class="link" onclick="openCheck('HC202607010','彰泰滨江学府 12-2-1802','+15.96%')">去核查</span>
+              <a class="link" href="filing-detail.html">看备案</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 核查办理 -->
+  <div class="drawer-mask"></div>
+  <div class="drawer drawer-lg" id="dwCheck">
+    <div class="drawer-head">
+      <h3>异常成交价核查办理</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-danger">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>核查编号 <b id="ckNo"></b>　房屋 <b id="ckAddr"></b>　偏离度 <b id="ckDev"></b>。红色预警须核查通过后方可纳入统计发布口径。</div>
+      </div>
+
+      <div class="section-title mt-16">价格比对</div>
+      <table class="data-table compact">
+        <thead><tr><th>序号</th><th>比对口径</th><th class="num">参考单价（元/㎡）</th><th>偏离度</th><th>数据来源</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>本小区近 3 个月成交中位价</td><td class="num">7,808</td><td class="text-danger">-23.40%</td><td>本系统成交台账</td></tr>
+          <tr><td>2</td><td>本小区同户型近 6 个月均价</td><td class="num">7,455</td><td class="text-danger">-19.77%</td><td>本系统成交台账</td></tr>
+          <tr><td>3</td><td>周边 1 公里同类房源均价</td><td class="num">7,986</td><td class="text-danger">-25.11%</td><td>本系统成交台账</td></tr>
+          <tr><td>4</td><td>税务评估价</td><td class="num">7,650</td><td class="text-danger">-21.82%</td><td>市税务局评估系统</td></tr>
+          <tr><td>5</td><td>本次成交单价</td><td class="num fw-600">5,981</td><td>—</td><td>本次备案</td></tr>
+        </tbody>
+      </table>
+
+      <div class="section-title mt-16">交易主体关联性核查</div>
+      <dl class="desc-list">
+        <div class="desc-item"><dt>出卖人</dt><dd>吴俊霖（4502**********7412）</dd></div>
+        <div class="desc-item"><dt>买受人</dt><dd>吴晓涵（4502**********7455）</dd></div>
+        <div class="desc-item"><dt>关联关系</dt><dd class="text-danger fw-600">同一户籍地址，疑似近亲属</dd></div>
+        <div class="desc-item"><dt>付款方式</dt><dd>一次性付款，未通过按揭</dd></div>
+        <div class="desc-item"><dt>资金流水</dt><dd>监管专户到账 31.2 万元，与合同金额一致</dd></div>
+        <div class="desc-item"><dt>历史成交</dt><dd>该房源 2023-05 成交价 42.6 万元（8,167 元/㎡）</dd></div>
+      </dl>
+
+      <div class="section-title mt-16">核查处置</div>
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>核查方式<span class="req">*</span></label>
+          <select><option selected>线上比对 + 电话询问</option><option>约谈当事人</option><option>实地核查</option><option>委托评估机构评估</option></select>
+        </div>
+        <div class="form-item">
+          <label>核查人</label>
+          <input type="text" value="韦国强" readonly style="background:var(--bg-soft)">
+        </div>
+        <div class="form-item">
+          <label>核查结论<span class="req">*</span></label>
+          <select id="ckResult">
+            <option value="pass">核查通过：价格合理，纳入统计口径</option>
+            <option value="bad" selected>核查异常：疑似阴阳合同，移送处置</option>
+            <option value="hold">存疑：需委托评估机构进一步评估</option>
+          </select>
+        </div>
+        <div class="form-item">
+          <label>移送单位</label>
+          <select><option selected>XXXX市税务局 稽查局</option><option>XXXX市住建局 信用管理科</option><option>XXXX市市场监管局</option></select>
+        </div>
+        <div class="form-item col-full">
+          <label>核查意见<span class="req">*</span></label>
+          <textarea>成交单价 5,981 元/㎡，低于小区中位价 23.40%、低于税务评估价 21.82%；买卖双方户籍地址一致，疑为近亲属间交易，且一次性付款无按揭记录。综合判断存在低价申报规避税费的嫌疑，建议移送税务部门核查，按评估价计征相关税费。</textarea>
+        </div>
+        <div class="form-item col-full">
+          <label>核查佐证材料</label>
+          <div class="file-up">
+            <input type="hidden" class="file-up-val" value="价格比对分析表.xlsx,电话询问记录.pdf,历史成交对照.pdf">
+            <div class="file-up-grid">
+              <div class="file-up-tile file-up-add" title="添加文件（可多选）">
+                <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.xlsx">
+                <i class="fa-solid fa-plus"></i><span>上传</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title mt-16">核查闭环轨迹</div>
+      <div class="timeline">
+        <div class="tl-item done">
+          <div class="tl-dot"></div>
+          <div class="tl-title">系统自动生成预警</div>
+          <div class="tl-meta">2026-07-30 10:17 · 系统</div>
+          <div class="tl-desc">命中 R1 小区中位价偏离、R2 明显低于评估价，判定为红色预警。</div>
+        </div>
+        <div class="tl-item done">
+          <div class="tl-dot"></div>
+          <div class="tl-title">分派核查任务</div>
+          <div class="tl-meta">2026-07-30 10:18 · 系统</div>
+          <div class="tl-desc">按行政区分派至柳北区核查岗，承诺 2 个工作日内出具结论。</div>
+        </div>
+        <div class="tl-item pending">
+          <div class="tl-dot"></div>
+          <div class="tl-title">出具核查结论</div>
+          <div class="tl-meta">待办理 · 当前节点</div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn" onclick="PMS.toast('核查意见草稿已保存','success')"><i class="fa-regular fa-floppy-disk"></i> 保存草稿</button>
+      <button type="button" class="btn btn-primary" onclick="submitCheck()"><i class="fa-solid fa-paper-plane"></i> 提交核查结论</button>
+    </div>
+  </div>
+
+  <!-- 预警规则配置 -->
+  <div class="modal-mask" id="mdRule">
+    <div class="modal">
+      <div class="modal-head">预警规则与阈值配置（一城一策）</div>
+      <div class="modal-body">
+        <div class="rule-grid">
+          <div class="rule-card">
+            <div class="rc-name"><span class="no">R1</span> 小区中位价偏离</div>
+            <div class="rc-desc">成交单价与本小区近 3 个月成交中位价比较：偏离 15%~30% 黄色，30%~40% 橙色，超 40% 红色。</div>
+            <div class="rc-hit">本月命中 <b>52</b> 宗（红 2 / 橙 5 / 黄 45）</div>
+          </div>
+          <div class="rule-card">
+            <div class="rc-name"><span class="no">R2</span> 明显低于评估价</div>
+            <div class="rc-desc">成交总价低于税务评估价 20% 以上的，判定为疑似阴阳合同或关联交易，直接红色预警。</div>
+            <div class="rc-hit">本月命中 <b>4</b> 宗（红 1 / 橙 3）</div>
+          </div>
+          <div class="rule-card">
+            <div class="rc-name"><span class="no">R3</span> 短期内价格跳变</div>
+            <div class="rc-desc">同一房源 6 个月内二次成交且价差超 25%，或同小区同户型一周内出现 20% 以上价差。</div>
+            <div class="rc-hit">本月命中 <b>11</b> 宗（橙 2 / 黄 9）</div>
+          </div>
+          <div class="rule-card">
+            <div class="rc-name"><span class="no">R4</span> 关联主体交易</div>
+            <div class="rc-desc">买卖双方存在近亲属、同一法定代表人或同址企业等关联关系，结合价格偏离度综合定级。</div>
+            <div class="rc-hit">本月命中 <b>11</b> 宗（橙 1 / 蓝 10）</div>
+          </div>
+        </div>
+        <div class="alert alert-info mt-16">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>阈值按市本级统一设置，各县可在市级基础上从严调整，调整后次日 0 时生效。</div>
+        </div>
+        <div class="form-grid">
+          <div class="form-item">
+            <label>黄色预警阈值（%）</label>
+            <input type="number" value="15">
+          </div>
+          <div class="form-item">
+            <label>橙色预警阈值（%）</label>
+            <input type="number" value="30">
+          </div>
+          <div class="form-item">
+            <label>红色预警阈值（%）</label>
+            <input type="number" value="40">
+          </div>
+          <div class="form-item">
+            <label>低于评估价红色线（%）</label>
+            <input type="number" value="20">
+          </div>
+          <div class="form-item">
+            <label>中位价统计窗口（月）</label>
+            <input type="number" value="3">
+          </div>
+          <div class="form-item">
+            <label>核查承诺时限（工作日）</label>
+            <input type="number" value="2">
+          </div>
+          <div class="form-item col-full">
+            <label>红色预警是否阻断统计发布</label>
+            <select><option selected>阻断，核查通过后纳入</option><option>不阻断，标注后纳入</option></select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-close-modal>取消</button>
+        <button type="button" class="btn btn-primary" onclick="PMS.closeModal();PMS.toast('预警规则已保存，次日 0 时生效','success')">保存配置</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  var table = document.getElementById('tblWarn');
+  document.getElementById('stTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var name = tab.getAttribute('data-tab');
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.style.display = (name === 'all' || tr.getAttribute('data-st') === name) ? '' : 'none';
+    });
+  });
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 78,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+
+function openCheck(no, addr, dev) {
+  document.getElementById('ckNo').textContent = no;
+  document.getElementById('ckAddr').textContent = addr;
+  document.getElementById('ckDev').textContent = dev;
+  PMS.openDrawer('dwCheck');
+}
+
+function submitCheck() {
+  var v = document.getElementById('ckResult').value;
+  var map = {
+    pass: { t: '核查通过', d: '该笔成交价格判定为合理，纳入统计发布口径。', type: 'info' },
+    bad: { t: '核查异常并移送', d: '判定为疑似阴阳合同，将移送税务部门核查，并在成交台账标注核查异常。', type: 'danger' },
+    hold: { t: '委托评估', d: '将委托评估机构出具评估报告，核查任务顺延 5 个工作日。', type: 'warning' }
+  };
+  var m = map[v];
+  PMS.confirm({
+    title: '提交核查结论',
+    message: '确认提交「' + m.t + '」结论？',
+    detail: m.d,
+    type: m.type,
+    okText: '确认提交',
+    onOk: function () {
+      PMS.closeDrawer('dwCheck');
+      PMS.toast('核查结论已提交：' + m.t, 'success');
+    }
+  });
+}
+</script>
+</body>
+</html>

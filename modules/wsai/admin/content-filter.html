@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>内容合规过滤 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="pt" data-active="prompt-template" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>模型底座</span>
+      <span class="sep">/</span><span>AI 输出治理</span>
+      <span class="sep">/</span><span class="cur">内容合规过滤</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-shield-halved"></i>AI 输出治理 wsai-03</span>
+    <a href="../common/ai-audit-log.html?role=pt">AI 输出留痕</a>
+    <a href="prompt-template.html?role=pt">提示词模板</a>
+    <a class="active" href="content-filter.html?role=pt">内容合规过滤</a>
+    <a href="hallucination-guard.html?role=pt">幻觉防控审核</a>
+    <a href="human-feedback.html?role=pt">人工修正回流</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-filter"></i>
+    <span>合规过滤作用在<b>模型输入与输出两端</b>，防止数据外泄与不当表述。三种处置：
+      <b>拦截</b>直接终止本次调用、<b>脱敏</b>把敏感片段替换为掩码后继续、<b>告警</b>仅记录不改写。每次命中都会写入命中日志。</span>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon ai"><i class="fa-solid fa-filter"></i></div>
+      <div><div class="s-label">规则数</div><div class="s-value" id="kRule">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-toggle-on"></i></div>
+      <div><div class="s-label">已启用</div><div class="s-value" id="kOn">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-hand"></i></div>
+      <div><div class="s-label">累计命中</div><div class="s-value" id="kHit">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-clipboard-list"></i></div>
+      <div><div class="s-label">命中日志</div><div class="s-value" id="kLog">—</div></div>
+    </div>
+  </div>
+
+  <!-- 规则试算台：直接演示拦截与脱敏 -->
+  <div class="card">
+    <div class="card-head">
+      <h3>规则试算台</h3>
+      <span class="sub">输入一段内容看会被怎么处置</span>
+    </div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="form-item col-full">
+          <label>待试算内容</label>
+          <textarea id="testText" rows="3" placeholder="例如：帮我查一下张某（身份证 450202199001011234）名下有几套房"></textarea>
+        </div>
+      </div>
+      <div class="btn-row mt-16">
+        <button class="btn btn-primary" onclick="doTest()"><i class="fa-solid fa-play"></i> 开始试算</button>
+        <button class="btn" onclick="fillSample('身份证')">填入身份证样例</button>
+        <button class="btn" onclick="fillSample('违规')">填入违规表述样例</button>
+        <button class="btn" onclick="fillSample('正常')">填入正常内容样例</button>
+      </div>
+      <div id="testResult" class="mt-16"></div>
+    </div>
+  </div>
+
+  <div class="grid-2 mt-16">
+    <div class="card">
+      <div class="card-head"><h3>过滤规则</h3><span class="sub">可改处置方式与启停</span></div>
+      <div class="card-body tight">
+        <div class="table-wrap" style="max-height:400px">
+          <table class="data-table compact" id="tRule" data-static>
+            <thead><tr><th>规则名称</th><th>类型</th><th>处置</th><th class="num">命中</th><th>启用</th><th>操作</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>命中日志</h3><span class="sub">按时间倒序</span></div>
+      <div class="card-body tight">
+        <div class="table-wrap" style="max-height:400px">
+          <table class="data-table compact" id="tHit" data-static>
+            <thead><tr><th>场景</th><th class="cell-lg">命中内容</th><th>规则</th><th>处置</th><th>时间</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var SAMPLES = {
+    '身份证': '帮我查一下张某（身份证 450202199001011234，手机 13812345678）名下有几套房',
+    '违规': '这个项目保证升值稳赚不赔，可以走内部指标包过备案',
+    '正常': '商品房买卖合同网签备案的承诺时限是几个工作日'
+  };
+
+  function paintKpi() {
+    var rs = AI.get('rules');
+    document.getElementById('kRule').textContent = rs.length;
+    document.getElementById('kOn').textContent = rs.filter(function (r) { return r.enabled; }).length;
+    document.getElementById('kHit').textContent = AI.num(rs.reduce(function (s, r) { return s + r.hits; }, 0));
+    document.getElementById('kLog').textContent = AI.get('ruleHits').length;
+  }
+
+  window.fillSample = function (k) {
+    document.getElementById('testText').value = SAMPLES[k] || '';
+    document.getElementById('testResult').innerHTML = '';
+  };
+
+  window.doTest = function () {
+    var v = document.getElementById('testText').value;
+    var r = AI.act.testRule(v);
+    var box = document.getElementById('testResult');
+    if (!r) { box.innerHTML = ''; return; }
+    if (r.blocked) {
+      box.innerHTML = '<div class="alert alert-danger"><i class="fa-solid fa-hand"></i>' +
+        '<span><b>已拦截</b>：内容命中拦截类规则，本次调用直接终止，不会送入模型，也不会产生 AI 输出留痕。</span></div>';
+    } else if (r.text !== v.trim()) {
+      box.innerHTML = '<div class="alert alert-warning"><i class="fa-solid fa-user-secret"></i>' +
+        '<span><b>已脱敏后继续</b>：送入模型的实际内容为</span></div>' +
+        '<div class="chat-cite"><div class="cc-t">脱敏后内容</div>' + AI.esc(r.text) + '</div>';
+    } else {
+      box.innerHTML = '<div class="alert alert-success"><i class="fa-solid fa-circle-check"></i>' +
+        '<span><b>未命中规则</b>：内容可原样送入模型。</span></div>';
+    }
+  };
+
+  AI.table({
+    id: 'tRule', pageSize: 10,
+    rows: function () { return AI.get('rules'); },
+    cells: function (r) {
+      var color = { '1': 'red', '2': 'orange', '3': 'cyan' }[r.gzdz] || 'gray';
+      return [
+        '<td>' + AI.esc(r.mc) + '</td>',
+        '<td>' + AI.dict('gzlei', r.gzlei) + '</td>',
+        '<td><select style="width:96px;height:28px" onchange="AI.act.saveRule(\'' + r.id + '\',this.value)">' +
+          ['1', '2', '3'].map(function (v) {
+            return '<option value="' + v + '"' + (v === r.gzdz ? ' selected' : '') + '>' + AI.dict('gzdz', v) + '</option>';
+          }).join('') + '</select></td>',
+        '<td class="num">' + AI.num(r.hits) + '</td>',
+        '<td>' + (r.enabled ? '<span class="badge green">启用</span>' : '<span class="badge gray">停用</span>') + '</td>',
+        '<td class="col-ops"><button class="btn btn-sm" onclick="AI.act.saveRule(\'' + r.id + '\',null,' + (r.enabled ? 0 : 1) + ')">' +
+          (r.enabled ? '<i class="fa-solid fa-pause"></i> 停用' : '<i class="fa-solid fa-play"></i> 启用') + '</button></td>'
+      ];
+    },
+    empty: '暂无过滤规则'
+  });
+
+  AI.table({
+    id: 'tHit', pageSize: 10,
+    rows: function () {
+      return AI.get('ruleHits').slice().sort(function (a, b) { return b.at - a.at; });
+    },
+    cells: function (h) {
+      var color = { '1': 'red', '2': 'orange', '3': 'cyan' }[h.gzdz] || 'gray';
+      return [
+        '<td>' + AI.dict('scene', h.scene) + '</td>',
+        '<td class="cell-lg">' + AI.esc(h.text) + '</td>',
+        '<td>' + AI.esc(h.ruleName) + '</td>',
+        '<td>' + AI.badge(AI.dict('gzdz', h.gzdz), color) + '</td>',
+        '<td>' + AI.fmt.ago(h.at) + '</td>'
+      ];
+    },
+    empty: '暂无命中记录'
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () { paintKpi(); AI.repaintAll(); });
+  });
+})();
+</script>
+</body>
+</html>

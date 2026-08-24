@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>成果质检与整改 · 房屋交易面积信息管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：质检结论卡、12 项逐项可展开行卡片、整改跟踪 */
+  .concl {
+    display: flex; align-items: stretch; gap: 0; border-radius: var(--radius-lg); overflow: hidden;
+    border: 1px solid #fca5a5; background: linear-gradient(90deg, #fef2f2 0%, #fff7f7 42%, #fff 100%);
+  }
+  .concl.pass { border-color: #bbf7d0; background: linear-gradient(90deg, #f0fdf4 0%, #f7fefa 42%, #fff 100%); }
+  .concl .cl {
+    display: flex; align-items: center; gap: 16px; padding: 20px 24px; min-width: 320px;
+    border-right: 1px solid rgba(0, 0, 0, .06);
+  }
+  .concl .cbig {
+    width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 32px; color: #fff; background: var(--danger); flex-shrink: 0;
+    box-shadow: 0 6px 16px rgba(220, 38, 38, .28);
+  }
+  .concl.pass .cbig { background: var(--success); box-shadow: 0 6px 16px rgba(16, 185, 129, .28); }
+  .concl .ct { font-size: 22px; font-weight: 800; color: var(--danger); letter-spacing: .5px; }
+  .concl.pass .ct { color: var(--success); }
+  .concl .cs { font-size: 13px; color: var(--text-2); margin-top: 5px; max-width: 260px; line-height: 1.5; }
+  .concl .cm { display: flex; align-items: center; gap: 26px; padding: 20px 24px; flex-wrap: wrap; }
+  .concl .cm .n { text-align: center; }
+  .concl .cm .n .v { font-size: 26px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .concl .cm .n .l { font-size: 12.5px; color: var(--text-3); margin-top: 3px; }
+  .concl .cr { margin-left: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; min-width: 300px; }
+  .lvbar { display: flex; gap: 8px; flex-wrap: wrap; }
+  .lvbar .li {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; padding: 4px 12px;
+    border-radius: 20px; background: #f1f5f9; color: var(--text-2);
+  }
+  .lvbar .li b { font-size: 14px; }
+  .lvbar .li.fatal { background: #fee2e2; color: var(--danger); }
+  .lvbar .li.severe { background: #ffedd5; color: #c2410c; }
+  .lvbar .li.normal { background: #fef9c3; color: #a16207; }
+  .lvbar .li.tip { background: #e0f2fe; color: #0369a1; }
+  .veto {
+    background: var(--danger); color: #fff; border-radius: 8px; padding: 9px 14px; font-size: 13px; font-weight: 600;
+    display: flex; align-items: center; gap: 9px; box-shadow: 0 4px 12px rgba(220, 38, 38, .25);
+  }
+  .cfoot {
+    display: flex; align-items: center; gap: 22px; flex-wrap: wrap; padding: 10px 14px; font-size: 12.5px;
+    color: var(--text-2); border-top: 1px solid var(--border); background: #fff;
+  }
+  .cfoot .k { color: var(--text-3); }
+
+  /* 12 项逐项 */
+  .rules { display: flex; flex-direction: column; gap: 8px; }
+  .rule { border: 1px solid var(--border); border-radius: var(--radius); background: #fff; overflow: hidden; }
+  .rule.no { border-color: #fca5a5; }
+  .rule.warn { border-color: #fde68a; }
+  .rh {
+    display: flex; align-items: center; gap: 12px; padding: 11px 14px; cursor: pointer; user-select: none;
+    transition: background .12s;
+  }
+  .rh:hover { background: var(--row-hover); }
+  .rule.no .rh { background: #fef7f7; }
+  .rule.warn .rh { background: #fffdf5; }
+  .rh .ri { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #fff; flex-shrink: 0; background: var(--success); }
+  .rh .ri.no { background: var(--danger); } .rh .ri.warn { background: var(--warning); }
+  .rh .rcode { font-weight: 800; color: var(--text-3); font-variant-numeric: tabular-nums; width: 22px; }
+  .rh .rname { font-weight: 700; font-size: 14px; white-space: nowrap; }
+  .rh .rdesc { color: var(--text-3); font-size: 12.5px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rh .rpos { font-size: 12.5px; color: var(--text-3); white-space: nowrap; }
+  .rh .rar { color: var(--text-3); transition: transform .18s; }
+  .rule.open .rh .rar { transform: rotate(90deg); }
+  .rb { display: none; padding: 0 14px 14px; }
+  .rule.open .rb { display: block; }
+  .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0; border: 1px solid #ebedf5; border-radius: 8px; overflow: hidden; }
+  .kv .i { display: grid; grid-template-columns: 96px 1fr; }
+  .kv .i dt { margin: 0; background: #f0f5ff; color: #5c6478; font-size: 12.5px; padding: 9px 12px; border-right: 1px solid #eef0f6; border-bottom: 1px solid #eef0f6; display: flex; align-items: center; }
+  .kv .i dd { margin: 0; padding: 9px 12px; font-size: 13px; font-weight: 600; border-right: 1px solid #eef0f6; border-bottom: 1px solid #eef0f6; display: flex; align-items: center; gap: 6px; }
+  .kv .i dd.pos { color: #b45309; } .kv .i dd.neg { color: var(--primary); } .kv .i dd.zero { color: var(--text-3); }
+  .rmsg { margin-top: 10px; font-size: 13px; line-height: 1.6; background: var(--bg-2); border-radius: 8px; padding: 10px 12px; }
+  .rmsg .t { font-weight: 700; margin-bottom: 3px; }
+  .rmsg.fix { background: #fffbeb; }
+  .amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .unit { color: var(--text-3); font-size: 11.5px; margin-left: 2px; }
+  .tbl-box { overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+  .tbl-box .data-table { margin: 0; }
+  /* 打印质检报告预览 */
+  .a4 { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 26px 30px; }
+  .a4 .rt { text-align: center; font-size: 19px; font-weight: 800; letter-spacing: 2px; }
+  .a4 .rsub { text-align: center; font-size: 12.5px; color: var(--text-3); margin-top: 6px; }
+  .a4 .sign { display: flex; gap: 40px; margin-top: 24px; font-size: 13px; }
+  .a4 .sign > div { flex: 1; border-top: 1px solid var(--text-3); padding-top: 7px; }
+  .wm { position: relative; }
+  .wm::after {
+    content: "仅供业务办理参考"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 40px; font-weight: 800; color: rgba(37, 99, 235, .07); transform: rotate(-22deg); pointer-events: none;
+  }
+</style>
+</head>
+<body data-role="reviewer" data-active="wschcg-07">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易面积信息管理系统
+        <span class="sep">/</span> <a class="link" href="result-list.html">测绘成果台账</a>
+        <span class="sep">/</span> <span class="cur">成果质检与整改 · CG450200202600186</span>
+      </div>
+      <div class="page-title">成果质检与整改</div>
+    </div>
+    <div class="page-actions">
+      <select style="width:250px" onchange="PMS.toast('已切换质检对象：' + this.value)">
+        <option>CG450200202600186 · 荣和公园大道二期 8 栋 V2.0</option>
+        <option>CG450200202600188 · 彰泰滨江学府 6 栋 V1.0</option>
+        <option>CG450200202600180 · 万科城 5 栋 V2.0</option>
+      </select>
+      <button type="button" class="btn" onclick="reCheck()"><i class="fa-solid fa-rotate"></i> 重新质检</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.openModal('mdFix')"><i class="fa-solid fa-paper-plane"></i> 下发整改</button>
+      <button type="button" class="btn" onclick="PMS.openDrawer('drPrint')"><i class="fa-solid fa-print"></i> 打印质检报告</button>
+      <button type="button" class="btn" onclick="location.href='result-detail.html'"><i class="fa-solid fa-file-lines"></i> 成果详情</button>
+    </div>
+  </div>
+
+  <div class="concl" id="concl">
+    <div class="cl">
+      <div class="cbig" id="cIco"><i class="fa-solid fa-xmark"></i></div>
+      <div>
+        <div class="ct" id="cTxt">质检不通过</div>
+        <div class="cs" id="cSub">12 项自动质检发现 2 项不通过，其中 1 项为<b>致命</b>问题，整包退回重报，不允许人工放行。</div>
+      </div>
+    </div>
+    <div class="cm">
+      <div class="n"><div class="v">12</div><div class="l">质检项</div></div>
+      <div class="n"><div class="v text-success" id="nOk">9</div><div class="l">通过</div></div>
+      <div class="n"><div class="v text-warning" id="nWarn">1</div><div class="l">警告</div></div>
+      <div class="n"><div class="v text-danger" id="nNo">2</div><div class="l">不通过</div></div>
+    </div>
+    <div class="cr">
+      <div class="lvbar">
+        <span class="li fatal">致命 <b>1</b></span>
+        <span class="li severe">严重 <b>1</b></span>
+        <span class="li normal">一般 <b>0</b></span>
+        <span class="li tip">提示 <b>1</b></span>
+      </div>
+      <div class="veto" id="veto"><i class="fa-solid fa-ban"></i> 存在致命问题，整包退回，不允许人工放行</div>
+    </div>
+  </div>
+  <div class="cfoot">
+    <span><span class="k">质检编号</span> <b>ZJ20260801026</b></span>
+    <span><span class="k">质检类型</span> 系统自动质检</span>
+    <span><span class="k">质检人</span> 系统</span>
+    <span><span class="k">质检时间</span> 2026-08-01 09:12:36 · 耗时 8.4 秒</span>
+    <span><span class="k">复核人</span> 韦国强</span>
+    <span><span class="k">复核结果</span> <span class="badge red">不合格</span></span>
+    <span><span class="k">成果</span> 荣和公园大道二期 8 栋 · 实测成果 V2.0 · XXXX市测绘院 · 96 户</span>
+  </div>
+
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3>12 项逐项质检结果</h3>
+      <span class="sub">面积平衡类 4 项 · 结构规范类 4 项 · 外部一致类 4 项</span>
+      <div class="head-actions">
+        <button type="button" class="btn btn-sm" onclick="expandAll(true)">展开全部</button>
+        <button type="button" class="btn btn-sm" onclick="expandAll(false)">收起全部</button>
+        <button type="button" class="btn btn-sm" onclick="onlyBad()">只看有问题项</button>
+        <button type="button" class="btn btn-sm" onclick="location.href='import-config.html'">规则配置</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="rules" id="rules">
+
+        <div class="rule" data-bad="0">
+          <div class="rh" onclick="tg(this)">
+            <span class="ri"><i class="fa-solid fa-check"></i></span>
+            <span class="rcode">01</span>
+            <span class="rname">幢面积平衡</span>
+            <span class="rdesc">幢建筑面积 = 各层建筑面积之和</span>
+            <span class="badge green">通过</span>
+            <span class="rpos">涉及位置 1 处</span>
+            <i class="fa-solid fa-angle-right rar"></i>
+          </div>
+          <div class="rb">
+            <dl class="kv">
+              <div class="i"><dt>规则说明</dt><dd>幢建筑面积 = 各层建筑面积之和</dd></div>
+              <div class="i"><dt>期望值</dt><dd class="amt">28,842.60</dd></div>
+              <div class="i"><dt>实际值</dt><dd class="amt">28,842.60</dd></div>
+              <div class="i"><dt>差值</dt><dd class="amt zero">0.00</dd></div>
+              <div class="i"><dt>允许误差</dt><dd class="amt">0.01</dd></div>
+              <div class="i"><dt>问题等级</dt><dd>—</dd></div>
+              <div class="i"><dt>涉及位置</dt><dd>8 栋</dd></div>
+              <div class="i"><dt>整改状态</dt><dd><span class="badge gray">无需整改</span></dd></div>
+            </dl>
+            <div class="rmsg"><div class="t">质检结论</div>26 层建筑面积逐层累加 28,842.60 ㎡，与幢总建筑面积完全一致，面积平衡关系成立。</div>
+          </div>
+        </div>
+
+        <div class="rule" data-bad="0">
+          <div class="rh" onclick="tg(this)">
+            <span class="ri"><i class="fa-solid fa-check"></i></span>
+            <span class="rcode">02</span>
+            <span class="rname">层面积平衡</span>
+            <span class="rdesc">层建筑面积 = 层套内面积 + 层共有面积</span>
+            <span class="badge green">通过</span>
+            <span class="rpos">涉及位置 26 处</span>
+            <i class="fa-solid fa-angle-right rar"></i>
+          </div>
+          <div class="rb">
+            <dl class="kv">
+              <div class="i"><dt>规则说明</dt><dd>层建筑面积 = 层套内面积 + 层共有面积</dd></div>
+              <div class="i"><dt>期望值</dt><dd>逐层校验</dd></div>
+              <div class="i"><dt>实际值</dt><dd>26 层全部平衡</dd></div>
+              <div class="i"><dt>差值</dt><dd class="amt zero">最大 0.00</dd></div>
+              <div class="i"><dt>允许误差</dt><dd class="amt">0.01</dd></div>
+              <div class="i"><dt>问题等级</dt><dd>—</dd></div>
+              <div class="i"><dt>涉及位置</dt><dd>8 栋 地下 1 层 ~ 26 层</dd></div>
+              <div class="i"><dt>整改状态</dt><dd><span class="badge gray">无需整改</span></dd></div>
+            </dl>
+            <div class="rmsg"><div class="t">质检结论</div>26 层逐层校验层建面 = 层套内 + 层共有，最大偏差 0.00 ㎡，全部满足平衡关系。</div>
+          </div>
+        </div>
+
+        <div class="rule no" data-bad="1">
+          <div class="rh" onclick="tg(this)">
+            <span class="ri no"><i class="fa-solid fa-xmark"></i></span>
+            <span class="rcode">03</span>
+            <span class="rname">户面积平衡</span>
+            <span class="rdesc">户建筑面积 = 套内建筑面积 + 分摊面积</span>
+            <span class="badge red">不通过</span>
+            <span class="badge orange">严重</span>
+            <span class="rpos">涉及位置 1 处</span>
+            <i class="fa-solid fa-angle-right rar"></i>
+          </div>
+          <div class="rb">
+            <dl class="kv">
+              <div class="i"><dt>规则说明</dt><dd>户建筑面积 = 套内建筑面积 + 分摊面积</dd></div>
+              <div class="i"><dt>期望值</dt><dd class="amt">99.70</dd></div>
+              <div class="i"><dt>实际值</dt><dd class="amt">100.15</dd></div>
+              <div class="i"><dt>差值</dt><dd class="amt pos">+0.45</dd></div>
+              <div class="i"><dt>允许误差</dt><dd class="amt">0.01</dd></div>
+              <div class="i"><dt>问题等级</dt><dd><span class="badge orange">严重</span></dd></div>
+              <div class="i"><dt>涉及位置</dt><dd>8 栋 2 单元 18 层 1806</dd></div>
+              <div class="i"><dt>整改状态</dt><dd><span class="badge orange">待整改</span></dd></div>
+            </dl>
+            <div class="rmsg"><div class="t">问题描述</div>该户建筑面积 <b class="amt">100.15 ㎡</b> 与套内 <b class="amt">78.42 ㎡</b> + 分摊 <b class="amt">21.28 ㎡</b> = <b class="amt">99.70 ㎡</b> 不符，差 <b class="amt text-warning">0.45 ㎡</b>，超出允许误差 0.01 ㎡。</div>
+            <div class="rmsg fix"><div class="t">整改要求</div>请核对该户套内面积与分摊面积测算，修正后重新报送。该户同时是预实测差异超阈值户（+4.11%），面积数据错误将直接影响找补金额计算。</div>
+          </div>
+        </div>
+
+        <div class="rule" data-bad="0">
+          <div class="rh" onclick="tg(this)">
+            <span class="ri"><i class="fa-solid fa-check"></i></span>
+            <span class="rcode">04</span>
+            <span class="rname">分摊系数校验</span>
+            <span class="rdesc">分摊系数 = 共有面积 / 参与分摊套内面积</span>
+            <span class="badge green">通过</span>
+            <span class="rpos">涉及位置 96 处</span>
+            <i class="fa-solid fa-angle-right rar"></i>
+          </div>
+          <div class="rb">
+            <dl class="kv">
+              <div class="i"><dt>规则说明</dt><dd>分摊系数 = 共有面积 ÷ 参与分摊套内面积合计</dd></div>
+              <div class="i"><dt>期望值</dt><dd class="amt">0.2827</dd></div>
+              <div class="i"><dt>实际值</dt><dd class="amt">0.2827</dd></div>
+              <div class="i"><dt>差值</dt><dd class="amt zero">0.0000</dd></div>
+              <div class="i"><dt>允许误差</dt><dd class="amt">0.0001</dd></div>
+              <div class="i"><dt>问题等级</dt><dd>—</dd></div>
+              <div class="i"><dt>涉及位置</dt><dd>8 栋（幢分摊）</dd></div>
+              <div class="i"><dt>整改状态</dt><dd><span class="badge gray">无需整改</span></dd></div>
+            </dl>
+            <div class="rmsg">
+              <div class="t">质检结论</div>
+              幢分摊系数 6,356.18 ÷ 22,486.42 = 0.2827，各户按套内面积比例计算的分摊面积合计与共有部位面积一致。
+              <a class="link" href="coefficient.html">查看分摊系数与共有部位清单</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="rule no" data-bad="1">
+          <div class="rh" onclick="tg(this)">
+            <span class="ri no"><i class="fa-solid fa-xmark"></i></span>
+            <span class="rcode">05</span>
+            <span class="rname">房号唯一性</span>
+            <span class="rdesc">同幢同单元同层房号不重复</span>
+            <span class="badge red">不通过</span>
+            <span class="badge red">致命</span>
+            <span class="rpos">涉及位置 1 处</span>
+            <i class="fa-solid fa-angle-right rar"></i>
+          </div>
+          <div class="rb">
+            <dl class="kv">
+              <div class="i"><dt>规则说明</dt><dd>同幢同单元同层房号不重复</dd></div>
+              <div class="i"><dt>期望值</dt><dd>房号唯一</dd></div>
+              <div class="i"><dt>实际值</dt><dd class="text-danger">1201 出现 2 次</dd></div>
+              <div class="i"><dt>差值</dt><dd class="pos">重复 1 条</dd></div>
+              <div class="i"><dt>允许误差</dt><dd>0（不允许重复）</dd></div>
+              <div class="i"><dt>问题等级</dt><dd><span class="badge red">致命</span></dd></div>
+              <div class="i"><dt>涉及位置</dt><dd>8 栋 2 单元 12 层（户表第 46、47 行）</dd></div>
+              <div class="i"><dt>整改状态</dt><dd><span class="badge orange">待整改</span></dd></div>
+            </dl>
+            <div class="rmsg"><div class="t">问题描述</div>8 栋 2 单元 12 层存在<b>重复房号 1201</b>（户表第 46 行与第 47 行），两条记录建筑面积分别为 96.20 ㎡ 与 96.20 ㎡，不动产单元号亦重复。房号重复会导致楼盘表房源无法唯一定位，网签、计税、登记全部受影响。</div>
+            <div class="rmsg fix">
+              <div class="t">整改要求（致命 · 一票否决）</div>
+              <b class="text-danger">整包退回，不允许人工放行。</b>请测绘机构核对 12 层户型分布，将第 47 行房号更正为 1202 后<b>整包重报</b>；重报后成果状态转为「整改后重报」并重新执行 12 项质检。
+            </div>
+          </div>
+        </div>
+
+        <div class="rule" data-bad="0">
+          <div class="rh" onclick="tg(this)">
+            <span class="ri"><i class="fa-solid fa-check"></i></span>
+            <span class="rcode">06</span>
+            <span class="rname">层户对应完整性</span>
+            <span class="rdesc">每层户数与户表记录数一致</span>
+            <span class="badge green">通过</span>
+            <span class="rpos">涉及位置 26 处</span>
+            <i class="fa-solid fa-angle-right rar"></i>
+          </div>
+          <div class="rb">
+            <dl class="kv">
+              <div class="i"><dt>规则说明</dt><dd>每层「层户数」字段与该层户表记录数一致</dd></div>
+              <div class="i"><dt>期望值</dt><dd>96</dd></div>
+              <div class="i"><dt>实际值</dt><dd>96</dd></div>
+              <div class="i"><dt>差值</dt><dd class="zero">0</dd></div>
+              <div class="i"><dt>允许误差</dt><dd>0</dd></div>
+              <div class="i"><dt>问题等级</dt><dd>—</dd></div>
+              <div class="i"><dt>涉及位置</dt><dd>8 栋 1 ~ 26 层</dd></div>
+              <div class="i"><dt>整改状态</dt><dd><span class="badge gray">无需整改</span></dd></div>
+            </dl>
+            <div class="rmsg"><div class="t">质检结论</div>26 层层户数字段累计 96 户，与户表 96 条记录一致；地下 1 层为地下室，不计入正常户数统计。</div>
+          </div>
+        </div>
+
+        <div class="rule" data-bad="0">
+          <div class="rh" onclick="tg(this)">
+            <span class="ri"><i class="fa-solid fa-check"></i></span>
+            <span class="rcode">07</span>
+            <span class="rname">不动产单元号规范性</span>
+            <span class="rdesc">编码位数与规则符合标准</span>
+            <span class="badge green">通过</span>
+            <span class="rpos">涉及位置 96 处</span>
+            <i class="fa-solid fa-angle-right rar"></i>
+          </div>
+          <div class="rb">
+            <dl class="kv">
+              <div class="i"><dt>规则说明</dt><dd>不动产单元号 28 位，行政区划 + 地籍区 + 地籍子区 + 宗地号 + 定着物号</dd></div>
+              <div class="i"><dt>期望值</dt><dd>96 条全部合规</dd></div>
+              <div class="i"><dt>实际值</dt><dd>96 条合规</dd></div>
+              <div class="i"><dt>差值</dt><dd class="zero">0</dd></div>
+              <div class="i"><dt>允许误差</dt><dd>0</dd></div>
+              <div class="i"><dt>问题等级</dt><dd>—</dd></div>
+              <div class="i"><dt>涉及位置</dt><dd>8 栋 96 户</dd></div>
+              <div class="i"><dt>整改状态</dt><dd><span class="badge gray">无需整改</span></dd></div>
+            </dl>
+            <div class="rmsg"><div class="t">质检结论</div>示例 450204001008GB00312F00010015，位数与编码规则均符合标准；本项为<b>致命级</b>规则，不合规将整包退回。</div>
+          </div>
+        </div>
+
+        <div class="rule" data-bad="0">
+          <div class="rh" onclick="tg(this)">
+            <span class="ri"><i class="fa-solid fa-check"></i></span>
+            <span class="rcode">08</span>
+            <span class="rname">与预测成果一致性</span>
+            <span class="rdesc">幢层户结构与预测成果可对应</span>
+            <span class="badge green">通过</span>
+            <span class="rpos">涉及位置 96 处</span>
+            <i class="fa-solid fa-angle-right rar"></i>
+          </div>
+          <div class="rb">
+            <dl class="kv">
+              <div class="i"><dt>规则说明</dt><dd>实测成果幢层户结构与同幢预测成果可逐一对应</dd></div>
+              <div class="i"><dt>期望值</dt><dd>96 户可对应</dd></div>
+              <div class="i"><dt>实际值</dt><dd>96 户可对应</dd></div>
+              <div class="i"><dt>差值</dt><dd class="zero">0</dd></div>
+              <div class="i"><dt>允许误差</dt><dd>0</dd></div>
+              <div class="i"><dt>问题等级</dt><dd>—</dd></div>
+              <div class="i"><dt>涉及位置</dt><dd>V1.0 CG450200202500862 ↔ V2.0</dd></div>
+              <div class="i"><dt>整改状态</dt><dd><span class="badge gray">无需整改</span></dd></div>
+            </dl>
+            <div class="rmsg">
+              <div class="t">质检结论</div>
+              与 V1.0 预测成果结构完全对应，可支撑逐户预实测比对。
+              <a class="link" href="result-version.html">查看两版逐户面积对比</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="rule warn" data-bad="1">
+          <div class="rh" onclick="tg(this)">
+            <span class="ri warn"><i class="fa-solid fa-exclamation"></i></span>
+            <span class="rcode">09</span>
+            <span class="rname">与规划许可一致性</span>
+            <span class="rdesc">总面积与规划许可面积偏差在允许范围</span>
+            <span class="badge orange">警告</span>
+            <span class="badge blue">一般</span>
+            <span class="rpos">涉及位置 1 处</span>
+            <i class="fa-solid fa-angle-right rar"></i>
+          </div>
+          <div class="rb">
+            <dl class="kv">
+              <div class="i"><dt>规则说明</dt><dd>成果总建筑面积与规划许可批准建筑面积偏差 ≤ 1%</dd></div>
+              <div class="i"><dt>期望值</dt><dd class="amt">28,600.00</dd></div>
+              <div class="i"><dt>实际值</dt><dd class="amt">28,842.60</dd></div>
+              <div class="i"><dt>差值</dt><dd class="amt pos">+242.60（+0.85%）</dd></div>
+              <div class="i"><dt>允许误差</dt><dd>1.00%</dd></div>
+              <div class="i"><dt>问题等级</dt><dd><span class="badge blue">一般</span></dd></div>
+              <div class="i"><dt>涉及位置</dt><dd>8 栋（建设工程规划许可证 桂建规柳字第 2024-086 号）</dd></div>
+              <div class="i"><dt>整改状态</dt><dd><span class="badge cyan">已忽略（已说明）</span></dd></div>
+            </dl>
+            <div class="rmsg"><div class="t">问题描述</div>总建面 28,842.60 ㎡ 与规划许可 28,600.00 ㎡ 偏差 <b class="text-warning">+0.85%</b>，在允许 1% 范围内，仅记录警告不阻断质检。参照值取自自然资源规划部门规划许可数据。</div>
+            <div class="rmsg fix"><div class="t">人工说明</div>竣工实测与施工图预测存在正常施工误差，偏差在规划许可允许范围内。说明人：韦国强 2026-08-01 09:26。</div>
+          </div>
+        </div>
+
+        <div class="rule" data-bad="0">
+          <div class="rh" onclick="tg(this)">
+            <span class="ri"><i class="fa-solid fa-check"></i></span>
+            <span class="rcode">10</span>
+            <span class="rname">图形文件完整性</span>
+            <span class="rdesc">必要图形文件齐全且可打开</span>
+            <span class="badge green">通过</span>
+            <span class="rpos">涉及位置 107 处</span>
+            <i class="fa-solid fa-angle-right rar"></i>
+          </div>
+          <div class="rb">
+            <dl class="kv">
+              <div class="i"><dt>规则说明</dt><dd>分层图数 = 层数，分户图数 = 户表记录数，且文件可正常打开</dd></div>
+              <div class="i"><dt>期望值</dt><dd>分层图 8 · 分户图 96</dd></div>
+              <div class="i"><dt>实际值</dt><dd>分层图 8 · 分户图 96</dd></div>
+              <div class="i"><dt>差值</dt><dd class="zero">0</dd></div>
+              <div class="i"><dt>允许误差</dt><dd>0</dd></div>
+              <div class="i"><dt>问题等级</dt><dd>—</dd></div>
+              <div class="i"><dt>涉及位置</dt><dd>8 栋全部图形文件</dd></div>
+              <div class="i"><dt>整改状态</dt><dd><span class="badge gray">无需整改</span></dd></div>
+            </dl>
+            <div class="rmsg">
+              <div class="t">质检结论</div>
+              图数一致，dwg 文件已自动生成 pdf 预览件，MD5 校验无重复上传。
+              <a class="link" href="drawing-list.html">查看测绘图台账</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="rule" data-bad="0">
+          <div class="rh" onclick="tg(this)">
+            <span class="ri"><i class="fa-solid fa-check"></i></span>
+            <span class="rcode">11</span>
+            <span class="rname">坐标系统规范性</span>
+            <span class="rdesc">坐标系统符合本市统一要求</span>
+            <span class="badge green">通过</span>
+            <span class="rpos">涉及位置 1 处</span>
+            <i class="fa-solid fa-angle-right rar"></i>
+          </div>
+          <div class="rb">
+            <dl class="kv">
+              <div class="i"><dt>规则说明</dt><dd>坐标系统须为 CGCS2000 国家大地坐标系</dd></div>
+              <div class="i"><dt>期望值</dt><dd>CGCS2000</dd></div>
+              <div class="i"><dt>实际值</dt><dd>CGCS2000</dd></div>
+              <div class="i"><dt>差值</dt><dd class="zero">—</dd></div>
+              <div class="i"><dt>允许误差</dt><dd>—</dd></div>
+              <div class="i"><dt>问题等级</dt><dd><span class="badge cyan">提示</span></dd></div>
+              <div class="i"><dt>涉及位置</dt><dd>8 栋（中心点 109.4286°E, 24.3186°N）</dd></div>
+              <div class="i"><dt>整改状态</dt><dd><span class="badge gray">无需整改</span></dd></div>
+            </dl>
+            <div class="rmsg"><div class="t">质检结论</div>坐标系统符合本市统一要求，本项为提示级规则，不符合时仅记录警告不阻断。</div>
+          </div>
+        </div>
+
+        <div class="rule" data-bad="0">
+          <div class="rh" onclick="tg(this)">
+            <span class="ri"><i class="fa-solid fa-check"></i></span>
+            <span class="rcode">12</span>
+            <span class="rname">用途编码规范性</span>
+            <span class="rdesc">房屋用途取值在字典范围内</span>
+            <span class="badge green">通过</span>
+            <span class="rpos">涉及位置 96 处</span>
+            <i class="fa-solid fa-angle-right rar"></i>
+          </div>
+          <div class="rb">
+            <dl class="kv">
+              <div class="i"><dt>规则说明</dt><dd>房屋用途、房屋性质、车位类型等编码取值须在数据字典范围内</dd></div>
+              <div class="i"><dt>期望值</dt><dd>96 条合规</dd></div>
+              <div class="i"><dt>实际值</dt><dd>96 条合规</dd></div>
+              <div class="i"><dt>差值</dt><dd class="zero">0</dd></div>
+              <div class="i"><dt>允许误差</dt><dd>0</dd></div>
+              <div class="i"><dt>问题等级</dt><dd>—</dd></div>
+              <div class="i"><dt>涉及位置</dt><dd>8 栋 96 户（住宅 92 · 商业 4）</dd></div>
+              <div class="i"><dt>整改状态</dt><dd><span class="badge gray">无需整改</span></dd></div>
+            </dl>
+            <div class="rmsg"><div class="t">质检结论</div>房屋用途取值均在字典范围内：成套住宅 92 户、商业服务 4 户（1 层商铺）。</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>整改跟踪</h3>
+      <span class="sub">整改单 3 条 · 待整改 2 · 已忽略 1</span>
+      <div class="head-actions">
+        <button type="button" class="btn btn-sm btn-primary" onclick="PMS.openModal('mdFix')"><i class="fa-solid fa-paper-plane"></i> 下发整改通知</button>
+        <button type="button" class="btn btn-sm" onclick="PMS.openModal('mdIgnore')"><i class="fa-solid fa-eye-slash"></i> 标记为已忽略</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="tbl-box">
+        <table class="data-table compact" data-static>
+          <thead>
+            <tr><th>质检项</th><th>问题等级</th><th>整改要求</th><th>下发时间</th><th>责任机构</th><th>整改状态</th><th>整改时间</th><th>整改说明</th><th>复核人</th><th>复核结果</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="nowrap">05 房号唯一性</td>
+              <td class="nowrap"><span class="badge red">致命</span></td>
+              <td>核对 12 层户型分布，第 47 行房号更正为 1202 后<b>整包重报</b></td>
+              <td class="nowrap">2026-08-01 09:30</td>
+              <td class="nowrap">XXXX市测绘院</td>
+              <td class="nowrap"><span class="badge orange">待整改</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="text-3">—</td>
+              <td class="nowrap">韦国强</td>
+              <td class="nowrap text-3">待复核</td>
+            </tr>
+            <tr>
+              <td class="nowrap">03 户面积平衡</td>
+              <td class="nowrap"><span class="badge orange">严重</span></td>
+              <td>核对 8-2-1806 套内面积与分摊面积测算，修正后重新报送</td>
+              <td class="nowrap">2026-08-01 09:30</td>
+              <td class="nowrap">XXXX市测绘院</td>
+              <td class="nowrap"><span class="badge orange">待整改</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="text-3">—</td>
+              <td class="nowrap">韦国强</td>
+              <td class="nowrap text-3">待复核</td>
+            </tr>
+            <tr>
+              <td class="nowrap">09 与规划许可一致性</td>
+              <td class="nowrap"><span class="badge blue">一般</span></td>
+              <td>总建面偏差 +0.85%，在允许 1% 内，说明后放行</td>
+              <td class="nowrap">2026-08-01 09:26</td>
+              <td class="nowrap">XXXX市测绘院</td>
+              <td class="nowrap"><span class="badge cyan">已忽略</span></td>
+              <td class="nowrap">2026-08-01 09:26</td>
+              <td>竣工实测与施工图预测存在正常施工误差</td>
+              <td class="nowrap">韦国强</td>
+              <td class="nowrap"><span class="badge green">合格</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="text-3 text-sm mt-16">
+        <i class="fa-solid fa-circle-info"></i>
+        「提示」级问题可标记为已忽略并填写理由；「一般」级问题可整改或说明后由人工复核放行；「严重」级必须整改后重报；<b class="text-danger">「致命」级整包退回，不允许人工放行</b>。
+      </p>
+    </div>
+  </div>
+
+</main>
+
+<!-- 下发整改通知 -->
+<div class="modal-mask" id="mdFix">
+  <div class="modal">
+    <div class="modal-head">下发整改通知</div>
+    <div class="modal-body">
+      <div class="alert alert-danger">
+        <i class="fa-solid fa-ban"></i>
+        <div>本成果存在 <b>1 项致命问题</b>（05 房号唯一性）与 <b>1 项严重问题</b>（03 户面积平衡），整包退回XXXX市测绘院整改后重报，重报后重新执行 12 项质检。</div>
+      </div>
+      <div class="form-grid form-align mt-16">
+        <div class="form-item">
+          <label>责任机构<span class="req">*</span></label>
+          <input type="text" value="XXXX市测绘院" readonly>
+        </div>
+        <div class="form-item">
+          <label>整改期限<span class="req">*</span></label>
+          <input type="date" value="2026-08-05">
+        </div>
+        <div class="form-item">
+          <label>通知方式</label>
+          <div class="radio-line">
+            <label><input type="checkbox" checked> 企业端消息</label>
+            <label><input type="checkbox" checked> 短信</label>
+            <label><input type="checkbox"> 纸质文书</label>
+          </div>
+        </div>
+        <div class="form-item" style="grid-column:1/-1">
+          <label>整改要求<span class="req">*</span></label>
+          <textarea rows="4">1. 【致命】8 栋 2 单元 12 层房号 1201 重复（户表第 46、47 行），请核对户型分布后将第 47 行房号更正为 1202，并同步更正不动产单元号；
+2. 【严重】8 栋 2 单元 18 层 1806 户建筑面积 100.15 ㎡ ≠ 套内 78.42 + 分摊 21.28 = 99.70 ㎡，差 0.45 ㎡，请核对套内与分摊测算；
+3. 整改完成后整包重报，本次报送不进入入库环节。</textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" data-close-modal>取消</button>
+      <button type="button" class="btn btn-primary" onclick="sendFix()"><i class="fa-solid fa-paper-plane"></i> 下发整改</button>
+    </div>
+  </div>
+</div>
+
+<!-- 标记为已忽略 -->
+<div class="modal-mask" id="mdIgnore">
+  <div class="modal">
+    <div class="modal-head">标记为已忽略</div>
+    <div class="modal-body">
+      <div class="alert alert-warning">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>仅「提示」与「一般」级问题可标记为已忽略，须填写忽略理由并留痕。<b>「严重」与「致命」级问题不提供忽略选项。</b></div>
+      </div>
+      <div class="form-grid form-align mt-16">
+        <div class="form-item">
+          <label>选择质检项<span class="req">*</span></label>
+          <select>
+            <option>09 与规划许可一致性（一般 · 警告）</option>
+            <option>11 坐标系统规范性（提示 · 通过）</option>
+            <option disabled>03 户面积平衡（严重 · 不可忽略）</option>
+            <option disabled>05 房号唯一性（致命 · 不可忽略）</option>
+          </select>
+        </div>
+        <div class="form-item">
+          <label>忽略人</label>
+          <input type="text" value="韦国强 · XXXX市房产交易所" readonly>
+        </div>
+        <div class="form-item" style="grid-column:1/-1">
+          <label>忽略理由<span class="req">*</span></label>
+          <textarea rows="3">总建面与规划许可偏差 +0.85%，在允许 1% 范围内，属竣工实测与施工图预测的正常施工误差，不影响面积权威性。</textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" data-close-modal>取消</button>
+      <button type="button" class="btn btn-primary" onclick="doIgnore()">确认忽略</button>
+    </div>
+  </div>
+</div>
+
+<!-- 打印质检报告 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="drPrint">
+  <div class="drawer-head">
+    <h3>质检报告打印预览（A4 纵向）</h3>
+    <button type="button" class="btn btn-ghost" data-close-drawer><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="drawer-body">
+    <div class="a4 wm">
+      <div class="rt">房产测绘成果质检报告</div>
+      <div class="rsub">XXXX市房产交易所 · 质检编号 ZJ20260801026 · 打印时间 2026-08-01 14:26</div>
+
+      <div class="section-title mt-16" style="margin-top:20px">一、成果基本信息</div>
+      <dl class="desc-list">
+        <div class="desc-item"><dt>成果编号</dt><dd>CG450200202600186</dd></div>
+        <div class="desc-item"><dt>成果类型 / 版本</dt><dd>实测成果 V2.0</dd></div>
+        <div class="desc-item"><dt>项目 / 幢号</dt><dd>荣和公园大道二期 8 栋</dd></div>
+        <div class="desc-item"><dt>幢数 / 总户数</dt><dd>1 幢 / 96 户</dd></div>
+        <div class="desc-item"><dt>总建筑面积</dt><dd class="amt">28,842.60 ㎡</dd></div>
+        <div class="desc-item"><dt>测绘机构</dt><dd>XXXX市测绘院（甲级）</dd></div>
+      </dl>
+
+      <div class="section-title mt-16" style="margin-top:18px">二、质检结论</div>
+      <div class="alert alert-danger">
+        <i class="fa-solid fa-xmark"></i>
+        <div><b>质检不通过</b>：12 项质检中通过 9 项、警告 1 项、不通过 2 项；问题等级致命 1、严重 1、提示 1。存在致命问题，整包退回，不允许人工放行。</div>
+      </div>
+
+      <div class="section-title mt-16" style="margin-top:18px">三、12 项逐项结果</div>
+      <table class="data-table compact" data-static>
+        <thead><tr><th>代码</th><th>质检项</th><th>结果</th><th>等级</th><th>期望值</th><th>实际值</th><th>差值</th><th>允许误差</th><th>涉及位置</th></tr></thead>
+        <tbody>
+          <tr><td>01</td><td>幢面积平衡</td><td>通过</td><td>—</td><td class="amt">28,842.60</td><td class="amt">28,842.60</td><td class="amt">0.00</td><td class="amt">0.01</td><td>8 栋</td></tr>
+          <tr><td>02</td><td>层面积平衡</td><td>通过</td><td>—</td><td>逐层校验</td><td>26 层平衡</td><td class="amt">0.00</td><td class="amt">0.01</td><td>8 栋 26 层</td></tr>
+          <tr style="background:#fef2f2"><td>03</td><td>户面积平衡</td><td class="text-danger fw-600">不通过</td><td>严重</td><td class="amt">99.70</td><td class="amt">100.15</td><td class="amt text-warning">+0.45</td><td class="amt">0.01</td><td>8-2-1806</td></tr>
+          <tr><td>04</td><td>分摊系数校验</td><td>通过</td><td>—</td><td class="amt">0.2827</td><td class="amt">0.2827</td><td class="amt">0.0000</td><td class="amt">0.0001</td><td>8 栋</td></tr>
+          <tr style="background:#fef2f2"><td>05</td><td>房号唯一性</td><td class="text-danger fw-600">不通过</td><td class="text-danger fw-600">致命</td><td>房号唯一</td><td>1201 重复</td><td>重复 1 条</td><td>0</td><td>8 栋 2 单元 12 层</td></tr>
+          <tr><td>06</td><td>层户对应完整性</td><td>通过</td><td>—</td><td>96</td><td>96</td><td>0</td><td>0</td><td>8 栋 1~26 层</td></tr>
+          <tr><td>07</td><td>不动产单元号规范性</td><td>通过</td><td>—</td><td>96 合规</td><td>96 合规</td><td>0</td><td>0</td><td>8 栋 96 户</td></tr>
+          <tr><td>08</td><td>与预测成果一致性</td><td>通过</td><td>—</td><td>96 可对应</td><td>96 可对应</td><td>0</td><td>0</td><td>V1.0 ↔ V2.0</td></tr>
+          <tr style="background:#fffbeb"><td>09</td><td>与规划许可一致性</td><td class="text-warning fw-600">警告</td><td>一般</td><td class="amt">28,600.00</td><td class="amt">28,842.60</td><td class="amt text-warning">+0.85%</td><td>1.00%</td><td>8 栋</td></tr>
+          <tr><td>10</td><td>图形文件完整性</td><td>通过</td><td>—</td><td>8 / 96</td><td>8 / 96</td><td>0</td><td>0</td><td>全部图形文件</td></tr>
+          <tr><td>11</td><td>坐标系统规范性</td><td>通过</td><td>提示</td><td>CGCS2000</td><td>CGCS2000</td><td>—</td><td>—</td><td>8 栋</td></tr>
+          <tr><td>12</td><td>用途编码规范性</td><td>通过</td><td>—</td><td>96 合规</td><td>96 合规</td><td>0</td><td>0</td><td>8 栋 96 户</td></tr>
+        </tbody>
+      </table>
+
+      <div class="section-title mt-16" style="margin-top:18px">四、问题清单与整改要求</div>
+      <p class="text-sm" style="line-height:1.9">
+        1.【致命】8 栋 2 单元 12 层房号 1201 重复（户表第 46、47 行）——整包退回，更正为 1202 后重报；<br>
+        2.【严重】8 栋 2 单元 18 层 1806 户建筑面积不平衡，差 0.45 ㎡——核对套内与分摊测算后重报；<br>
+        3.【一般】总建面与规划许可偏差 +0.85%，在允许 1% 内——已说明放行。
+      </p>
+
+      <div class="sign">
+        <div>质检人（签字）：系统自动质检　　日期：2026-08-01</div>
+        <div>复核人（签字）：韦国强　　日期：2026-08-01</div>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button type="button" class="btn" data-close-drawer>关闭</button>
+    <button type="button" class="btn btn-primary" onclick="PMS.toast('已调起打印，A4 纵向，加盖水印与打印信息','success')"><i class="fa-solid fa-print"></i> 打印</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+function tg(h) { h.closest('.rule').classList.toggle('open'); }
+function expandAll(open) {
+  document.querySelectorAll('.rule').forEach(function (r) { r.classList.toggle('open', open); });
+}
+var badOnly = false;
+function onlyBad() {
+  badOnly = !badOnly;
+  document.querySelectorAll('.rule').forEach(function (r) {
+    r.style.display = (!badOnly || r.dataset.bad === '1') ? '' : 'none';
+  });
+  PMS.toast(badOnly ? '已过滤为有问题的 3 项（不通过 2 · 警告 1）' : '已显示全部 12 项');
+}
+
+function reCheck() {
+  PMS.confirm({
+    title: '重新质检',
+    message: '对 CG450200202600186 V2.0 重新执行 12 项自动质检？',
+    detail: '重新质检生成新的质检编号，历史质检记录保留可追溯；质检为只读校验，不修改成果数据。',
+    type: 'info',
+    okText: '开始质检',
+    onOk: function () {
+      PMS.toast('正在执行 12 项质检…');
+      setTimeout(function () { PMS.toast('质检完成：通过 9 项、警告 1 项、不通过 2 项，结论与上次一致（成果未整改）', 'error'); }, 900);
+    }
+  });
+}
+
+function sendFix() {
+  PMS.closeModal('mdFix');
+  PMS.toast('整改通知已下发XXXX市测绘院（整改期限 2026-08-05），成果状态转为「质检不通过待整改」', 'success');
+}
+
+function doIgnore() {
+  PMS.closeModal('mdIgnore');
+  PMS.toast('已标记 09 与规划许可一致性为「已忽略」并留痕（忽略人：韦国强）', 'success');
+}
+</script>
+</body>
+</html>

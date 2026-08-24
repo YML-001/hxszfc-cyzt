@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 智能报告生成 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="fx" data-active="ask-data" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>智能应用</span>
+      <span class="sep">/</span><span>智能分析报告</span>
+      <span class="sep">/</span><span class="cur">AI 智能报告生成</span>
+    </div>
+    <div class="page-actions">
+      <select id="pickType" style="width:200px">
+        <option value="1">市场分析报告</option>
+        <option value="2">监管月报</option>
+        <option value="3">汇报材料初稿</option>
+        <option value="4">专题研判报告</option>
+      </select>
+      <button class="btn btn-primary" onclick="gen()"><i class="fa-solid fa-wand-magic-sparkles"></i> 生成报告</button>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-chart-simple"></i>智能分析报告 wsai-09</span>
+    <a href="ask-data.html?role=fx">智能问数</a>
+    <a href="ask-data-scope.html?role=fx">问数口径约束</a>
+    <a class="active" href="report-gen.html?role=fx">AI 报告生成</a>
+    <a href="sentiment.html?role=fx">AI 舆情监测</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-file-lines"></i>
+    <span>报告分段生成，<b>每段必须挂接指标口径与数据来源</b>。左侧大纲用绿点表示已有溯源、红点表示缺溯源；
+      <b>只要还有一段缺溯源就不允许定稿</b>，定稿即视为人工确认，可对外报送。</span>
+  </div>
+
+  <div class="rp-layout" style="min-height:560px">
+    <!-- 左：报告列表 + 大纲 -->
+    <div class="card">
+      <div class="card-head">
+        <h3>报告与大纲</h3>
+        <span class="sub" id="listSub">—</span>
+      </div>
+      <div class="card-body tight">
+        <div id="rpList"></div>
+      </div>
+    </div>
+
+    <!-- 右：正文 -->
+    <div class="card">
+      <div class="card-head">
+        <h3 id="rpTitle">报告正文</h3>
+        <span class="sub" id="rpSub">—</span>
+        <div class="head-actions" id="rpActions"></div>
+      </div>
+      <div class="card-body" id="rpBody">
+        <div class="empty"><i class="fa-regular fa-file-lines"></i><div>在左侧选择报告，或点右上角生成新报告</div></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var curId = null;
+
+  window.gen = function () {
+    var rp = AI.act.genReport(document.getElementById('pickType').value);
+    if (rp) { curId = rp.id; paint(); }
+  };
+
+  function paintList() {
+    var rs = AI.get('reports');
+    document.getElementById('listSub').textContent = rs.length + ' 份报告';
+    document.getElementById('rpList').innerHTML = rs.map(function (r) {
+      var noCite = r.sections.filter(function (s) { return !s.sources.length; }).length;
+      var open = r.id === curId;
+      return '<div style="border-bottom:1px solid var(--row-line);padding:8px 0">' +
+        '<a class="rp-outline" style="display:block" onclick="pick(\'' + r.id + '\')">' +
+          '<div class="flex items-center gap-8" style="cursor:pointer;padding:4px 8px;border-radius:6px;' +
+            (open ? 'background:var(--primary-light)' : '') + '">' +
+            '<i class="fa-solid fa-file-lines" style="color:var(--primary)"></i>' +
+            '<span style="flex:1;min-width:0;font-size:13px;' + (open ? 'font-weight:700;color:var(--primary)' : '') + '">' +
+              AI.esc(r.title) + '</span>' +
+            AI.bgBadge(r.bgzt) +
+          '</div></a>' +
+        (open
+          ? '<div class="rp-outline" style="padding-left:8px">' + r.sections.map(function (s, i) {
+              return '<a class="' + (s.sources.length ? 'has-cite' : 'no-cite') + '" ' +
+                'onclick="jump(\'' + s.id + '\')"><span class="rp-dot"></span>' +
+                '<span style="flex:1;min-width:0">' + (i + 1) + '. ' + AI.esc(s.title) + '</span>' +
+                (s.sources.length ? '' : '<span class="badge red">缺溯源</span>') + '</a>';
+            }).join('') + '</div>'
+          : (noCite ? '<div class="text-sm text-danger" style="padding-left:30px">' + noCite + ' 段缺溯源</div>' : '')) +
+        '</div>';
+    }).join('');
+  }
+
+  window.pick = function (id) { curId = id; paint(); };
+  window.jump = function (sid) {
+    var el = document.getElementById('sec_' + sid);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  function paint() {
+    paintList();
+    var r = AI.byId('reports', curId);
+    if (!r) {
+      document.getElementById('rpBody').innerHTML =
+        '<div class="empty"><i class="fa-regular fa-file-lines"></i><div>在左侧选择报告</div></div>';
+      document.getElementById('rpActions').innerHTML = '';
+      document.getElementById('rpSub').textContent = '—';
+      return;
+    }
+    var noCite = r.sections.filter(function (s) { return !s.sources.length; });
+    document.getElementById('rpTitle').textContent = r.title;
+    document.getElementById('rpSub').textContent =
+      AI.dict('bglx', r.bglx) + ' · ' + r.sections.length + ' 段 · ' +
+      (noCite.length ? (noCite.length + ' 段缺溯源') : '全段有溯源');
+    document.getElementById('rpActions').innerHTML =
+      (r.bgzt === '2'
+        ? '<span class="badge green"><i class="fa-solid fa-circle-check"></i>已定稿</span>'
+        : '<button class="btn btn-primary btn-sm" onclick="AI.act.finalizeReport(\'' + r.id + '\')">' +
+          '<i class="fa-solid fa-stamp"></i> 定稿</button>');
+
+    var METRICS = AI.act.metrics();
+    document.getElementById('rpBody').innerHTML =
+      '<div class="flex items-center gap-12 mb-16" style="flex-wrap:wrap">' +
+        AI.bgBadge(r.bgzt) +
+        '<div class="ai-source">' +
+          '<span class="as-model"><i class="fa-solid fa-microchip"></i>' + AI.esc(r.mxmc) + '</span>' +
+          '<span class="as-sep"></span><span>版本 ' + AI.esc(r.ver) + '</span>' +
+          '<span class="as-sep"></span>' + AI.confidence(r.conf) +
+          '<span class="as-sep"></span><span>' + AI.esc(r.czr) + ' 生成于 ' + AI.fmt.time(r.at) + '</span>' +
+        '</div>' +
+        (r.finalBy ? '<span class="badge green" style="margin-left:auto">' + AI.esc(r.finalBy) + ' 定稿</span>' : '') +
+      '</div>' +
+      (noCite.length
+        ? '<div class="alert alert-danger"><i class="fa-solid fa-circle-exclamation"></i>' +
+          '<span>以下段落缺少数据来源，<b>不可定稿</b>：' +
+          noCite.map(function (s) { return AI.esc(s.title); }).join('、') +
+          '。请用段落下方的下拉挂接指标口径。</span></div>'
+        : '<div class="alert alert-success"><i class="fa-solid fa-circle-check"></i>' +
+          '<span>全部段落均已挂接指标口径与数据来源，可以定稿。</span></div>') +
+      r.sections.map(function (s, i) {
+        return '<div class="rp-sec' + (s.sources.length ? '' : ' no-cite') + '" id="sec_' + s.id + '">' +
+          '<div class="rp-t">' + (i + 1) + '. ' + AI.esc(s.title) +
+            (s.sources.length
+              ? ' <span class="badge green">有溯源</span>'
+              : ' <span class="badge red">缺溯源</span>') + '</div>' +
+          '<div class="rp-x">' + AI.esc(s.text) + '</div>' +
+          (s.sources.length
+            ? '<div class="ask-src">' + s.sources.map(function (x) {
+                return '<span><i class="fa-solid fa-database"></i>' + AI.esc(x) + '</span>';
+              }).join('') + '</div>'
+            : '<div class="flex items-center gap-8 mt-16" style="flex-wrap:wrap">' +
+              '<span class="text-sm text-danger"><i class="fa-solid fa-link-slash"></i> 挂接指标口径：</span>' +
+              '<select id="mk_' + s.id + '" style="width:230px;height:28px">' +
+                METRICS.map(function (m) { return '<option value="' + AI.esc(m.key) + '">' + AI.esc(m.key) + '</option>'; }).join('') +
+              '</select>' +
+              '<button class="btn btn-sm btn-primary" onclick="attach(\'' + s.id + '\')">' +
+                '<i class="fa-solid fa-link"></i> 挂接</button></div>') +
+          '</div>';
+      }).join('');
+  }
+
+  window.attach = function (sid) {
+    var sel = document.getElementById('mk_' + sid);
+    AI.act.fillSection(curId, sid, sel ? sel.value : '');
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () {
+      if (!curId) {
+        var f = AI.get('reports')[0];
+        if (f) curId = f.id;
+      }
+      paint();
+    });
+  });
+})();
+</script>
+</body>
+</html>

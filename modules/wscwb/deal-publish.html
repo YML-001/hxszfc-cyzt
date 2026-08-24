@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>成交信息统计与发布 · 存量房交易网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：发布稿版面 */
+  .press {
+    border: 1px solid var(--border); border-radius: var(--radius); background: #fff;
+    padding: 28px 34px; max-width: 940px; margin: 0 auto;
+  }
+  .press .pr-title { font-size: 20px; font-weight: 700; text-align: center; line-height: 1.6; }
+  .press .pr-sub { text-align: center; color: var(--text-3); font-size: 13px; margin-top: 8px; }
+  .press .pr-hr { height: 2px; background: var(--primary); margin: 16px 0 20px; }
+  .press .pr-body { font-size: 14px; line-height: 2.05; color: var(--text-1); text-indent: 2em; }
+  .press .pr-h { font-size: 14.5px; font-weight: 700; margin: 18px 0 6px; text-indent: 0; }
+  .press .pr-foot { margin-top: 26px; text-align: right; font-size: 13.5px; line-height: 2; }
+  .mini-bar { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13px; }
+  .mini-bar .mb-l { width: 96px; flex-shrink: 0; color: var(--text-2); }
+  .mini-bar .mb-b { flex: 1; }
+  .mini-bar .mb-v { width: 78px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wscwb-21">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 存量房交易网签备案管理系统
+        <span class="sep">/</span> <a class="link" href="deal-ledger.html">成交信息管理</a>
+        <span class="sep">/</span> <span class="cur">统计与发布</span>
+      </div>
+      <div class="page-title">成交信息统计与发布</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="genReport()"><i class="fa-solid fa-file-lines"></i> 生成月报</button>
+      <button type="button" class="btn btn-primary" onclick="startPublish()"><i class="fa-solid fa-tower-broadcast"></i> 发起发布</button>
+      <button type="button" class="btn" onclick="gotoRecord()"><i class="fa-solid fa-clock-rotate-left"></i> 发布记录</button>
+    </div>
+  </div>
+
+  <div class="alert alert-danger">
+    <i class="fa-solid fa-user-shield"></i>
+    <div>对外发布内容仅限区域、面积段、价格段等聚合值，严禁包含房号、当事人姓名、证件号码等个人信息；发布前由系统自动做脱敏校验。</div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs" id="mainTabs">
+      <div class="tab active" data-tab="board">统计看板</div>
+      <div class="tab" data-tab="press">发布稿与审签 <span class="badge orange">待审签</span></div>
+      <div class="tab" data-tab="record">发布记录</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="board">
+      <div class="filter-bar">
+        <div class="filter-item">
+          <label>统计月份</label>
+          <input type="month" id="mon" value="2026-07">
+        </div>
+        <div class="filter-item">
+          <label>行政区划</label>
+          <select><option value="">全市</option><option>城中区</option><option>鱼峰区</option><option>柳南区</option><option>柳北区</option><option>柳江区</option><option>柳城县</option><option>鹿寨县</option><option>融安县</option><option>融水县</option><option>三江县</option></select>
+        </div>
+        <div class="filter-item">
+          <label>房屋用途</label>
+          <select><option value="">全部</option><option>住宅</option><option>商业</option><option>办公</option><option>车位</option><option>其他</option></select>
+        </div>
+        <div class="filter-item">
+          <label>面积区间</label>
+          <select><option value="">全部</option><option>60㎡ 以下</option><option>60-90㎡</option><option>90-120㎡</option><option>120-144㎡</option><option>144-200㎡</option><option>200㎡ 以上</option></select>
+        </div>
+        <div class="filter-item">
+          <label>价格段</label>
+          <select><option value="">全部</option><option>80 万以下</option><option>80-120 万</option><option>120-160 万</option><option>160-200 万</option><option>200 万以上</option></select>
+        </div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件重新统计，本月合计 386 套')"><i class="fa-solid fa-magnifying-glass"></i> 统计</button>
+          <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="s-icon blue"><i class="fa-solid fa-house-circle-check"></i></div>
+            <div><div class="s-label">本月成交套数</div><div class="s-value">386</div><div class="s-trend text-success">↑ 环比 8.4%</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="s-icon green"><i class="fa-solid fa-coins"></i></div>
+            <div><div class="s-label">成交金额</div><div class="s-value">4.32 亿元</div><div class="s-trend text-success">↑ 环比 6.1%</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="s-icon orange"><i class="fa-solid fa-scale-balanced"></i></div>
+            <div><div class="s-label">成交均价</div><div class="s-value">9,864 元/㎡</div><div class="s-trend text-danger">↓ 环比 0.7%</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="s-icon purple"><i class="fa-solid fa-ruler-combined"></i></div>
+            <div><div class="s-label">成交面积</div><div class="s-value">4.38 万㎡</div><div class="s-trend">套均 113.5 ㎡</div></div>
+          </div>
+        </div>
+
+        <div class="grid-2 mt-16">
+          <div class="card">
+            <div class="card-head"><h3><i class="fa-solid fa-map-location-dot"></i> 各城区成交套数与均价</h3></div>
+            <div class="card-body">
+              <table class="data-table compact">
+                <thead><tr><th>行政区划</th><th class="num">成交套数</th><th class="num">占比</th><th class="num">成交金额(万元)</th><th class="num">均价(元/㎡)</th><th class="num">环比</th></tr></thead>
+                <tbody>
+                  <tr><td>城中区</td><td class="num">86</td><td class="num">22.3%</td><td class="num">11,482</td><td class="num">12,860</td><td class="num text-success">↑ 3.2%</td></tr>
+                  <tr><td>鱼峰区</td><td class="num">72</td><td class="num">18.7%</td><td class="num">8,214</td><td class="num">10,415</td><td class="num text-success">↑ 1.8%</td></tr>
+                  <tr><td>柳南区</td><td class="num">81</td><td class="num">21.0%</td><td class="num">8,036</td><td class="num">9,128</td><td class="num text-danger">↓ 1.1%</td></tr>
+                  <tr><td>柳北区</td><td class="num">68</td><td class="num">17.6%</td><td class="num">7,412</td><td class="num">9,942</td><td class="num text-success">↑ 0.6%</td></tr>
+                  <tr><td>柳江区</td><td class="num">42</td><td class="num">10.9%</td><td class="num">4,108</td><td class="num">8,236</td><td class="num text-danger">↓ 2.4%</td></tr>
+                  <tr><td>各县合计</td><td class="num">37</td><td class="num">9.5%</td><td class="num">3,948</td><td class="num">6,872</td><td class="num text-success">↑ 4.7%</td></tr>
+                  <tr class="fw-600"><td>全市合计</td><td class="num">386</td><td class="num">100%</td><td class="num">43,200</td><td class="num">9,864</td><td class="num text-danger">↓ 0.7%</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h3><i class="fa-solid fa-chart-pie"></i> 面积区间分布</h3></div>
+            <div class="card-body">
+              <div class="flex items-center gap-16" style="flex-wrap:wrap">
+                <div class="donut" style="background:conic-gradient(#3b6fd4 0 11%, #60a5fa 11% 34%, #34d399 34% 62%, #fbbf24 62% 80%, #f472b6 80% 93%, #a78bfa 93% 100%)">
+                  <div class="donut-hole">
+                    <div class="fw-700" style="font-size:22px">386</div>
+                    <div class="text-3 text-sm">套</div>
+                  </div>
+                </div>
+                <div class="legend" style="flex:1;min-width:190px">
+                  <div class="lg-item"><span class="lg-color" style="background:#3b6fd4"></span> 60㎡ 以下 <b style="margin-left:auto">42 套 · 11%</b></div>
+                  <div class="lg-item"><span class="lg-color" style="background:#60a5fa"></span> 60-90㎡ <b style="margin-left:auto">89 套 · 23%</b></div>
+                  <div class="lg-item"><span class="lg-color" style="background:#34d399"></span> 90-120㎡ <b style="margin-left:auto">108 套 · 28%</b></div>
+                  <div class="lg-item"><span class="lg-color" style="background:#fbbf24"></span> 120-144㎡ <b style="margin-left:auto">70 套 · 18%</b></div>
+                  <div class="lg-item"><span class="lg-color" style="background:#f472b6"></span> 144-200㎡ <b style="margin-left:auto">50 套 · 13%</b></div>
+                  <div class="lg-item"><span class="lg-color" style="background:#a78bfa"></span> 200㎡ 以上 <b style="margin-left:auto">27 套 · 7%</b></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt-16">
+          <div class="card-head"><h3><i class="fa-solid fa-chart-column"></i> 近 12 个月成交量与均价走势</h3><span class="sub">柱高为成交套数，柱下标注当月均价</span></div>
+          <div class="card-body">
+            <div class="bar-chart">
+              <div class="bar-col"><span class="bar-val">302</span><div class="bar" style="height:62%"></div><span class="bar-label">08 月<br>9,712</span></div>
+              <div class="bar-col"><span class="bar-val">341</span><div class="bar" style="height:70%"></div><span class="bar-label">09 月<br>9,806</span></div>
+              <div class="bar-col"><span class="bar-val">368</span><div class="bar" style="height:76%"></div><span class="bar-label">10 月<br>9,884</span></div>
+              <div class="bar-col"><span class="bar-val">352</span><div class="bar" style="height:73%"></div><span class="bar-label">11 月<br>9,921</span></div>
+              <div class="bar-col"><span class="bar-val">411</span><div class="bar" style="height:85%"></div><span class="bar-label">12 月<br>9,968</span></div>
+              <div class="bar-col"><span class="bar-val">263</span><div class="bar" style="height:54%"></div><span class="bar-label">01 月<br>10,012</span></div>
+              <div class="bar-col"><span class="bar-val">208</span><div class="bar" style="height:43%"></div><span class="bar-label">02 月<br>9,942</span></div>
+              <div class="bar-col"><span class="bar-val">389</span><div class="bar" style="height:80%"></div><span class="bar-label">03 月<br>9,908</span></div>
+              <div class="bar-col"><span class="bar-val">424</span><div class="bar" style="height:88%"></div><span class="bar-label">04 月<br>9,946</span></div>
+              <div class="bar-col"><span class="bar-val">406</span><div class="bar" style="height:84%"></div><span class="bar-label">05 月<br>9,932</span></div>
+              <div class="bar-col"><span class="bar-val">356</span><div class="bar" style="height:74%"></div><span class="bar-label">06 月<br>9,933</span></div>
+              <div class="bar-col"><span class="bar-val">386</span><div class="bar" style="height:80%;background:linear-gradient(180deg,#f59e0b 0%,#fbbf24 100%)"></div><span class="bar-label">07 月<br>9,864</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-3 mt-16">
+          <div class="card">
+            <div class="card-head"><h3><i class="fa-solid fa-sack-dollar"></i> 价格段分布</h3></div>
+            <div class="card-body">
+              <div class="mini-bar"><span class="mb-l">80 万以下</span><span class="mb-b"><span class="progress"><span style="width:100%"></span></span></span><span class="mb-v">142 套</span></div>
+              <div class="mini-bar"><span class="mb-l">80-120 万</span><span class="mb-b"><span class="progress"><span style="width:79%"></span></span></span><span class="mb-v">112 套</span></div>
+              <div class="mini-bar"><span class="mb-l">120-160 万</span><span class="mb-b"><span class="progress"><span style="width:48%"></span></span></span><span class="mb-v">68 套</span></div>
+              <div class="mini-bar"><span class="mb-l">160-200 万</span><span class="mb-b"><span class="progress"><span style="width:27%"></span></span></span><span class="mb-v">38 套</span></div>
+              <div class="mini-bar"><span class="mb-l">200 万以上</span><span class="mb-b"><span class="progress"><span style="width:18%"></span></span></span><span class="mb-v">26 套</span></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h3><i class="fa-solid fa-layer-group"></i> 交易与付款类型占比</h3></div>
+            <div class="card-body">
+              <div class="mini-bar"><span class="mb-l">普通住宅</span><span class="mb-b"><span class="progress"><span style="width:88%"></span></span></span><span class="mb-v">340 套</span></div>
+              <div class="mini-bar"><span class="mb-l">商业办公</span><span class="mb-b"><span class="progress"><span style="width:9%"></span></span></span><span class="mb-v">34 套</span></div>
+              <div class="mini-bar"><span class="mb-l">车位储藏</span><span class="mb-b"><span class="progress"><span style="width:3%"></span></span></span><span class="mb-v">12 套</span></div>
+              <div class="mini-bar"><span class="mb-l">商业贷款</span><span class="mb-b"><span class="progress green"><span style="width:61%"></span></span></span><span class="mb-v">236 套</span></div>
+              <div class="mini-bar"><span class="mb-l">组合贷款</span><span class="mb-b"><span class="progress green"><span style="width:21%"></span></span></span><span class="mb-v">82 套</span></div>
+              <div class="mini-bar"><span class="mb-l">一次性付款</span><span class="mb-b"><span class="progress green"><span style="width:18%"></span></span></span><span class="mb-v">68 套</span></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h3><i class="fa-solid fa-building-user"></i> 经纪成交 TOP5</h3><span class="sub">经纪成交占比 74.6%</span></div>
+            <div class="card-body">
+              <div class="mini-bar"><span class="mb-l">链家柳州</span><span class="mb-b"><span class="progress"><span style="width:100%"></span></span></span><span class="mb-v">68 套</span></div>
+              <div class="mini-bar"><span class="mb-l">优居地产</span><span class="mb-b"><span class="progress"><span style="width:78%"></span></span></span><span class="mb-v">53 套</span></div>
+              <div class="mini-bar"><span class="mb-l">安家地产</span><span class="mb-b"><span class="progress"><span style="width:62%"></span></span></span><span class="mb-v">42 套</span></div>
+              <div class="mini-bar"><span class="mb-l">中原地产</span><span class="mb-b"><span class="progress"><span style="width:46%"></span></span></span><span class="mb-v">31 套</span></div>
+              <div class="mini-bar"><span class="mb-l">锦程置业</span><span class="mb-b"><span class="progress"><span style="width:35%"></span></span></span><span class="mb-v">24 套</span></div>
+              <div class="mini-bar"><span class="mb-l">个人自主</span><span class="mb-b"><span class="progress orange"><span style="width:29%"></span></span></span><span class="mb-v">98 套</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="press">
+      <div class="table-wrap">
+        <div class="wizard" id="wz">
+          <div class="w-step done" data-step="1"><span class="w-num">1</span><span class="w-label">生成发布稿</span></div>
+          <div class="w-line"></div>
+          <div class="w-step active" data-step="2"><span class="w-num">2</span><span class="w-label">领导审签</span></div>
+          <div class="w-line"></div>
+          <div class="w-step" data-step="3"><span class="w-num">3</span><span class="w-label">推送门户公示</span></div>
+        </div>
+
+        <div class="press mt-16">
+          <div class="pr-title">柳州市 2026 年 7 月存量房成交情况</div>
+          <div class="pr-sub">XXXX市住房和城乡建设局　2026 年 8 月 3 日</div>
+          <div class="pr-hr"></div>
+          <div class="pr-body">
+            2026 年 7 月，全市存量房网签备案成交 386 套，成交面积 4.38 万平方米，成交金额 4.32 亿元，成交均价 9,864 元/平方米。成交套数环比上升 8.4%，成交均价环比下降 0.7%，市场运行总体平稳。
+          </div>
+          <div class="pr-h">一、分区域成交情况</div>
+          <div class="pr-body">
+            城中区成交 86 套，均价 12,860 元/平方米；鱼峰区成交 72 套，均价 10,415 元/平方米；柳南区成交 81 套，均价 9,128 元/平方米；柳北区成交 68 套，均价 9,942 元/平方米；柳江区成交 42 套，均价 8,236 元/平方米；各县合计成交 37 套，均价 6,872 元/平方米。
+          </div>
+          <div class="pr-h">二、分面积段成交情况</div>
+          <div class="pr-body">
+            90-120 平方米区间成交 108 套，占比 28.0%，为成交主力；60-90 平方米成交 89 套，占比 23.1%；120-144 平方米成交 70 套，占比 18.1%；144 平方米以上成交 77 套，占比 20.0%；60 平方米以下成交 42 套，占比 10.8%。
+          </div>
+          <div class="pr-h">三、分价格段成交情况</div>
+          <div class="pr-body">
+            80 万元以下成交 142 套，占比 36.8%；80-120 万元成交 112 套，占比 29.0%；120-160 万元成交 68 套，占比 17.6%；160-200 万元成交 38 套，占比 9.8%；200 万元以上成交 26 套，占比 6.8%。
+          </div>
+          <div class="pr-h">四、数据口径说明</div>
+          <div class="pr-body">
+            本数据以存量房交易网签备案系统固化的成交底表为准，统计口径为当月完成网签备案的存量房买卖合同，已剔除备案注销与变更冲销记录；成交均价为成交金额与成交面积之比，不含车位、储藏室等附属设施。数据与不动产登记转移登记数据存在办理时序差异，以本发布口径为准。
+          </div>
+          <div class="pr-foot">
+            XXXX市住房和城乡建设局<br>
+            2026 年 8 月 3 日
+          </div>
+        </div>
+
+        <div class="card mt-16">
+          <div class="card-head">
+            <h3><i class="fa-solid fa-stamp"></i> 领导审签</h3>
+            <span class="sub">审签通过后自动推送市住建局官网与广西政务服务网公示栏</span>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-success">
+              <i class="fa-solid fa-circle-check"></i>
+              <div>脱敏校验已通过：发布稿中未检出房号、当事人姓名、证件号码、联系方式等个人信息。</div>
+            </div>
+            <dl class="desc-list mt-16">
+              <div class="desc-item"><dt>发布编号</dt><dd>FB202607001</dd></div>
+              <div class="desc-item"><dt>统计月份</dt><dd>2026 年 7 月</dd></div>
+              <div class="desc-item"><dt>发布版本</dt><dd>V1.0</dd></div>
+              <div class="desc-item"><dt>拟稿人</dt><dd>韦国强</dd></div>
+              <div class="desc-item"><dt>拟稿时间</dt><dd>2026-08-01 10:22</dd></div>
+              <div class="desc-item"><dt>拟发布渠道</dt><dd>市住建局官网、广西政务服务网、掌上柳州</dd></div>
+            </dl>
+            <div class="form-grid form-align mt-16">
+              <div class="form-item col-full">
+                <label>审签意见<span class="req">*</span></label>
+                <textarea id="opinion">数据口径清晰、表述规范，未涉及个人信息，同意按拟定渠道对外发布。</textarea>
+              </div>
+            </div>
+            <div class="flex gap-8 mt-16" style="justify-content:flex-end">
+              <button type="button" class="btn" onclick="PMS.toast('发布稿 PDF 已下载')"><i class="fa-solid fa-download"></i> 下载发布稿</button>
+              <button type="button" class="btn" onclick="sign('back')"><i class="fa-solid fa-rotate-left"></i> 退回修改</button>
+              <button type="button" class="btn btn-primary" onclick="sign('pass')"><i class="fa-solid fa-circle-check"></i> 审签通过并发布</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="record">
+      <div class="table-wrap">
+        <table class="data-table" id="tblRec" data-static>
+          <thead>
+            <tr>
+              <th>发布编号</th>
+              <th>发布标题</th>
+              <th>统计月份</th>
+              <th>发布版本</th>
+              <th>发布时间</th>
+              <th>发布人</th>
+              <th>审签人</th>
+              <th>发布状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr id="recCur">
+              <td class="nowrap fw-600">FB202607001</td>
+              <td class="cell-lg">柳州市 2026 年 7 月存量房成交情况</td>
+              <td class="nowrap">2026-07</td>
+              <td class="nowrap">V1.0</td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap">韦国强</td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap"><span class="badge orange">待审签</span></td>
+              <td class="col-ops"><span class="link" onclick="gotoPress()">去审签</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">FB202606001</td>
+              <td class="cell-lg">柳州市 2026 年 6 月存量房成交情况</td>
+              <td class="nowrap">2026-06</td>
+              <td class="nowrap">V1.0</td>
+              <td class="nowrap">2026-07-03 15:20</td>
+              <td class="nowrap">韦国强</td>
+              <td class="nowrap">莫建平</td>
+              <td class="nowrap"><span class="badge green">已发布</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('正在打开门户公示页面')">查看</span><span class="link danger" onclick="withdraw(this,'FB202606001')">撤回</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">FB202605002</td>
+              <td class="cell-lg">柳州市 2026 年 5 月存量房成交情况（修订版）</td>
+              <td class="nowrap">2026-05</td>
+              <td class="nowrap">V1.1</td>
+              <td class="nowrap">2026-06-06 09:48</td>
+              <td class="nowrap">韦国强</td>
+              <td class="nowrap">莫建平</td>
+              <td class="nowrap"><span class="badge green">已发布</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('正在打开门户公示页面')">查看</span><span class="link danger" onclick="withdraw(this,'FB202605002')">撤回</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">FB202605001</td>
+              <td class="cell-lg">柳州市 2026 年 5 月存量房成交情况</td>
+              <td class="nowrap">2026-05</td>
+              <td class="nowrap">V1.0</td>
+              <td class="nowrap">2026-06-03 16:12</td>
+              <td class="nowrap">韦国强</td>
+              <td class="nowrap">莫建平</td>
+              <td class="nowrap"><span class="badge gray">已撤回</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('撤回原因：柳江区成交套数含 3 笔已注销备案，已在 V1.1 版修正','error')">撤回原因</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">FB202604001</td>
+              <td class="cell-lg">柳州市 2026 年 4 月存量房成交情况</td>
+              <td class="nowrap">2026-04</td>
+              <td class="nowrap">V1.0</td>
+              <td class="nowrap">2026-05-06 10:35</td>
+              <td class="nowrap">韦国强</td>
+              <td class="nowrap">莫建平</td>
+              <td class="nowrap"><span class="badge green">已发布</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('正在打开门户公示页面')">查看</span><span class="link danger" onclick="withdraw(this,'FB202604001')">撤回</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">FB202603001</td>
+              <td class="cell-lg">柳州市 2026 年 3 月存量房成交情况</td>
+              <td class="nowrap">2026-03</td>
+              <td class="nowrap">V1.0</td>
+              <td class="nowrap">2026-04-03 14:08</td>
+              <td class="nowrap">韦国强</td>
+              <td class="nowrap">莫建平</td>
+              <td class="nowrap"><span class="badge green">已发布</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('正在打开门户公示页面')">查看</span><span class="link danger" onclick="withdraw(this,'FB202603001')">撤回</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">FB202602001</td>
+              <td class="cell-lg">柳州市 2026 年 1-2 月存量房成交情况</td>
+              <td class="nowrap">2026-02</td>
+              <td class="nowrap">V1.0</td>
+              <td class="nowrap">2026-03-04 11:26</td>
+              <td class="nowrap">韦国强</td>
+              <td class="nowrap">莫建平</td>
+              <td class="nowrap"><span class="badge green">已发布</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('正在打开门户公示页面')">查看</span><span class="link danger" onclick="withdraw(this,'FB202602001')">撤回</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  PMS.renderPager(document.getElementById('tblRec'), {
+    pageNum: 1, pageSize: 20, total: 18,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+
+function gotoPress() { document.querySelector('#mainTabs .tab[data-tab="press"]').click(); }
+function gotoRecord() { document.querySelector('#mainTabs .tab[data-tab="record"]').click(); }
+
+function genReport() {
+  var m = document.getElementById('mon').value || '2026-07';
+  PMS.toast('已按 ' + m + ' 口径生成发布稿 FB' + m.replace('-', '') + '001，请前往「发布稿与审签」核校', 'success');
+  gotoPress();
+}
+
+function startPublish() {
+  PMS.confirm({
+    title: '发起发布',
+    message: '确认将本月发布稿提交领导审签？',
+    detail: '提交前系统已完成脱敏校验，审签通过后自动推送市住建局官网与广西政务服务网。',
+    okText: '提交审签',
+    onOk: function () { PMS.toast('发布稿已提交审签', 'success'); gotoPress(); }
+  });
+}
+
+function sign(r) {
+  var pass = r === 'pass';
+  PMS.confirm({
+    title: pass ? '审签通过并发布' : '退回修改',
+    message: pass ? '确认审签通过并对外发布？' : '确认退回发布稿？',
+    detail: pass
+      ? '发布后内容将在市住建局官网、广西政务服务网、掌上柳州同步公示，如需更正须撤回后重新发布修订版。'
+      : '退回后拟稿人可修改数据口径与表述，重新提交审签。',
+    type: pass ? 'info' : 'warning',
+    okText: pass ? '确认发布' : '确认退回',
+    onOk: function () {
+      var tr = document.getElementById('recCur');
+      if (pass) {
+        document.querySelectorAll('#wz .w-step').forEach(function (s) { s.className = 'w-step done'; });
+        tr.children[4].className = 'nowrap';
+        tr.children[4].textContent = '2026-08-03 09:15';
+        tr.children[6].className = 'nowrap';
+        tr.children[6].textContent = '莫建平';
+        tr.children[7].innerHTML = '<span class="badge green">已发布</span>';
+        tr.querySelector('.col-ops').innerHTML =
+          '<span class="link" onclick="PMS.toast(\'正在打开门户公示页面\')">查看</span>' +
+          '<span class="link danger" onclick="withdraw(this,\'FB202607001\')">撤回</span>';
+        PMS.toast('发布稿已审签通过并推送三个渠道公示', 'success');
+      } else {
+        tr.children[7].innerHTML = '<span class="badge red">已退回</span>';
+        PMS.toast('发布稿已退回拟稿人修改', 'success');
+      }
+      gotoRecord();
+    }
+  });
+}
+
+function withdraw(el, no) {
+  var tr = el.closest('tr');
+  PMS.confirm({
+    title: '撤回发布',
+    message: '确认撤回 ' + no + '？',
+    detail: '撤回后各渠道公示内容同步下线，须发布修订版说明更正情况。',
+    type: 'danger',
+    okText: '确认撤回',
+    onOk: function () {
+      tr.children[7].innerHTML = '<span class="badge gray">已撤回</span>';
+      tr.querySelector('.col-ops').innerHTML =
+        '<span class="link" onclick="PMS.toast(\'撤回原因由撤回人填写，本演示不再展开\')">撤回原因</span>';
+      PMS.toast(no + ' 已撤回，各渠道公示内容已下线', 'success');
+    }
+  });
+}
+</script>
+</body>
+</html>

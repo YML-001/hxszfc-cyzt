@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>合同注销备案 · 新建商品房网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：联动处理清单与待核退行标色 */
+  .link-list { display: flex; flex-direction: column; gap: 8px; }
+  .link-list .lk {
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; background: #fff;
+    display: flex; align-items: flex-start; gap: 10px; font-size: 13px;
+  }
+  .link-list .lk.done { border-left: 3px solid var(--success); background: #f6fbf7; }
+  .link-list .lk.pend { border-left: 3px solid var(--warning); }
+  .link-list .lk .lk-i { margin-top: 2px; width: 18px; text-align: center; flex-shrink: 0; }
+  .link-list .lk .lk-t { font-weight: 600; }
+  .link-list .lk .lk-d { color: var(--text-3); font-size: 12.5px; margin-top: 3px; }
+  tr.row-warn td:first-child { box-shadow: inset 3px 0 0 var(--warning); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsswb-14">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房网签备案管理系统
+        <span class="sep">/</span> 网签备案
+        <span class="sep">/</span> 变更注销
+        <span class="sep">/</span> <span class="cur">合同注销备案</span>
+      </div>
+      <div class="page-title">合同注销备案</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" data-open-drawer="dwNew"><i class="fa-solid fa-plus"></i> 新增注销申请</button>
+      <button type="button" class="btn" onclick="location.href='filing-change.html'">合同变更备案</button>
+      <button type="button" class="btn" onclick="location.href='filing-list.html'">网签备案台账</button>
+      <button type="button" class="btn" onclick="location.href='building-table.html'">楼盘表销控</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《合同注销备案台账》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">待审</div><div class="s-value">7</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-file-circle-xmark"></i></div>
+      <div><div class="s-label">本月注销</div><div class="s-value">18</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-unlock"></i></div>
+      <div><div class="s-label">房源已解锁</div><div class="s-value">16</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-money-bill-transfer"></i></div>
+      <div><div class="s-label">资金核退中</div><div class="s-value">3</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-route"></i>
+    <div><b>注销 → 房源解锁 → 资金核退</b>：注销通过后销控状态回退为可售、备案证明失效，并联动生成资金核退指令；核退未完成的在台账标记「待核退」，结果同步税务与不动产登记。</div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>注销编号</label>
+        <input type="text" placeholder="如 ZX2026073101">
+      </div>
+      <div class="filter-item">
+        <label>备案号</label>
+        <input type="text" placeholder="如 柳房商备字〔2026〕第 001086 号">
+      </div>
+      <div class="filter-item">
+        <label>合同号</label>
+        <input type="text" placeholder="如 SF450200202601086">
+      </div>
+      <div class="filter-item">
+        <label>项目 / 房号</label>
+        <input type="text" placeholder="项目或房号关键词">
+      </div>
+      <div class="filter-item">
+        <label>注销原因</label>
+        <select>
+          <option value="">全部</option>
+          <option>双方协商解除</option><option>一方违约</option><option>贷款未获批</option>
+          <option>录入错误撤销</option><option>重复备案撤销</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>状态</label>
+        <select><option value="">全部</option><option>待审</option><option>已通过</option><option>已退回</option><option>资金核退中</option></select>
+      </div>
+      <div class="filter-item">
+        <label>申请日期起</label>
+        <input type="date" value="2026-07-01">
+      </div>
+      <div class="filter-item">
+        <label>申请日期止</label>
+        <input type="date" value="2026-07-31">
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 18 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblZx" data-static>
+        <thead>
+          <tr>
+            <th>注销编号</th>
+            <th>备案号</th>
+            <th>合同号</th>
+            <th>项目房号</th>
+            <th>注销原因</th>
+            <th>申请日期</th>
+            <th>状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="nowrap fw-600">ZX2026073101</td>
+            <td class="nowrap">柳房商备字〔2026〕第 001086 号</td>
+            <td class="nowrap">SF450200202601086</td>
+            <td class="nowrap">柳州万科城（五期）· 18-1-2202</td>
+            <td class="nowrap">双方协商解除</td>
+            <td class="nowrap">2026-07-31</td>
+            <td class="nowrap"><span class="badge orange">待审</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openReview('ZX2026073101','协商')">审批</span>
+              <a class="link" href="filing-list.html">原备案</a>
+            </td>
+          </tr>
+          <tr class="row-warn">
+            <td class="nowrap fw-600">ZX2026072801</td>
+            <td class="nowrap">柳房商备字〔2026〕第 000986 号</td>
+            <td class="nowrap">SF450200202600986</td>
+            <td class="nowrap">荣和公园里（一期）· 6-2-1001</td>
+            <td class="nowrap">贷款未获批</td>
+            <td class="nowrap">2026-07-28</td>
+            <td class="nowrap"><span class="badge orange">资金核退中</span> <span class="badge green">房源已解锁</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openReview('ZX2026072801','贷款')">查看</span>
+              <a class="link" href="building-table.html">销控</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">ZX2026072601</td>
+            <td class="nowrap">柳房商备字〔2026〕第 000842 号</td>
+            <td class="nowrap">SF450200202600842</td>
+            <td class="nowrap">中南春风南岸（二期）· 9-1-1502</td>
+            <td class="nowrap">一方违约</td>
+            <td class="nowrap">2026-07-26</td>
+            <td class="nowrap"><span class="badge orange">待审</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openReview('ZX2026072601','违约')">审批</span>
+              <a class="link" href="filing-cert.html">备案证明</a>
+            </td>
+          </tr>
+          <tr class="row-warn">
+            <td class="nowrap fw-600">ZX2026072201</td>
+            <td class="nowrap">柳房商备字〔2026〕第 000726 号</td>
+            <td class="nowrap">SF450200202600726</td>
+            <td class="nowrap">彰泰江湾城（三期）· 11-2-1201</td>
+            <td class="nowrap">双方协商解除</td>
+            <td class="nowrap">2026-07-22</td>
+            <td class="nowrap"><span class="badge orange">资金核退中</span> <span class="badge green">房源已解锁</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openReview('ZX2026072201','协商')">查看</span>
+              <a class="link" href="building-table.html">销控</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">ZX2026071801</td>
+            <td class="nowrap">柳房商备字〔2026〕第 000618 号</td>
+            <td class="nowrap">SF450200202600618</td>
+            <td class="nowrap">保利柳江府（二期）· 4-1-0902</td>
+            <td class="nowrap">录入错误撤销</td>
+            <td class="nowrap">2026-07-18</td>
+            <td class="nowrap"><span class="badge green">已通过</span> <span class="badge green">房源已解锁</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openReview('ZX2026071801','录入')">查看</span>
+              <a class="link" href="filing-cert.html">证明失效</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">ZX2026071401</td>
+            <td class="nowrap">柳房商备字〔2026〕第 000542 号</td>
+            <td class="nowrap">SF450200202600542</td>
+            <td class="nowrap">华润置地柳州万象天地 · 3-2-0801</td>
+            <td class="nowrap">重复备案撤销</td>
+            <td class="nowrap">2026-07-14</td>
+            <td class="nowrap"><span class="badge green">已通过</span> <span class="badge green">房源已解锁</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openReview('ZX2026071401','重复')">查看</span>
+              <a class="link" href="filing-list.html">台账</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">ZX2026071001</td>
+            <td class="nowrap">柳房商备字〔2026〕第 000486 号</td>
+            <td class="nowrap">SF450200202600486</td>
+            <td class="nowrap">阳光城柳州樾府 · 5-1-1102</td>
+            <td class="nowrap">贷款未获批</td>
+            <td class="nowrap">2026-07-10</td>
+            <td class="nowrap"><span class="badge green">已通过</span> <span class="badge cyan">核退完成</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openReview('ZX2026071001','贷款')">查看</span>
+              <a class="link" href="building-table.html">销控</a>
+            </td>
+          </tr>
+          <tr class="row-warn">
+            <td class="nowrap fw-600">ZX2026070601</td>
+            <td class="nowrap">柳房商备字〔2026〕第 000412 号</td>
+            <td class="nowrap">SF450200202600412</td>
+            <td class="nowrap">龙光玖誉城（四期）· 13-2-0601</td>
+            <td class="nowrap">双方协商解除</td>
+            <td class="nowrap">2026-07-06</td>
+            <td class="nowrap"><span class="badge orange">资金核退中</span> <span class="badge green">房源已解锁</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openReview('ZX2026070601','协商')">查看</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">ZX2026070201</td>
+            <td class="nowrap">柳房商备字〔2026〕第 000368 号</td>
+            <td class="nowrap">SF450200202600368</td>
+            <td class="nowrap">彰泰江湾城（三期）· 9-1-0702</td>
+            <td class="nowrap">一方违约</td>
+            <td class="nowrap">2026-07-02</td>
+            <td class="nowrap"><span class="badge cyan">已退回</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openReview('ZX2026070201','违约')">查看</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">ZX2026062601</td>
+            <td class="nowrap">柳房商备字〔2026〕第 000286 号</td>
+            <td class="nowrap">SF450200202600286</td>
+            <td class="nowrap">保利柳江府（二期）· 5-1-0301</td>
+            <td class="nowrap">双方协商解除</td>
+            <td class="nowrap">2026-06-26</td>
+            <td class="nowrap"><span class="badge green">已通过</span> <span class="badge cyan">核退完成</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openReview('ZX2026062601','协商')">查看</span>
+              <a class="link" href="filing-cert.html">证明失效</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 审批抽屉 -->
+  <div class="drawer-mask"></div>
+  <div class="drawer drawer-lg" id="dwReview">
+    <div class="drawer-head">
+      <h3>注销审批 · <span id="rvNo">—</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <dl class="desc-list">
+        <div class="desc-item"><dt>注销编号</dt><dd id="rvNo2">—</dd></div>
+        <div class="desc-item"><dt>备案号</dt><dd>柳房商备字〔2026〕第 001086 号</dd></div>
+        <div class="desc-item"><dt>合同号</dt><dd>SF450200202601086</dd></div>
+        <div class="desc-item"><dt>项目房号</dt><dd id="rvRoom">柳州万科城（五期）· 18-1-2202</dd></div>
+        <div class="desc-item"><dt>出卖方</dt><dd>柳州万科房地产开发有限公司</dd></div>
+        <div class="desc-item"><dt>买受方</dt><dd>黄志文</dd></div>
+        <div class="desc-item"><dt>成交总价</dt><dd>168.42 万元</dd></div>
+        <div class="desc-item"><dt>注销类型</dt><dd id="rvKind">合同解除注销</dd></div>
+      </dl>
+
+      <div class="section-title mt-16">注销原因与佐证</div>
+      <dl class="desc-list">
+        <div class="desc-item"><dt>注销原因</dt><dd id="rvReason">双方协商解除</dd></div>
+        <div class="desc-item"><dt>原因说明</dt><dd id="rvDesc">买卖双方签订《解除商品房买卖合同协议书》，同意解除合同并办理备案注销。</dd></div>
+        <div class="desc-item"><dt>佐证材料</dt><dd>解除协议书.pdf、双方身份证明、定金退还凭证.pdf（共 3 项）</dd></div>
+      </dl>
+
+      <div class="section-title mt-16">联动说明</div>
+      <div class="link-list" id="lkList">
+        <div class="lk pend" data-lk="xk">
+          <div class="lk-i"><i class="fa-regular fa-square text-3"></i></div>
+          <div>
+            <div class="lk-t">销控解锁</div>
+            <div class="lk-d">注销通过后房源销控状态回退为「可售」，认购关系一并解除。</div>
+          </div>
+        </div>
+        <div class="lk pend" data-lk="zm">
+          <div class="lk-i"><i class="fa-regular fa-square text-3"></i></div>
+          <div>
+            <div class="lk-t">备案证明失效</div>
+            <div class="lk-d">原电子备案证明作废，扫码验真显示「已注销」；同步税务与不动产登记。</div>
+          </div>
+        </div>
+        <div class="lk pend" data-lk="zj">
+          <div class="lk-i"><i class="fa-regular fa-square text-3"></i></div>
+          <div>
+            <div class="lk-t">资金核退指令</div>
+            <div class="lk-d">向预售资金监管系统推送核退待办；核退未完成前台账标记「待核退」。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title mt-16">办理轨迹</div>
+      <div class="timeline">
+        <div class="tl-item done">
+          <div class="tl-dot"></div>
+          <div class="tl-title">提交注销申请</div>
+          <div class="tl-meta">2026-07-31 09:26 · 企业端 邓文静</div>
+        </div>
+        <div class="tl-item pending" id="tlAudit">
+          <div class="tl-dot"></div>
+          <div class="tl-title">主管部门审批</div>
+          <div class="tl-meta">待办理</div>
+        </div>
+        <div class="tl-item pending" id="tlUnlock">
+          <div class="tl-dot"></div>
+          <div class="tl-title">房源解锁 + 证明失效</div>
+          <div class="tl-meta">审批通过后自动执行</div>
+        </div>
+        <div class="tl-item pending" id="tlFund">
+          <div class="tl-dot"></div>
+          <div class="tl-title">资金核退</div>
+          <div class="tl-meta">推送预售资金监管系统</div>
+        </div>
+      </div>
+
+      <div class="section-title mt-16">审批结论</div>
+      <div class="form-grid form-align">
+        <div class="form-item col-full">
+          <label>审批结论<span class="req">*</span></label>
+          <div class="radio-line">
+            <label><input type="radio" name="ar" value="pass" checked onchange="toggleAr()"> 通过注销</label>
+            <label><input type="radio" name="ar" value="back" onchange="toggleAr()"> 退回补正</label>
+            <label><input type="radio" name="ar" value="no" onchange="toggleAr()"> 不予注销</label>
+          </div>
+        </div>
+        <div class="form-item col-full hidden" id="backBox">
+          <label>退回原因<span class="req">*</span></label>
+          <textarea placeholder="如：解除协议未经双方盖章确认，请补正后重报">解除协议未经双方盖章确认，请补正后重报。</textarea>
+        </div>
+        <div class="form-item">
+          <label>审批人<span class="req">*</span></label>
+          <input type="text" value="韦国强">
+        </div>
+        <div class="form-item">
+          <label>审批日期<span class="req">*</span></label>
+          <input type="date" value="2026-07-31">
+        </div>
+        <div class="form-item col-full">
+          <label>审批意见</label>
+          <textarea id="arOpt">注销原因与佐证齐全，同意注销备案；同步解锁房源、作废备案证明并推送资金核退指令。</textarea>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn" onclick="location.href='building-table.html'"><i class="fa-solid fa-table-cells"></i> 打开销控图</button>
+      <button type="button" class="btn" onclick="location.href='filing-cert.html'">备案证明</button>
+      <button type="button" class="btn btn-primary" onclick="submitReview()"><i class="fa-solid fa-paper-plane"></i> 提交审批结论</button>
+    </div>
+  </div>
+
+  <!-- 新增注销申请 -->
+  <div class="drawer" id="dwNew">
+    <div class="drawer-head">
+      <h3>新增合同注销申请</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>注销通过后将自动解锁房源、作废备案证明并推送资金核退，请确认双方已达成解除意向。</div>
+      </div>
+      <div class="form-grid form-align mt-16">
+        <div class="form-item">
+          <label>备案号<span class="req">*</span></label>
+          <select><option>柳房商备字〔2026〕第 001086 号</option><option>柳房商备字〔2026〕第 000986 号</option></select>
+        </div>
+        <div class="form-item">
+          <label>注销类型<span class="req">*</span></label>
+          <select><option>合同解除注销</option><option>备案撤销</option></select>
+        </div>
+        <div class="form-item">
+          <label>注销原因<span class="req">*</span></label>
+          <select><option>双方协商解除</option><option>一方违约</option><option>贷款未获批</option><option>录入错误撤销</option><option>重复备案撤销</option></select>
+        </div>
+        <div class="form-item">
+          <label>申请日期<span class="req">*</span></label>
+          <input type="date" value="2026-07-31">
+        </div>
+        <div class="form-item col-full">
+          <label>原因说明<span class="req">*</span></label>
+          <textarea placeholder="如：买卖双方签订解除协议，同意解除合同并办理备案注销">买卖双方签订解除协议，同意解除合同并办理备案注销。</textarea>
+        </div>
+        <div class="form-item col-full">
+          <label>佐证材料<span class="req">*</span></label>
+          <div class="file-up">
+            <input type="hidden" class="file-up-val" value="解除协议书.pdf">
+            <div class="file-up-grid"><div class="file-up-tile file-up-add"><input type="file"><i class="fa-solid fa-plus"></i><span>上传</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer('dwNew');PMS.toast('注销申请已提交，进入审批','success')"><i class="fa-solid fa-paper-plane"></i> 提交申请</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+PMS.renderPager(document.getElementById('tblZx'), {
+  pageNum: 1, pageSize: 20, total: 18,
+  onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+});
+
+var REASON = {
+  '协商': { kind: '合同解除注销', reason: '双方协商解除', desc: '买卖双方签订《解除商品房买卖合同协议书》，同意解除合同并办理备案注销。' },
+  '贷款': { kind: '合同解除注销', reason: '贷款未获批', desc: '买受人商业贷款审批未通过，双方同意解除合同并申请注销备案。' },
+  '违约': { kind: '合同解除注销', reason: '一方违约', desc: '出卖方逾期未达约定交付条件，买受人依约解除合同并申请注销。' },
+  '录入': { kind: '备案撤销', reason: '录入错误撤销', desc: '备案信息录入错误，申请撤销原备案后重新办理。' },
+  '重复': { kind: '备案撤销', reason: '重复备案撤销', desc: '同一合同重复生成备案记录，申请撤销多余备案。' }
+};
+
+function resetLinks(done) {
+  document.querySelectorAll('#lkList .lk').forEach(function (el) {
+    el.classList.toggle('done', !!done);
+    el.classList.toggle('pend', !done);
+    el.querySelector('.lk-i').innerHTML = done
+      ? '<i class="fa-solid fa-square-check text-success"></i>'
+      : '<i class="fa-regular fa-square text-3"></i>';
+  });
+}
+
+function openReview(no, reasonKey) {
+  var r = REASON[reasonKey] || REASON['协商'];
+  document.getElementById('rvNo').textContent = no;
+  document.getElementById('rvNo2').textContent = no;
+  document.getElementById('rvKind').textContent = r.kind;
+  document.getElementById('rvReason').textContent = r.reason;
+  document.getElementById('rvDesc').textContent = r.desc;
+  resetLinks(false);
+  document.getElementById('tlAudit').classList.remove('done');
+  document.getElementById('tlAudit').classList.add('pending');
+  document.getElementById('tlUnlock').classList.remove('done');
+  document.getElementById('tlUnlock').classList.add('pending');
+  document.getElementById('tlFund').classList.remove('done');
+  document.getElementById('tlFund').classList.add('pending');
+  PMS.openDrawer('dwReview');
+}
+
+function toggleAr() {
+  var v = document.querySelector('input[name="ar"]:checked').value;
+  document.getElementById('backBox').classList.toggle('hidden', v !== 'back');
+  if (v === 'pass') document.getElementById('arOpt').value = '注销原因与佐证齐全，同意注销备案；同步解锁房源、作废备案证明并推送资金核退指令。';
+  if (v === 'back') document.getElementById('arOpt').value = '请按退回原因补正后重新申报。';
+  if (v === 'no') document.getElementById('arOpt').value = '注销条件不成立，不予注销。';
+}
+
+function submitReview() {
+  var v = document.querySelector('input[name="ar"]:checked').value;
+  if (v === 'pass') {
+    PMS.confirm({
+      title: '通过合同注销备案',
+      message: '确认通过注销并执行联动处理？',
+      detail: '将解锁房源销控、作废备案证明，并向预售资金监管系统推送核退指令。',
+      type: 'danger',
+      okText: '确认通过注销',
+      onOk: function () {
+        resetLinks(true);
+        document.getElementById('tlAudit').classList.add('done');
+        document.getElementById('tlAudit').classList.remove('pending');
+        document.getElementById('tlAudit').querySelector('.tl-meta').textContent = '2026-07-31 16:08 · 韦国强';
+        document.getElementById('tlUnlock').classList.add('done');
+        document.getElementById('tlUnlock').classList.remove('pending');
+        document.getElementById('tlUnlock').querySelector('.tl-meta').textContent = '已执行 · 销控回退可售 · 证明已失效';
+        document.getElementById('tlFund').classList.add('done');
+        document.getElementById('tlFund').classList.remove('pending');
+        document.getElementById('tlFund').querySelector('.tl-meta').textContent = '核退指令已推送 · 待监管系统确认';
+        PMS.toast('注销已通过：房源已解锁，备案证明失效，资金核退指令已推送', 'success');
+        setTimeout(function () { PMS.closeDrawer('dwReview'); }, 900);
+      }
+    });
+  } else if (v === 'back') {
+    PMS.closeDrawer('dwReview');
+    PMS.toast('已退回企业补正', 'success');
+  } else {
+    PMS.closeDrawer('dwReview');
+    PMS.toast('已作出不予注销结论', 'success');
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>房源核验清单 · 存量房交易网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：核验码用等宽字体呈现，便于窗口人员比对 */
+  .hy-code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; letter-spacing: .3px; }
+  .hy-code.expired { color: var(--text-3); text-decoration: line-through; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wscwb-02">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 存量房交易网签备案管理系统
+        <span class="sep">/</span> 房源核验管理
+        <span class="sep">/</span> <span class="cur">房源核验清单</span>
+      </div>
+      <div class="page-title">房源核验清单</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn btn-primary" href="listing-create.html"><i class="fa-solid fa-plus"></i> 房源采集</a>
+      <button type="button" class="btn" data-open-modal="mdImport"><i class="fa-solid fa-file-import"></i> 批量导入</button>
+      <a class="btn" href="listing-publish.html"><i class="fa-solid fa-bullhorn"></i> 发布授权</a>
+      <a class="btn" href="listing-status.html"><i class="fa-solid fa-screwdriver-wrench"></i> 核验状态维护</a>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《房源核验清单》Excel，正在下载', 'success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">待核验</div><div class="s-value">36</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-spinner"></i></div>
+      <div><div class="s-label">核验中</div><div class="s-value">18</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">核验通过（在有效期内）</div><div class="s-value">3,864</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-circle-xmark"></i></div>
+      <div><div class="s-label">核验不通过 / 已过期</div><div class="s-value">147</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>核验编号</label>
+        <input type="text" placeholder="如 HY450200202600512">
+      </div>
+      <div class="filter-item">
+        <label>坐落 / 小区</label>
+        <input type="text" placeholder="支持模糊查询">
+      </div>
+      <div class="filter-item">
+        <label>不动产权证号</label>
+        <input type="text" placeholder="桂(2021)柳州市…">
+      </div>
+      <div class="filter-item">
+        <label>产权人</label>
+        <input type="text" placeholder="姓名 / 名称">
+      </div>
+      <div class="filter-item">
+        <label>所属行政区</label>
+        <select>
+          <option value="">全部</option>
+          <option>城中区</option>
+          <option>柳南区</option>
+          <option>鱼峰区</option>
+          <option>柳北区</option>
+          <option>柳江区</option>
+          <option>柳城县</option>
+          <option>鹿寨县</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>核验结论</label>
+        <select>
+          <option value="">全部</option>
+          <option>核验通过</option>
+          <option>有限制但可交易</option>
+          <option>核验不通过</option>
+          <option>转人工复核</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>来源渠道</label>
+        <select>
+          <option value="">全部</option>
+          <option>经纪机构代办</option>
+          <option>个人自主申请</option>
+          <option>窗口代录</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>申请日期</label>
+        <input type="date" value="2026-07-01">
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 3,864 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="wait">待核验 <span class="badge orange">36</span></div>
+      <div class="tab" data-tab="doing">核验中 <span class="badge blue">18</span></div>
+      <div class="tab" data-tab="pass">核验通过</div>
+      <div class="tab" data-tab="limit">有限制但可交易</div>
+      <div class="tab" data-tab="fail">核验不通过</div>
+      <div class="tab" data-tab="expired">已过期</div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblListing" data-static>
+        <thead>
+          <tr>
+            <th>核验编号</th>
+            <th>坐落</th>
+            <th>不动产权证号</th>
+            <th>产权人</th>
+            <th class="num">建筑面积(㎡)</th>
+            <th>核验状态</th>
+            <th>核验结论</th>
+            <th>核验码 / 有效期</th>
+            <th>来源渠道</th>
+            <th>申请时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="limit" class="clickable" onclick="location.href='listing-detail.html'">
+            <td class="nowrap fw-600">HY450200202600512</td>
+            <td class="cell-lg">城中区文昌路 8 号彰泰滨江学府 12 栋 2 单元 1802 号</td>
+            <td class="nowrap">桂(2021)柳州市不动产权第 0031286 号</td>
+            <td class="nowrap">陈志远</td>
+            <td class="num">118.65</td>
+            <td class="nowrap"><span class="badge green">核验完成</span></td>
+            <td class="nowrap"><span class="badge orange">有限制但可交易</span></td>
+            <td class="nowrap"><span class="hy-code">HY-450200-2026-0512</span><br><span class="text-3 text-sm">2026-08-30 到期</span></td>
+            <td class="nowrap">经纪机构代办</td>
+            <td class="nowrap">2026-07-28 09:12</td>
+            <td class="col-ops">
+              <a class="link" href="listing-detail.html">详情</a>
+              <a class="link" href="contract-create.html">发起签约</a>
+              <span class="link" onclick="event.stopPropagation();PMS.toast('核验码短信已发送至产权人手机','success')">推送核验码</span>
+            </td>
+          </tr>
+          <tr data-st="wait" class="clickable" onclick="location.href='listing-verify.html'">
+            <td class="nowrap fw-600">HY450200202600511</td>
+            <td class="cell-lg">柳南区航生路 22 号彰泰春天 7 栋 1 单元 903 号</td>
+            <td class="nowrap">桂(2019)柳州市不动产权第 0018742 号</td>
+            <td class="nowrap">黄美凤</td>
+            <td class="num">89.24</td>
+            <td class="nowrap"><span class="badge orange">待核验</span></td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="nowrap">个人自主申请</td>
+            <td class="nowrap">2026-07-30 16:41</td>
+            <td class="col-ops">
+              <a class="link" href="listing-verify.html">发起核验</a>
+              <a class="link" href="listing-detail.html">详情</a>
+            </td>
+          </tr>
+          <tr data-st="doing" class="clickable" onclick="location.href='listing-verify.html'">
+            <td class="nowrap fw-600">HY450200202600510</td>
+            <td class="cell-lg">鱼峰区静兰路 66 号荣和千千树 5 栋 3 单元 1105 号</td>
+            <td class="nowrap">桂(2020)柳州市不动产权第 0024193 号</td>
+            <td class="nowrap">韦建国、罗小燕</td>
+            <td class="num">143.08</td>
+            <td class="nowrap"><span class="badge blue">核验中</span></td>
+            <td class="nowrap"><span class="text-3">登记数据比对中</span></td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="nowrap">经纪机构代办</td>
+            <td class="nowrap">2026-07-30 11:07</td>
+            <td class="col-ops">
+              <a class="link" href="listing-verify.html">继续核验</a>
+              <a class="link" href="listing-detail.html">详情</a>
+            </td>
+          </tr>
+          <tr data-st="pass" class="clickable" onclick="location.href='listing-detail.html'">
+            <td class="nowrap fw-600">HY450200202600509</td>
+            <td class="cell-lg">城中区中山东路 15 号桂景湾 3 栋 1 单元 602 号</td>
+            <td class="nowrap">桂(2018)柳州市不动产权第 0012507 号</td>
+            <td class="nowrap">梁少华</td>
+            <td class="num">76.30</td>
+            <td class="nowrap"><span class="badge green">核验完成</span></td>
+            <td class="nowrap"><span class="badge green">核验通过</span></td>
+            <td class="nowrap"><span class="hy-code">HY-450200-2026-0509</span><br><span class="text-3 text-sm">2026-08-28 到期</span></td>
+            <td class="nowrap">个人自主申请</td>
+            <td class="nowrap">2026-07-29 14:23</td>
+            <td class="col-ops">
+              <a class="link" href="listing-detail.html">详情</a>
+              <a class="link" href="contract-create.html">发起签约</a>
+            </td>
+          </tr>
+          <tr data-st="fail" class="clickable" onclick="location.href='listing-detail.html'">
+            <td class="nowrap fw-600">HY450200202600508</td>
+            <td class="cell-lg">柳北区跃进路 33 号阳光 100 城市广场 A 座 1608 号</td>
+            <td class="nowrap">桂(2022)柳州市不动产权第 0038611 号</td>
+            <td class="nowrap">吴俊霖</td>
+            <td class="num">52.16</td>
+            <td class="nowrap"><span class="badge green">核验完成</span></td>
+            <td class="nowrap"><span class="badge red">核验不通过</span></td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="nowrap">经纪机构代办</td>
+            <td class="nowrap">2026-07-29 10:55</td>
+            <td class="col-ops">
+              <a class="link" href="listing-detail.html">详情</a>
+              <span class="link" onclick="event.stopPropagation();PMS.toast('已通知申请人：该房源处于查封状态，解封后可重新申请','error')">通知申请人</span>
+            </td>
+          </tr>
+          <tr data-st="pass" class="clickable" onclick="location.href='listing-detail.html'">
+            <td class="nowrap fw-600">HY450200202600507</td>
+            <td class="cell-lg">柳南区潭中西路 5 号保利大江郡 9 栋 2 单元 2201 号</td>
+            <td class="nowrap">桂(2021)柳州市不动产权第 0029844 号</td>
+            <td class="nowrap">周文彬</td>
+            <td class="num">126.77</td>
+            <td class="nowrap"><span class="badge green">核验完成</span></td>
+            <td class="nowrap"><span class="badge green">核验通过</span></td>
+            <td class="nowrap"><span class="hy-code">HY-450200-2026-0507</span><br><span class="text-3 text-sm">2026-08-27 到期</span></td>
+            <td class="nowrap">窗口代录</td>
+            <td class="nowrap">2026-07-28 15:36</td>
+            <td class="col-ops">
+              <a class="link" href="listing-detail.html">详情</a>
+              <a class="link" href="contract-create.html">发起签约</a>
+            </td>
+          </tr>
+          <tr data-st="pass" class="clickable" onclick="location.href='listing-detail.html'">
+            <td class="nowrap fw-600">HY450200202600506</td>
+            <td class="cell-lg">鱼峰区屏山大道 118 号万科城 21 栋 1 单元 1503 号</td>
+            <td class="nowrap">桂(2020)柳州市不动产权第 0026358 号</td>
+            <td class="nowrap">谭雅琴</td>
+            <td class="num">98.42</td>
+            <td class="nowrap"><span class="badge green">核验完成</span></td>
+            <td class="nowrap"><span class="badge green">核验通过</span></td>
+            <td class="nowrap"><span class="hy-code">HY-450200-2026-0506</span><br><span class="text-3 text-sm">2026-08-26 到期</span></td>
+            <td class="nowrap">经纪机构代办</td>
+            <td class="nowrap">2026-07-27 09:48</td>
+            <td class="col-ops">
+              <a class="link" href="listing-detail.html">详情</a>
+              <a class="link" href="contract-create.html">发起签约</a>
+            </td>
+          </tr>
+          <tr data-st="limit" class="clickable" onclick="location.href='listing-detail.html'">
+            <td class="nowrap fw-600">HY450200202600505</td>
+            <td class="cell-lg">柳江区江华路 9 号龙光玖誉府 2 栋 1 单元 806 号</td>
+            <td class="nowrap">桂(2022)柳州市不动产权第 0041022 号</td>
+            <td class="nowrap">莫远航</td>
+            <td class="num">110.55</td>
+            <td class="nowrap"><span class="badge green">核验完成</span></td>
+            <td class="nowrap"><span class="badge orange">有限制但可交易</span></td>
+            <td class="nowrap"><span class="hy-code">HY-450200-2026-0505</span><br><span class="text-3 text-sm">2026-08-25 到期</span></td>
+            <td class="nowrap">经纪机构代办</td>
+            <td class="nowrap">2026-07-26 17:02</td>
+            <td class="col-ops">
+              <a class="link" href="listing-detail.html">详情</a>
+              <a class="link" href="mortgage-transfer.html">带押过户</a>
+            </td>
+          </tr>
+          <tr data-st="expired" class="clickable" onclick="location.href='listing-detail.html'">
+            <td class="nowrap fw-600">HY450200202600418</td>
+            <td class="cell-lg">城中区解放北路 41 号金龙湾 6 栋 2 单元 1201 号</td>
+            <td class="nowrap">桂(2017)柳州市不动产权第 0009133 号</td>
+            <td class="nowrap">曾丽华</td>
+            <td class="num">84.90</td>
+            <td class="nowrap"><span class="badge gray">已过期</span></td>
+            <td class="nowrap"><span class="badge green">核验通过</span></td>
+            <td class="nowrap"><span class="hy-code expired">HY-450200-2026-0418</span><br><span class="text-danger text-sm">2026-07-25 已失效</span></td>
+            <td class="nowrap">个人自主申请</td>
+            <td class="nowrap">2026-06-25 08:59</td>
+            <td class="col-ops">
+              <a class="link" href="listing-detail.html">详情</a>
+              <span class="link" onclick="event.stopPropagation();PMS.toast('已重新发起核验，登记数据比对中')">重新核验</span>
+            </td>
+          </tr>
+          <tr data-st="wait" class="clickable" onclick="location.href='listing-verify.html'">
+            <td class="nowrap fw-600">HY450200202600504</td>
+            <td class="cell-lg">柳北区白露大道 77 号中航郡府 4 栋 1 单元 1902 号</td>
+            <td class="nowrap">桂(2023)柳州市不动产权第 0045778 号</td>
+            <td class="nowrap">XXXX市城投置业有限公司</td>
+            <td class="num">156.20</td>
+            <td class="nowrap"><span class="badge orange">待核验</span></td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="nowrap">窗口代录</td>
+            <td class="nowrap">2026-07-30 10:18</td>
+            <td class="col-ops">
+              <a class="link" href="listing-verify.html">发起核验</a>
+              <a class="link" href="listing-detail.html">详情</a>
+            </td>
+          </tr>
+          <tr data-st="pass" class="clickable" onclick="location.href='listing-detail.html'">
+            <td class="nowrap fw-600">HY450200202600503</td>
+            <td class="cell-lg">柳南区柳石路 210 号雅居乐花园 12 栋 3 单元 706 号</td>
+            <td class="nowrap">桂(2019)柳州市不动产权第 0020455 号</td>
+            <td class="nowrap">秦振邦</td>
+            <td class="num">92.13</td>
+            <td class="nowrap"><span class="badge green">核验完成</span></td>
+            <td class="nowrap"><span class="badge green">核验通过</span></td>
+            <td class="nowrap"><span class="hy-code">HY-450200-2026-0503</span><br><span class="text-3 text-sm">2026-08-24 到期</span></td>
+            <td class="nowrap">经纪机构代办</td>
+            <td class="nowrap">2026-07-25 13:44</td>
+            <td class="col-ops">
+              <a class="link" href="listing-detail.html">详情</a>
+              <a class="link" href="contract-create.html">发起签约</a>
+            </td>
+          </tr>
+          <tr data-st="doing" class="clickable" onclick="location.href='listing-verify.html'">
+            <td class="nowrap fw-600">HY450200202600502</td>
+            <td class="cell-lg">鱼峰区东环大道 155 号恒大城 18 栋 2 单元 2405 号</td>
+            <td class="nowrap">桂(2021)柳州市不动产权第 0033019 号</td>
+            <td class="nowrap">卢金梅</td>
+            <td class="num">104.86</td>
+            <td class="nowrap"><span class="badge blue">核验中</span></td>
+            <td class="nowrap"><span class="text-3">等待产权人短信确认</span></td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="nowrap">个人自主申请</td>
+            <td class="nowrap">2026-07-30 08:33</td>
+            <td class="col-ops">
+              <a class="link" href="listing-verify.html">继续核验</a>
+              <span class="link" onclick="event.stopPropagation();PMS.toast('确认短信已重新发送','success')">重发短信</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 批量导入房源 -->
+  <div class="modal-mask" id="mdImport">
+    <div class="modal modal-sm">
+      <div class="modal-head">批量导入房源</div>
+      <div class="modal-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>导入模板中的不动产权证号为必填项，导入后系统自动逐条发起权属核验，无需人工再次提交。</div>
+        </div>
+        <div class="import-drop" onclick="PMS.toast('已选择《存量房源导入模板_202607.xlsx》')">
+          <i class="fa-solid fa-cloud-arrow-up" style="font-size:28px;color:var(--primary)"></i>
+          <div class="mt-8">点击选择文件，或将 Excel 拖拽到此处</div>
+          <div class="text-3 text-sm mt-8">支持 .xlsx / .xls，单次不超过 500 条</div>
+        </div>
+        <p class="text-3 text-sm mt-16">
+          <i class="fa-solid fa-download"></i>
+          <span class="link" onclick="PMS.toast('模板下载中')">下载《存量房源批量导入模板》</span>
+        </p>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-close-modal>取消</button>
+        <button type="button" class="btn btn-primary" onclick="PMS.closeModal();PMS.toast('已导入 128 条房源，其中 6 条证号校验失败已生成错误清单','success')">开始导入</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+/* 列表演示：状态页签在前端直接过滤行，分页总数固定，避免翻页后数据跳变 */
+(function () {
+  var table = document.getElementById('tblListing');
+  var tabs = document.getElementById('stTabs');
+  if (!table || !tabs) return;
+
+  function apply(name) {
+    var shown = 0;
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      var on = name === 'all' || tr.getAttribute('data-st') === name;
+      tr.style.display = on ? '' : 'none';
+      if (on) shown++;
+    });
+    return shown;
+  }
+  tabs.addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    apply(tab.getAttribute('data-tab'));
+  });
+
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 3864,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+</script>
+</body>
+</html>

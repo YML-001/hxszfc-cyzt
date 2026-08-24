@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>档案信息勘误 · 房屋交易档案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  .no-code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; }
+  /* 本页特有：勘误类型卡片 */
+  .kw-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(206px, 1fr)); gap: 8px; }
+  .kw-card {
+    border: 1px solid var(--border); border-radius: 9px; padding: 10px 12px; cursor: pointer; background: #fff;
+    display: flex; gap: 9px; align-items: flex-start; transition: .15s;
+  }
+  .kw-card:hover { border-color: var(--primary); }
+  .kw-card.on { border-color: var(--primary); background: var(--primary-bg); }
+  .kw-card i { font-size: 15px; color: var(--text-3); margin-top: 2px; }
+  .kw-card.on i { color: var(--primary); }
+  .kw-card .t { font-size: 13px; font-weight: 600; }
+  .kw-card.on .t { color: var(--primary); }
+  .kw-card .d { font-size: 11.5px; color: var(--text-3); line-height: 1.5; margin-top: 2px; }
+  /* 本页特有：原值 / 新值对照 */
+  .dv-tb { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .dv-tb th, .dv-tb td { border: 1px solid var(--border); padding: 8px 10px; vertical-align: middle; }
+  .dv-tb thead th { background: var(--bg-soft); font-weight: 700; text-align: left; }
+  .dv-tb thead th.old { width: 34%; }
+  .dv-tb thead th.new { width: 34%; }
+  .dv-tb td.fd { width: 32%; color: var(--text-2); }
+  .dv-tb td.old { background: #f6f8fb; color: var(--text-2); }
+  .dv-tb td.new input, .dv-tb td.new select, .dv-tb td.new textarea { width: 100%; }
+  .dv-tb tr.chg td { background: #fffbeb; }
+  .dv-tb tr.chg td.fd { box-shadow: inset 3px 0 0 var(--warning); font-weight: 600; color: var(--text-1); }
+  .chg-tag {
+    display: inline-block; background: var(--warning-light); color: #b45309; border-radius: 4px;
+    padding: 0 6px; font-size: 11px; margin-left: 6px;
+  }
+  .diff-mark { background: #fde68a; border-radius: 2px; padding: 0 2px; font-weight: 700; }
+  /* 本页特有：合并区 */
+  .mg-grid { display: grid; grid-template-columns: 1fr 42px 1fr; gap: 10px; align-items: center; }
+  @media (max-width: 860px) { .mg-grid { grid-template-columns: 1fr; } }
+  .mg-card { border: 1px solid var(--border); border-radius: 9px; padding: 12px; }
+  .mg-card.main { border-color: var(--primary); background: var(--primary-bg); }
+  .mg-card .h { font-size: 13px; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .mg-card .kv { display: flex; gap: 8px; font-size: 12.5px; padding: 2px 0; }
+  .mg-card .kv .k { width: 62px; color: var(--text-3); flex-shrink: 0; }
+  .mg-arrow { text-align: center; color: var(--text-3); font-size: 18px; }
+  .blk-card { border: 1px solid #f6c9c9; background: #fdecec; border-radius: 9px; padding: 12px 14px; }
+  .modal-head { display: flex; align-items: center; gap: 10px; }
+  .modal-head h3 { font-size: 16px; font-weight: 700; }
+  .modal-head .close { margin-left: auto; cursor: pointer; color: var(--text-3); font-size: 18px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: none; border: 0; }
+  .modal-head .close:hover { background: var(--bg-soft); color: var(--text-1); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdagl-19">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> <a class="link" href="index.html">房屋交易档案管理系统</a>
+        <span class="sep">/</span> 档案保管利用
+        <span class="sep">/</span> <span class="cur">档案信息勘误</span>
+      </div>
+      <div class="page-title">档案信息勘误</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" onclick="PMS.openDrawer('drNew')"><i class="fa-solid fa-plus"></i> 发起勘误申请</button>
+      <button type="button" class="btn" onclick="PMS.toast('已导出《勘误台账》Excel','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-shield-halved"></i>
+    <div>
+      <b>任何档案信息的更正都须经审批，不允许直接修改。</b>
+      原值与新值全量留痕可追溯；已移交或已销毁的档案不允许勘误；涉及一房一档聚合关系变更的，审批通过后自动刷新房屋总卷。
+    </div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="ws">待审批 <span class="badge orange">6</span></div>
+      <div class="tab" data-tab="yt">已通过 <span class="badge green">86</span></div>
+      <div class="tab" data-tab="yb">已驳回 <span class="badge gray">12</span></div>
+      <div class="tab" data-tab="all">全部 <span class="badge gray">104</span></div>
+    </div>
+
+    <div class="card-body">
+      <div class="filter-bar" style="border-radius:8px;border:1px solid var(--border)">
+        <div class="filter-item"><label>勘误编号</label><input type="text" placeholder="如 KW20260801006"></div>
+        <div class="filter-item"><label>档案号</label><input type="text" placeholder="如 DA450204202600862"></div>
+        <div class="filter-item">
+          <label>勘误类型</label>
+          <select>
+            <option value="">全部</option><option>错录更正</option><option>重复案卷合并</option>
+            <option>缺失材料补录</option><option>分类调整</option><option>保管期限或密级调整</option>
+            <option>关联关系修正</option><option>卷内顺序调整</option>
+          </select>
+        </div>
+        <div class="filter-item"><label>申请人</label><input type="text" placeholder="姓名"></div>
+        <div class="filter-item"><label>申请时间</label><input type="date" value="2026-07-01"></div>
+        <div class="filter-item"><label>至</label><input type="date" value="2026-08-01"></div>
+        <div class="filter-item">
+          <label>审批结果</label>
+          <select><option value="">全部</option><option>待审</option><option>通过</option><option>驳回</option></select>
+        </div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件查询到 104 条勘误记录')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn" onclick="PMS.toast('已重置筛选条件')">重置</button>
+        </div>
+      </div>
+
+      <div class="table-wrap mt-16">
+        <table class="data-table" id="tblKw" data-static>
+          <thead>
+            <tr>
+              <th>勘误编号</th>
+              <th>档案号与名称</th>
+              <th>勘误类型</th>
+              <th>勘误字段</th>
+              <th>申请人 / 申请时间</th>
+              <th>审批人 / 审批时间</th>
+              <th>审批结果</th>
+              <th style="width:130px">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="nowrap fw-600 no-code">KW20260801006</td>
+              <td>
+                <div class="no-code">DA450204202600862</div>
+                <div class="text-3 text-sm">彰泰滨江学府12栋2单元1802存量房买卖合同网签备案</div>
+              </td>
+              <td class="nowrap"><span class="badge orange">错录更正</span></td>
+              <td>档案名称、房屋坐落、不动产单元号<span class="chg-tag">3 项</span></td>
+              <td class="nowrap">覃**<br><span class="text-3 text-sm">2026-08-01 10:26</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap"><span class="badge blue">待审</span></td>
+              <td class="col-ops">
+                <a class="link" onclick="openAudit('KW20260801006')">审批</a>
+                <a class="link" onclick="openAudit('KW20260801006')">详情</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600 no-code">KW20260731004</td>
+              <td>
+                <div class="no-code">DA450204202600863</div>
+                <div class="text-3 text-sm">彰泰滨江学府12栋2单元1802存量房买卖合同网签备案（重复卷）</div>
+              </td>
+              <td class="nowrap"><span class="badge purple">重复案卷合并</span></td>
+              <td>主卷 DA450204202600862</td>
+              <td class="nowrap">蒙**<br><span class="text-3 text-sm">2026-07-31 15:42</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap"><span class="badge blue">待审</span></td>
+              <td class="col-ops">
+                <a class="link" onclick="openAudit('KW20260731004')">审批</a>
+                <a class="link" onclick="openAudit('KW20260731004')">详情</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600 no-code">KW20260730012</td>
+              <td>
+                <div class="no-code">DA450206202400218</div>
+                <div class="text-3 text-sm">柳东新区花岭路6号A栋1808房屋租赁备案档案</div>
+              </td>
+              <td class="nowrap"><span class="badge cyan">分类调整</span></td>
+              <td>档案类型 04 → 03、分类号 04.02.01 → 03.01.02</td>
+              <td class="nowrap">韦**<br><span class="text-3 text-sm">2026-07-30 09:18</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap"><span class="badge blue">待审</span></td>
+              <td class="col-ops">
+                <a class="link" onclick="openAudit('KW20260730012')">审批</a>
+                <a class="link" onclick="openAudit('KW20260730012')">详情</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600 no-code">KW20260729008</td>
+              <td>
+                <div class="no-code">DA450205201800386</div>
+                <div class="text-3 text-sm">白云路26号3单元502公有住房出售档案</div>
+              </td>
+              <td class="nowrap"><span class="badge blue">关联关系修正</span></td>
+              <td>房源主键 FY450205000862 → FY450205000826</td>
+              <td class="nowrap">覃**<br><span class="text-3 text-sm">2026-07-29 14:08</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap"><span class="badge blue">待审</span></td>
+              <td class="col-ops">
+                <a class="link" onclick="openAudit('KW20260729008')">审批</a>
+                <a class="link" onclick="openAudit('KW20260729008')">详情</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600 no-code">KW20260728002</td>
+              <td>
+                <div class="no-code">DA450202202200518</div>
+                <div class="text-3 text-sm">荣和公园大道3栋2单元602商品房买卖合同备案</div>
+              </td>
+              <td class="nowrap"><span class="badge gray">卷内顺序调整</span></td>
+              <td>第 7 件与第 8 件互换并重编页号</td>
+              <td class="nowrap">蒙**<br><span class="text-3 text-sm">2026-07-28 16:30</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap"><span class="badge blue">待审</span></td>
+              <td class="col-ops">
+                <a class="link" onclick="openAudit('KW20260728002')">审批</a>
+                <a class="link" onclick="openAudit('KW20260728002')">详情</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600 no-code">KW20260726014</td>
+              <td>
+                <div class="no-code">DA450202201900642</div>
+                <div class="text-3 text-sm">桂中大道88号12栋1单元301房改房产权登记档案</div>
+              </td>
+              <td class="nowrap"><span class="badge orange">保管期限或密级调整</span></td>
+              <td>保管期限 定期 30 年 → 永久</td>
+              <td class="nowrap">韦**<br><span class="text-3 text-sm">2026-07-26 11:04</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap"><span class="badge blue">待审</span></td>
+              <td class="col-ops">
+                <a class="link" onclick="openAudit('KW20260726014')">审批</a>
+                <a class="link" onclick="openAudit('KW20260726014')">详情</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600 no-code">KW20260722006</td>
+              <td>
+                <div class="no-code">DA450202202300186</div>
+                <div class="text-3 text-sm">彰泰滨江学府12栋2单元1802不动产转移登记归档</div>
+              </td>
+              <td class="nowrap"><span class="badge green">缺失材料补录</span></td>
+              <td>补录第 12 件《契税完税凭证》</td>
+              <td class="nowrap">覃**<br><span class="text-3 text-sm">2026-07-22 10:12</span></td>
+              <td class="nowrap">韦国强<br><span class="text-3 text-sm">2026-07-22 15:26</span></td>
+              <td class="nowrap"><span class="badge green">通过</span></td>
+              <td class="col-ops">
+                <a class="link" onclick="openAudit('KW20260722006')">详情</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600 no-code">KW20260716010</td>
+              <td>
+                <div class="no-code">DA450202199800126</div>
+                <div class="text-3 text-sm">1998 年度房改售房登记档案（第一卷）</div>
+              </td>
+              <td class="nowrap"><span class="badge orange">错录更正</span></td>
+              <td>权利人姓名</td>
+              <td class="nowrap">蒙**<br><span class="text-3 text-sm">2026-07-16 09:32</span></td>
+              <td class="nowrap">韦国强<br><span class="text-3 text-sm">2026-07-16 14:02</span></td>
+              <td class="nowrap"><span class="badge red">驳回</span><br><span class="text-3 text-sm">依据材料不足</span></td>
+              <td class="col-ops">
+                <a class="link" onclick="openAudit('KW20260716010')">详情</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="drawer-mask"></div>
+  <div class="drawer drawer-xl" id="drNew">
+    <div class="drawer-head">
+      <h3>发起勘误申请</h3>
+      <span class="badge blue no-code">KW20260801006</span>
+      <button type="button" class="close" onclick="PMS.closeDrawer('drNew')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="drawer-body">
+
+      <div class="section-title">选择档案</div>
+      <div class="form-grid form-align">
+        <div class="form-item col-2">
+          <label>档案号<span class="req">*</span></label>
+          <input type="text" class="no-code" id="kwDa" value="DA450204202600862" onchange="checkDa(this.value)">
+          <span class="hint">输入档案号后自动带出案卷摘要，可点击「校验」检查是否允许勘误</span>
+        </div>
+        <div class="form-item">
+          <label>&nbsp;</label>
+          <button type="button" class="btn" onclick="checkDa(document.getElementById('kwDa').value)"><i class="fa-solid fa-magnifying-glass"></i> 校验</button>
+        </div>
+      </div>
+
+      <div id="daOk">
+        <dl class="desc-list mt-16">
+          <div class="desc-item"><dt>档案名称</dt><dd>彰泰滨江学府12栋2单元1082存量房买卖合同网签备案</dd></div>
+          <div class="desc-item"><dt>档案类型</dt><dd>存量房交易档案　<span class="badge cyan">02.03.01</span></dd></div>
+          <div class="desc-item"><dt>档案状态</dt><dd><span class="badge green">已归档在库</span>　允许勘误</dd></div>
+          <div class="desc-item"><dt>件数 / 页数</dt><dd>12 件 / 46 页</dd></div>
+          <div class="desc-item"><dt>归档日期</dt><dd>2026-06-29　归档人 系统自动归集</dd></div>
+          <div class="desc-item"><dt>库位</dt><dd class="no-code">KF01-J12-J3-C4-G2-H086</dd></div>
+        </dl>
+      </div>
+
+      <div id="daBlk" style="display:none">
+        <div class="blk-card mt-16">
+          <div class="text-danger fw-600"><i class="fa-solid fa-ban"></i> 该档案已移交XXXX市档案馆（YJ2026003），不允许勘误</div>
+          <div class="text-3 text-sm mt-8">已移交或已销毁的档案不允许勘误。如确需更正，请联系接收单位按其管理规定办理。</div>
+        </div>
+      </div>
+
+      <div class="section-title mt-16">勘误类型</div>
+      <div class="kw-grid">
+        <div class="kw-card on" onclick="pickKw(this,'cl')">
+          <i class="fa-solid fa-pen"></i>
+          <div><div class="t">错录更正</div><div class="d">档案号、名称、房屋信息、当事人、日期等录入错误</div></div>
+        </div>
+        <div class="kw-card" onclick="pickKw(this,'hb')">
+          <i class="fa-solid fa-code-merge"></i>
+          <div><div class="t">重复案卷合并</div><div class="d">同一办件重复归档，保留主卷合并其余</div></div>
+        </div>
+        <div class="kw-card" onclick="pickKw(this,'bl')">
+          <i class="fa-solid fa-file-circle-plus"></i>
+          <div><div class="t">缺失材料补录</div><div class="d">卷内应有材料遗漏，事后补录入卷</div></div>
+        </div>
+        <div class="kw-card" onclick="pickKw(this,'fl')">
+          <i class="fa-solid fa-folder-tree"></i>
+          <div><div class="t">分类调整</div><div class="d">档案类型或分类号归错，需重新归类</div></div>
+        </div>
+        <div class="kw-card" onclick="pickKw(this,'bg')">
+          <i class="fa-solid fa-hourglass-half"></i>
+          <div><div class="t">保管期限或密级调整</div><div class="d">保管期限、密级、开放级别调整</div></div>
+        </div>
+        <div class="kw-card" onclick="pickKw(this,'gl')">
+          <i class="fa-solid fa-diagram-project"></i>
+          <div><div class="t">关联关系修正</div><div class="d">房源主键、项目主键关联错误</div></div>
+        </div>
+        <div class="kw-card" onclick="pickKw(this,'sx')">
+          <i class="fa-solid fa-arrow-down-1-9"></i>
+          <div><div class="t">卷内顺序调整</div><div class="d">卷内文件顺序或页号需要重排</div></div>
+        </div>
+      </div>
+
+      <div class="section-title mt-16">原值 / 新值对照</div>
+
+      <div class="kwp" id="kwp-cl">
+        <table class="dv-tb">
+          <thead>
+            <tr><th>字段</th><th class="old">原值</th><th class="new">新值</th></tr>
+          </thead>
+          <tbody>
+            <tr class="chg">
+              <td class="fd">档案名称<span class="chg-tag">已修改</span></td>
+              <td class="old">彰泰滨江学府12栋2单元<span class="diff-mark">1082</span>存量房买卖合同网签备案</td>
+              <td class="new"><input type="text" value="彰泰滨江学府12栋2单元1802存量房买卖合同网签备案"></td>
+            </tr>
+            <tr class="chg">
+              <td class="fd">房屋坐落<span class="chg-tag">已修改</span></td>
+              <td class="old">柳州市城中区滨江东路8号彰泰滨江学府12栋2单元<span class="diff-mark">1082</span></td>
+              <td class="new"><input type="text" value="柳州市城中区滨江东路8号彰泰滨江学府12栋2单元1802"></td>
+            </tr>
+            <tr class="chg">
+              <td class="fd">不动产单元号<span class="chg-tag">已修改</span></td>
+              <td class="old no-code">450202001005GB00123F000200<span class="diff-mark">71</span></td>
+              <td class="new"><input type="text" class="no-code" value="450202001005GB00123F00020017"></td>
+            </tr>
+            <tr>
+              <td class="fd">产权证号</td>
+              <td class="old">桂(2023)柳州市不动产权第 0086421 号</td>
+              <td class="new"><input type="text" value="桂(2023)柳州市不动产权第 0086421 号"></td>
+            </tr>
+            <tr>
+              <td class="fd">权利人</td>
+              <td class="old">周**（受让方）</td>
+              <td class="new"><input type="text" value="周**（受让方）"></td>
+            </tr>
+            <tr>
+              <td class="fd">归档日期</td>
+              <td class="old">2026-06-29</td>
+              <td class="new"><input type="date" value="2026-06-29"></td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="text-3 text-sm mt-8">
+          <i class="fa-solid fa-circle-info"></i>
+          发生变化的字段整行浅黄底并在字段名后标「已修改」，原值中的差异字符以黄色高亮标出（1082 → 1802、…0071 → …0017）。
+        </p>
+      </div>
+
+      <div class="kwp" id="kwp-hb" style="display:none">
+        <div class="mg-grid">
+          <div class="mg-card main">
+            <div class="h"><i class="fa-solid fa-star text-primary"></i> 主卷（保留）</div>
+            <div class="kv"><span class="k">档案号</span><span class="no-code">DA450204202600862</span></div>
+            <div class="kv"><span class="k">档案名称</span><span>彰泰滨江学府12-2-1802存量房买卖合同网签备案</span></div>
+            <div class="kv"><span class="k">件 / 页</span><span>12 件 / 46 页</span></div>
+            <div class="kv"><span class="k">归档日期</span><span>2026-06-29</span></div>
+            <div class="kv"><span class="k">库位</span><span class="no-code">KF01-J12-J3-C4-G2-H086</span></div>
+          </div>
+          <div class="mg-arrow"><i class="fa-solid fa-arrow-left"></i></div>
+          <div class="mg-card">
+            <div class="h"><i class="fa-solid fa-clone text-3"></i> 被合并卷</div>
+            <div class="kv"><span class="k">档案号</span><span class="no-code">DA450204202600863</span></div>
+            <div class="kv"><span class="k">档案名称</span><span>彰泰滨江学府12-2-1802存量房买卖合同网签备案（重复）</span></div>
+            <div class="kv"><span class="k">件 / 页</span><span>3 件 / 8 页</span></div>
+            <div class="kv"><span class="k">归档日期</span><span>2026-06-30</span></div>
+            <div class="kv"><span class="k">库位</span><span class="text-3">纯电子，不占库位</span></div>
+          </div>
+        </div>
+        <div class="alert alert-warning mt-16">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>
+            合并后保留主卷 <b class="no-code">DA450204202600862</b>，被合并卷 <b class="no-code">DA450204202600863</b>
+            将标记为「已合并」并指向主卷，其卷内 3 件文件转入主卷并重编卷内序号与页号（合并后 15 件 54 页）。
+            合并为破坏性操作，须二次确认并填写原因。
+          </div>
+        </div>
+      </div>
+
+      <div class="kwp" id="kwp-bl" style="display:none">
+        <table class="dv-tb">
+          <thead><tr><th>字段</th><th class="old">原值</th><th class="new">新值</th></tr></thead>
+          <tbody>
+            <tr class="chg">
+              <td class="fd">卷内件数<span class="chg-tag">已修改</span></td>
+              <td class="old">12 件</td>
+              <td class="new"><input type="text" value="13 件"></td>
+            </tr>
+            <tr class="chg">
+              <td class="fd">卷内页数<span class="chg-tag">已修改</span></td>
+              <td class="old">46 页</td>
+              <td class="new"><input type="text" value="47 页"></td>
+            </tr>
+            <tr>
+              <td class="fd">补录文件名称</td>
+              <td class="old text-3">—</td>
+              <td class="new"><input type="text" value="契税完税凭证"></td>
+            </tr>
+            <tr>
+              <td class="fd">文件类型 / 材料类型代码</td>
+              <td class="old text-3">—</td>
+              <td class="new"><input type="text" value="缴费凭证　M011"></td>
+            </tr>
+            <tr>
+              <td class="fd">起止页号</td>
+              <td class="old text-3">—</td>
+              <td class="new"><input type="text" value="47 ~ 47"></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="form-item col-full mt-16">
+          <label>补录材料文件<span class="req">*</span></label>
+          <div class="file-up">
+            <input type="hidden" class="file-up-val" value="契税完税凭证_XXXX市税务局.pdf">
+            <div class="file-up-grid">
+              <div class="file-up-tile file-up-add" title="添加文件">
+                <input type="file" multiple accept=".pdf,.jpg,.png,.tif">
+                <i class="fa-solid fa-plus"></i><span>上传</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="kwp" id="kwp-fl" style="display:none">
+        <table class="dv-tb">
+          <thead><tr><th>字段</th><th class="old">原值</th><th class="new">新值</th></tr></thead>
+          <tbody>
+            <tr class="chg">
+              <td class="fd">档案类型<span class="chg-tag">已修改</span></td>
+              <td class="old">04 抵押登记档案</td>
+              <td class="new"><select><option>03 房屋租赁档案</option><option>04 抵押登记档案</option><option>02 存量房交易档案</option></select></td>
+            </tr>
+            <tr class="chg">
+              <td class="fd">分类号<span class="chg-tag">已修改</span></td>
+              <td class="old no-code">04.02.01</td>
+              <td class="new"><input type="text" class="no-code" value="03.01.02"></td>
+            </tr>
+            <tr>
+              <td class="fd">分类全路径</td>
+              <td class="old">抵押登记档案 / 抵押备案 / 存量房抵押</td>
+              <td class="new"><input type="text" value="房屋租赁档案 / 租赁备案 / 个人出租"></td>
+            </tr>
+            <tr>
+              <td class="fd">目录号 / 案卷号</td>
+              <td class="old">ML2024-04 / 0218</td>
+              <td class="new"><input type="text" value="ML2024-03 / 0218（按新分类重编）"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="kwp" id="kwp-bg" style="display:none">
+        <table class="dv-tb">
+          <thead><tr><th>字段</th><th class="old">原值</th><th class="new">新值</th></tr></thead>
+          <tbody>
+            <tr class="chg">
+              <td class="fd">保管期限<span class="chg-tag">已修改</span></td>
+              <td class="old">定期 30 年</td>
+              <td class="new"><select><option>永久</option><option>长期</option><option>定期 30 年</option><option>定期 10 年</option><option>定期 5 年</option><option>短期</option></select></td>
+            </tr>
+            <tr class="chg">
+              <td class="fd">保管到期日期<span class="chg-tag">已修改</span></td>
+              <td class="old">2049-12-31</td>
+              <td class="new"><input type="text" value="永久保管，无到期日期" readonly></td>
+            </tr>
+            <tr>
+              <td class="fd">密级</td>
+              <td class="old">内部</td>
+              <td class="new"><select><option>内部</option><option>公开</option><option>秘密</option><option>机密</option></select></td>
+            </tr>
+            <tr>
+              <td class="fd">开放级别</td>
+              <td class="old">受控开放</td>
+              <td class="new"><select><option>受控开放</option><option>不开放</option><option>完全开放</option></select></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="alert alert-info mt-16">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>密级调整为秘密及以上时，开放级别将强制置为「不开放」，后续借阅须走专项审批；调整为永久保管后，该卷不再进入鉴定销毁清单。</div>
+        </div>
+      </div>
+
+      <div class="kwp" id="kwp-gl" style="display:none">
+        <table class="dv-tb">
+          <thead><tr><th>字段</th><th class="old">原值</th><th class="new">新值</th></tr></thead>
+          <tbody>
+            <tr class="chg">
+              <td class="fd">房源主键<span class="chg-tag">已修改</span></td>
+              <td class="old no-code">FY4502050008<span class="diff-mark">62</span></td>
+              <td class="new"><input type="text" class="no-code" value="FY450205000826"></td>
+            </tr>
+            <tr class="chg">
+              <td class="fd">一房一档总卷<span class="chg-tag">已修改</span></td>
+              <td class="old no-code">DAFY450205000862</td>
+              <td class="new"><input type="text" class="no-code" value="DAFY450205000826"></td>
+            </tr>
+            <tr>
+              <td class="fd">项目主键</td>
+              <td class="old no-code">XM450205000186</td>
+              <td class="new"><input type="text" class="no-code" value="XM450205000186"></td>
+            </tr>
+            <tr>
+              <td class="fd">收件编号</td>
+              <td class="old no-code">SJ20180612008</td>
+              <td class="new"><input type="text" class="no-code" value="SJ20180612008"></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="alert alert-warning mt-16">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>房源主键变更将同步刷新两侧一房一档聚合关系：原总卷 DAFY450205000862 案卷数 -1，新总卷 DAFY450205000826 案卷数 +1。</div>
+        </div>
+      </div>
+
+      <div class="kwp" id="kwp-sx" style="display:none">
+        <table class="dv-tb">
+          <thead><tr><th>卷内文件</th><th class="old">原顺序 / 页号</th><th class="new">新顺序 / 页号</th></tr></thead>
+          <tbody>
+            <tr class="chg">
+              <td class="fd">资金监管协议<span class="chg-tag">已修改</span></td>
+              <td class="old">第 8 件　页号 30 ~ 37</td>
+              <td class="new"><input type="text" value="第 7 件　页号 28 ~ 35"></td>
+            </tr>
+            <tr class="chg">
+              <td class="fd">交易限制校验结果单<span class="chg-tag">已修改</span></td>
+              <td class="old">第 7 件　页号 28 ~ 29</td>
+              <td class="new"><input type="text" value="第 8 件　页号 36 ~ 37"></td>
+            </tr>
+            <tr>
+              <td class="fd">其余 10 件</td>
+              <td class="old">序号与页号不变</td>
+              <td class="new">序号与页号不变</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="text-3 text-sm mt-8">
+          <i class="fa-solid fa-circle-info"></i>
+          调整后系统自动重编卷内序号与起止页号，并校验页号连续性。
+        </p>
+      </div>
+
+      <div class="section-title mt-16">勘误理由与依据</div>
+      <div class="form-grid form-align">
+        <div class="form-item col-full">
+          <label>勘误理由<span class="req">*</span></label>
+          <textarea rows="3">自动归集时从办件数据带出的房号有误，办件收件材料《不动产权证书》与《存量房买卖合同》均载明为 12 栋 2 单元 1802，档案登记误录为 1082，不动产单元号末四位同步录反，现申请更正为正确值。</textarea>
+          <span class="hint">不少于 30 字，当前 96 字</span>
+        </div>
+        <div class="form-item col-full">
+          <label>依据材料<span class="req">*</span></label>
+          <div class="file-up">
+            <input type="hidden" class="file-up-val" value="不动产权证书扫描件.pdf,存量房买卖合同首页.pdf">
+            <div class="file-up-grid">
+              <div class="file-up-tile file-up-add" title="添加文件（可多选）">
+                <input type="file" multiple accept=".pdf,.jpg,.png">
+                <i class="fa-solid fa-plus"></i><span>上传</span>
+              </div>
+            </div>
+          </div>
+          <span class="hint">依据材料须能直接佐证新值的正确性，如权属证书、合同原件、办件受理单等</span>
+        </div>
+        <div class="form-item">
+          <label>申请人</label>
+          <input type="text" value="覃永明" readonly>
+        </div>
+        <div class="form-item">
+          <label>申请时间</label>
+          <input type="text" value="2026-08-01 10:26" readonly>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" onclick="PMS.closeDrawer('drNew')">取消</button>
+      <button type="button" class="btn" onclick="PMS.toast('草稿已保存','success')">存草稿</button>
+      <button type="button" class="btn btn-primary" onclick="submitKw()"><i class="fa-solid fa-paper-plane"></i> 提交审批</button>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="mdAudit">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>勘误审批 <span class="badge blue no-code" id="adNo">KW20260801006</span></h3>
+        <button type="button" class="close" onclick="PMS.closeModal('mdAudit')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <dl class="desc-list">
+          <div class="desc-item"><dt>勘误编号</dt><dd class="no-code">KW20260801006</dd></div>
+          <div class="desc-item"><dt>勘误类型</dt><dd><span class="badge orange">错录更正</span></dd></div>
+          <div class="desc-item"><dt>档案号</dt><dd class="no-code">DA450204202600862</dd></div>
+          <div class="desc-item"><dt>档案状态</dt><dd><span class="badge green">已归档在库</span></dd></div>
+          <div class="desc-item"><dt>申请人</dt><dd>覃**　2026-08-01 10:26</dd></div>
+          <div class="desc-item"><dt>依据材料</dt><dd><a class="link" onclick="PMS.toast('已打开依据材料预览')">不动产权证书扫描件.pdf</a>、<a class="link" onclick="PMS.toast('已打开依据材料预览')">存量房买卖合同首页.pdf</a></dd></div>
+        </dl>
+
+        <div class="section-title mt-16">原值 / 新值对照</div>
+        <table class="dv-tb">
+          <thead><tr><th>字段</th><th class="old">原值</th><th class="new">新值</th></tr></thead>
+          <tbody>
+            <tr class="chg">
+              <td class="fd">档案名称<span class="chg-tag">已修改</span></td>
+              <td class="old">彰泰滨江学府12栋2单元<span class="diff-mark">1082</span>存量房买卖合同网签备案</td>
+              <td class="new">彰泰滨江学府12栋2单元<span class="diff-mark">1802</span>存量房买卖合同网签备案</td>
+            </tr>
+            <tr class="chg">
+              <td class="fd">房屋坐落<span class="chg-tag">已修改</span></td>
+              <td class="old">…彰泰滨江学府12栋2单元<span class="diff-mark">1082</span></td>
+              <td class="new">…彰泰滨江学府12栋2单元<span class="diff-mark">1802</span></td>
+            </tr>
+            <tr class="chg">
+              <td class="fd">不动产单元号<span class="chg-tag">已修改</span></td>
+              <td class="old no-code">450202001005GB00123F000200<span class="diff-mark">71</span></td>
+              <td class="new no-code">450202001005GB00123F000200<span class="diff-mark">17</span></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="section-title mt-16">勘误理由</div>
+        <p class="text-2" style="line-height:1.7">
+          自动归集时从办件数据带出的房号有误，办件收件材料《不动产权证书》与《存量房买卖合同》均载明为
+          12 栋 2 单元 1802，档案登记误录为 1082，不动产单元号末四位同步录反，现申请更正为正确值。
+        </p>
+
+        <div class="section-title mt-16">审批</div>
+        <div class="form-grid form-align">
+          <div class="form-item">
+            <label>审批结果<span class="req">*</span></label>
+            <select id="adRs"><option>通过</option><option>驳回</option></select>
+          </div>
+          <div class="form-item">
+            <label>审批人</label>
+            <input type="text" value="韦国强" readonly>
+          </div>
+          <div class="form-item col-full">
+            <label>审批意见<span class="req">*</span></label>
+            <textarea rows="3">经核对依据材料，原登记房号确系录入错误，同意按新值更正，并同步刷新一房一档聚合关系。</textarea>
+          </div>
+        </div>
+
+        <div class="alert alert-info mt-16">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>审批通过后立即执行更正，原值与新值全量留痕不可删除；该房屋一房一档聚合关系将同步刷新。</div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="PMS.closeModal('mdAudit')">取消</button>
+        <button type="button" class="btn btn-primary" onclick="doAudit()">提交审批</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+var kwType = 'cl';
+function pickKw(el, k) {
+  document.querySelectorAll('.kw-card').forEach(function (c) { c.classList.remove('on'); });
+  el.classList.add('on');
+  kwType = k;
+  document.querySelectorAll('.kwp').forEach(function (p) { p.style.display = 'none'; });
+  document.getElementById('kwp-' + k).style.display = '';
+}
+function checkDa(no) {
+  var blocked = (no || '').indexOf('DA450202201500') === 0;
+  document.getElementById('daOk').style.display = blocked ? 'none' : '';
+  document.getElementById('daBlk').style.display = blocked ? '' : 'none';
+  if (blocked) PMS.toast('该档案已移交，不允许勘误', 'error');
+  else PMS.toast('档案状态为「已归档在库」，允许勘误', 'success');
+}
+function submitKw() {
+  if (kwType === 'hb') {
+    PMS.confirm({
+      title: '重复案卷合并',
+      type: 'danger',
+      message: '合并为破坏性操作：被合并卷 DA450204202600863 将标记为「已合并」并指向主卷，其 3 件文件转入主卷。确认提交审批？',
+      detail: '主卷 DA450204202600862（12 件 46 页）　合并后 15 件 54 页',
+      okText: '确认提交',
+      onOk: function () {
+        PMS.closeDrawer('drNew');
+        PMS.toast('合并申请已提交审批，审批通过后执行合并并全量留痕', 'success');
+      }
+    });
+    return;
+  }
+  PMS.closeDrawer('drNew');
+  PMS.toast('勘误申请 KW20260801006 已提交审批', 'success');
+}
+function openAudit(no) {
+  document.getElementById('adNo').textContent = no;
+  PMS.openModal('mdAudit');
+}
+function doAudit() {
+  var rs = document.getElementById('adRs').value;
+  if (rs === '驳回') {
+    PMS.confirm({
+      title: '驳回勘误申请',
+      type: 'warning',
+      message: '驳回后申请人须补充依据材料重新提交。确认驳回？',
+      detail: 'KW20260801006 · 错录更正 · DA450204202600862',
+      okText: '确认驳回',
+      onOk: function () { PMS.closeModal('mdAudit'); PMS.toast('已驳回并通知申请人', 'warning'); }
+    });
+    return;
+  }
+  PMS.closeModal('mdAudit');
+  PMS.toast('更正已执行：原值与新值已全量留痕，该房屋一房一档聚合关系已同步刷新', 'success');
+}
+(function () {
+  PMS.renderPager(document.getElementById('tblKw'), {
+    pageNum: 1, pageSize: 10, total: 104,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+  var da = new URLSearchParams(location.search).get('da');
+  if (da) { document.getElementById('kwDa').value = da; PMS.openDrawer('drNew'); }
+})();
+</script>
+</body>
+</html>

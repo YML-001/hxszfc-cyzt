@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>准入资格审核 · 新建商品房网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：保障资格结论卡与摇号左右对照 */
+  .rv-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; background: #fff; }
+  .rv-card.ok { border-left: 3px solid var(--success); }
+  .rv-card.bad { border-left: 3px solid var(--danger); }
+  .rv-card.warn { border-left: 3px solid var(--warning); }
+  .rv-card .rv-t { font-size: 13.5px; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .rv-card .rv-t .badge { margin-left: auto; }
+  .rv-card .rv-r { display: flex; font-size: 13px; padding: 3px 0; color: var(--text-2); }
+  .rv-card .rv-r span:first-child { width: 110px; color: var(--text-3); flex-shrink: 0; }
+  .diff-tb td.chg { color: var(--danger); font-weight: 700; background: #fff5f5; }
+  tr.row-red td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsswb-19">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房网签备案管理系统
+        <span class="sep">/</span> <a class="link" href="policy-list.html">政策性住房备案</a>
+        <span class="sep">/</span> <span class="cur">准入资格审核</span>
+      </div>
+      <div class="page-title">准入资格审核</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" data-open-drawer="dwHandle"><i class="fa-solid fa-user-check"></i> 办理审核</button>
+      <button type="button" class="btn" onclick="PMS.toast('已批量调用住房保障资格结论 86 条，更新完成','success')"><i class="fa-solid fa-cloud-arrow-down"></i> 批量调用资格结论</button>
+      <button type="button" class="btn" data-open-drawer="dwLottery"><i class="fa-solid fa-scale-balanced"></i> 摇号一致性核对</button>
+      <button type="button" class="btn" onclick="location.href='policy-list.html'"><i class="fa-solid fa-arrow-left"></i> 返回备案</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">待审</div><div class="s-value">86</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">通过</div><div class="s-value">412</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-circle-xmark"></i></div>
+      <div><div class="s-label">不通过</div><div class="s-value">62</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-hand"></i></div>
+      <div><div class="s-label">摇号不一致拦截</div><div class="s-value">3</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-danger">
+    <i class="fa-solid fa-lock"></i>
+    <div>结论不通过或已过期一律拦截备案；摇号配售结果与资格审核结论不一致时提示核实，未核实前不得进入政策性住房交易备案。</div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item"><label>申请编号</label><input type="text" placeholder="如 ZGSQ20260731086"></div>
+      <div class="filter-item"><label>申请人</label><input type="text" placeholder="姓名关键词"></div>
+      <div class="filter-item"><label>政策房屋类型</label><select><option value="">全部</option><option>经济适用房</option><option>限价商品房</option><option>共有产权房</option><option>人才住房</option></select></div>
+      <div class="filter-item"><label>审核结论</label><select><option value="">全部</option><option>待审核</option><option>通过</option><option>不通过</option><option>已过期</option></select></div>
+      <div class="filter-item"><label>资格有效期</label><input type="date" value="2026-12-31"></div>
+      <div class="filter-item"><label>摇号批次</label><select><option value="">全部</option><option>2026 年第二批</option><option>2026 年第一批</option><option>2025 年第四批</option></select></div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 86 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblQg" data-static>
+        <thead>
+          <tr>
+            <th>申请编号</th>
+            <th>申请人</th>
+            <th>政策房屋类型</th>
+            <th>保障资格审核编号</th>
+            <th>审核结论</th>
+            <th>资格有效期</th>
+            <th class="num">家庭人数</th>
+            <th>家庭住房状况</th>
+            <th>摇号批次 / 序号</th>
+            <th>所选房号</th>
+            <th>一致性校验</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="nowrap fw-600">ZGSQ20260731086</td>
+            <td class="nowrap">韦某某</td>
+            <td class="nowrap"><span class="badge purple">经济适用房</span></td>
+            <td class="nowrap">BZSH450200202601286</td>
+            <td class="nowrap"><span class="badge orange">待审核</span></td>
+            <td class="nowrap">2027-06-30</td>
+            <td class="num nowrap">3</td>
+            <td class="nowrap">本市无房</td>
+            <td class="nowrap">2026 年第二批 / 086</td>
+            <td class="nowrap">柳州城投·和园 2-1-0802</td>
+            <td class="nowrap"><span class="badge gray">待核对</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('ZGSQ20260731086','韦某某','pass')">查看结论</span>
+              <span class="link" onclick="openLottery('ZGSQ20260731086')">核对</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">ZGSQ20260731082</td>
+            <td class="nowrap">覃某某</td>
+            <td class="nowrap"><span class="badge cyan">共有产权房</span></td>
+            <td class="nowrap">BZSH450200202601242</td>
+            <td class="nowrap"><span class="badge green">通过</span></td>
+            <td class="nowrap">2027-03-18</td>
+            <td class="num nowrap">2</td>
+            <td class="nowrap">本市无房</td>
+            <td class="nowrap">2026 年第二批 / 042</td>
+            <td class="nowrap">锦华苑 5-2-1206</td>
+            <td class="nowrap"><span class="badge green">一致</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('ZGSQ20260731082','覃某某','pass')">查看结论</span>
+              <a class="link" href="policy-list.html">去备案</a>
+            </td>
+          </tr>
+          <tr class="row-red">
+            <td class="nowrap fw-600">ZGSQ20260731074</td>
+            <td class="nowrap">黄某某</td>
+            <td class="nowrap"><span class="badge orange">人才住房</span></td>
+            <td class="nowrap">BZSH450200202601186</td>
+            <td class="nowrap"><span class="badge red">已过期</span></td>
+            <td class="nowrap text-danger">2026-05-31</td>
+            <td class="num nowrap">1</td>
+            <td class="nowrap">本市无房</td>
+            <td class="nowrap">2026 年第一批 / 118</td>
+            <td class="nowrap">锦华苑 3-1-1802</td>
+            <td class="nowrap"><span class="badge red">拦截</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('ZGSQ20260731074','黄某某','expire')">查看结论</span>
+              <span class="link" onclick="PMS.toast('资格已过期，已拦截备案，须重新申请住房保障资格','error')">拦截说明</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">ZGSQ20260731068</td>
+            <td class="nowrap">梁某某</td>
+            <td class="nowrap"><span class="badge purple">经济适用房</span></td>
+            <td class="nowrap">BZSH450200202601142</td>
+            <td class="nowrap"><span class="badge red">不通过</span></td>
+            <td class="nowrap text-3">—</td>
+            <td class="num nowrap">4</td>
+            <td class="nowrap">本市有房 1 套</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap"><span class="badge red">拦截</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('ZGSQ20260731068','梁某某','fail')">查看结论</span>
+              <span class="link" onclick="PMS.toast('不通过原因：家庭人均住房面积超标（btgyy=03）','error')">拦截说明</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">ZGSQ20260731062</td>
+            <td class="nowrap">罗某某</td>
+            <td class="nowrap"><span class="badge blue">限价商品房</span></td>
+            <td class="nowrap">BZSH450200202601098</td>
+            <td class="nowrap"><span class="badge green">通过</span></td>
+            <td class="nowrap">2027-08-12</td>
+            <td class="num nowrap">3</td>
+            <td class="nowrap">本市无房</td>
+            <td class="nowrap">2026 年第二批 / 062</td>
+            <td class="nowrap">和园 4-2-1602</td>
+            <td class="nowrap"><span class="badge red">不一致</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('ZGSQ20260731062','罗某某','pass')">查看结论</span>
+              <span class="link" onclick="openLottery('ZGSQ20260731062')">核对</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">ZGSQ20260731056</td>
+            <td class="nowrap">陈某某</td>
+            <td class="nowrap"><span class="badge cyan">共有产权房</span></td>
+            <td class="nowrap">BZSH450200202601054</td>
+            <td class="nowrap"><span class="badge orange">待审核</span></td>
+            <td class="nowrap">2027-01-20</td>
+            <td class="num nowrap">2</td>
+            <td class="nowrap">本市无房</td>
+            <td class="nowrap">2026 年第二批 / 056</td>
+            <td class="nowrap">锦华苑 6-1-0902</td>
+            <td class="nowrap"><span class="badge gray">待核对</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('ZGSQ20260731056','陈某某','pass')">查看结论</span>
+              <span class="link" onclick="openLottery('ZGSQ20260731056')">核对</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">ZGSQ20260731048</td>
+            <td class="nowrap">吴某某</td>
+            <td class="nowrap"><span class="badge orange">人才住房</span></td>
+            <td class="nowrap">BZSH450200202601012</td>
+            <td class="nowrap"><span class="badge green">通过</span></td>
+            <td class="nowrap">2027-11-08</td>
+            <td class="num nowrap">1</td>
+            <td class="nowrap">本市无房</td>
+            <td class="nowrap">2026 年第一批 / 208</td>
+            <td class="nowrap">锦华苑 2-2-0801</td>
+            <td class="nowrap"><span class="badge green">一致</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('ZGSQ20260731048','吴某某','pass')">查看结论</span>
+              <a class="link" href="policy-list.html">去备案</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">ZGSQ20260731042</td>
+            <td class="nowrap">莫某某</td>
+            <td class="nowrap"><span class="badge purple">经济适用房</span></td>
+            <td class="nowrap">BZSH450200202600968</td>
+            <td class="nowrap"><span class="badge green">通过</span></td>
+            <td class="nowrap">2026-12-18</td>
+            <td class="num nowrap">3</td>
+            <td class="nowrap">本市无房</td>
+            <td class="nowrap">2025 年第四批 / 342</td>
+            <td class="nowrap">和园 1-2-0602</td>
+            <td class="nowrap"><span class="badge green">一致</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('ZGSQ20260731042','莫某某','pass')">查看结论</span>
+              <a class="link" href="policy-list.html">去备案</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">ZGSQ20260731036</td>
+            <td class="nowrap">蓝某某</td>
+            <td class="nowrap"><span class="badge blue">限价商品房</span></td>
+            <td class="nowrap">BZSH450200202600924</td>
+            <td class="nowrap"><span class="badge orange">待审核</span></td>
+            <td class="nowrap">2027-04-26</td>
+            <td class="num nowrap">2</td>
+            <td class="nowrap">本市无房</td>
+            <td class="nowrap">2026 年第二批 / 136</td>
+            <td class="nowrap">和园 5-1-0402</td>
+            <td class="nowrap"><span class="badge gray">待核对</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('ZGSQ20260731036','蓝某某','pass')">查看结论</span>
+              <span class="link" onclick="openLottery('ZGSQ20260731036')">核对</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="drawer-mask"></div>
+
+  <!-- 办理审核：选申请人 → 结论卡 → 摇号校验 → 审核结论 -->
+  <div class="drawer drawer-lg" id="dwHandle">
+    <div class="drawer-head">
+      <h3>准入资格审核办理</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="wizard" id="hdWz">
+        <div class="w-step active" data-step="1"><span class="w-num">1</span><span class="w-label">选申请人 / 项目</span></div>
+        <div class="w-line"></div>
+        <div class="w-step" data-step="2"><span class="w-num">2</span><span class="w-label">保障资格结论</span></div>
+        <div class="w-line"></div>
+        <div class="w-step" data-step="3"><span class="w-num">3</span><span class="w-label">摇号一致性</span></div>
+        <div class="w-line"></div>
+        <div class="w-step" data-step="4"><span class="w-num">4</span><span class="w-label">审核结论</span></div>
+      </div>
+
+      <div class="wz-panel active" data-panel="1">
+        <div class="section-title">选择申请人与配售项目</div>
+        <div class="form-grid form-align">
+          <div class="form-item">
+            <label>申请编号<span class="req">*</span></label>
+            <select id="hdApp">
+              <option>ZGSQ20260731086 · 韦某某 · 经济适用房</option>
+              <option>ZGSQ20260731062 · 罗某某 · 限价商品房</option>
+              <option>ZGSQ20260731056 · 陈某某 · 共有产权房</option>
+            </select>
+          </div>
+          <div class="form-item">
+            <label>配售项目<span class="req">*</span></label>
+            <select>
+              <option>柳州城投·和园（安置房 / 经适房）</option>
+              <option>柳州人才安居·锦华苑</option>
+            </select>
+          </div>
+          <div class="form-item">
+            <label>所选房号</label>
+            <input type="text" value="2-1-0802">
+          </div>
+          <div class="form-item">
+            <label>摇号批次</label>
+            <input type="text" value="2026 年第二批" readonly>
+          </div>
+        </div>
+      </div>
+
+      <div class="wz-panel" data-panel="2">
+        <div class="section-title">调用住房保障资格结论</div>
+        <div class="rv-card ok" id="hdCard">
+          <div class="rv-t"><i class="fa-solid fa-shield-halved"></i> 住房保障资格审核结论<span class="badge green">通过</span></div>
+          <div class="rv-r"><span>审核编号</span><span>BZSH450200202601286</span></div>
+          <div class="rv-r"><span>审核结论</span><span>具备购买经济适用住房资格</span></div>
+          <div class="rv-r"><span>有效期</span><span>2027-06-30</span></div>
+          <div class="rv-r"><span>审核机关</span><span>XXXX市住房保障中心</span></div>
+          <div class="rv-r"><span>审核日期</span><span>2026-06-18</span></div>
+        </div>
+        <div class="section-title mt-16">家庭成员</div>
+        <table class="data-table compact">
+          <thead><tr><th>姓名</th><th>与申请人关系</th><th>证件号码</th><th>婚姻状况</th><th>住房状况</th></tr></thead>
+          <tbody>
+            <tr><td class="nowrap">韦某某</td><td class="nowrap">本人</td><td class="nowrap">4502**********5678</td><td class="nowrap">已婚</td><td class="nowrap">本市无房</td></tr>
+            <tr><td class="nowrap">李某某</td><td class="nowrap">配偶</td><td class="nowrap">4502**********2408</td><td class="nowrap">已婚</td><td class="nowrap">本市无房</td></tr>
+            <tr><td class="nowrap">韦某某</td><td class="nowrap">子女</td><td class="nowrap">4502**********3316</td><td class="nowrap">未婚</td><td class="nowrap">本市无房</td></tr>
+          </tbody>
+        </table>
+        <button type="button" class="btn mt-16" onclick="PMS.toast('已重新调用住房保障系统，结论无变化','success')"><i class="fa-solid fa-rotate"></i> 重新调用</button>
+      </div>
+
+      <div class="wz-panel" data-panel="3">
+        <div class="section-title">摇号配售与资格结论对照</div>
+        <table class="data-table compact diff-tb">
+          <thead><tr><th>对照项</th><th>资格审核结论</th><th>摇号配售结果</th><th>校验</th></tr></thead>
+          <tbody>
+            <tr><td class="nowrap">申请人</td><td class="nowrap">韦某某</td><td class="nowrap">韦某某</td><td class="nowrap"><span class="badge green">一致</span></td></tr>
+            <tr><td class="nowrap">证件号码</td><td class="nowrap">4502**********5678</td><td class="nowrap">4502**********5678</td><td class="nowrap"><span class="badge green">一致</span></td></tr>
+            <tr><td class="nowrap">政策房屋类型</td><td class="nowrap">经济适用房</td><td class="nowrap">经济适用房</td><td class="nowrap"><span class="badge green">一致</span></td></tr>
+            <tr><td class="nowrap">家庭人数</td><td class="nowrap">3</td><td class="nowrap">3</td><td class="nowrap"><span class="badge green">一致</span></td></tr>
+            <tr><td class="nowrap">所选房号</td><td class="nowrap">2-1-0802</td><td class="nowrap">2-1-0802</td><td class="nowrap"><span class="badge green">一致</span></td></tr>
+            <tr><td class="nowrap">资格有效期</td><td class="nowrap">2027-06-30</td><td class="nowrap">摇号日 2026-07-08 有效</td><td class="nowrap"><span class="badge green">一致</span></td></tr>
+          </tbody>
+        </table>
+        <div class="alert alert-success mt-16">
+          <i class="fa-solid fa-circle-check"></i>
+          <div>摇号配售结果与资格审核结论全部一致，可进入审核结论。</div>
+        </div>
+      </div>
+
+      <div class="wz-panel" data-panel="4">
+        <div class="section-title">审核结论</div>
+        <div class="form-grid form-align">
+          <div class="form-item col-full">
+            <label>审核结论<span class="req">*</span></label>
+            <div class="radio-line">
+              <label><input type="radio" name="hdRes" value="pass" checked> 通过（准予进入备案）</label>
+              <label><input type="radio" name="hdRes" value="fail"> 不通过（拦截备案）</label>
+              <label><input type="radio" name="hdRes" value="hold"> 暂缓（待核实摇号）</label>
+            </div>
+          </div>
+          <div class="form-item"><label>审核人<span class="req">*</span></label><input type="text" value="韦国强"></div>
+          <div class="form-item"><label>审核日期<span class="req">*</span></label><input type="date" value="2026-07-31"></div>
+          <div class="form-item col-full">
+            <label>审核意见<span class="req">*</span></label>
+            <textarea>已调用住房保障资格结论（通过、有效期内），摇号配售结果与资格结论一致，同意准予进入政策性住房交易备案。</textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn" id="hdPrev" onclick="hdStep(-1)" style="display:none"><i class="fa-solid fa-arrow-left"></i> 上一步</button>
+      <button type="button" class="btn btn-primary" id="hdNext" onclick="hdStep(1)"><i class="fa-solid fa-arrow-right"></i> 下一步</button>
+      <button type="button" class="btn btn-primary hidden" id="hdSubmit" onclick="submitHd()"><i class="fa-solid fa-paper-plane"></i> 提交审核结论</button>
+    </div>
+  </div>
+
+  <!-- 资格结论抽屉 -->
+  <div class="drawer drawer-lg" id="dwView">
+    <div class="drawer-head">
+      <h3>保障资格结论 · <span id="vNo">—</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="rv-card ok" id="vCard">
+        <div class="rv-t"><i class="fa-solid fa-shield-halved"></i> 住房保障资格审核结论<span class="badge green" id="vBadge">通过</span></div>
+        <div class="rv-r"><span>申请人</span><span id="vName">—</span></div>
+        <div class="rv-r"><span>审核编号</span><span id="vBz">—</span></div>
+        <div class="rv-r"><span>审核结论</span><span id="vCon">—</span></div>
+        <div class="rv-r"><span>有效期</span><span id="vExp">—</span></div>
+        <div class="rv-r"><span>审核机关</span><span>XXXX市住房保障中心</span></div>
+        <div class="rv-r"><span>审核日期</span><span id="vDate">—</span></div>
+      </div>
+      <div class="alert alert-danger mt-16 hidden" id="vFail">
+        <i class="fa-solid fa-circle-xmark"></i>
+        <div id="vFailTxt">—</div>
+      </div>
+      <div class="section-title mt-16">家庭成员</div>
+      <table class="data-table compact">
+        <thead><tr><th>姓名</th><th>与申请人关系</th><th>证件号码</th><th>婚姻状况</th><th>住房状况</th></tr></thead>
+        <tbody>
+          <tr><td class="nowrap">本人</td><td class="nowrap">本人</td><td class="nowrap">4502**********5678</td><td class="nowrap">已婚</td><td class="nowrap">本市无房</td></tr>
+          <tr><td class="nowrap">配偶</td><td class="nowrap">配偶</td><td class="nowrap">4502**********2408</td><td class="nowrap">已婚</td><td class="nowrap">本市无房</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+      <button type="button" class="btn" onclick="location.href='policy-list.html'">返回备案台账</button>
+    </div>
+  </div>
+
+  <!-- 摇号一致性核对 -->
+  <div class="drawer drawer-lg" id="dwLottery">
+    <div class="drawer-head">
+      <h3>摇号一致性核对 · <span id="ltNo">ZGSQ20260731062</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-warning">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>检测到摇号配售所选房号与资格审核关联房号不一致，请核实后提交。</div>
+      </div>
+      <div class="grid-2 mt-16">
+        <div>
+          <div class="section-title">资格审核结论</div>
+          <div class="rv-card ok">
+            <div class="rv-r"><span>申请人</span><span>罗某某</span></div>
+            <div class="rv-r"><span>证件号码</span><span>4502**********1826</span></div>
+            <div class="rv-r"><span>房屋类型</span><span>限价商品房</span></div>
+            <div class="rv-r"><span>关联房号</span><span>4-2-1602</span></div>
+            <div class="rv-r"><span>有效期</span><span>2027-08-12</span></div>
+          </div>
+        </div>
+        <div>
+          <div class="section-title">摇号配售结果</div>
+          <div class="rv-card bad">
+            <div class="rv-r"><span>中签人</span><span>罗某某</span></div>
+            <div class="rv-r"><span>证件号码</span><span>4502**********1826</span></div>
+            <div class="rv-r"><span>房屋类型</span><span>限价商品房</span></div>
+            <div class="rv-r"><span>所选房号</span><span class="text-danger fw-600">3-1-1102</span></div>
+            <div class="rv-r"><span>摇号日有效</span><span>是</span></div>
+          </div>
+        </div>
+      </div>
+      <table class="data-table compact diff-tb mt-16">
+        <thead><tr><th>对照项</th><th>资格侧</th><th>摇号侧</th><th>校验</th></tr></thead>
+        <tbody>
+          <tr><td class="nowrap">申请人</td><td class="nowrap">罗某某</td><td class="nowrap">罗某某</td><td class="nowrap"><span class="badge green">一致</span></td></tr>
+          <tr><td class="nowrap">所选房号</td><td class="nowrap">4-2-1602</td><td class="nowrap chg">3-1-1102</td><td class="nowrap"><span class="badge red">不一致</span></td></tr>
+        </tbody>
+      </table>
+      <div class="form-item mt-16">
+        <label>核实说明<span class="req">*</span></label>
+        <textarea placeholder="说明不一致原因及处理意见">摇号现场选房结果为 3-1-1102，与资格申请时预选房号不一致，拟按摇号结果更正资格关联房号后放行。</textarea>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+      <button type="button" class="btn btn-danger" onclick="PMS.closeDrawer('dwLottery');PMS.toast('已拦截备案：摇号配售结果与资格结论不一致','error')"><i class="fa-solid fa-hand"></i> 确认拦截</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer('dwLottery');PMS.toast('已提交核实，关联房号已按摇号结果更正','success')"><i class="fa-solid fa-paper-plane"></i> 提交核实</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  PMS.renderPager(document.getElementById('tblQg'), {
+    pageNum: 1, pageSize: 20, total: 86,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+
+var hdCur = 1;
+function hdStep(d) {
+  var next = hdCur + d;
+  if (next < 1 || next > 4) return;
+  hdCur = next;
+  document.querySelectorAll('#dwHandle .wz-panel').forEach(function (p) {
+    p.classList.toggle('active', p.getAttribute('data-panel') === String(hdCur));
+  });
+  document.querySelectorAll('#hdWz .w-step').forEach(function (s) {
+    var n = +s.getAttribute('data-step');
+    s.classList.toggle('active', n === hdCur);
+    s.classList.toggle('done', n < hdCur);
+  });
+  document.getElementById('hdPrev').style.display = hdCur === 1 ? 'none' : '';
+  document.getElementById('hdNext').classList.toggle('hidden', hdCur === 4);
+  document.getElementById('hdSubmit').classList.toggle('hidden', hdCur !== 4);
+}
+
+function submitHd() {
+  var v = document.querySelector('input[name="hdRes"]:checked').value;
+  PMS.closeDrawer('dwHandle');
+  if (v === 'pass') PMS.toast('审核通过，已准予进入政策性住房交易备案', 'success');
+  else if (v === 'fail') PMS.toast('审核不通过，已拦截备案', 'error');
+  else PMS.toast('已标记暂缓，待摇号核实完成', 'warning');
+  hdCur = 1; hdStep(0);
+}
+
+function openView(no, name, st) {
+  document.getElementById('vNo').textContent = no;
+  document.getElementById('vName').textContent = name;
+  var card = document.getElementById('vCard'), badge = document.getElementById('vBadge');
+  var fail = document.getElementById('vFail');
+  fail.classList.add('hidden');
+  card.className = 'rv-card ok';
+  if (st === 'pass') {
+    badge.className = 'badge green'; badge.textContent = '通过';
+    document.getElementById('vBz').textContent = 'BZSH450200202601286';
+    document.getElementById('vCon').textContent = '具备准入资格';
+    document.getElementById('vExp').textContent = '2027-06-30';
+    document.getElementById('vDate').textContent = '2026-06-18';
+  } else if (st === 'expire') {
+    card.className = 'rv-card warn';
+    badge.className = 'badge red'; badge.textContent = '已过期';
+    document.getElementById('vBz').textContent = 'BZSH450200202601186';
+    document.getElementById('vCon').textContent = '原结论通过，现已过期';
+    document.getElementById('vExp').textContent = '2026-05-31';
+    document.getElementById('vDate').textContent = '2025-05-20';
+    fail.classList.remove('hidden');
+    document.getElementById('vFailTxt').innerHTML = '资格已过期，<b>一律拦截备案</b>；须重新申请住房保障资格。';
+  } else {
+    card.className = 'rv-card bad';
+    badge.className = 'badge red'; badge.textContent = '不通过';
+    document.getElementById('vBz').textContent = 'BZSH450200202601142';
+    document.getElementById('vCon').textContent = '不具备准入资格';
+    document.getElementById('vExp').textContent = '—';
+    document.getElementById('vDate').textContent = '2026-07-12';
+    fail.classList.remove('hidden');
+    document.getElementById('vFailTxt').innerHTML = '不通过原因（btgyy=03）：家庭人均住房面积超标，<b>拦截备案</b>。';
+  }
+  PMS.openDrawer('dwView');
+}
+
+function openLottery(no) {
+  document.getElementById('ltNo').textContent = no;
+  PMS.openDrawer('dwLottery');
+}
+</script>
+</body>
+</html>

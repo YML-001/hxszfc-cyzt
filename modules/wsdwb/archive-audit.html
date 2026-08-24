@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>查档记录留痕审计 · 房屋交易备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：异常红旗标记与只读约束提示条 */
+  .ro {
+    display: flex; align-items: center; gap: 9px; background: var(--bg-2); border: 1px dashed var(--border-dark);
+    border-radius: var(--radius); padding: 9px 14px; font-size: 13px; color: var(--text-3); margin-bottom: 12px;
+  }
+  .flag {
+    display: inline-flex; align-items: center; gap: 4px; color: #dc2626; font-weight: 600;
+    cursor: help; font-size: 12.5px;
+  }
+  .flag i { animation: fw 2.4s ease-in-out infinite; }
+  @keyframes fw { 0%, 100% { transform: rotate(0); } 12% { transform: rotate(-9deg); } 24% { transform: rotate(6deg); } 36% { transform: rotate(0); } }
+  tr.is-ab > td { background: #fef2f2; }
+  tr.is-ab:hover > td { background: #fee2e2; }
+  .msk { font-family: var(--font-mono, monospace); }
+  .ab-legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+  .ab-item {
+    border: 1px solid var(--border); border-left: 3px solid #dc2626; border-radius: var(--radius-sm);
+    padding: 9px 12px; background: var(--bg-1);
+  }
+  .ab-item .t { font-size: 13px; font-weight: 600; color: var(--text-1); display: flex; justify-content: space-between; gap: 8px; }
+  .ab-item .t b { color: #dc2626; font-size: 15px; }
+  .ab-item .d { font-size: 12px; color: var(--text-3); margin-top: 3px; line-height: 1.55; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdwb-18">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易备案管理系统
+        <span class="sep">/</span> 查档服务
+        <span class="sep">/</span> <span class="cur">查档记录留痕审计</span>
+      </div>
+      <div class="page-title">查档记录留痕审计</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="location.href='archive-list.html'"><i class="fa-solid fa-list"></i> 查档台账</button>
+      <button type="button" class="btn btn-primary" onclick="doExport()"><i class="fa-solid fa-file-export"></i> 导出审计报表</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-magnifying-glass"></i></div>
+      <div><div class="s-label">本月查档</div><div class="s-value">2,486 次</div><div class="s-trend text-3">较上月 +6.2%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-house"></i></div>
+      <div><div class="s-label">涉及房屋</div><div class="s-value">2,102 套</div><div class="s-trend text-3">人均 1.18 套</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-flag"></i></div>
+      <div><div class="s-label">异常标记</div><div class="s-value text-danger">12 条</div><div class="s-trend text-danger">占比 0.48%，需人工核查</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-user-clock"></i></div>
+      <div><div class="s-label">高频查档人</div><div class="s-value">3 人</div><div class="s-trend text-warning">7 日内查询不同对象 ≥ 10 次</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3><i class="fa-solid fa-triangle-exclamation"></i> 异常行为判定规则</h3><span class="sub">系统按下列规则自动标记，标记不影响出证，仅供审计核查</span></div>
+    <div class="card-body">
+      <div class="ab-legend">
+        <div class="ab-item"><div class="t"><span>高频查询不同对象</span><b>5</b></div><div class="d">同一查档人 7 日内查询不同被查询人 ≥ 10 次</div></div>
+        <div class="ab-item"><div class="t"><span>被查询人被高频查询</span><b>3</b></div><div class="d">同一被查询人 7 日内被查询 ≥ 5 次</div></div>
+        <div class="ab-item"><div class="t"><span>非工作时间查询</span><b>2</b></div><div class="d">工作日 20:00 ~ 次日 8:00 或节假日发起</div></div>
+        <div class="ab-item"><div class="t"><span>资格材料临期</span><b>1</b></div><div class="d">委托书或执业证在查询时已临近失效</div></div>
+        <div class="ab-item"><div class="t"><span>结果未领取</span><b>1</b></div><div class="d">证明生成后 30 日未领取</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card list-card">
+    <div class="filter-bar">
+      <div class="filter-item"><label>查档人姓名 / 证件</label><input type="text" placeholder="姓名或证件号后 6 位"></div>
+      <div class="filter-item"><label>被查询人姓名 / 证件</label><input type="text" placeholder="姓名或证件号后 6 位"></div>
+      <div class="filter-item">
+        <label>查档类型</label>
+        <select><option value="">全部</option><option>个人名下房产查询</option><option>房屋交易记录查询</option><option>婚姻家庭房产查询</option><option>单位名下房产查询</option><option>无房证明</option></select>
+      </div>
+      <div class="filter-item">
+        <label>查档用途</label>
+        <select><option value="">全部</option><option>购房资格核验</option><option>贷款审批</option><option>诉讼举证</option><option>公证继承</option><option>落户入学</option><option>其他</option></select>
+      </div>
+      <div class="filter-item">
+        <label>申请渠道</label>
+        <select><option value="">全部</option><option>大厅窗口</option><option>网上服务厅</option><option>手机小程序</option><option>自助终端</option><option>银行网点</option></select>
+      </div>
+      <div class="filter-item"><label>受理人</label><input type="text" placeholder="受理人姓名"></div>
+      <div class="filter-item"><label>出证人</label><input type="text" placeholder="出证人姓名"></div>
+      <div class="filter-item"><label>时间起</label><input type="date" value="2026-07-01"></div>
+      <div class="filter-item"><label>时间止</label><input type="date" value="2026-08-01"></div>
+      <div class="filter-item">
+        <label>&nbsp;</label>
+        <label class="text-sm flex gap-8" style="align-items:center;height:32px;color:var(--text-2);font-weight:400;cursor:pointer">
+          <input type="checkbox" id="onlyAb" onchange="applyFilter()"> 仅看异常标记
+        </label>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="applyFilter()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn" onclick="resetFilter()"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="ro" style="margin:0 16px 12px">
+      <i class="fa-solid fa-lock"></i>
+      查档留痕记录不可修改、不可删除，仅供审计核查使用。本页不提供任何编辑与删除操作。
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblAu" data-static>
+        <thead>
+          <tr>
+            <th>申请编号</th><th>查档人</th><th>查档人类型</th><th>被查询人</th><th>查档类型</th>
+            <th>查档用途</th><th>查询范围</th><th>申请渠道</th><th>实名认证方式</th>
+            <th>受理人与受理时间</th><th>出证人与出证时间</th><th>证明编号</th>
+            <th>查询结果概要</th><th>领取方式</th><th>验证次数</th><th>异常标记</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="is-ab" data-ab="1">
+            <td class="nowrap fw-600">CD20260801007</td>
+            <td class="nowrap msk">陈**（4502**1226）</td>
+            <td class="nowrap">中介从业人员</td>
+            <td class="nowrap msk">吴**（4502**3417）</td>
+            <td class="nowrap">个人名下房产查询</td>
+            <td class="nowrap">购房资格核验</td>
+            <td class="nowrap">柳州市全市</td>
+            <td class="nowrap"><span class="badge blue">网上服务厅</span></td>
+            <td class="nowrap">人脸识别</td>
+            <td class="nowrap">系统自动 · 2026-08-01 07:26</td>
+            <td class="nowrap">系统自动 · 2026-08-01 07:27</td>
+            <td class="nowrap">柳房查〔2026〕008 812 号</td>
+            <td>名下住宅 2 套</td>
+            <td class="nowrap">电子证明</td>
+            <td class="text-center">0</td>
+            <td class="nowrap"><span class="flag" title="异常原因：① 非工作时间查询（07:26 发起，早于 8:00）；② 高频查询不同对象（该查档人 7 日内查询 14 个不同被查询人）"><i class="fa-solid fa-flag"></i> 2 项</span></td>
+            <td class="col-ops"><span class="link" onclick="openAudit('CD20260801007')">详情</span><span class="link" onclick="PMS.toast('正在打开电子证明 柳房查〔2026〕008 812 号')">查看证明</span></td>
+          </tr>
+          <tr class="is-ab" data-ab="1">
+            <td class="nowrap fw-600">CD20260731015</td>
+            <td class="nowrap msk">柳州某律师事务所（91450**2X）</td>
+            <td class="nowrap">律师</td>
+            <td class="nowrap msk">黄**（4502**0819）</td>
+            <td class="nowrap">房屋交易记录查询</td>
+            <td class="nowrap">诉讼举证</td>
+            <td class="nowrap">柳州市全市</td>
+            <td class="nowrap"><span class="badge">大厅窗口</span></td>
+            <td class="nowrap">身份证读卡 + 执业证</td>
+            <td class="nowrap">韦国强 · 2026-07-31 15:42</td>
+            <td class="nowrap">韦国强 · 2026-07-31 16:05</td>
+            <td class="nowrap">柳房查〔2026〕008 736 号</td>
+            <td>交易记录 4 条，含查封 1 笔</td>
+            <td class="nowrap">窗口领取</td>
+            <td class="text-center">2</td>
+            <td class="nowrap"><span class="flag" title="异常原因：资格材料临期（律师执业证有效期至 2026-08-15，查询时距失效不足 30 日）"><i class="fa-solid fa-flag"></i> 1 项</span></td>
+            <td class="col-ops"><span class="link" onclick="openAudit('CD20260731015')">详情</span><span class="link" onclick="PMS.toast('正在打开纸质证明扫描件')">查看证明</span></td>
+          </tr>
+          <tr class="is-ab" data-ab="1">
+            <td class="nowrap fw-600">CD20260728022</td>
+            <td class="nowrap msk">李**（4502**0715）</td>
+            <td class="nowrap">个人（本人）</td>
+            <td class="nowrap msk">李**（4502**0715）</td>
+            <td class="nowrap">无房证明</td>
+            <td class="nowrap">落户入学</td>
+            <td class="nowrap">柳州市市区</td>
+            <td class="nowrap"><span class="badge cyan">手机小程序</span></td>
+            <td class="nowrap">人脸识别</td>
+            <td class="nowrap">系统自动 · 2026-07-28 21:18</td>
+            <td class="nowrap">系统自动 · 2026-07-28 21:19</td>
+            <td class="nowrap">柳房查〔2026〕008 604 号</td>
+            <td>市区范围内无住宅</td>
+            <td class="nowrap">电子证明</td>
+            <td class="text-center">1</td>
+            <td class="nowrap"><span class="flag" title="异常原因：非工作时间查询（21:18 发起，晚于 20:00）"><i class="fa-solid fa-flag"></i> 1 项</span></td>
+            <td class="col-ops"><span class="link" onclick="openAudit('CD20260728022')">详情</span><span class="link" onclick="PMS.toast('正在打开电子证明 柳房查〔2026〕008 604 号')">查看证明</span></td>
+          </tr>
+          <tr class="is-ab" data-ab="1">
+            <td class="nowrap fw-600">CD20260702009</td>
+            <td class="nowrap msk">周**（4502**1103）</td>
+            <td class="nowrap">个人（委托）</td>
+            <td class="nowrap msk">周**（4502**2208）</td>
+            <td class="nowrap">婚姻家庭房产查询</td>
+            <td class="nowrap">公证继承</td>
+            <td class="nowrap">柳州市全市</td>
+            <td class="nowrap"><span class="badge">大厅窗口</span></td>
+            <td class="nowrap">身份证读卡 + 委托书</td>
+            <td class="nowrap">卢慧敏 · 2026-07-02 10:05</td>
+            <td class="nowrap">卢慧敏 · 2026-07-02 10:32</td>
+            <td class="nowrap">柳房查〔2026〕007 118 号</td>
+            <td>家庭名下住宅 3 套</td>
+            <td class="nowrap">窗口领取</td>
+            <td class="text-center">0</td>
+            <td class="nowrap"><span class="flag" title="异常原因：结果未领取（证明于 2026-07-02 生成，至今 30 日未领取）"><i class="fa-solid fa-flag"></i> 1 项</span></td>
+            <td class="col-ops"><span class="link" onclick="openAudit('CD20260702009')">详情</span><span class="link" onclick="PMS.toast('正在打开证明预览')">查看证明</span></td>
+          </tr>
+          <tr data-ab="0">
+            <td class="nowrap fw-600">CD20260801003</td>
+            <td class="nowrap msk">柳州银行城中支行（91450**7K）</td>
+            <td class="nowrap">金融机构</td>
+            <td class="nowrap msk">韦**（4502**0526）</td>
+            <td class="nowrap">个人名下房产查询</td>
+            <td class="nowrap">贷款审批</td>
+            <td class="nowrap">柳州市全市</td>
+            <td class="nowrap"><span class="badge purple">银行网点</span></td>
+            <td class="nowrap">机构证书 + 授权书</td>
+            <td class="nowrap">系统自动 · 2026-08-01 09:12</td>
+            <td class="nowrap">系统自动 · 2026-08-01 09:12</td>
+            <td class="nowrap">柳房查〔2026〕008 826 号</td>
+            <td>名下住宅 1 套，抵押 1 笔</td>
+            <td class="nowrap">接口回传</td>
+            <td class="text-center">1</td>
+            <td class="nowrap"><span class="text-4">—</span></td>
+            <td class="col-ops"><span class="link" onclick="openAudit('CD20260801003')">详情</span><span class="link" onclick="PMS.toast('正在打开电子证明 柳房查〔2026〕008 826 号')">查看证明</span></td>
+          </tr>
+          <tr data-ab="0">
+            <td class="nowrap fw-600">CD20260731008</td>
+            <td class="nowrap msk">覃**（4502**0930）</td>
+            <td class="nowrap">个人（本人）</td>
+            <td class="nowrap msk">覃**（4502**0930）</td>
+            <td class="nowrap">房屋交易记录查询</td>
+            <td class="nowrap">购房资格核验</td>
+            <td class="nowrap">柳州市市区</td>
+            <td class="nowrap"><span class="badge orange">自助终端</span></td>
+            <td class="nowrap">身份证读卡 + 人脸</td>
+            <td class="nowrap">系统自动 · 2026-07-31 11:26</td>
+            <td class="nowrap">系统自动 · 2026-07-31 11:26</td>
+            <td class="nowrap">柳房查〔2026〕008 701 号</td>
+            <td>交易记录 2 条，名下住宅 1 套</td>
+            <td class="nowrap">终端打印</td>
+            <td class="text-center">0</td>
+            <td class="nowrap"><span class="text-4">—</span></td>
+            <td class="col-ops"><span class="link" onclick="openAudit('CD20260731008')">详情</span><span class="link" onclick="PMS.toast('正在打开证明预览')">查看证明</span></td>
+          </tr>
+          <tr data-ab="0">
+            <td class="nowrap fw-600">CD20260730019</td>
+            <td class="nowrap msk">柳州某置业有限公司（91450**3M）</td>
+            <td class="nowrap">单位</td>
+            <td class="nowrap msk">柳州某置业有限公司</td>
+            <td class="nowrap">单位名下房产查询</td>
+            <td class="nowrap">其他（破产清算）</td>
+            <td class="nowrap">柳州市全市</td>
+            <td class="nowrap"><span class="badge blue">网上服务厅</span></td>
+            <td class="nowrap">法人证书 + 管理人文书</td>
+            <td class="nowrap">韦国强 · 2026-07-30 14:08</td>
+            <td class="nowrap">韦国强 · 2026-07-30 15:20</td>
+            <td class="nowrap">柳房查〔2026〕008 655 号</td>
+            <td>名下房屋 46 套，全部限制处分</td>
+            <td class="nowrap">邮寄送达</td>
+            <td class="text-center">3</td>
+            <td class="nowrap"><span class="text-4">—</span></td>
+            <td class="col-ops"><span class="link" onclick="openAudit('CD20260730019')">详情</span><span class="link" onclick="PMS.toast('正在打开证明预览')">查看证明</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- 留痕详情抽屉 -->
+<div class="drawer-mask"></div>
+<div class="drawer drawer-lg" id="drAu">
+    <div class="drawer-head">
+      <h3 id="auTitle">留痕详情</h3>
+      <button type="button" class="btn btn-ghost" style="margin-left:auto" data-close-drawer><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="drawer-body">
+      <div class="ro"><i class="fa-solid fa-lock"></i> 本记录为审计留痕，仅可查看，不可修改与删除。</div>
+
+      <div class="section-title">申请与出证信息</div>
+      <dl class="desc-list">
+        <div class="desc-item"><dt>申请编号</dt><dd id="auNo">CD20260801007</dd></div>
+        <div class="desc-item"><dt>申请渠道</dt><dd>网上服务厅</dd></div>
+        <div class="desc-item"><dt>查档人</dt><dd>陈**（4502**1226）· 中介从业人员</dd></div>
+        <div class="desc-item"><dt>被查询人</dt><dd>吴**（4502**3417）</dd></div>
+        <div class="desc-item"><dt>查档类型</dt><dd>个人名下房产查询</dd></div>
+        <div class="desc-item"><dt>查档用途</dt><dd>购房资格核验</dd></div>
+        <div class="desc-item"><dt>查询范围</dt><dd>柳州市全市</dd></div>
+        <div class="desc-item"><dt>实名认证方式</dt><dd>人脸识别（活体分值 96）</dd></div>
+        <div class="desc-item"><dt>受理人与时间</dt><dd>系统自动 · 2026-08-01 07:26:41</dd></div>
+        <div class="desc-item"><dt>出证人与时间</dt><dd>系统自动 · 2026-08-01 07:27:03</dd></div>
+        <div class="desc-item"><dt>证明编号</dt><dd>柳房查〔2026〕008 812 号</dd></div>
+        <div class="desc-item"><dt>领取方式 / 验证次数</dt><dd>电子证明 · 0 次</dd></div>
+        <div class="desc-item span-2"><dt>查询结果概要</dt><dd>被查询人名下住宅 2 套（阳光城 8-1-1902、南亚国际城 2-3-1103），其中 1 套存在异议登记。</dd></div>
+      </dl>
+
+      <div class="section-title">异常标记</div>
+      <div class="alert alert-danger">
+        <i class="fa-solid fa-flag"></i>
+        <div>本条记录命中 2 项异常判定规则，建议由审计岗核查查档人的从业授权与查询必要性。</div>
+      </div>
+      <table class="data-table compact" data-static>
+        <thead><tr><th>异常类型</th><th>判定说明</th><th>命中值</th><th>标记时间</th></tr></thead>
+        <tbody>
+          <tr><td>非工作时间查询</td><td>工作日 20:00 ~ 次日 8:00 或节假日发起</td><td>发起时间 07:26</td><td>2026-08-01 07:27</td></tr>
+          <tr><td>高频查询不同对象</td><td>同一查档人 7 日内查询不同被查询人 ≥ 10 次</td><td>7 日内 14 个对象</td><td>2026-08-01 07:27</td></tr>
+        </tbody>
+      </table>
+
+      <div class="section-title">同一查档人近 7 日记录</div>
+      <table class="data-table compact" data-static>
+        <thead><tr><th>申请编号</th><th>被查询人</th><th>查档类型</th><th>发起时间</th><th>异常</th></tr></thead>
+        <tbody>
+          <tr><td>CD20260801007</td><td class="msk">吴**</td><td>个人名下房产查询</td><td>2026-08-01 07:26</td><td><span class="badge red">2 项</span></td></tr>
+          <tr><td>CD20260731027</td><td class="msk">莫**</td><td>个人名下房产查询</td><td>2026-07-31 18:42</td><td><span class="text-4">—</span></td></tr>
+          <tr><td>CD20260731011</td><td class="msk">梁**</td><td>房屋交易记录查询</td><td>2026-07-31 10:15</td><td><span class="text-4">—</span></td></tr>
+          <tr><td>CD20260730033</td><td class="msk">韦**</td><td>个人名下房产查询</td><td>2026-07-30 16:50</td><td><span class="text-4">—</span></td></tr>
+          <tr><td>CD20260729018</td><td class="msk">卢**</td><td>无房证明</td><td>2026-07-29 09:33</td><td><span class="text-4">—</span></td></tr>
+          <tr><td colspan="5" class="text-center text-3">…… 另有 9 条，合计 14 个不同被查询人</td></tr>
+        </tbody>
+      </table>
+
+      <div class="section-title">操作日志</div>
+      <ul class="timeline">
+        <li class="done"><div class="t-dot"></div><div class="t-body"><div class="t-title">网上服务厅提交查档申请</div><div class="t-meta">2026-08-01 07:26:41 · IP 117.**.**.86 · 设备 Chrome / Windows</div></div></li>
+        <li class="done"><div class="t-dot"></div><div class="t-body"><div class="t-title">实名认证通过（人脸识别）</div><div class="t-meta">2026-08-01 07:26:52 · 公安人口库比对成功</div></div></li>
+        <li class="done"><div class="t-dot"></div><div class="t-body"><div class="t-title">资格核验通过（中介从业备案有效）</div><div class="t-meta">2026-08-01 07:26:55 · 备案编号 ZJ4502202400318</div></div></li>
+        <li class="done"><div class="t-dot"></div><div class="t-body"><div class="t-title">自动出具电子证明</div><div class="t-meta">2026-08-01 07:27:03 · 柳房查〔2026〕008 812 号</div></div></li>
+        <li class="done danger"><div class="t-dot"></div><div class="t-body"><div class="t-title">系统标记异常 2 项</div><div class="t-meta">2026-08-01 07:27:04 · 非工作时间查询 / 高频查询不同对象</div></div></li>
+      </ul>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+      <button type="button" class="btn" onclick="PMS.toast('本条留痕记录已加入《8 月查档审计核查清单》','success')"><i class="fa-solid fa-clipboard-check"></i> 加入核查清单</button>
+    </div>
+</div>
+<script src="../../assets/js/app.js"></script>
+<script>
+function openAudit(no) {
+  document.getElementById('auTitle').textContent = '留痕详情 · ' + no;
+  document.getElementById('auNo').textContent = no;
+  if (no !== 'CD20260801007') PMS.toast('演示数据仅提供 CD20260801007 的完整留痕内容');
+  PMS.openDrawer('drAu');
+}
+
+function applyFilter() {
+  var only = document.getElementById('onlyAb').checked, n = 0;
+  document.querySelectorAll('#tblAu tbody tr').forEach(function (tr) {
+    var ok = !only || tr.dataset.ab === '1';
+    tr.style.display = ok ? '' : 'none';
+    if (ok) n++;
+  });
+  PMS.toast(only ? '仅显示异常标记记录，共 ' + n + ' 条' : '已按条件筛选，共 2,486 条');
+}
+
+function resetFilter() {
+  document.getElementById('onlyAb').checked = false;
+  document.querySelectorAll('#tblAu tbody tr').forEach(function (tr) { tr.style.display = ''; });
+  PMS.toast('筛选条件已重置');
+}
+
+function doExport() {
+  PMS.confirm({
+    title: '导出审计报表',
+    message: '导出当前筛选条件下的全量留痕记录？',
+    detail: '导出内容为「2026-07-01 至 2026-08-01 全渠道查档留痕」共 2,486 条，含异常标记明细；导出行为本身也会记入操作日志。',
+    type: 'info',
+    okText: '确认导出',
+    onOk: function () { PMS.toast('《查档留痕审计报表》Excel 已生成，正在下载', 'success'); }
+  });
+}
+
+PMS.renderPager(document.getElementById('tblAu'), {
+  pageNum: 1, pageSize: 20, total: 2486,
+  onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+});
+</script>
+</body>
+</html>

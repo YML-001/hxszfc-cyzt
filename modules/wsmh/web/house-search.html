@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>房源综合检索 · 统一服务门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  /* 房源综合检索页专属布局 */
+  .hs-top { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card); padding: 14px 18px; margin-bottom: 12px; }
+  .hs-kw { display: flex; gap: 10px; align-items: center; margin-top: 12px; }
+  .hs-kw .input { flex: 1; }
+  .hs-body { padding-bottom: 92px; }
+  .hr-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+  .hs-xq { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); }
+  .cmp-bar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 700; background: #fff;
+    border-top: 1px solid var(--border-strong); box-shadow: 0 -4px 18px rgba(16, 38, 76, .12); padding: 11px 0; display: none;
+  }
+  .cmp-bar.on { display: block; }
+  .cmp-bar .cb-in { display: flex; align-items: center; gap: 12px; }
+  .cmp-chip {
+    background: var(--primary-light-2); border: 1px solid var(--primary-soft); color: var(--primary);
+    border-radius: 4px; padding: 5px 9px 5px 12px; font-size: 13px; display: inline-flex; align-items: center; gap: 8px; max-width: 260px;
+  }
+  .cmp-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cmp-chip i { cursor: pointer; opacity: .7; }
+  .cmp-chip i:hover { opacity: 1; color: var(--accent); }
+  .cmp-empty { border: 1px dashed var(--border-strong); border-radius: 4px; padding: 5px 14px; font-size: 13px; color: var(--text-3); }
+</style>
+</head>
+<body data-nav="house">
+
+<div class="wrap">
+  <div class="crumb"><a href="home.html">首页</a><i class="fa-solid fa-angle-right"></i><a href="house-market.html">房源超市</a><i class="fa-solid fa-angle-right"></i>房源综合检索</div>
+</div>
+
+<div class="wrap hs-body">
+  <!-- 类型切换与关键字（wsmh-07-01） -->
+  <div class="hs-top">
+    <div class="flex items-center gap-12 wrapf">
+      <b style="font-size:15px"><i class="fa-solid fa-layer-group text-primary"></i> 房源类型</b>
+      <div class="pill-tabs" id="lx-tabs"></div>
+      <span class="text-3 text-xs ml-auto" id="scope-note"></span>
+    </div>
+    <div class="hs-kw">
+      <input class="input" id="kw" placeholder="输入小区名、项目名、区域或商圈关键字，例如：文昌小区">
+      <button class="btn btn-primary" id="kw-go" data-fp="wsmh-07-01"><i class="fa-solid fa-magnifying-glass"></i> 检索</button>
+      <button class="btn" id="kw-clear" data-fp="wsmh-07-01"><i class="fa-solid fa-eraser"></i> 清空关键字</button>
+      <a class="btn" href="house-map.html" data-fp="wsmh-07-02"><i class="fa-solid fa-map-location-dot"></i> 地图找房</a>
+    </div>
+    <div class="hs-kw" id="xq-line" style="display:none"></div>
+  </div>
+
+  <!-- 多条件筛选（wsmh-07-03） -->
+  <div class="filter-panel" id="filter-panel"></div>
+  <div class="filter-chosen" id="filter-chosen"></div>
+
+  <!-- 排序（wsmh-07-03） -->
+  <div class="sort-bar">
+    <span class="text-3">排序：</span>
+    <a class="on" data-sort="up" data-fp="wsmh-07-03">更新时间</a>
+    <a data-sort="pa" data-fp="wsmh-07-03">价格从低到高</a>
+    <a data-sort="pd" data-fp="wsmh-07-03">价格从高到低</a>
+    <a data-sort="cj" data-fp="wsmh-07-03">成交量</a>
+    <span class="sb-r" id="sort-r"></span>
+  </div>
+
+  <div id="list"></div>
+  <div id="pager"></div>
+  <div id="src-note"></div>
+</div>
+
+<!-- 浮动对比条（wsmh-07-05） -->
+<div class="cmp-bar" id="cmp-bar"><div class="wrap cb-in" id="cb-in"></div></div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+var S = { lx: '2', sort: 'up', page: 1, size: 8, kw: '', xq: '', init: {} };
+var CMP_KEY = 'wsmh.compare';
+
+var LX_TABS = [['2', '二手房'], ['xf', '新房'], ['3', '租房'], ['fp', '房票房源']];
+
+function pageInit() {
+  var p = UI.param('lx');
+  if (p === '2' || p === '3' || p === 'xf' || p === 'fp') S.lx = p;
+  S.kw = UI.param('kw');
+  S.xq = UI.param('xq');
+  S.init = { qx: UI.param('qx'), zj: UI.param('zj'), mj: UI.param('mj'), hx: UI.param('hx') };
+  document.getElementById('kw').value = S.kw;
+
+  renderTabs();
+  renderFilters();
+  bindOnce();
+  render();
+  document.getElementById('src-note').innerHTML = UI.sourceNote();
+  renderCmpBar();
+}
+
+/* 筛选变化回调：portal.js 在点击筛选项后调用 */
+window.onFilterChange = function () { S.page = 1; render(); };
+
+function bindOnce() {
+  document.getElementById('lx-tabs').onclick = function (e) {
+    var a = e.target.closest('[data-lx]'); if (!a) return;
+    S.lx = a.getAttribute('data-lx'); S.page = 1; S.init = {};
+    renderTabs(); renderFilters(); render();
+  };
+  document.getElementById('kw-go').onclick = function () {
+    S.kw = document.getElementById('kw').value.trim(); S.page = 1; render();
+    UI.toast(S.kw ? '已按关键字「' + UI.esc(S.kw) + '」检索' : '已清空关键字，展示全部核验房源', 'info');
+  };
+  document.getElementById('kw-clear').onclick = function () {
+    document.getElementById('kw').value = ''; S.kw = ''; S.page = 1; render();
+    UI.toast('已清空关键字', 'success');
+  };
+  document.getElementById('kw').onkeydown = function (e) {
+    if (e.key === 'Enter') document.getElementById('kw-go').click();
+  };
+  document.querySelector('.sort-bar').onclick = function (e) {
+    var a = e.target.closest('[data-sort]'); if (!a) return;
+    document.querySelectorAll('.sort-bar [data-sort]').forEach(function (x) { x.classList.remove('on'); });
+    a.classList.add('on');
+    S.sort = a.getAttribute('data-sort'); S.page = 1; render();
+  };
+  document.getElementById('list').onclick = onListClick;
+  document.getElementById('cb-in').onclick = onCmpClick;
+}
+
+/* ------------------------- 类型 Tab ------------------------- */
+function renderTabs() {
+  document.getElementById('lx-tabs').innerHTML = LX_TABS.map(function (t) {
+    return '<a class="' + (t[0] === S.lx ? 'on' : '') + '" data-lx="' + t[0] + '" data-fp="wsmh-07-01">' + t[1] + '</a>';
+  }).join('');
+  document.getElementById('scope-note').textContent = isProj()
+    ? '新房与房票房源以项目为单位展示，只包含已取得预售许可或完成现售备案的项目'
+    : '只检索核验通过、可对外展示的房源，成交与下架房源不出现在结果中';
+}
+function isProj() { return S.lx === 'xf' || S.lx === 'fp'; }
+
+/* ------------------------- 筛选面板 ------------------------- */
+function renderFilters() {
+  var rows;
+  if (isProj()) {
+    rows = [
+      ['qx', '区域', [['', '不限']].concat(PDATA.QX.map(function (q) { return [q, q]; }))],
+      ['zt', '销售状态', [['', '不限'], ['预售', '预售'], ['现售', '现售']]],
+      ['jj', '备案拟售均价', [['', '不限'], ['0-9000', '9000 元/㎡ 以下'], ['9000-11000', '9000-11000 元/㎡'], ['11000-13000', '11000-13000 元/㎡'], ['13000-', '13000 元/㎡ 以上']]],
+      ['ks', '可售套数', [['', '不限'], ['1-50', '50 套以内'], ['50-100', '50-100 套'], ['100-', '100 套以上']]]
+    ];
+  } else if (S.lx === '3') {
+    rows = [
+      ['qx', '区域', [['', '不限']].concat(PDATA.QX.map(function (q) { return [q, q]; }))],
+      ['zj', '月租金', [['', '不限'], ['0-1000', '1000 元以下'], ['1000-2000', '1000-2000 元'], ['2000-3000', '2000-3000 元'], ['3000-', '3000 元以上']]],
+      ['mj', '面积', mjOpts()],
+      ['hx', '户型', hxOpts()],
+      ['cx', '朝向', cxOpts()],
+      ['zx', '装修', zxOpts()],
+      ['zjlx', '租赁方式', [['', '不限'], ['整租', '整租'], ['合租', '合租']]]
+    ];
+  } else {
+    rows = [
+      ['qx', '区域', [['', '不限']].concat(PDATA.QX.map(function (q) { return [q, q]; }))],
+      ['zj', '总价', [['', '不限'], ['0-50', '50 万以下'], ['50-80', '50-80 万'], ['80-120', '80-120 万'], ['120-200', '120-200 万'], ['200-', '200 万以上']]],
+      ['mj', '面积', mjOpts()],
+      ['hx', '户型', hxOpts()],
+      ['cx', '朝向', cxOpts()],
+      ['zx', '装修', zxOpts()],
+      ['ly', '房源来源', [['', '不限'], ['1', '个人自主房源'], ['2', '居间代理房源'], ['3', '企业房源']]]
+    ];
+  }
+
+  document.getElementById('filter-panel').innerHTML = rows.map(function (r) {
+    var cur = S.init[r[0]] || '';
+    return '<div class="filter-row" data-key="' + r[0] + '"><div class="fr-label">' + r[1] + '</div><div class="fr-opts">'
+      + r[2].map(function (o) {
+        return '<a class="' + (cur === o[0] ? 'on' : '') + '" data-v="' + o[0] + '" data-fp="wsmh-07-03">' + o[1] + '</a>';
+      }).join('') + '</div></div>';
+  }).join('');
+  UI.syncChosen();
+
+  /* 小区限定条（来自地图找房 / 小区找房） */
+  var line = document.getElementById('xq-line');
+  if (S.xq) {
+    line.style.display = 'flex';
+    line.innerHTML = '<span class="hs-xq"><i class="fa-solid fa-city text-primary"></i> 已限定小区：<b>' + UI.esc(S.xq) + '</b></span>'
+      + '<button class="btn btn-sm" id="xq-clear" data-fp="wsmh-07-04">取消小区限定</button>';
+    document.getElementById('xq-clear').onclick = function () {
+      S.xq = ''; line.style.display = 'none'; S.page = 1; render();
+      UI.toast('已取消小区限定', 'success');
+    };
+  }
+}
+function mjOpts() { return [['', '不限'], ['0-60', '60㎡ 以下'], ['60-90', '60-90㎡'], ['90-120', '90-120㎡'], ['120-144', '120-144㎡'], ['144-', '144㎡ 以上']]; }
+function hxOpts() { return [['', '不限'], ['1室', '1 室'], ['2室', '2 室'], ['3室', '3 室'], ['4室', '4 室及以上']]; }
+function cxOpts() { return [['', '不限'], ['朝南', '朝南'], ['南北通透', '南北通透'], ['朝东南', '朝东南'], ['朝西南', '朝西南'], ['朝东', '朝东']]; }
+function zxOpts() { return [['', '不限'], ['毛坯', '毛坯'], ['简装', '简装'], ['精装修', '精装修'], ['豪华装修', '豪华装修']]; }
+
+function rangeOf(key) {
+  var v = UI.filterVal(key);
+  if (!v) return null;
+  var a = v.split('-');
+  return { min: a[0] ? Number(a[0]) : 0, max: a[1] ? Number(a[1]) : 0 };
+}
+
+/* ------------------------- 结果查询 ------------------------- */
+function query(relax) {
+  if (isProj()) {
+    var arr = S.lx === 'fp' ? PORTAL.projects().slice(0, 6) : PORTAL.projects();
+    var qx = UI.filterVal('qx'), zt = UI.filterVal('zt');
+    var jj = relax ? null : rangeOf('jj'), ks = relax ? null : rangeOf('ks');
+    return arr.filter(function (p) {
+      if (qx && p.qx !== qx) return false;
+      if (zt && p.zt !== zt) return false;
+      if (jj && (p.junjia < jj.min || (jj.max && p.junjia > jj.max))) return false;
+      if (ks && (p.ksts < ks.min || (ks.max && p.ksts > ks.max))) return false;
+      if (S.kw && (p.xmmc + p.kfqy + p.qx + p.sq + p.dz).indexOf(S.kw) < 0) return false;
+      return true;
+    });
+  }
+  var zj = relax ? null : rangeOf('zj'), mj = relax ? null : rangeOf('mj');
+  var f = {
+    lx: S.lx, qx: UI.filterVal('qx'), hx: UI.filterVal('hx'), cx: UI.filterVal('cx'),
+    zx: UI.filterVal('zx'), kw: S.kw, xq: S.xq
+  };
+  if (S.lx === '3') { f.zjlx = UI.filterVal('zjlx'); } else { f.ly = UI.filterVal('ly'); }
+  if (zj) { f.zjMin = zj.min; if (zj.max) f.zjMax = zj.max; }
+  if (mj) { f.mjMin = mj.min; if (mj.max) f.mjMax = mj.max; }
+  return PORTAL.houses(f);
+}
+
+function sortArr(arr) {
+  var m = PORTAL.market();
+  var cms = PORTAL.communities();
+  var a = arr.slice(0);
+  if (isProj()) {
+    if (S.sort === 'pa') a.sort(function (x, y) { return x.junjia - y.junjia; });
+    else if (S.sort === 'pd') a.sort(function (x, y) { return y.junjia - x.junjia; });
+    else if (S.sort === 'cj') a.sort(function (x, y) { return rankOf(m, y.xmmc) - rankOf(m, x.xmmc); });
+    else a.sort(function (x, y) { return x.ysrq < y.ysrq ? 1 : -1; });
+    return a;
+  }
+  if (S.sort === 'pa') a.sort(function (x, y) { return x.zj - y.zj; });
+  else if (S.sort === 'pd') a.sort(function (x, y) { return y.zj - x.zj; });
+  else if (S.sort === 'cj') a.sort(function (x, y) { return cjOf(cms, y) - cjOf(cms, x); });
+  else a.sort(function (x, y) { return x.gxsj < y.gxsj ? 1 : -1; });
+  return a;
+}
+function rankOf(m, name) {
+  var hit = m.xmRank.filter(function (r) { return r.n === name; })[0];
+  return hit ? hit.v : 0;
+}
+function cjOf(cms, h) {
+  var hit = cms.filter(function (c) { return c.mc === h.xqmc; })[0];
+  return hit ? hit.yjcj : 0;
+}
+
+/* ------------------------- 渲染 ------------------------- */
+function render() {
+  var arr = sortArr(query(0));
+  var box = document.getElementById('list');
+
+  document.getElementById('sort-r').innerHTML = '共 <b>' + arr.length + '</b> 条结果　'
+    + (S.sort === 'cj' ? (isProj() ? '按项目本月网签量排序' : '按所在小区近月成交量排序') : '')
+    + '　更新时间 ' + UI.today() + ' 06:00';
+
+  if (!arr.length) {
+    var near = sortArr(query(1)).slice(0, 3);
+    box.innerHTML = '<div class="card"><div class="card-body">'
+      + UI.empty('没有符合当前条件的核验房源',
+        '可以放宽价格或面积区间，或减少筛选条件后重试',
+        '<button class="btn btn-primary" id="relax" data-fp="wsmh-07-03"><i class="fa-solid fa-arrows-left-right"></i> 放宽价格与面积区间</button>'
+        + ' <button class="btn" id="clear-all" data-fp="wsmh-07-03"><i class="fa-solid fa-trash-can"></i> 清空全部条件</button>'
+        + ' <a class="btn" href="house-map.html" data-fp="wsmh-07-02"><i class="fa-solid fa-map-location-dot"></i> 换地图找房</a>')
+      + '</div></div>'
+      + (near.length ? '<div class="col-head mt-20"><h2 style="font-size:17px">放宽价格与面积后的相近房源</h2>'
+        + '<span class="ch-en">' + near.length + ' 条</span></div>'
+        + near.map(row).join('') : '');
+    document.getElementById('pager').innerHTML = '';
+    var rl = document.getElementById('relax');
+    if (rl) rl.onclick = function () { clearRow('zj'); clearRow('mj'); clearRow('jj'); clearRow('ks'); S.page = 1; render(); UI.toast('已放宽价格与面积区间', 'success'); };
+    var ca = document.getElementById('clear-all');
+    if (ca) ca.onclick = function () {
+      document.querySelectorAll('.filter-row').forEach(function (r) {
+        r.querySelectorAll('a').forEach(function (y) { y.classList.remove('on'); });
+        if (r.querySelector('a')) r.querySelector('a').classList.add('on');
+      });
+      S.kw = ''; document.getElementById('kw').value = '';
+      UI.syncChosen(); S.page = 1; render(); UI.toast('已清空全部筛选条件', 'success');
+    };
+    return;
+  }
+
+  var start = (S.page - 1) * S.size;
+  box.innerHTML = arr.slice(start, start + S.size).map(row).join('');
+  UI.pager(document.getElementById('pager'), arr.length, S.page, S.size, function (p) {
+    S.page = p; render(); window.scrollTo({ top: 260, behavior: 'smooth' });
+  });
+}
+
+function clearRow(key) {
+  var r = document.querySelector('.filter-row[data-key="' + key + '"]');
+  if (!r) return;
+  r.querySelectorAll('a').forEach(function (y) { y.classList.remove('on'); });
+  if (r.querySelector('a')) r.querySelector('a').classList.add('on');
+  UI.syncChosen();
+}
+
+function row(x) {
+  return isProj() ? projRow(x) : houseRow(x);
+}
+
+function houseRow(h) {
+  var rent = h.lx === '3';
+  var href = (rent ? 'rent-house.html?id=' : 'second-house-detail.html?id=') + h.id;
+  var faved = PORTAL.favs().filter(function (f) { return f.hid === h.id; }).length > 0;
+  return '<div class="house-row">'
+    + '<div class="hr-img"><img src="' + h.img + '" alt="' + UI.esc(h.bt) + '"></div>'
+    + '<div class="hr-body">'
+    + '<a class="hr-t" href="' + href + '" data-fp="wsmh-07-06">' + h.bt + '</a>'
+    + '<div class="hr-meta"><span>' + h.mj + '㎡</span><span>' + h.hx + '</span><span>' + h.cx + '</span>'
+    + '<span>' + h.lc + ' 层</span><span>' + h.zx + '</span>'
+    + '<span>' + (rent ? (h.zjlx || '整租') : '建成 ' + h.jcnd + ' 年') + '</span></div>'
+    + '<div class="hr-addr"><i class="fa-solid fa-location-dot"></i> ' + h.qx + ' · ' + h.sq + ' · ' + h.xqmc + ' ' + h.fhMask + '</div>'
+    + '<div class="hr-tags hr-badges">'
+    + PORTAL.houseBadge(h)
+    + '<span class="tag-q g">核验码 ' + h.hym + '</span>'
+    + '<span class="tag-q">' + h.lymc + '</span>'
+    + (h.wtjg ? '<span class="tag-q">委托 ' + h.wtjg + '</span>' : '')
+    + (rent && h.bzx ? '<span class="tag-q o">保障性租赁住房</span>' : '')
+    + '</div>'
+    + '<div class="text-xs text-3 mt-8">数据来源：' + h.sjly + '　核验有效期至 ' + h.hyyxq + '　更新 ' + h.gxsj + '</div>'
+    + '</div>'
+    + '<div class="hr-side">'
+    + '<div><div class="hr-price">' + (rent ? UI.money(h.zj, 0) + '<em> 元/月</em>' : h.zj + '<em> 万元</em>') + '</div>'
+    + '<div class="hr-unit">' + (rent ? '区域参考价 ' + h.ckj[0] + '-' + h.ckj[1] + ' 元/月' : UI.money(h.dj, 0) + ' 元/㎡') + '</div></div>'
+    + '<div class="hr-acts">'
+    + '<button class="btn btn-sm" data-fav="' + h.id + '" data-fp="wsmh-07-05">'
+    + '<i class="' + (faved ? 'fa-solid' : 'fa-regular') + ' fa-star"></i> ' + (faved ? '已收藏' : '收藏') + '</button>'
+    + '<button class="btn btn-sm" data-cmp="' + h.id + '" data-fp="wsmh-07-05"><i class="fa-solid fa-scale-balanced"></i> 加入对比</button>'
+    + '<a class="btn btn-sm btn-primary" href="' + href + '" data-fp="wsmh-07-06">查看详情</a>'
+    + '</div></div></div>';
+}
+
+function projRow(p) {
+  return '<div class="house-row">'
+    + '<div class="hr-img"><img src="' + p.img + '" alt="' + UI.esc(p.xmmc) + '"></div>'
+    + '<div class="hr-body">'
+    + '<a class="hr-t" href="' + (p.good ? 'good-house-detail' : 'new-house-detail') + '.html?id=' + p.id + '" data-fp="wsmh-07-06">' + p.xmmc + '</a>'
+    + '<div class="hr-meta"><span>' + p.zt + '</span><span>可售 ' + p.ksts + ' 套</span><span>总 ' + p.zts + ' 套</span>'
+    + '<span>建面 ' + UI.money(p.jzmj, 0) + '㎡</span><span>' + p.wuye.replace('XXXX市', '') + '</span></div>'
+    + '<div class="hr-addr"><i class="fa-solid fa-location-dot"></i> ' + p.qx + ' · ' + p.sq + ' · ' + p.dz + '</div>'
+    + '<div class="hr-tags hr-badges">'
+    + PORTAL.badge('已核验', 'green')
+    + '<span class="tag-q">预售证 ' + p.yszh + '</span>'
+    + '<span class="tag-q">' + p.kfqy + '</span>'
+    + (S.lx === 'fp' ? '<span class="tag-q o">房票适用</span>' : '')
+    + (p.good ? '<span class="tag-q g">好房子认定</span>' : '')
+    + (p.risk ? '<span class="tag-q r">风险提示：' + p.riskNote + '</span>' : '')
+    + '</div>'
+    + '<div class="text-xs text-3 mt-8">数据来源：商品房网签备案管理系统　发证日期 ' + p.ysrq + '　更新 ' + UI.today() + ' 06:00</div>'
+    + '</div>'
+    + '<div class="hr-side">'
+    + '<div><div class="hr-price">' + UI.money(p.junjia, 0) + '<em> 元/㎡</em></div>'
+    + '<div class="hr-unit">区间 ' + p.jgqj + ' 元/㎡<br>备案（拟售）价格，实际成交以合同为准</div></div>'
+    + '<div class="hr-acts">'
+    + '<a class="btn btn-sm" href="price-table.html?id=' + p.id + '" data-fp="wsmh-08-04">一房一价</a>'
+    + '<button class="btn btn-sm" data-cmp="' + p.id + '" data-fp="wsmh-12-08"><i class="fa-solid fa-scale-balanced"></i> 加入对比</button>'
+    + '<a class="btn btn-sm btn-primary" href="' + (p.good ? 'good-house-detail' : 'new-house-detail') + '.html?id=' + p.id + '" data-fp="wsmh-07-06">楼盘详情</a>'
+    + '</div></div></div>';
+}
+
+/* ------------------------- 收藏与对比 ------------------------- */
+function onListClick(e) {
+  var f = e.target.closest('[data-fav]');
+  if (f) {
+    var hid = f.getAttribute('data-fav');
+    if (!UI.needLogin('收藏房源')) return;
+    var has = PORTAL.favs().filter(function (x) { return x.hid === hid; }).length > 0;
+    if (has) { PORTAL.act('house.unfav', { hid: hid }); UI.toast('已取消收藏，个人中心「我的收藏」同步更新', 'success'); }
+    else { PORTAL.act('house.fav', { hid: hid }); UI.toast('收藏成功，可在个人中心「我的收藏与预约看房」查看', 'success'); }
+    render();
+    return;
+  }
+  var c = e.target.closest('[data-cmp]');
+  if (c) { addCmp(c.getAttribute('data-cmp')); }
+}
+
+function cmpGet() {
+  try { return JSON.parse(sessionStorage.getItem(CMP_KEY) || '[]'); } catch (err) { return []; }
+}
+function cmpSet(a) {
+  try { sessionStorage.setItem(CMP_KEY, JSON.stringify(a)); } catch (err) { }
+}
+function addCmp(id) {
+  var a = cmpGet();
+  if (a.indexOf(id) >= 0) { UI.toast('该条目已在对比栏中', 'warning'); return; }
+  if (a.length >= 4) { UI.toast('最多同时对比 4 个，请先移除后再添加', 'warning'); return; }
+  a.push(id); cmpSet(a); renderCmpBar();
+  UI.toast('已加入对比栏，当前 ' + a.length + ' 个' + (a.length < 2 ? '，再选 1 个即可开始对比' : ''), 'success');
+}
+function nameOf(id) {
+  if (id.indexOf('XM') === 0) { var p = PORTAL.project(id); return p ? p.xmmc : id; }
+  var h = PORTAL.house(id); return h ? h.bt : id;
+}
+function renderCmpBar() {
+  var a = cmpGet(), bar = document.getElementById('cmp-bar');
+  if (!a.length) { bar.classList.remove('on'); return; }
+  bar.classList.add('on');
+  document.getElementById('cb-in').innerHTML =
+    '<b class="nowrap"><i class="fa-solid fa-scale-balanced text-primary"></i> 对比栏</b>'
+    + a.map(function (id) {
+      return '<span class="cmp-chip"><span>' + UI.esc(nameOf(id)) + '</span><i class="fa-solid fa-xmark" data-del="' + id + '"></i></span>';
+    }).join('')
+    + (a.length < 2 ? '<span class="cmp-empty">再选 ' + (2 - a.length) + ' 个即可开始对比</span>' : '')
+    + '<span class="ml-auto flex gap-8">'
+    + '<button class="btn btn-sm" data-cmp-clear="1" data-fp="wsmh-07-05">清空</button>'
+    + '<button class="btn btn-sm btn-accent' + (a.length < 2 ? ' dis' : '') + '" data-cmp-go="1" data-fp="wsmh-07-05">'
+    + '开始对比（' + a.length + '）<i class="fa-solid fa-angle-right"></i></button></span>';
+}
+function onCmpClick(e) {
+  var d = e.target.closest('[data-del]');
+  if (d) {
+    var id = d.getAttribute('data-del');
+    cmpSet(cmpGet().filter(function (x) { return x !== id; }));
+    renderCmpBar(); UI.toast('已从对比栏移除', 'success');
+    return;
+  }
+  if (e.target.closest('[data-cmp-clear]')) {
+    cmpSet([]); renderCmpBar(); UI.toast('对比栏已清空', 'success'); return;
+  }
+  var g = e.target.closest('[data-cmp-go]');
+  if (g) {
+    var a = cmpGet();
+    if (a.length < 2) { UI.toast('至少选择 2 个才能开始对比', 'warning'); return; }
+    UI.go('web/house-compare.html', { ids: a.join(',') });
+  }
+}
+</script>
+</body>
+</html>

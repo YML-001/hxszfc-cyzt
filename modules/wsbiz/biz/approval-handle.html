@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>审批办理 · 统一工作门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="biz" data-active="my-approval">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 待办任务
+        <span class="sep">/</span> <a class="link" href="my-approval.html?role=biz">待我审批</a>
+        <span class="sep">/</span> <span class="cur">审批办理</span>
+      </div>
+      <div class="page-title">审批办理</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="PMS.openDrawer('guideDrawer')"><i class="fa-solid fa-book"></i> 本环节办理指引</button>
+      <a class="btn" href="my-approval.html?role=biz"><i class="fa-solid fa-arrow-left"></i> 返回待办</a>
+    </div>
+  </div>
+
+  <div id="root"></div>
+</main>
+
+<!-- 本环节办理指引 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="guideDrawer">
+  <div class="drawer-head"><h3>本环节办理指引</h3><span class="badge blue" id="gdNode">—</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body" id="gdBody"></div>
+  <div class="drawer-foot">
+    <a class="btn" href="guide.html?role=biz">查看完整指引</a>
+    <button class="btn btn-primary" data-close-drawer>知道了</button>
+  </div>
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/flow-data.js"></script>
+<script src="../assets/js/flow.js"></script>
+<script>
+(function () {
+  var tid = null;
+  function task() { return FLOW.byId('tasks', tid); }
+
+  function render() {
+    var t = task();
+    var root = document.getElementById('root');
+    if (!t) {
+      root.innerHTML = '<div class="card"><div class="card-body"><div class="empty">' +
+        '<i class="fa-regular fa-clipboard"></i><div>未指定任务，或该任务已办结</div>' +
+        '<div class="mt-16"><a class="btn btn-primary" href="my-approval.html?role=biz">回到待我审批</a></div>' +
+        '</div></div></div>';
+      return;
+    }
+    var c = FLOW.caseOf(t);
+    var r = FLOW.remain(c);
+    var it = FLOW.itemOf(c) || { points: [], rejects: [] };
+    var mats = FLOW.where('materials', function (m) { return m.bjzj === c.id; });
+    var logs = FLOW.act.trace(c.id);
+    var signed = (t.rwzt !== '0');
+
+    var html = '';
+
+    html += '<div class="alert ' + (r.over ? 'alert-danger' : 'alert-warning') + '">' +
+      '<i class="fa-solid fa-clock"></i><span>当前环节 <b>' + FLOW.esc(t.jd) + '</b>　' +
+      '任务类型 <b>' + FLOW.dict('rwlx', t.rwlx) + '</b>　' +
+      '承诺完成 ' + FLOW.fmt.time(c.cnwcsj) + '　' + r.text +
+      (signed ? '　签收时间 ' + FLOW.fmt.time(t.qssj) + '（时限起算点）' : '　<b>尚未签收，签收后开始计时</b>') +
+      '</span></div>';
+
+    if (!signed) {
+      html += '<div class="card"><div class="card-body"><div class="empty">' +
+        '<i class="fa-solid fa-hand"></i><div>该任务尚未签收，签收后才能填写审理意见</div>' +
+        '<div class="mt-16"><button class="btn btn-primary" onclick="doSign()">' +
+        '<i class="fa-solid fa-hand"></i> 立即签收并开始办理</button></div></div></div></div>';
+    }
+
+    /* 左侧办件信息与材料，右侧审理意见 */
+    html += '<div class="grid-2">';
+
+    html += '<div><div class="card"><div class="card-head"><h3>办件信息</h3>' +
+      '<span class="sub">' + FLOW.esc(c.sjbh) + '</span>' +
+      '<div class="head-actions"><a class="link" href="case-detail.html?role=biz&id=' + c.id + '">完整详情</a></div></div>' +
+      '<div class="card-body"><dl class="desc-list" style="grid-template-columns:1fr">' +
+        row('事项名称', c.sxmc) + row('业务大类', FLOW.dict('ywdlm', c.ywdlm)) +
+        row('申请人', c.sqr + '（' + FLOW.dict('ztlx', c.sqrlx) + '）') +
+        row('证件号', c.sqrzjh) + row('房屋坐落', c.fw) + row('合同编号', c.htbh) +
+        row('属地', FLOW.dict('said', c.said)) + row('来源渠道', FLOW.dict('sjly', c.sjly)) +
+        row('办理状态', FLOW.dict('blzt', c.blzt)) + row('已用时长', FLOW.fmt.span(FLOW.used(c))) +
+      '</dl></div></div>';
+
+    html += '<div class="card"><div class="card-head"><h3>材料影像</h3>' +
+      '<span class="sub">共 ' + mats.length + ' 项</span></div><div class="card-body" style="padding-top:6px">' +
+      '<div class="home-todo">' + mats.map(function (m) {
+        return '<div class="todo-row">' +
+          (m.must ? FLOW.badge('必要', 'red') : FLOW.badge('可选', 'gray')) +
+          '<span class="todo-text">' + FLOW.esc(m.clmc) +
+            (m.tjfs !== '0' && m.tjfs !== '1' ? ' <span class="badge green">' + FLOW.dict('tjfs', m.tjfs).replace('免提交-', '') + '</span>' : '') +
+          '</span>' +
+          '<span class="todo-time' + (m.ok ? '' : ' is-warn') + '">' + (m.ok ? m.pages + ' 页' : '不合格') + '</span></div>';
+      }).join('') + '</div>';
+    var bad = mats.filter(function (m) { return !m.ok; });
+    if (bad.length) {
+      html += '<div class="alert alert-danger mt-16"><i class="fa-solid fa-triangle-exclamation"></i><span>有 ' +
+        bad.length + ' 项材料形式要件不合格：' + bad.map(function (m) { return FLOW.esc(m.clmc) + '（' + FLOW.esc(m.bad) + '）'; }).join('；') +
+        '。建议退回补正。</span></div>';
+    }
+    html += '</div></div></div>';
+
+    /* 右列：审理意见 + 流转记录 */
+    html += '<div><div class="card"><div class="card-head"><h3>审理意见</h3>' +
+      '<div class="head-actions"><span class="node-tag"><i class="fa-solid fa-user-shield"></i>' +
+      FLOW.esc(t.jd) + ' · ' + FLOW.esc(t.jsdm) + '</span></div></div><div class="card-body">' +
+      '<div class="form-grid"><div class="form-item col-full">' +
+        '<label>审核要点自查</label>' +
+        (it.points || []).map(function (p, i) {
+          return '<label class="flex items-center gap-8" style="font-weight:400">' +
+            '<input type="checkbox" data-point="' + i + '"> ' + FLOW.esc(p) + '</label>';
+        }).join('') +
+      '</div>' +
+      '<div class="form-item col-full"><label>意见内容<span class="req">*</span></label>' +
+        '<textarea id="opinion" rows="5" ' + (signed ? '' : 'disabled') + ' placeholder="填写审理意见，将写入审理意见表与办理日志"></textarea>' +
+        '<span class="hint">常见退件原因：' + (it.rejects || []).join('　·　') + '</span></div>' +
+      '</div>' +
+      '<div class="btn-row mt-16">' +
+        '<button class="btn btn-success" ' + (signed ? '' : 'disabled') + ' onclick="doPass()"><i class="fa-solid fa-check"></i> 审核通过并出件</button>' +
+        '<button class="btn btn-danger" ' + (signed ? '' : 'disabled') + ' onclick="doReject()"><i class="fa-solid fa-rotate-left"></i> 退回补正</button>' +
+        '<button class="btn" ' + (signed ? '' : 'disabled') + ' onclick="doBack()"><i class="fa-solid fa-arrow-left"></i> 回退上一环节</button>' +
+        '<button class="btn" ' + (signed ? '' : 'disabled') + ' onclick="doSuspend()"><i class="fa-solid fa-pause"></i> 中止办理</button>' +
+      '</div></div></div>';
+
+    html += '<div class="card"><div class="card-head"><h3>流转记录</h3>' +
+      '<span class="sub">共 ' + logs.length + ' 条</span></div><div class="card-body">' +
+      '<div class="timeline">' + logs.map(function (l, i) {
+        return '<div class="tl-item ' + (i === logs.length - 1 ? '' : 'done') + '"><div class="tl-dot"></div>' +
+          '<div class="tl-title">' + FLOW.esc(l.jd) + '</div>' +
+          '<div class="tl-meta">' + FLOW.esc(l.czr) + ' · ' + FLOW.fmt.time(l.czsj) + '</div>' +
+          '<div class="tl-desc">' + FLOW.esc(l.yj) + '</div></div>';
+      }).join('') + '</div></div></div>';
+
+    html += '</div></div>';
+    root.innerHTML = html;
+
+    /* 指引抽屉内容 */
+    document.getElementById('gdNode').textContent = t.jd;
+    document.getElementById('gdBody').innerHTML =
+      '<div class="alert alert-info"><i class="fa-solid fa-circle-info"></i><span>指引按业务与环节维护在「指引动态 / 业务指引」，此处按当前事项与环节自动匹配。</span></div>' +
+      '<div class="section-title" data-icon="fa-list-check">审核要点</div><dl class="desc-list">' +
+      (it.points || []).map(function (p, i) { return row('要点 ' + (i + 1), p); }).join('') + '</dl>' +
+      '<div class="section-title mt-16" data-icon="fa-triangle-exclamation">常见退件原因</div><dl class="desc-list">' +
+      (it.rejects || []).map(function (p, i) { return row('原因 ' + (i + 1), p); }).join('') + '</dl>' +
+      '<div class="section-title mt-16" data-icon="fa-clock">时限口径</div><dl class="desc-list">' +
+      row('法定时限', (it.fdsx || '—') + ' 个工作日') + row('承诺时限', (it.cnsx || '—') + ' 个工作日') +
+      row('计时规则', '自签收时间起算，中止办理期间不计入') + '</dl>';
+  }
+
+  function row(label, value) {
+    return '<div class="desc-item"><dt>' + label + '</dt><dd>' + FLOW.esc(value == null || value === '' ? '—' : value) + '</dd></div>';
+  }
+  function opinion() { return (document.getElementById('opinion') || {}).value || ''; }
+
+  window.doSign = function () { FLOW.act.signTask(tid); };
+  window.doPass = function () {
+    var yj = opinion().trim();
+    if (!yj) { PMS.toast('请填写审理意见', 'error'); return; }
+    var unchecked = document.querySelectorAll('[data-point]:not(:checked)').length;
+    PMS.confirm({
+      title: '审核通过', type: 'success', okText: '通过并出件',
+      message: '确认审核通过并出具备案证明？',
+      detail: unchecked ? ('还有 ' + unchecked + ' 项审核要点未勾选自查，通过后将出件办结并触发材料归档。') : '通过后将出件办结并触发材料归档。',
+      onOk: function () {
+        if (FLOW.act.approve(tid, yj)) setTimeout(function () { FLOW.goto('my-approval.html', {}); }, 900);
+      }
+    });
+  };
+  window.doReject = function () {
+    var yj = opinion().trim();
+    if (!yj) { PMS.toast('请填写退回补正原因', 'error'); return; }
+    PMS.confirm({
+      title: '退回补正', type: 'warning', okText: '退回补正',
+      message: '确认将该办件退回补正？',
+      detail: '办件转为待补正并累加补正次数，同时生成补正任务与一次性补正通知书。',
+      onOk: function () {
+        if (FLOW.act.reject(tid, yj)) setTimeout(function () { FLOW.goto('my-approval.html', {}); }, 900);
+      }
+    });
+  };
+  window.doBack = function () {
+    var yj = opinion().trim();
+    if (!yj) { PMS.toast('请填写回退理由', 'error'); return; }
+    FLOW.act.sendBack(tid, yj);
+  };
+  window.doSuspend = function () {
+    var yj = opinion().trim();
+    if (!yj) { PMS.toast('请在意见内容中填写中止事由', 'error'); return; }
+    var t = task();
+    FLOW.act.suspend(t.bjzj, yj);
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    tid = FLOW.param('id');
+    if (!tid) {
+      var t = FLOW.myTasks()[0];
+      if (t) tid = t.id;
+    }
+    FLOW.on(render);
+  });
+})();
+</script>
+</body>
+</html>

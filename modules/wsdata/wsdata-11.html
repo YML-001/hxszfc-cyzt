@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>接口运行监控 · 房产交易数据中心</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  .rate-cell { display: flex; align-items: center; gap: 8px; }
+  .rate-cell .progress { flex: 1; min-width: 60px; }
+</style>
+</head>
+<body data-role="admin" data-active="wsdata-11">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房产交易数据中心
+        <span class="sep">/</span> 数据共享与交换
+        <span class="sep">/</span> <span class="cur">接口运行监控</span>
+      </div>
+      <div class="page-title">接口运行监控</div>
+    </div>
+    <div class="ph-r">
+      <button class="btn" onclick="PMS.toast('已导出等保 / 密评材料：全部接口的加密方式、鉴权方式与数据分级清单')"><i class="fa-solid fa-file-shield"></i> 导出合规材料</button>
+      <button class="btn btn-primary" onclick="big()"><i class="fa-solid fa-tv"></i> 大屏展示</button>
+    </div>
+  </div>
+
+  <!-- 严重告警：置顶，第一眼看到 -->
+  <div class="alert alert-danger">
+    <i class="fa-solid fa-plug-circle-xmark"></i>
+    <div><b>接口中断严重告警</b>：<code>HX-0026</code> 住房保障限制信息查询连续 <b>146 分钟</b>无成功调用，已推送至接口责任人与科室负责人。<span class="link" onclick="pickTab('gj')">前往处置</span></div>
+  </div>
+
+  <!-- 今日总体：一眼看清全局 -->
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-arrow-right-arrow-left"></i></div><div><div class="s-label">今日总调用量</div><div class="s-value">186,240</div><div class="s-trend text-3">较昨日 +4.2%</div></div></div>
+    <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div><div><div class="s-label">总体成功率</div><div class="s-value">97.6%</div><div class="s-trend text-danger">较昨日 -1.4%</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-stopwatch"></i></div><div><div class="s-label">平均响应</div><div class="s-value">186 ms</div><div class="s-trend text-3">P95 486 ms</div></div></div>
+    <div class="stat-card dc-alarm"><div class="s-icon red"><i class="fa-solid fa-bell"></i></div><div><div class="s-label">未处理告警</div><div class="s-value">8</div><div class="s-trend text-danger">1 条严重 · 需处置</div></div></div>
+  </div>
+
+  <!-- 重点：按共享单位的调用量与成功率，常驻展示 -->
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-building-columns"></i> 各共享单位接口调用量与成功率</h3>
+      <span class="sub">按共享单位汇总，红色为存在异常的单位</span>
+    </div>
+    <div class="card-body">
+      <div class="table-wrap">
+        <table class="data-table compact" data-static>
+          <thead><tr><th class="cell-lg">共享单位</th><th class="num">接口数</th><th class="num">今日调用量</th><th style="width:160px">今日成功率</th><th class="num">平均响应</th><th class="num">告警</th><th class="cell-lg">主要问题</th><th>操作</th></tr></thead>
+          <tbody id="unitBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 明细：调用日志与告警等放入页签，重点信息已在上方常驻 -->
+  <div class="card list-card mt-16" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="rz">最新调用日志</div>
+      <div class="tab" data-tab="gj">告警处置 <span class="badge red">8</span></div>
+      <div class="tab" data-tab="jk">接口健康度</div>
+      <div class="tab" data-tab="ct">失败重推 <span class="badge red">1,286</span></div>
+      <div class="tab" data-tab="dz">数据对账</div>
+      <div class="tab" data-tab="tz">接口台账</div>
+    </div>
+
+    <!-- 最新调用日志 -->
+    <div class="tab-panel active" data-panel="rz">
+      <div class="dc-list">
+        <div class="filter-bar">
+          <div class="filter-item"><label>共享单位</label><select><option value="">全部</option><option>XXXX市大数据发展局</option><option>市不动产登记中心</option><option>XXXX市税务局</option><option>XXXX市住房公积金管理中心</option><option>龙城市民云运营中心</option><option>市住房保障中心</option></select></div>
+          <div class="filter-item"><label>接口</label><input type="text" placeholder="接口编号 / 名称"></div>
+          <div class="filter-item"><label>调用结果</label><select><option value="">全部</option><option>成功</option><option>失败</option><option>超时</option></select></div>
+          <div class="filter-item"><label>调用时间</label><input type="date" value="2026-08-01"></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按条件查询调用日志')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="PMS.toast('已导出接口调用日志')"><i class="fa-solid fa-download"></i> 导出</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>调用时间</th><th class="cell-lg">接口</th><th class="cell-lg">共享单位</th><th>方向</th><th>调用方 IP</th><th>请求方式</th><th class="num">耗时</th><th>响应码</th><th>结果</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td class="nowrap">2026-08-01 08:14:26</td><td class="cell-lg">SVC-0012 房屋基本信息查询</td><td class="cell-lg">XXXX市大数据发展局</td><td class="nowrap">出</td><td class="nowrap">10.86.32.86</td><td class="nowrap">GET</td><td class="num">86 ms</td><td>200</td><td><span class="badge green">成功</span></td><td class="nowrap"><span class="link" onclick="PMS.toast('已打开请求 / 响应报文（脱敏）')">报文</span></td></tr>
+              <tr><td class="nowrap">2026-08-01 08:14:18</td><td class="cell-lg">HX-0001 不动产权属状态查询</td><td class="cell-lg">市不动产登记中心</td><td class="nowrap">入</td><td class="nowrap">10.86.32.100</td><td class="nowrap">GET</td><td class="num">486 ms</td><td>200</td><td><span class="badge green">成功</span></td><td class="nowrap"><span class="link" onclick="PMS.toast('已打开请求 / 响应报文（脱敏）')">报文</span></td></tr>
+              <tr class="text-danger"><td class="nowrap">2026-08-01 08:14:02</td><td class="cell-lg">HX-0026 住房保障限制信息查询</td><td class="cell-lg">市住房保障中心</td><td class="nowrap">入</td><td class="nowrap">10.86.42.66</td><td class="nowrap">GET</td><td class="num">30,000 ms</td><td class="text-danger">504</td><td><span class="badge orange">超时</span></td><td class="nowrap"><span class="link" onclick="PMS.toast('对端不可达，连接超时')">报文</span></td></tr>
+              <tr><td class="nowrap">2026-08-01 08:13:56</td><td class="cell-lg">SVC-0018 合同备案信息查询</td><td class="cell-lg">XXXX市税务局</td><td class="nowrap">出</td><td class="nowrap">10.86.36.12</td><td class="nowrap">POST</td><td class="num">126 ms</td><td>200</td><td><span class="badge green">成功</span></td><td class="nowrap"><span class="link" onclick="PMS.toast('已打开请求 / 响应报文（脱敏）')">报文</span></td></tr>
+              <tr><td class="nowrap">2026-08-01 08:13:42</td><td class="cell-lg">HX-0008 存量房交易税费获取</td><td class="cell-lg">XXXX市税务局</td><td class="nowrap">入</td><td class="nowrap">10.86.36.12</td><td class="nowrap">POST</td><td class="num">862 ms</td><td>200</td><td><span class="badge green">成功</span></td><td class="nowrap"><span class="link" onclick="PMS.toast('已打开请求 / 响应报文（脱敏）')">报文</span></td></tr>
+              <tr class="text-danger"><td class="nowrap">2026-08-01 08:13:28</td><td class="cell-lg">HX-0031 龙城市民云消息推送</td><td class="cell-lg">龙城市民云运营中心</td><td class="nowrap">出</td><td class="nowrap">10.86.48.22</td><td class="nowrap">POST</td><td class="num">1,286 ms</td><td class="text-danger">500</td><td><span class="badge red">失败</span></td><td class="nowrap"><span class="link" onclick="PMS.toast('对端返回 500，消息模板已下线')">报文</span></td></tr>
+              <tr><td class="nowrap">2026-08-01 08:13:12</td><td class="cell-lg">HX-0018 公积金贷款购房核验</td><td class="cell-lg">XXXX市住房公积金管理中心</td><td class="nowrap">出</td><td class="nowrap">10.86.52.36</td><td class="nowrap">POST</td><td class="num">248 ms</td><td>200</td><td><span class="badge green">成功</span></td><td class="nowrap"><span class="link" onclick="PMS.toast('已打开请求 / 响应报文（脱敏）')">报文</span></td></tr>
+              <tr><td class="nowrap">2026-08-01 08:12:58</td><td class="cell-lg">SVC-0012 房屋基本信息查询</td><td class="cell-lg">XXXX市大数据发展局</td><td class="nowrap">出</td><td class="nowrap">10.86.32.86</td><td class="nowrap">GET</td><td class="num">78 ms</td><td>200</td><td><span class="badge green">成功</span></td><td class="nowrap"><span class="link" onclick="PMS.toast('已打开请求 / 响应报文（脱敏）')">报文</span></td></tr>
+              <tr><td class="nowrap">2026-08-01 08:12:44</td><td class="cell-lg">HX-0001 不动产权属状态查询</td><td class="cell-lg">市不动产登记中心</td><td class="nowrap">入</td><td class="nowrap">10.86.32.100</td><td class="nowrap">GET</td><td class="num">512 ms</td><td>200</td><td><span class="badge green">成功</span></td><td class="nowrap"><span class="link" onclick="PMS.toast('已打开请求 / 响应报文（脱敏）')">报文</span></td></tr>
+              <tr><td class="nowrap">2026-08-01 08:12:30</td><td class="cell-lg">SVC-0028 个人名下房产核验</td><td class="cell-lg">龙城市民云运营中心</td><td class="nowrap">出</td><td class="nowrap">10.86.48.22</td><td class="nowrap">POST</td><td class="num">168 ms</td><td>200</td><td><span class="badge green">成功</span></td><td class="nowrap"><span class="link" onclick="PMS.toast('已打开请求 / 响应报文（脱敏）')">报文</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 告警处置 -->
+    <div class="tab-panel" data-panel="gj">
+      <div class="dc-list">
+        <div class="table-wrap">
+          <table class="data-table compact" data-static>
+            <thead><tr><th>告警时间</th><th>级别</th><th class="cell-lg">接口</th><th>告警类型</th><th class="cell-lg">告警内容</th><th class="num">发生次数</th><th>处置状态</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr class="text-danger">
+                <td class="nowrap">2026-07-31 09:12</td><td><span class="badge red">严重</span></td><td class="cell-lg">HX-0026 住房保障限制信息查询</td><td class="nowrap">对端不可达</td>
+                <td class="cell-lg">连续 146 分钟无成功调用，对端返回连接超时</td><td class="num">286</td><td><span class="badge orange">处理中</span></td>
+                <td class="nowrap"><span class="link" onclick="handle('已解决')">标记解决</span> <span class="link" onclick="handle('已忽略')">忽略</span></td>
+              </tr>
+              <tr class="text-warning">
+                <td class="nowrap">2026-07-31 10:48</td><td><span class="badge orange">一般</span></td><td class="cell-lg">wsswb 全部接口</td><td class="nowrap">监控采集中断</td>
+                <td class="cell-lg">监控采集中断，4 个接口状态不可知，数据截至 10:48</td><td class="num">1</td><td><span class="badge orange">待确认</span></td>
+                <td class="nowrap"><span class="link" onclick="handle('确认')">确认</span></td>
+              </tr>
+              <tr class="text-warning">
+                <td class="nowrap">2026-07-31 08:26</td><td><span class="badge orange">一般</span></td><td class="cell-lg">HX-0006 查封解封信息同步</td><td class="nowrap">对端结构变更</td>
+                <td class="cell-lg">对端 v2.4 新增 CFQX 查封期限字段，解析失败，已暂停自动调用</td><td class="num">12</td><td><span class="badge orange">处理中</span></td>
+                <td class="nowrap"><a class="link" href="wsdata-10.html">联调确认</a> <span class="link" onclick="handle('已解决')">标记解决</span></td>
+              </tr>
+              <tr class="text-warning">
+                <td class="nowrap">2026-07-31 10:42</td><td><span class="badge orange">一般</span></td><td class="cell-lg">HX-0001 不动产权属状态查询</td><td class="nowrap">响应超时</td>
+                <td class="cell-lg">今日累计超时 26 次，涉及 18 笔在办业务</td><td class="num">26</td><td><span class="badge orange">待确认</span></td>
+                <td class="nowrap"><span class="link" onclick="handle('确认')">确认</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">2026-07-31 07:06</td><td><span class="badge orange">一般</span></td><td class="cell-lg">SVC-0028 租赁备案信息查询</td><td class="nowrap">接口暂停</td>
+                <td class="cell-lg">共享库脱敏检查检出未脱敏数据，数据集与接口已自动暂停</td><td class="num">1</td><td><span class="badge orange">处理中</span></td>
+                <td class="nowrap"><a class="link" href="wsdata-10.html">前往修复</a></td>
+              </tr>
+              <tr>
+                <td class="nowrap">2026-07-30 16:12</td><td><span class="badge blue">提示</span></td><td class="cell-lg">政务共享 · 人口基础信息核验</td><td class="nowrap">配额预警</td>
+                <td class="cell-lg">月度配额已用 86.2%，预计 08-26 耗尽</td><td class="num">1</td><td><span class="badge green">已解决</span></td>
+                <td class="nowrap"><span class="link" onclick="PMS.toast('处置记录：已向大数据局提交配额追加申请')">处置记录</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 接口健康度 -->
+    <div class="tab-panel" data-panel="jk">
+      <div class="dc-list">
+        <div class="table-wrap">
+          <table class="data-table compact" data-static>
+            <thead><tr><th class="cell-lg">接口</th><th class="cell-lg">共享单位</th><th class="num">调用量</th><th class="num">成功率</th><th class="num">P95 响应</th><th class="num">对账通过率</th><th>健康度评分</th><th class="num">告警数</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr class="text-danger"><td class="cell-lg">HX-0026 住房保障限制信息查询</td><td class="cell-lg">市住房保障中心</td><td class="num">486</td><td class="num">42.6%</td><td class="num">30,000 ms</td><td class="num">—</td><td><span class="badge red">32 分 严重</span></td><td class="num">3</td><td class="nowrap"><span class="link" onclick="pickTab('gj')">看告警</span></td></tr>
+              <tr class="text-warning"><td class="cell-lg">HX-0006 查封解封信息同步</td><td class="cell-lg">市不动产登记中心</td><td class="num">86</td><td class="num">92.4%</td><td class="num">412 ms</td><td class="num">96.2%</td><td><span class="badge orange">64 分 关注</span></td><td class="num">1</td><td class="nowrap"><span class="link" onclick="pickTab('gj')">看告警</span></td></tr>
+              <tr class="text-warning"><td class="cell-lg">SVC-0028 租赁备案信息查询</td><td class="cell-lg">对外共享（4 家单位）</td><td class="num">0</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td><span class="badge orange">已暂停 · 不评分</span></td><td class="num">1</td><td class="nowrap"><a class="link" href="wsdata-10.html">脱敏修复</a></td></tr>
+              <tr><td class="cell-lg">HX-0002 转移登记结果回执接收</td><td class="cell-lg">市不动产登记中心</td><td class="num">1,286</td><td class="num">96.4%</td><td class="num">486 ms</td><td class="num">98.4%</td><td><span class="badge orange">78 分 一般</span></td><td class="num">1</td><td class="nowrap"><span class="link" onclick="PMS.toast('已打开接口详情')">详情</span></td></tr>
+              <tr><td class="cell-lg">HX-0031 龙城市民云消息推送</td><td class="cell-lg">龙城市民云运营中心</td><td class="num">6,482</td><td class="num">97.6%</td><td class="num">386 ms</td><td class="num">99.2%</td><td><span class="badge blue">86 分 良好</span></td><td class="num">1</td><td class="nowrap"><span class="link" onclick="PMS.toast('已打开接口详情')">详情</span></td></tr>
+              <tr><td class="cell-lg">HX-0001 不动产权属状态查询</td><td class="cell-lg">市不动产登记中心</td><td class="num">28,624</td><td class="num">98.2%</td><td class="num">486 ms</td><td class="num">99.6%</td><td><span class="badge green">92 分 健康</span></td><td class="num">0</td><td class="nowrap"><span class="link" onclick="PMS.toast('已打开接口详情')">详情</span></td></tr>
+              <tr><td class="cell-lg">SVC-0012 房屋基本信息查询</td><td class="cell-lg">对外共享（12 家单位）</td><td class="num">48,624</td><td class="num">99.8%</td><td class="num">186 ms</td><td class="num">100%</td><td><span class="badge green">98 分 健康</span></td><td class="num">0</td><td class="nowrap"><span class="link" onclick="PMS.toast('已打开接口详情')">详情</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 失败重推 -->
+    <div class="tab-panel" data-panel="ct">
+      <div class="dc-list">
+        <div class="dc-mini">
+          <div class="mi bad"><div class="mv">1,286</div><div class="ml">待重推条数</div></div>
+          <div class="mi"><div class="mv">4,862</div><div class="ml">今日自动重试次数</div></div>
+          <div class="mi ok"><div class="mv">3,486</div><div class="ml">今日重推成功</div></div>
+          <div class="mi bad"><div class="mv">86</div><div class="ml">需人工介入</div></div>
+        </div>
+        <div class="alert alert-warning"><i class="fa-solid fa-user-gear"></i><div><b>需人工介入 86 条</b>：重推超过 10 次或超过 7 天仍失败，自动重试已无意义，须联系对端线下协调。<span class="link" onclick="PMS.openDrawer('manDrawer')">查看清单</span></div></div>
+        <div class="filter-bar">
+          <div class="filter-item"><label>接口</label><select><option value="">全部</option><option>HX-0026 住房保障限制信息查询</option><option>HX-0031 龙城市民云消息推送</option><option>SB-0002 全国网签备案联网上报</option></select></div>
+          <div class="filter-item"><label>失败原因</label><select><option value="">全部</option><option>对端不可达</option><option>响应超时</option><option>业务校验失败</option><option>用户未绑定</option></select></div>
+          <div class="filter-item"><label>首次失败时间</label><input type="date"></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按条件查询')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="PMS.openDrawer('logDrawer')"><i class="fa-solid fa-clock-rotate-left"></i> 重推记录</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th class="cell-lg">接口</th><th class="cell-lg">失败原因</th><th class="num">待重推条数</th><th>最早失败时间</th><th class="num">已积压</th><th class="num">平均重试次数</th><th>可否自动恢复</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr class="text-danger">
+                <td class="cell-lg">HX-0026 住房保障限制信息查询</td><td class="cell-lg">对端不可达（连接超时）</td><td class="num">862</td><td class="nowrap">2026-07-31 09:12</td><td class="num">2.4 小时</td><td class="num">6</td>
+                <td class="nowrap"><span class="badge orange">对端恢复后可自动重推</span></td>
+                <td class="nowrap"><span class="link" onclick="batch('HX-0026 对端不可达', 862)">批量重推本组</span> <span class="link" onclick="PMS.openDrawer('grpDrawer')">展开明细</span></td>
+              </tr>
+              <tr>
+                <td class="cell-lg">HX-0031 龙城市民云消息推送</td><td class="cell-lg">对端返回「用户未绑定」</td><td class="num">286</td><td class="nowrap">2026-07-28 10:12</td><td class="num">3.1 天</td><td class="num">3</td>
+                <td class="nowrap"><span class="badge gray">属正常情形，绑定后自动补推</span></td>
+                <td class="nowrap"><span class="link" onclick="PMS.toast('已标记为无需重推')">标记无需重推</span> <span class="link" onclick="PMS.openDrawer('grpDrawer')">展开明细</span></td>
+              </tr>
+              <tr>
+                <td class="cell-lg">HX-0031 龙城市民云消息推送</td><td class="cell-lg">对端返回 500 服务异常</td><td class="num">42</td><td class="nowrap">2026-07-31 09:26</td><td class="num">2.2 小时</td><td class="num">5</td>
+                <td class="nowrap"><span class="badge green">可自动恢复</span></td>
+                <td class="nowrap"><span class="link" onclick="batch('HX-0031 对端 500', 42)">批量重推本组</span> <span class="link" onclick="PMS.openDrawer('grpDrawer')">展开明细</span></td>
+              </tr>
+              <tr class="text-warning">
+                <td class="cell-lg">SB-0002 全国网签备案联网上报</td><td class="cell-lg">上级返回业务校验失败（房屋用途代码值不在上级字典中）</td><td class="num">10</td><td class="nowrap">2026-07-26 14:26</td><td class="num">5.1 天</td><td class="num">8</td>
+                <td class="nowrap"><span class="badge red">不可自动恢复，须先修正数据</span></td>
+                <td class="nowrap"><a class="link" href="wsdata-13.html">前往修正</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 数据对账 -->
+    <div class="tab-panel" data-panel="dz">
+      <div class="dc-list">
+        <div class="dc-mini">
+          <div class="mi"><div class="mv">18</div><div class="ml">今日对账接口数</div></div>
+          <div class="mi ok"><div class="mv">14</div><div class="ml">对账通过</div></div>
+          <div class="mi warn"><div class="mv">4</div><div class="ml">存在差异</div></div>
+          <div class="mi bad"><div class="mv">3</div><div class="ml">未闭环差异</div></div>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-item"><label>对账日期</label><input type="date" value="2026-07-30"></div>
+          <div class="filter-item"><label>接口</label><input type="text" placeholder="接口编号 / 名称"></div>
+          <div class="filter-item"><label>对账结论</label><select><option value="">全部</option><option>通过</option><option>存在差异</option></select></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按条件查询')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="PMS.openDrawer('diffDrawer')"><i class="fa-solid fa-list-check"></i> 差异清单</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>对账日期</th><th class="cell-lg">接口</th><th>对账方式</th><th class="num">本地条数</th><th class="num">对端条数</th><th class="num">差异数</th><th class="num">差异率</th><th>对账结论</th><th>闭环状态</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td class="nowrap">2026-07-30</td><td class="cell-lg">SVC-0012 房屋基本信息查询</td><td class="nowrap">条数 + 主键比对</td><td class="num">48,624</td><td class="num">48,624</td><td class="num">0</td><td class="num">0%</td><td><span class="badge green">通过</span></td><td><span class="badge green">—</span></td><td class="nowrap"><span class="link" onclick="PMS.toast('已打开对账明细')">明细</span></td></tr>
+              <tr class="text-warning"><td class="nowrap">2026-07-30</td><td class="cell-lg">HX-0001 不动产权属状态查询</td><td class="nowrap">条数 + 主键比对</td><td class="num">28,486</td><td class="num">28,462</td><td class="num">24</td><td class="num">0.08%</td><td><span class="badge orange">存在差异</span></td><td><span class="badge orange">未闭环</span></td><td class="nowrap"><span class="link" onclick="PMS.openDrawer('diffDrawer')">差异清单</span></td></tr>
+              <tr class="text-danger"><td class="nowrap">2026-06-28</td><td class="cell-lg">HX-0031 龙城市民云消息推送</td><td class="nowrap">条数比对</td><td class="num">186,240</td><td class="num">185,378</td><td class="num">862</td><td class="num">0.46%</td><td><span class="badge red">存在差异</span></td><td><span class="badge red">未闭环 33 天</span></td><td class="nowrap"><span class="link" onclick="PMS.openDrawer('diffDrawer')">差异清单</span></td></tr>
+              <tr><td class="nowrap">2026-07-30</td><td class="cell-lg">SB-0002 全国网签备案联网上报</td><td class="nowrap">条数 + 上级回执比对</td><td class="num">1,286</td><td class="num">1,286</td><td class="num">0</td><td class="num">0%</td><td><span class="badge green">通过</span></td><td><span class="badge green">—</span></td><td class="nowrap"><span class="link" onclick="PMS.toast('已打开对账明细')">明细</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 接口台账 -->
+    <div class="tab-panel" data-panel="tz">
+      <div class="dc-list">
+        <div class="alert alert-danger"><i class="fa-solid fa-clipboard-question"></i><div><b>未登记接口 3 个</b>：有实际调用但未在台账登记，须限期补登记。<b>疑似闲置接口 6 个</b>：已登记但超过 90 天无调用，须评估是否下线。<span class="link" onclick="PMS.openDrawer('chkDrawer')">查看两个核对清单</span></div></div>
+        <div class="filter-bar">
+          <div class="filter-item"><label>所属系统</label><select><option value="">全部四类</option><option>对外共享</option><option>部门横向</option><option>上级报送</option><option>平台内部</option></select></div>
+          <div class="filter-item"><label>对端</label><input type="text" placeholder="对端单位 / 系统"></div>
+          <div class="filter-item"><label>方向</label><select><option value="">全部</option><option>出</option><option>入</option><option>双向</option></select></div>
+          <div class="filter-item"><label>加密方式</label><select><option value="">全部</option><option>国密 SM2/SM4</option><option>RSA/AES</option><option>仅 HTTPS</option><option>无加密</option></select></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按条件查询')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="PMS.toast('已导出等保 / 密评材料')"><i class="fa-solid fa-file-shield"></i> 导出合规材料</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>接口编号</th><th class="cell-lg">接口名称</th><th>所属系统</th><th class="cell-lg">对端</th><th>方向</th><th>协议</th><th>加密方式</th><th>调用频率</th><th>责任人</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td class="nowrap">SVC-0012</td><td class="cell-lg">房屋基本信息查询</td><td class="nowrap">对外共享</td><td class="cell-lg">12 家互联单位</td><td class="nowrap">出</td><td class="nowrap">HTTPS/JSON</td><td class="nowrap"><span class="badge green">国密 SM2/SM4</span></td><td class="nowrap">实时</td><td class="nowrap">陆志明</td><td><span class="badge green">运行中</span></td><td class="nowrap"><span class="link" onclick="PMS.toast('已打开接口台账详情')">详情</span></td></tr>
+              <tr><td class="nowrap">HX-0001</td><td class="cell-lg">不动产权属状态查询</td><td class="nowrap">部门横向</td><td class="cell-lg">市不动产登记中心</td><td class="nowrap">入</td><td class="nowrap">HTTPS/JSON</td><td class="nowrap"><span class="badge green">国密 SM2/SM4</span></td><td class="nowrap">事件触发</td><td class="nowrap">韦建国</td><td><span class="badge green">运行中</span></td><td class="nowrap"><span class="link" onclick="PMS.toast('已打开接口台账详情')">详情</span></td></tr>
+              <tr class="text-warning"><td class="nowrap">HX-0005</td><td class="cell-lg">抵押登记状态同步</td><td class="nowrap">部门横向</td><td class="cell-lg">市不动产登记中心</td><td class="nowrap">入</td><td class="nowrap">WebService/XML</td><td class="nowrap"><b>仅 HTTPS</b> <span class="badge orange">待国密改造</span></td><td class="nowrap">每小时</td><td class="nowrap">韦建国</td><td><span class="badge green">运行中</span></td><td class="nowrap"><span class="link" onclick="PMS.toast('改造计划：2026-10-31 前完成')">改造计划</span></td></tr>
+              <tr><td class="nowrap">SB-0002</td><td class="cell-lg">全国房屋网签备案联网上报</td><td class="nowrap">上级报送</td><td class="cell-lg">住房和城乡建设部</td><td class="nowrap">出</td><td class="nowrap">HTTPS/JSON</td><td class="nowrap"><span class="badge green">国密 SM2/SM4</span></td><td class="nowrap">实时</td><td class="nowrap">覃海燕</td><td><span class="badge green">运行中</span></td><td class="nowrap"><a class="link" href="wsdata-13.html">报送配置</a></td></tr>
+              <tr class="text-3"><td class="nowrap">NB-0004</td><td class="cell-lg">档案系统影像调阅接口</td><td class="nowrap">平台内部</td><td class="cell-lg">wsdagl 档案管理</td><td class="nowrap">双向</td><td class="nowrap">HTTPS/JSON</td><td class="nowrap"><span class="badge green">国密 SM2/SM4</span></td><td class="nowrap">实时</td><td class="nowrap">陆志明</td><td><span class="badge orange">疑似闲置 128 天</span></td><td class="nowrap"><span class="link" onclick="PMS.openDrawer('chkDrawer')">评估下线</span></td></tr>
+              <tr class="text-danger"><td class="nowrap text-3">未登记</td><td class="cell-lg">县区楼盘表数据回传（柳城县）</td><td class="nowrap">部门横向</td><td class="cell-lg">柳城县住建局</td><td class="nowrap">入</td><td class="nowrap">数据库直连</td><td class="nowrap"><b>无加密</b></td><td class="nowrap">日</td><td class="nowrap text-3">未指定</td><td><span class="badge red">未登记</span></td><td class="nowrap"><span class="link" onclick="PMS.openDrawer('chkDrawer')">补登记</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- 核对清单抽屉 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="chkDrawer">
+  <div class="drawer-head"><h3>接口台账核对清单</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <h4 class="section-title text-danger">未登记接口清单（3 个）</h4>
+    <p class="hint">有实际调用但未在台账登记，属治理空白，须限期补登记。</p>
+    <table class="data-table compact mt-16" data-static>
+      <thead><tr><th class="cell-lg">发现的接口</th><th class="cell-lg">对端</th><th>协议</th><th>加密方式</th><th class="num">近 30 日调用</th><th>操作</th></tr></thead>
+      <tbody>
+        <tr class="text-danger"><td class="cell-lg">县区楼盘表数据回传（柳城县）</td><td class="cell-lg">柳城县住建局</td><td class="nowrap">数据库直连</td><td class="nowrap"><b>无加密</b></td><td class="num">30</td><td class="nowrap"><span class="link" onclick="PMS.toast('已生成补登记任务')">派发补登记</span></td></tr>
+        <tr class="text-danger"><td class="cell-lg">中介机构信息同步（临时接口）</td><td class="cell-lg">市房地产业协会</td><td class="nowrap">HTTPS/JSON</td><td class="nowrap">仅 HTTPS</td><td class="num">186</td><td class="nowrap"><span class="link" onclick="PMS.toast('已生成补登记任务')">派发补登记</span></td></tr>
+        <tr class="text-danger"><td class="cell-lg">测试遗留接口（无名称）</td><td class="cell-lg text-3">未知（内网 IP 10.86.12.86）</td><td class="nowrap">HTTPS/JSON</td><td class="nowrap"><b>无加密</b></td><td class="num">42</td><td class="nowrap"><span class="link" onclick="PMS.toast('已发起溯源')">溯源关停</span></td></tr>
+      </tbody>
+    </table>
+    <h4 class="section-title mt-16">疑似闲置接口清单（6 个）</h4>
+    <p class="hint">已登记但超过 90 天无调用，须评估是否下线。闲置接口是攻击面，长期保留无收益。</p>
+    <table class="data-table compact mt-16" data-static>
+      <thead><tr><th>接口编号</th><th class="cell-lg">接口名称</th><th class="cell-lg">对端</th><th>最近调用</th><th class="num">无调用天数</th><th>操作</th></tr></thead>
+      <tbody>
+        <tr><td class="nowrap">NB-0004</td><td class="cell-lg">档案系统影像调阅接口</td><td class="cell-lg">wsdagl 档案管理</td><td class="nowrap">2026-03-24</td><td class="num">128</td><td class="nowrap"><span class="link" onclick="offline()">评估下线</span></td></tr>
+        <tr><td class="nowrap">SVC-0009</td><td class="cell-lg">房产测绘成果查询（旧版）</td><td class="cell-lg">2 家互联单位</td><td class="nowrap">2026-02-18</td><td class="num">163</td><td class="nowrap"><span class="link" onclick="offline()">评估下线</span></td></tr>
+        <tr><td class="nowrap">HX-0018</td><td class="cell-lg">公积金贷款状态回写</td><td class="cell-lg">市住房公积金中心</td><td class="nowrap">2026-01-12</td><td class="num">200</td><td class="nowrap"><span class="link" onclick="offline()">评估下线</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn btn-primary" onclick="PMS.toast('已导出核对清单')"><i class="fa-solid fa-download"></i> 导出清单</button>
+  </div>
+</div>
+
+<!-- 重推分组明细抽屉 -->
+<div class="drawer" id="grpDrawer">
+  <div class="drawer-head"><h3>待重推明细 · HX-0026 对端不可达（862 条）</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <table class="data-table compact" data-static>
+      <thead><tr><th class="cell-lg">业务键</th><th>失败时间</th><th class="cell-lg">失败原因</th><th class="num">重试次数</th><th>下次自动重试</th><th>操作</th></tr></thead>
+      <tbody>
+        <tr><td class="cell-lg">FW450202000186420</td><td class="nowrap">2026-07-31 09:12</td><td class="cell-lg">连接超时（30s）</td><td class="num">6</td><td class="nowrap">2026-07-31 12:12</td><td class="nowrap"><span class="link" onclick="PMS.toast('已打开原始报文')">报文</span> <span class="link" onclick="PMS.toast('单条重推已提交')">重推</span></td></tr>
+        <tr><td class="cell-lg">FW450203000208624</td><td class="nowrap">2026-07-31 09:12</td><td class="cell-lg">连接超时（30s）</td><td class="num">6</td><td class="nowrap">2026-07-31 12:12</td><td class="nowrap"><span class="link" onclick="PMS.toast('已打开原始报文')">报文</span> <span class="link" onclick="PMS.toast('单条重推已提交')">重推</span></td></tr>
+        <tr><td class="cell-lg">FW450204000142862</td><td class="nowrap">2026-07-31 09:14</td><td class="cell-lg">连接超时（30s）</td><td class="num">6</td><td class="nowrap">2026-07-31 12:14</td><td class="nowrap"><span class="link" onclick="PMS.toast('已打开原始报文')">报文</span> <span class="link" onclick="PMS.toast('单条重推已提交')">重推</span></td></tr>
+      </tbody>
+    </table>
+    <p class="hint mt-16"><i class="fa-solid fa-circle-info"></i> 展示前 3 条。对端恢复前重推仍会失败，建议待对端恢复后再执行批量重推。</p>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn btn-primary" onclick="batch('HX-0026 对端不可达', 862)"><i class="fa-solid fa-rotate"></i> 批量重推本组</button>
+  </div>
+</div>
+
+<!-- 需人工介入清单抽屉 -->
+<div class="drawer" id="manDrawer">
+  <div class="drawer-head"><h3>需人工介入清单（86 条）</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-danger"><i class="fa-solid fa-user-gear"></i><div>重推超过 <b>10 次</b>或超过 <b>7 天</b>仍失败，继续自动重试无意义，须<b>联系对端线下协调</b>。</div></div>
+    <table class="data-table compact mt-16" data-static>
+      <thead><tr><th class="cell-lg">接口</th><th class="cell-lg">业务键</th><th>首次失败</th><th class="num">重试次数</th><th class="cell-lg">失败原因</th><th>操作</th></tr></thead>
+      <tbody>
+        <tr class="text-danger"><td class="cell-lg">HX-0031 龙城市民云消息推送</td><td class="cell-lg">LZHT202600011862</td><td class="nowrap">2026-07-24</td><td class="num">12</td><td class="cell-lg">对端持续返回 500，消息模板已下线</td><td class="nowrap"><span class="link" onclick="PMS.toast('已生成线下协调工单')">线下协调</span></td></tr>
+        <tr class="text-danger"><td class="cell-lg">SB-0002 全国网签备案联网上报</td><td class="cell-lg">LZHT202600009486</td><td class="nowrap">2026-07-22</td><td class="num">14</td><td class="cell-lg">上级校验失败：房屋用途代码 <code>09</code> 不在上级字典中</td><td class="nowrap"><a class="link" href="wsdata-13.html">前往修正</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn btn-primary" onclick="PMS.toast('已导出人工介入清单')"><i class="fa-solid fa-download"></i> 导出清单</button>
+  </div>
+</div>
+
+<!-- 重推记录抽屉 -->
+<div class="drawer" id="logDrawer">
+  <div class="drawer-head"><h3>重推记录</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <table class="data-table compact" data-static>
+      <thead><tr><th>重推批次</th><th>时间</th><th>操作人</th><th class="cell-lg">接口</th><th class="num">条数</th><th class="num">成功</th><th class="num">失败</th></tr></thead>
+      <tbody>
+        <tr><td class="nowrap">CT-20260731-006</td><td class="nowrap">2026-07-31 10:26</td><td class="nowrap">陆志明</td><td class="cell-lg">HX-0031 龙城市民云消息推送</td><td class="num">42</td><td class="num">38</td><td class="num">4</td></tr>
+        <tr><td class="nowrap">CT-20260731-004</td><td class="nowrap">2026-07-31 09:42</td><td class="nowrap">系统自动</td><td class="cell-lg">HX-0026 住房保障限制信息查询</td><td class="num">286</td><td class="num">0</td><td class="num">286</td></tr>
+        <tr><td class="nowrap">CT-20260730-012</td><td class="nowrap">2026-07-30 11:26</td><td class="nowrap">系统自动</td><td class="cell-lg">SB-0002 全国网签备案联网上报</td><td class="num">1,286</td><td class="num">1,276</td><td class="num">10</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="drawer-foot"><button class="btn btn-primary" data-close-drawer>关闭</button></div>
+</div>
+
+<!-- 差异清单抽屉 -->
+<div class="drawer" id="diffDrawer">
+  <div class="drawer-head"><h3>对账差异清单 · HX-0003 网签备案信息推送不动产</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-warning"><i class="fa-solid fa-scale-unbalanced"></i><div>差异按<b>四类归因</b>分组：本地漏收 / 本地漏发 / 内容不符 / 重复。每类给出对应的处置建议。</div></div>
+    <h4 class="section-title mt-16">内容不符（12 条）</h4>
+    <table class="data-table compact" data-static>
+      <thead><tr><th class="cell-lg">业务键</th><th>字段</th><th class="cell-lg">本地值</th><th class="cell-lg">对端值</th><th>操作</th></tr></thead>
+      <tbody>
+        <tr class="text-danger"><td class="cell-lg">LZHT202600011486</td><td class="nowrap"><code>jzmj</code></td><td class="cell-lg">118.62</td><td class="cell-lg">126.48</td><td class="nowrap"><span class="link" onclick="PMS.toast('已派发核实任务')">派发核实</span></td></tr>
+        <tr class="text-danger"><td class="cell-lg">LZHT202600011502</td><td class="nowrap"><code>htzt</code></td><td class="cell-lg">已备案</td><td class="cell-lg">已注销</td><td class="nowrap"><span class="link" onclick="PMS.toast('已派发核实任务')">派发核实</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn btn-primary" onclick="PMS.toast('已批量派发处置任务', 'success')"><i class="fa-solid fa-paper-plane"></i> 批量派发</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+  var UNITS = [
+    { name: "XXXX市住房保障中心", jk: 3, calls: "486", rate: 42.6, resp: "30,000 ms", alarm: 3, bad: true, issue: "HX-0026 对端不可达已 146 分钟，186 套房源受影响", op: "生成沟通函" },
+    { name: "XXXX市不动产登记中心", jk: 6, calls: "48,624", rate: 98.2, resp: "486 ms", alarm: 2, warn: true, issue: "HX-0006 因对端 v2.4 新增字段解析失败已暂停；HX-0001 今日超时 26 次", op: "生成沟通函" },
+    { name: "龙城市民云运营中心", jk: 5, calls: "6,482", rate: 97.6, resp: "386 ms", alarm: 1, warn: true, issue: "42 条消息推送失败待重试，其中 1 条重试超 10 次", op: "生成沟通函" },
+    { name: "XXXX市大数据发展局", jk: 8, calls: "8,624", rate: 99.8, resp: "126 ms", alarm: 1, issue: "人口基础信息核验配额已用 86.2%，预计 08-26 耗尽", op: "申请追加配额" },
+    { name: "XXXX市税务局", jk: 4, calls: "12,486", rate: 99.2, resp: "168 ms", alarm: 0, issue: "—", op: "接口清单" },
+    { name: "XXXX市住房公积金管理中心", jk: 3, calls: "3,246", rate: 99.6, resp: "248 ms", alarm: 0, issue: "—", op: "接口清单" }
+  ];
+
+  function rateBar(v, cls) {
+    var color = v >= 99 ? '' : (v >= 95 ? ' green' : (v >= 90 ? ' orange' : ' red'));
+    var vc = v < 90 ? 'text-danger' : (v < 95 ? 'text-warning' : '');
+    return '<div class="rate-cell"><div class="progress' + color + '"><span style="width:' + v + '%"></span></div><b class="' + vc + '">' + v.toFixed(1) + '%</b></div>';
+  }
+
+  function renderUnits() {
+    var body = "";
+    UNITS.forEach(function (u) {
+      var rowCls = u.bad ? ' class="text-danger"' : (u.warn ? ' class="text-warning"' : '');
+      var alarm = u.alarm > 0 ? '<span class="badge ' + (u.bad ? 'red' : 'orange') + '">' + u.alarm + '</span>' : '<span class="text-3">0</span>';
+      var issue = u.issue === "—" ? '<span class="text-3">—</span>' : u.issue;
+      body += '<tr' + rowCls + '><td class="cell-lg fw-600">' + u.name + '</td><td class="num">' + u.jk + '</td><td class="num nowrap">' + u.calls + '</td><td>' + rateBar(u.rate) + '</td><td class="num nowrap">' + u.resp + '</td><td class="num">' + alarm + '</td><td class="cell-lg">' + issue + '</td><td class="nowrap"><span class="link" onclick="PMS.toast(\'已打开：' + u.op + '\')">' + u.op + '</span></td></tr>';
+    });
+    document.getElementById("unitBody").innerHTML = body;
+  }
+
+  function pickTab(key) { document.querySelectorAll('.card > .tabs > .tab').forEach(function (t) { if (t.getAttribute('data-tab') === key) t.click(); }); }
+  function big() {
+    PMS.confirm({
+      title: '大屏展示模式', message: '切换为运维值班大屏布局？',
+      detail: '大屏模式适配 3840×2160，隐藏全部操作按钮，放大关键指标与告警。切换后按 Esc 返回常规布局。',
+      type: 'info', okText: '切换大屏',
+      onOk: function () { PMS.toast('已切换为大屏展示模式（原型演示）', 'success'); }
+    });
+  }
+  function handle(action) {
+    if (action === '已忽略') {
+      PMS.confirm({ title: '忽略告警', message: '确认忽略该告警？', detail: '<b>忽略须填写理由</b>。被忽略的告警不再推送，但仍保留在告警列表中可查。', type: 'warning', okText: '填写理由并忽略', onOk: function () { PMS.toast('告警已忽略并记录理由', 'success'); } });
+      return;
+    }
+    PMS.toast('告警已标记为「' + action + '」', 'success');
+  }
+  function batch(group, n) {
+    PMS.confirm({ title: '批量重推', message: '将重推「' + group + '」分组的 ' + n + ' 条记录。', detail: '重推<b>按接口频率上限限速执行</b>，预计耗时约 ' + Math.ceil(n / 60) + ' 分钟。', type: 'info', okText: '确认重推', onOk: function () { PMS.toast('批量重推已启动，限速执行中', 'success'); } });
+  }
+  function offline() {
+    PMS.confirm({ title: '评估下线', message: '对该闲置接口发起下线评估？', detail: '下线评估将通知接口责任人与全部订阅方确认无业务依赖，确认后进入 30 天观察期。', type: 'warning', okText: '发起评估', onOk: function () { PMS.toast('下线评估已发起', 'success'); } });
+  }
+
+  renderUnits();
+</script>
+</body>
+</html>

@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>案卷详情 · 房屋交易档案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 全站统一：档案载体 / 密级 / 保管期限三套标识 */
+  .cr { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; white-space: nowrap; }
+  .cr.e { color: #2563eb; }
+  .cr.p { color: #a16207; }
+  .cr.d { color: #7c3aed; }
+  .ml { display: inline-flex; align-items: center; padding: 1px 6px; border-radius: 4px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+  .ml.m0 { background: #dcfce7; color: #15803d; }
+  .ml.m1 { background: #dbeafe; color: #1d4ed8; }
+  .ml.m2 { background: #fef3c7; color: #b45309; }
+  .ml.m3 { background: #fee2e2; color: #b91c1c; }
+  .no-code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; }
+  /* 本页特有：案卷信息栏 */
+  .da-banner {
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    background: linear-gradient(135deg, #eef4ff 0%, #f7faff 100%);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 12px;
+  }
+  .da-banner .db-main { flex: 1 1 420px; min-width: 280px; }
+  .da-banner .db-name { font-size: 17px; font-weight: 700; line-height: 1.4; }
+  .da-banner .db-sub { font-size: 12.5px; color: var(--text-2); line-height: 1.9; margin-top: 4px; }
+  .da-banner .db-sub b { color: var(--text-1); }
+  .da-banner .db-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .da-banner .db-fig { display: flex; gap: 22px; padding-left: 18px; border-left: 1px dashed #c9d6ea; }
+  .da-banner .db-fig .f-v { font-size: 22px; font-weight: 700; color: var(--primary); font-variant-numeric: tabular-nums; }
+  .da-banner .db-fig .f-l { font-size: 12px; color: var(--text-3); }
+  /* 本页特有：多维关联分组卡 */
+  .rel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+  .rel-card { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .rel-card > .rh {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+    background: var(--bg-soft); font-size: 13.5px; font-weight: 700;
+  }
+  .rel-card > .rh i { color: var(--primary); }
+  .rel-card > .rh .head-actions { margin-left: auto; }
+  .rel-card > .rb { padding: 10px 12px; }
+  .rel-card .kv { display: flex; gap: 8px; font-size: 13px; padding: 4px 0; }
+  .rel-card .kv > .k { width: 96px; flex-shrink: 0; color: var(--text-3); }
+  .rel-card .kv > .v { flex: 1; min-width: 0; word-break: break-all; }
+  /* 本页特有：著录评分 */
+  .score-bar { display: flex; align-items: center; gap: 12px; }
+  .score-bar .sv { font-size: 26px; font-weight: 700; color: var(--success); font-variant-numeric: tabular-nums; }
+  .sum-line {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px;
+    background: var(--bg-soft); border-radius: 8px; font-size: 13px; margin-top: 10px;
+  }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdagl-02">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> <a class="link" href="index.html">房屋交易档案管理系统</a>
+        <span class="sep">/</span> 档案接收整理
+        <span class="sep">/</span> <a class="link" href="archive-list.html">档案案卷台账</a>
+        <span class="sep">/</span> <span class="cur">DA450204202600862</span>
+      </div>
+      <div class="page-title">案卷详情</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn btn-primary" href="archive-viewer.html"><i class="fa-solid fa-object-group"></i> 图文查看</a>
+      <a class="btn" href="borrow-apply.html?da=DA450204202600862"><i class="fa-solid fa-hand-holding-hand"></i> 发起借阅</a>
+      <a class="btn" href="archive-correct.html?da=DA450204202600862"><i class="fa-solid fa-wrench"></i> 发起勘误</a>
+      <button type="button" class="btn" onclick="PMS.toast('已打开案卷目录打印预览（A4 纵向）')"><i class="fa-solid fa-print"></i> 打印案卷目录</button>
+    </div>
+  </div>
+
+  <div class="da-banner">
+    <div class="db-main">
+      <div class="db-name">彰泰滨江学府12栋2单元1802存量房买卖合同网签备案 <span class="ml m1">内部</span></div>
+      <div class="db-sub">
+        档案号 <b class="no-code">DA450204202600862</b>　档案标识码 <b class="no-code">AID450204202600000862</b><br>
+        归档日期 <b>2026-06-29</b>　归档人 <b>韦国强</b>　归档方式 <b>自动归集</b>　来源办件 <b class="no-code">SJ20260628016</b>
+      </div>
+      <div class="db-tags">
+        <span class="badge cyan">存量房交易档案</span>
+        <span class="badge green"><i class="fa-solid fa-circle-check"></i> 已归档在库</span>
+        <span class="badge red">永久保管</span>
+        <span class="cr d"><i class="fa-solid fa-layer-group"></i> 双套载体</span>
+        <span class="badge blue">已数字化</span>
+      </div>
+    </div>
+    <div class="db-fig">
+      <div><div class="f-v">12</div><div class="f-l">卷内件数</div></div>
+      <div><div class="f-v">46</div><div class="f-l">总页数</div></div>
+      <div><div class="f-v">88</div><div class="f-l">著录评分</div></div>
+    </div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="base">案卷信息</div>
+      <div class="tab" data-tab="rel">多维关联</div>
+      <div class="tab" data-tab="files">卷内文件 <span class="badge gray">12</span></div>
+      <div class="tab" data-tab="cat">著录信息</div>
+      <div class="tab" data-tab="store">存放与流转</div>
+      <div class="tab" data-tab="use">利用记录 <span class="badge gray">26</span></div>
+    </div>
+
+    <div class="tab-panel active" data-panel="base">
+      <div class="card-body">
+        <div class="section-title">档案分类与编号</div>
+        <dl class="desc-list">
+          <div class="desc-item"><dt>全宗号</dt><dd class="no-code">J028</dd></div>
+          <div class="desc-item"><dt>全宗名称</dt><dd>XXXX市房产交易所</dd></div>
+          <div class="desc-item"><dt>目录号</dt><dd class="no-code">ML2026-02</dd></div>
+          <div class="desc-item"><dt>案卷号</dt><dd class="no-code">00862</dd></div>
+          <div class="desc-item"><dt>年度</dt><dd>2026</dd></div>
+          <div class="desc-item"><dt>分类目录</dt><dd><a class="link" href="category-tree.html">02.03.01 存量房备案</a></dd></div>
+          <div class="desc-item"><dt>档案类型</dt><dd>02 存量房交易档案</dd></div>
+          <div class="desc-item"><dt>归档规则</dt><dd class="no-code">GZ-CFWQ-001</dd></div>
+        </dl>
+        <div class="section-title mt-16">保管属性</div>
+        <dl class="desc-list">
+          <div class="desc-item"><dt>档案载体</dt><dd><span class="cr d"><i class="fa-solid fa-layer-group"></i> 双套（纸质 + 电子影像）</span></dd></div>
+          <div class="desc-item"><dt>保管期限</dt><dd><span class="badge red">永久</span></dd></div>
+          <div class="desc-item"><dt>保管到期日期</dt><dd>永久保管，不设到期日</dd></div>
+          <div class="desc-item"><dt>密级</dt><dd><span class="ml m1">内部</span></dd></div>
+          <div class="desc-item"><dt>开放级别</dt><dd>受控开放</dd></div>
+          <div class="desc-item"><dt>数字化状态</dt><dd><span class="badge blue">已数字化</span> <span class="text-3">2026-06-29 随办件影像直接挂接</span></dd></div>
+          <div class="desc-item"><dt>质量合格状态</dt><dd><span class="badge green">合格</span> <span class="text-3">2026-06-30 抽检通过</span></dd></div>
+          <div class="desc-item"><dt>是否在借阅中</dt><dd>否</dd></div>
+        </dl>
+        <div class="section-title mt-16">归档信息</div>
+        <dl class="desc-list">
+          <div class="desc-item"><dt>归档方式</dt><dd>自动归集（办件办结触发）</dd></div>
+          <div class="desc-item"><dt>归档单位</dt><dd>XXXX市房产交易所</dd></div>
+          <div class="desc-item"><dt>归档日期</dt><dd>2026-06-29</dd></div>
+          <div class="desc-item"><dt>归档人</dt><dd>韦国强</dd></div>
+          <div class="desc-item"><dt>归集任务</dt><dd><a class="link no-code" href="auto-collect.html?task=GJ20260628042">GJ20260628042</a> <span class="text-3">（部分成功后人工补齐 1 件）</span></dd></div>
+          <div class="desc-item"><dt>一房一档总卷</dt><dd><a class="link no-code" href="house-archive.html">DAFY450202001286</a> <span class="text-3">（第 9 卷）</span></dd></div>
+        </dl>
+        <div class="alert alert-info mt-16">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>本案卷的卷内文件只登记 wssvc 文件服务的文件主键，不复制文件二进制；影像的唯一存储在 wssvc，档案做的是「目录 + 指针」。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="rel">
+      <div class="card-body">
+        <p class="text-3 text-sm mb-16">
+          <i class="fa-solid fa-diagram-project"></i>
+          档案条目与房屋、项目、当事人、办件、时间五个维度建立关联，形成多维检索关系；房屋维度是一房一档聚合的主键。
+        </p>
+        <div class="rel-grid">
+          <div class="rel-card">
+            <div class="rh">
+              <i class="fa-solid fa-house"></i> 房屋维度
+              <div class="head-actions"><a class="btn btn-sm btn-primary" href="house-archive.html"><i class="fa-solid fa-clock-rotate-left"></i> 查看一房一档</a></div>
+            </div>
+            <div class="rb">
+              <div class="kv"><span class="k">房源主键</span><span class="v no-code">FY450202001286</span></div>
+              <div class="kv"><span class="k">不动产单元号</span><span class="v no-code">450202001005GB00123F00020017</span></div>
+              <div class="kv"><span class="k">房屋坐落</span><span class="v">柳州市城中区滨江东路8号彰泰滨江学府12栋2单元1802</span></div>
+              <div class="kv"><span class="k">产权证号</span><span class="v">桂(2023)柳州市不动产权第 0086421 号</span></div>
+              <div class="kv"><span class="k">建筑面积</span><span class="v">118.65 ㎡</span></div>
+            </div>
+          </div>
+          <div class="rel-card">
+            <div class="rh"><i class="fa-solid fa-diagram-project"></i> 项目维度</div>
+            <div class="rb">
+              <div class="kv"><span class="k">项目主键</span><span class="v no-code">XM4502020018</span></div>
+              <div class="kv"><span class="k">楼盘名称</span><span class="v">彰泰滨江学府</span></div>
+              <div class="kv"><span class="k">开发企业</span><span class="v">柳州彰泰置业有限公司</span></div>
+              <div class="kv"><span class="k">项目档案</span><span class="v"><a class="link no-code" href="archive-list.html">DA450202202100126</a> 项目开发建设档案</span></div>
+            </div>
+          </div>
+          <div class="rel-card">
+            <div class="rh"><i class="fa-solid fa-user-group"></i> 当事人维度</div>
+            <div class="rb">
+              <div class="kv"><span class="k">权利人</span><span class="v">周**（受让方）</span></div>
+              <div class="kv"><span class="k">证件号码</span><span class="v no-code">450***********0028</span></div>
+              <div class="kv"><span class="k">义务人</span><span class="v">陈**（转让方）</span></div>
+              <div class="kv"><span class="k">证件号码</span><span class="v no-code">450***********0016</span></div>
+              <div class="kv"><span class="k">经纪机构</span><span class="v">XXXX市桂中房产经纪有限公司</span></div>
+            </div>
+          </div>
+          <div class="rel-card">
+            <div class="rh">
+              <i class="fa-solid fa-file-signature"></i> 办件维度
+              <div class="head-actions"><a class="link" onclick="PMS.toast('已跳转 wsbiz 统一工作门户查看办件 SJ20260628016')">查看办件</a></div>
+            </div>
+            <div class="rb">
+              <div class="kv"><span class="k">收件编号</span><span class="v no-code">SJ20260628016</span></div>
+              <div class="kv"><span class="k">事项代码</span><span class="v no-code">CFBA-001</span></div>
+              <div class="kv"><span class="k">业务类型</span><span class="v">存量房买卖合同网签备案</span></div>
+              <div class="kv"><span class="k">网签备案号</span><span class="v no-code">CFBA450200202600512</span></div>
+              <div class="kv"><span class="k">办结时间</span><span class="v">2026-06-28 16:42</span></div>
+            </div>
+          </div>
+          <div class="rel-card">
+            <div class="rh"><i class="fa-regular fa-calendar"></i> 时间维度</div>
+            <div class="rb">
+              <div class="kv"><span class="k">年度</span><span class="v">2026</span></div>
+              <div class="kv"><span class="k">文件形成时间</span><span class="v">2026-06-28</span></div>
+              <div class="kv"><span class="k">起止时间</span><span class="v">2026-06-16 ~ 2026-06-29</span></div>
+              <div class="kv"><span class="k">归档日期</span><span class="v">2026-06-29</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="files">
+      <div class="card-body">
+        <div class="flex items-center justify-between mb-8" style="flex-wrap:wrap;gap:8px">
+          <div class="text-3 text-sm">
+            <i class="fa-solid fa-circle-info"></i>
+            逐件登记页号区间，卷内序号连续；文件二进制存于 wssvc，此处只登记文件主键与目录信息。
+          </div>
+          <div class="btn-row">
+            <a class="btn btn-sm" href="scan-collect.html?da=DA450204202600862"><i class="fa-solid fa-camera-retro"></i> 补充采集</a>
+            <a class="btn btn-sm" href="archive-viewer.html"><i class="fa-solid fa-object-group"></i> 图文查看</a>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table compact" data-static>
+            <thead>
+              <tr>
+                <th class="idx-col">卷内序号</th>
+                <th>文件编号</th>
+                <th>文件名称</th>
+                <th>文件类型</th>
+                <th>材料类型代码</th>
+                <th>责任者</th>
+                <th>成文日期</th>
+                <th class="num">页数</th>
+                <th>起止页号</th>
+                <th>格式 / 大小</th>
+                <th>是否原件</th>
+                <th>电子证照</th>
+                <th>签章</th>
+                <th>文件状态</th>
+                <th>关键词</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="idx-col">1</td>
+                <td class="nowrap no-code">WJ2026062801</td>
+                <td class="cell-lg">存量房买卖合同网签备案申请表</td>
+                <td class="nowrap">01 申请表</td>
+                <td class="nowrap no-code">M001</td>
+                <td class="nowrap">周**</td>
+                <td class="nowrap">2026-06-28</td>
+                <td class="num">2</td>
+                <td class="nowrap">1 - 2</td>
+                <td class="nowrap">PDF / 486 KB</td>
+                <td class="nowrap"><span class="badge green">原件</span></td>
+                <td class="nowrap text-3">否</td>
+                <td class="nowrap"><span class="badge blue">已签章</span></td>
+                <td class="nowrap"><span class="badge green">正常</span></td>
+                <td class="nowrap">备案申请</td>
+                <td class="col-ops">
+                  <a class="link" href="archive-viewer.html">预览</a>
+                  <a class="link" onclick="PMS.toast('下载需单独授权，已弹出授权确认','warning')">下载</a>
+                </td>
+              </tr>
+              <tr>
+                <td class="idx-col">2</td>
+                <td class="nowrap no-code">WJ2026062802</td>
+                <td class="cell-lg">转让方身份证明（陈**身份证正反面）</td>
+                <td class="nowrap">02 身份证明材料</td>
+                <td class="nowrap no-code">M002</td>
+                <td class="nowrap">陈**</td>
+                <td class="nowrap">2026-06-16</td>
+                <td class="num">2</td>
+                <td class="nowrap">3 - 4</td>
+                <td class="nowrap">PDF / 1.2 MB</td>
+                <td class="nowrap"><span class="badge blue">扫描件</span></td>
+                <td class="nowrap"><span class="badge cyan">是</span></td>
+                <td class="nowrap text-3">—</td>
+                <td class="nowrap"><span class="badge green">正常</span></td>
+                <td class="nowrap">身份核验</td>
+                <td class="col-ops">
+                  <a class="link" href="archive-viewer.html">预览</a>
+                  <a class="link" onclick="PMS.toast('下载需单独授权，已弹出授权确认','warning')">下载</a>
+                </td>
+              </tr>
+              <tr>
+                <td class="idx-col">3</td>
+                <td class="nowrap no-code">WJ2026062803</td>
+                <td class="cell-lg">受让方身份证明（周**身份证正反面）</td>
+                <td class="nowrap">02 身份证明材料</td>
+                <td class="nowrap no-code">M003</td>
+                <td class="nowrap">周**</td>
+                <td class="nowrap">2026-06-16</td>
+                <td class="num">2</td>
+                <td class="nowrap">5 - 6</td>
+                <td class="nowrap">PDF / 1.1 MB</td>
+                <td class="nowrap"><span class="badge blue">扫描件</span></td>
+                <td class="nowrap"><span class="badge cyan">是</span></td>
+                <td class="nowrap text-3">—</td>
+                <td class="nowrap"><span class="badge green">正常</span></td>
+                <td class="nowrap">身份核验</td>
+                <td class="col-ops">
+                  <a class="link" href="archive-viewer.html">预览</a>
+                  <a class="link" onclick="PMS.toast('下载需单独授权，已弹出授权确认','warning')">下载</a>
+                </td>
+              </tr>
+              <tr>
+                <td class="idx-col">4</td>
+                <td class="nowrap no-code">WJ2026062804</td>
+                <td class="cell-lg">不动产权证书（桂(2023)柳州市不动产权第 0086421 号）</td>
+                <td class="nowrap">05 权属证明</td>
+                <td class="nowrap no-code">M004</td>
+                <td class="nowrap">XXXX市不动产登记中心</td>
+                <td class="nowrap">2023-04-18</td>
+                <td class="num">3</td>
+                <td class="nowrap">7 - 9</td>
+                <td class="nowrap">PDF / 2.4 MB</td>
+                <td class="nowrap"><span class="badge blue">扫描件</span></td>
+                <td class="nowrap"><span class="badge cyan">是</span></td>
+                <td class="nowrap"><span class="badge blue">已签章</span></td>
+                <td class="nowrap"><span class="badge green">正常</span></td>
+                <td class="nowrap">权属</td>
+                <td class="col-ops">
+                  <a class="link" href="archive-viewer.html">预览</a>
+                  <a class="link" onclick="PMS.toast('下载需单独授权，已弹出授权确认','warning')">下载</a>
+                </td>
+              </tr>
+              <tr>
+                <td class="idx-col">5</td>
+                <td class="nowrap no-code">WJ2026062805</td>
+                <td class="cell-lg">存量房买卖合同（CFBA450200202600512）</td>
+                <td class="nowrap">04 合同协议</td>
+                <td class="nowrap no-code">M005</td>
+                <td class="nowrap">陈** / 周**</td>
+                <td class="nowrap">2026-06-28</td>
+                <td class="num">12</td>
+                <td class="nowrap">10 - 21</td>
+                <td class="nowrap">PDF / 3.8 MB</td>
+                <td class="nowrap"><span class="badge green">原件</span></td>
+                <td class="nowrap text-3">否</td>
+                <td class="nowrap"><span class="badge blue">已签章</span></td>
+                <td class="nowrap"><span class="badge green">正常</span></td>
+                <td class="nowrap">买卖合同 · 成交价格</td>
+                <td class="col-ops">
+                  <a class="link" href="archive-viewer.html">预览</a>
+                  <a class="link" onclick="PMS.toast('下载需单独授权，已弹出授权确认','warning')">下载</a>
+                </td>
+              </tr>
+              <tr>
+                <td class="idx-col">6</td>
+                <td class="nowrap no-code">WJ2026062806</td>
+                <td class="cell-lg">房源核验单（HY450202202600862）</td>
+                <td class="nowrap">07 审批表与审批文书</td>
+                <td class="nowrap no-code">M006</td>
+                <td class="nowrap">XXXX市房产交易所</td>
+                <td class="nowrap">2026-06-18</td>
+                <td class="num">2</td>
+                <td class="nowrap">22 - 23</td>
+                <td class="nowrap">PDF / 386 KB</td>
+                <td class="nowrap"><span class="badge green">原件</span></td>
+                <td class="nowrap text-3">否</td>
+                <td class="nowrap"><span class="badge blue">已签章</span></td>
+                <td class="nowrap"><span class="badge green">正常</span></td>
+                <td class="nowrap">房源核验</td>
+                <td class="col-ops">
+                  <a class="link" href="archive-viewer.html">预览</a>
+                  <a class="link" onclick="PMS.toast('下载需单独授权，已弹出授权确认','warning')">下载</a>
+                </td>
+              </tr>
+              <tr>
+                <td class="idx-col">7</td>
+                <td class="nowrap no-code">WJ2026062807</td>
+                <td class="cell-lg">交易限制校验结果单</td>
+                <td class="nowrap">07 审批表与审批文书</td>
+                <td class="nowrap no-code">M007</td>
+                <td class="nowrap">XXXX市房产交易所</td>
+                <td class="nowrap">2026-06-18</td>
+                <td class="num">1</td>
+                <td class="nowrap">24 - 24</td>
+                <td class="nowrap">PDF / 208 KB</td>
+                <td class="nowrap"><span class="badge green">原件</span></td>
+                <td class="nowrap text-3">否</td>
+                <td class="nowrap"><span class="badge blue">已签章</span></td>
+                <td class="nowrap"><span class="badge green">正常</span></td>
+                <td class="nowrap">交易限制</td>
+                <td class="col-ops">
+                  <a class="link" href="archive-viewer.html">预览</a>
+                  <a class="link" onclick="PMS.toast('下载需单独授权，已弹出授权确认','warning')">下载</a>
+                </td>
+              </tr>
+              <tr>
+                <td class="idx-col">8</td>
+                <td class="nowrap no-code">WJ2026062808</td>
+                <td class="cell-lg">存量房交易资金监管协议</td>
+                <td class="nowrap">04 合同协议</td>
+                <td class="nowrap no-code">M008</td>
+                <td class="nowrap">柳州银行营业部</td>
+                <td class="nowrap">2026-06-28</td>
+                <td class="num">4</td>
+                <td class="nowrap">25 - 28</td>
+                <td class="nowrap">PDF / 1.6 MB</td>
+                <td class="nowrap"><span class="badge green">原件</span></td>
+                <td class="nowrap text-3">否</td>
+                <td class="nowrap"><span class="badge blue">已签章</span></td>
+                <td class="nowrap"><span class="badge green">正常</span></td>
+                <td class="nowrap">资金监管</td>
+                <td class="col-ops">
+                  <a class="link" href="archive-viewer.html">预览</a>
+                  <a class="link" onclick="PMS.toast('下载需单独授权，已弹出授权确认','warning')">下载</a>
+                </td>
+              </tr>
+              <tr>
+                <td class="idx-col">9</td>
+                <td class="nowrap no-code">WJ2026070101</td>
+                <td class="cell-lg">购房款支付凭证（人工补充归集）</td>
+                <td class="nowrap">08 缴费凭证</td>
+                <td class="nowrap no-code">M009</td>
+                <td class="nowrap">柳州银行营业部</td>
+                <td class="nowrap">2026-06-29</td>
+                <td class="num">3</td>
+                <td class="nowrap">29 - 31</td>
+                <td class="nowrap">PDF / 742 KB</td>
+                <td class="nowrap"><span class="badge blue">扫描件</span></td>
+                <td class="nowrap text-3">否</td>
+                <td class="nowrap text-3">—</td>
+                <td class="nowrap"><span class="badge green">正常</span><br><span class="text-3 text-sm">2026-07-01 补齐</span></td>
+                <td class="nowrap">付款凭证</td>
+                <td class="col-ops">
+                  <a class="link" href="archive-viewer.html">预览</a>
+                  <a class="link" onclick="PMS.toast('下载需单独授权，已弹出授权确认','warning')">下载</a>
+                </td>
+              </tr>
+              <tr>
+                <td class="idx-col">10</td>
+                <td class="nowrap no-code">WJ2026062810</td>
+                <td class="cell-lg">存量房买卖合同网签备案证明</td>
+                <td class="nowrap">09 发证证书与证明</td>
+                <td class="nowrap no-code">M010</td>
+                <td class="nowrap">XXXX市房产交易所</td>
+                <td class="nowrap">2026-06-28</td>
+                <td class="num">1</td>
+                <td class="nowrap">32 - 32</td>
+                <td class="nowrap">PDF / 268 KB</td>
+                <td class="nowrap"><span class="badge green">原件</span></td>
+                <td class="nowrap"><span class="badge cyan">是</span></td>
+                <td class="nowrap"><span class="badge blue">已签章</span></td>
+                <td class="nowrap"><span class="badge green">正常</span></td>
+                <td class="nowrap">备案证明</td>
+                <td class="col-ops">
+                  <a class="link" href="archive-viewer.html">预览</a>
+                  <a class="link" onclick="PMS.toast('下载需单独授权，已弹出授权确认','warning')">下载</a>
+                </td>
+              </tr>
+              <tr>
+                <td class="idx-col">11</td>
+                <td class="nowrap no-code">WJ2026062811</td>
+                <td class="cell-lg">契税完税凭证</td>
+                <td class="nowrap">08 缴费凭证</td>
+                <td class="nowrap no-code">M011</td>
+                <td class="nowrap">XXXX市税务局</td>
+                <td class="nowrap">2026-06-29</td>
+                <td class="num">1</td>
+                <td class="nowrap">33 - 33</td>
+                <td class="nowrap">PDF / 186 KB</td>
+                <td class="nowrap"><span class="badge blue">扫描件</span></td>
+                <td class="nowrap"><span class="badge cyan">是</span></td>
+                <td class="nowrap text-3">—</td>
+                <td class="nowrap"><span class="badge green">正常</span></td>
+                <td class="nowrap">完税</td>
+                <td class="col-ops">
+                  <a class="link" href="archive-viewer.html">预览</a>
+                  <a class="link" onclick="PMS.toast('下载需单独授权，已弹出授权确认','warning')">下载</a>
+                </td>
+              </tr>
+              <tr>
+                <td class="idx-col">12</td>
+                <td class="nowrap no-code">WJ2026062812</td>
+                <td class="cell-lg">房地产经纪服务合同</td>
+                <td class="nowrap">04 合同协议</td>
+                <td class="nowrap no-code">M012</td>
+                <td class="nowrap">XXXX市桂中房产经纪有限公司</td>
+                <td class="nowrap">2026-06-16</td>
+                <td class="num">13</td>
+                <td class="nowrap">34 - 46</td>
+                <td class="nowrap">PDF / 2.8 MB</td>
+                <td class="nowrap"><span class="badge gray">复印件</span></td>
+                <td class="nowrap text-3">否</td>
+                <td class="nowrap text-3">—</td>
+                <td class="nowrap"><span class="badge green">正常</span></td>
+                <td class="nowrap">经纪服务</td>
+                <td class="col-ops">
+                  <a class="link" href="archive-viewer.html">预览</a>
+                  <a class="link" onclick="PMS.toast('替换文件须先发起勘误审批','warning')">替换</a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="sum-line">
+          <i class="fa-solid fa-circle-check text-success"></i>
+          共 <b>12</b> 件 <b>46</b> 页，起止页号连续 <span class="text-success fw-600">✓</span>
+          <span class="text-3">｜原件 5 件 · 扫描件 5 件 · 复印件 2 件｜电子证照 4 件 · 已签章 6 件</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="cat">
+      <div class="card-body">
+        <div class="flex items-center justify-between mb-16" style="flex-wrap:wrap;gap:10px">
+          <div class="score-bar">
+            <span class="text-3">著录质量评分</span>
+            <span class="sv">88</span>
+            <span class="progress green" style="width:180px"><span style="width:88%"></span></span>
+            <span class="badge green">已校验</span>
+          </div>
+          <a class="btn btn-sm btn-primary" href="catalog-entry.html?da=DA450204202600862"><i class="fa-solid fa-pen-to-square"></i> 编辑著录</a>
+        </div>
+        <div class="section-title">题名与责任</div>
+        <dl class="desc-list">
+          <div class="desc-item full"><dt>题名</dt><dd>彰泰滨江学府12栋2单元1802存量房买卖合同网签备案案卷</dd></div>
+          <div class="desc-item full"><dt>并列题名</dt><dd>陈**与周**存量房买卖合同网签备案材料（2026）</dd></div>
+          <div class="desc-item"><dt>责任者</dt><dd>XXXX市房产交易所</dd></div>
+          <div class="desc-item"><dt>文件形成者</dt><dd>XXXX市房产交易所交易备案窗口</dd></div>
+          <div class="desc-item"><dt>文件形成时间</dt><dd>2026-06-28</dd></div>
+          <div class="desc-item"><dt>起止时间</dt><dd>2026-06-16 ~ 2026-06-29</dd></div>
+        </dl>
+        <div class="section-title mt-16">内容描述与检索标识</div>
+        <dl class="desc-list">
+          <div class="desc-item full">
+            <dt>摘要</dt>
+            <dd>本卷为陈**将其位于柳州市城中区滨江东路8号彰泰滨江学府12栋2单元1802号房屋（建筑面积 118.65 ㎡）转让给周**的存量房买卖合同网签备案全套材料，成交价格 1,486,000.00 元，交易资金纳入监管，2026 年 6 月 28 日完成网签备案并出具备案证明。</dd>
+          </div>
+          <div class="desc-item full"><dt>主题词</dt><dd>存量房交易；网签备案；买卖合同；资金监管；不动产转移</dd></div>
+          <div class="desc-item full"><dt>关键词</dt><dd>彰泰滨江学府；陈**；周**；CFBA450200202600512；118.65㎡</dd></div>
+        </dl>
+        <div class="section-title mt-16">著录规范与过程</div>
+        <dl class="desc-list">
+          <div class="desc-item"><dt>分类</dt><dd>02.03.01 存量房备案</dd></div>
+          <div class="desc-item"><dt>文种</dt><dd>合同 · 证明</dd></div>
+          <div class="desc-item"><dt>语种</dt><dd>中文</dd></div>
+          <div class="desc-item"><dt>著录级别</dt><dd>案卷级</dd></div>
+          <div class="desc-item"><dt>著录规则</dt><dd>DA/T 18-2022</dd></div>
+          <div class="desc-item"><dt>著录方式</dt><dd><span class="badge green">自动提取</span> <span class="text-3">14 项自动带出，占比 82.4%</span></dd></div>
+          <div class="desc-item"><dt>著录人 / 时间</dt><dd>韦国强　2026-06-29 10:26</dd></div>
+          <div class="desc-item"><dt>检查人 / 时间</dt><dd>李慧　2026-06-30 09:12</dd></div>
+          <div class="desc-item"><dt>著录状态</dt><dd><span class="badge green">已校验</span></dd></div>
+          <div class="desc-item full"><dt>扩展著录项</dt><dd class="no-code">{"成交价格":"1486000.00","建筑面积":"118.65","是否带押过户":"是","资金监管协议号":"ZJJG20260628016"}</dd></div>
+        </dl>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="store">
+      <div class="card-body">
+        <div class="section-title">当前存放</div>
+        <dl class="desc-list">
+          <div class="desc-item"><dt>库位全称</dt><dd class="no-code">KF01-J12-J3-C4-G2-H086</dd></div>
+          <div class="desc-item"><dt>库房</dt><dd>一号档案库（KF01）· 3 层</dd></div>
+          <div class="desc-item"><dt>货架 / 节 / 层 / 格 / 盒</dt><dd>J12 / J3 / C4 / G2 / H086</dd></div>
+          <div class="desc-item"><dt>RFID 标签编号</dt><dd class="no-code">RF0086421026</dd></div>
+          <div class="desc-item"><dt>二维码编号</dt><dd class="no-code">QR450204202600862</dd></div>
+          <div class="desc-item"><dt>存入日期 / 存入人</dt><dd>2026-07-02　覃永明</dd></div>
+          <div class="desc-item"><dt>最近盘点时间</dt><dd>2026-07-28 10:16（PD2026008）</dd></div>
+          <div class="desc-item"><dt>最近盘点结果</dt><dd><span class="badge green">在架</span></dd></div>
+        </dl>
+        <div class="btn-row mt-16">
+          <a class="btn btn-sm" href="warehouse.html?da=DA450204202600862"><i class="fa-solid fa-warehouse"></i> 库位调整</a>
+          <button type="button" class="btn btn-sm" onclick="PMS.toast('已打印库位标签（含二维码）','success')"><i class="fa-solid fa-tag"></i> 打印库位标签</button>
+          <a class="btn btn-sm" href="inventory.html"><i class="fa-solid fa-clipboard-check"></i> 盘点记录</a>
+        </div>
+        <div class="section-title mt-16">流转时间轴</div>
+        <div class="timeline">
+          <div class="tl-item done">
+            <div class="tl-dot"></div>
+            <div class="tl-title">办件办结触发自动归集</div>
+            <div class="tl-meta">2026-06-28 16:42　经办：系统（wsbiz 事件）</div>
+            <div class="tl-desc">收件 SJ20260628016 办结，触发归集任务 <a class="link no-code" href="auto-collect.html?task=GJ20260628042">GJ20260628042</a>，应归集 12 件、已归集 11 件、缺失 1 件。</div>
+          </div>
+          <div class="tl-item done">
+            <div class="tl-dot"></div>
+            <div class="tl-title">自动组卷并著录</div>
+            <div class="tl-meta">2026-06-29 10:26　经办：韦国强</div>
+            <div class="tl-desc">生成案卷 DA450204202600862，卷内文件按材料类型代码排序编号；自动提取 14 项著录项。</div>
+          </div>
+          <div class="tl-item done">
+            <div class="tl-dot"></div>
+            <div class="tl-title">缺件人工补充</div>
+            <div class="tl-meta">2026-07-01 09:18　经办：韦国强</div>
+            <div class="tl-desc">补充第 9 件「购房款支付凭证」3 页，案卷状态由「归档中」转为「已归档在库」。</div>
+          </div>
+          <div class="tl-item done">
+            <div class="tl-dot"></div>
+            <div class="tl-title">分配库位上架</div>
+            <div class="tl-meta">2026-07-02 15:06　经办：覃永明</div>
+            <div class="tl-desc">纸质卷入库 KF01-J12-J3-C4-G2-H086，库位状态置为已占用。</div>
+          </div>
+          <div class="tl-item done">
+            <div class="tl-dot"></div>
+            <div class="tl-title">聚合到一房一档总卷</div>
+            <div class="tl-meta">2026-07-02 15:06　经办：系统</div>
+            <div class="tl-desc">按房源主键 FY450202001286 聚合到 <a class="link no-code" href="house-archive.html">DAFY450202001286</a>，为该房第 9 卷。</div>
+          </div>
+          <div class="tl-item done">
+            <div class="tl-dot"></div>
+            <div class="tl-title">盘点在架核对</div>
+            <div class="tl-meta">2026-07-28 10:16　经办：RFID 扫描</div>
+            <div class="tl-desc">PD2026008 全面盘点扫描确认在架，库位一致。</div>
+          </div>
+          <div class="tl-item pending">
+            <div class="tl-dot"></div>
+            <div class="tl-title">保管中</div>
+            <div class="tl-meta">永久保管，不进入鉴定销毁范围</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="use">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-shield-halved"></i>
+          <div>档案利用记录不可修改、不可删除，含系统内部业务调阅在内的每一次访问全部留痕。完整审计视图见 <a class="link" href="access-audit.html">档案利用留痕审计</a>。</div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table compact" data-static>
+            <thead>
+              <tr>
+                <th>查询编号</th>
+                <th>查询类型</th>
+                <th>查询人 / 部门</th>
+                <th>查询渠道</th>
+                <th>业务关联</th>
+                <th>关联收件编号</th>
+                <th>查询时间</th>
+                <th class="num">访问时长</th>
+                <th>IP 地址</th>
+                <th>有效授权</th>
+                <th>异常</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="nowrap no-code">CX2026080108462</td>
+                <td class="nowrap">在线阅览</td>
+                <td class="nowrap">韦国强 / 市房产交易所</td>
+                <td class="nowrap">内部系统</td>
+                <td class="nowrap">日常查询</td>
+                <td class="nowrap text-3">—</td>
+                <td class="nowrap">2026-08-01 14:26</td>
+                <td class="num">6 分 12 秒</td>
+                <td class="nowrap no-code">10.68.12.86</td>
+                <td class="nowrap"><span class="badge green">是</span></td>
+                <td class="nowrap text-3">—</td>
+              </tr>
+              <tr>
+                <td class="nowrap no-code">CX2026073108216</td>
+                <td class="nowrap">接口调用</td>
+                <td class="nowrap">wsdwb 查档服务</td>
+                <td class="nowrap">接口</td>
+                <td class="nowrap">查档出证</td>
+                <td class="nowrap no-code">CD20260731016</td>
+                <td class="nowrap">2026-07-31 09:42</td>
+                <td class="num">1.2 秒</td>
+                <td class="nowrap no-code">10.68.2.18</td>
+                <td class="nowrap"><span class="badge green">是</span></td>
+                <td class="nowrap text-3">—</td>
+              </tr>
+              <tr>
+                <td class="nowrap no-code">CX2026072608042</td>
+                <td class="nowrap">目录检索</td>
+                <td class="nowrap">莫小芳 / 安居房地产经纪</td>
+                <td class="nowrap">门户</td>
+                <td class="nowrap">日常查询</td>
+                <td class="nowrap text-3">—</td>
+                <td class="nowrap">2026-07-26 16:08</td>
+                <td class="num">42 秒</td>
+                <td class="nowrap no-code">113.12.86.42</td>
+                <td class="nowrap"><span class="badge green">是</span></td>
+                <td class="nowrap text-3">—</td>
+              </tr>
+              <tr>
+                <td class="nowrap no-code">CX2026071808126</td>
+                <td class="nowrap">下载</td>
+                <td class="nowrap">李慧 / 市住建局房产科</td>
+                <td class="nowrap">内部系统</td>
+                <td class="nowrap">办件办理</td>
+                <td class="nowrap no-code">SJ20260718026</td>
+                <td class="nowrap">2026-07-18 11:26</td>
+                <td class="num">3 分 08 秒</td>
+                <td class="nowrap no-code">10.68.12.42</td>
+                <td class="nowrap"><span class="badge green">是</span></td>
+                <td class="nowrap text-3">—</td>
+              </tr>
+              <tr>
+                <td class="nowrap no-code">CX2026070208086</td>
+                <td class="nowrap">打印</td>
+                <td class="nowrap">覃永明 / 柳南区交易大厅</td>
+                <td class="nowrap">内部系统</td>
+                <td class="nowrap">档案借阅</td>
+                <td class="nowrap text-3">—</td>
+                <td class="nowrap">2026-07-02 15:12</td>
+                <td class="num">1 分 26 秒</td>
+                <td class="nowrap no-code">10.68.16.28</td>
+                <td class="nowrap"><span class="badge green">是</span></td>
+                <td class="nowrap text-3">—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="text-3 text-sm mt-8">本案卷累计 26 条利用记录，此处展示最近 5 条。</p>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+</body>
+</html>

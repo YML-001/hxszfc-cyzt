@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>预购商品房抵押备案 · 房屋交易备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：转正倒计时着色与双校验结果面板 */
+  .cd { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .cd.far { color: var(--success); }
+  .cd.mid { color: var(--primary); }
+  .cd.near { color: #b45309; }
+  .cd.over { color: var(--danger); text-decoration: line-through; }
+  .cd i { margin-right: 4px; }
+  .vf { display: flex; align-items: flex-start; gap: 9px; padding: 9px 12px; border-radius: var(--radius); font-size: 13px; margin-bottom: 8px; }
+  .vf.ok { background: #f0fdf4; color: #059669; }
+  .vf.no { background: #fef2f2; color: #dc2626; }
+  .vf i { margin-top: 2px; }
+  .vf b { color: inherit; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdwb-05">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易备案管理系统
+        <span class="sep">/</span> 抵押合同备案
+        <span class="sep">/</span> <span class="cur">预购商品房抵押备案</span>
+      </div>
+      <div class="page-title">预购商品房抵押备案</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" data-open-drawer="drNew"><i class="fa-solid fa-file-circle-plus"></i> 新增预告抵押</button>
+      <button type="button" class="btn" onclick="PMS.toast('已向 14 笔临期预告抵押的抵押权人推送转正提醒','success')"><i class="fa-solid fa-bell"></i> 批量推送转正提醒</button>
+      <button type="button" class="btn" onclick="PMS.toast('《预告抵押台账》Excel 已生成，正在下载','success')"><i class="fa-solid fa-download"></i> 导出台账</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-hourglass-start"></i></div>
+      <div><div class="s-label">未转正</div><div class="s-value">428</div><div class="s-trend text-3">待办证条件具备</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-clock"></i></div>
+      <div><div class="s-label">临期转正</div><div class="s-value">14</div><div class="s-trend text-danger">剩余 ≤ 30 天</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">已转正</div><div class="s-value">2,186</div><div class="s-trend text-3">转正成功率 99.2%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-circle-xmark"></i></div>
+      <div><div class="s-label">已失效</div><div class="s-value">3</div><div class="s-trend text-danger">超期失效率 0.14%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon gray" style="background:#eef1f6;color:#64748b"><i class="fa-solid fa-ban"></i></div>
+      <div><div class="s-label">已注销</div><div class="s-value">52</div><div class="s-trend text-3">买卖合同解除同步注销</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-bell"></i>
+    <div>预告抵押须在<b>转正申请期限内</b>完成转正，期限前 30 / 15 / 7 天各推送一次提醒，超期自动失效并通知抵押权人。当前有 <b>14 笔</b>临期转正（橙色倒计时），请优先处理。</div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>预告抵押编号</label>
+        <input type="text" placeholder="如 YGDY2026070218">
+      </div>
+      <div class="filter-item">
+        <label>买卖合同编号</label>
+        <input type="text" placeholder="如 SPF450200202601286">
+      </div>
+      <div class="filter-item">
+        <label>项目名称</label>
+        <input type="text" placeholder="项目关键词">
+      </div>
+      <div class="filter-item">
+        <label>抵押人</label>
+        <input type="text" placeholder="姓名">
+      </div>
+      <div class="filter-item">
+        <label>抵押权人</label>
+        <select><option value="">全部</option><option>中国建设银行柳州分行</option><option>中国银行柳州分行</option><option>中国工商银行柳州分行</option><option>柳州银行</option><option>XXXX市住房公积金管理中心</option></select>
+      </div>
+      <div class="filter-item">
+        <label>转正状态</label>
+        <select><option value="">全部</option><option>未转正</option><option>已转正</option><option>已失效</option><option>已注销</option></select>
+      </div>
+      <div class="filter-item">
+        <label>预告登记日期起</label>
+        <input type="date" value="2026-01-01">
+      </div>
+      <div class="filter-item">
+        <label>仅看临期</label>
+        <select id="onlyNear" onchange="filterNear()"><option value="0">否</option><option value="1">是（剩余 ≤ 30 天）</option></select>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 2,669 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="no">未转正 <span class="badge blue">428</span></div>
+      <div class="tab" data-tab="yes">已转正</div>
+      <div class="tab" data-tab="dead">已失效 <span class="badge red">3</span></div>
+      <div class="tab" data-tab="del">已注销</div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblYg" data-static>
+        <thead>
+          <tr>
+            <th>预告抵押编号</th>
+            <th>项目与房号</th>
+            <th>买卖合同备案编号</th>
+            <th>抵押人</th>
+            <th>抵押权人</th>
+            <th>贷款金额（元）</th>
+            <th>贷款类型</th>
+            <th>预告登记日期</th>
+            <th>预告登记证明编号</th>
+            <th>转正申请期限</th>
+            <th>转正状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="no" data-near="1">
+            <td class="nowrap fw-600">YGDY2026070218</td>
+            <td>荣和公园大道 8-1-1502</td>
+            <td class="nowrap">SPFBA450200202601286</td>
+            <td class="nowrap">李**</td>
+            <td class="nowrap">中国建设银行柳州分行</td>
+            <td class="num nowrap">620,000.00</td>
+            <td class="nowrap"><span class="badge purple">组合贷</span></td>
+            <td class="nowrap">2026-07-02</td>
+            <td class="nowrap">桂(2026)柳预抵证第 002186 号</td>
+            <td class="nowrap">2026-08-12 <span class="cd near"><i class="fa-regular fa-clock"></i>剩 12 天</span></td>
+            <td class="nowrap"><span class="badge blue">未转正</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.openDrawer('drDetail')">详情</span>
+              <span class="link" onclick="doPromote('YGDY2026070218','荣和公园大道 8-1-1502')">办理转正</span>
+              <span class="link" onclick="doCancel('YGDY2026070218')">注销</span>
+            </td>
+          </tr>
+          <tr data-st="no" data-near="1">
+            <td class="nowrap fw-600">YGDY2026062042</td>
+            <td>华润万象天地 2-1-1802</td>
+            <td class="nowrap">SPFBA450200202601186</td>
+            <td class="nowrap">黄**</td>
+            <td class="nowrap">中国银行柳州分行</td>
+            <td class="num nowrap">1,286,000.00</td>
+            <td class="nowrap"><span class="badge blue">商业贷</span></td>
+            <td class="nowrap">2026-06-20</td>
+            <td class="nowrap">桂(2026)柳预抵证第 001942 号</td>
+            <td class="nowrap">2026-08-06 <span class="cd near"><i class="fa-regular fa-clock"></i>剩 6 天</span></td>
+            <td class="nowrap"><span class="badge blue">未转正</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.openDrawer('drDetail')">详情</span>
+              <span class="link" onclick="doPromote('YGDY2026062042','华润万象天地 2-1-1802')">办理转正</span>
+              <span class="link" onclick="doCancel('YGDY2026062042')">注销</span>
+            </td>
+          </tr>
+          <tr data-st="no" data-near="0">
+            <td class="nowrap fw-600">YGDY2026072086</td>
+            <td>保利柳江府二期 5-2-1201</td>
+            <td class="nowrap">SPFBA450200202601342</td>
+            <td class="nowrap">周**</td>
+            <td class="nowrap">XXXX市住房公积金管理中心</td>
+            <td class="num nowrap">600,000.00</td>
+            <td class="nowrap"><span class="badge green">公积金贷</span></td>
+            <td class="nowrap">2026-07-20</td>
+            <td class="nowrap">桂(2026)柳预抵证第 002286 号</td>
+            <td class="nowrap">2026-09-18 <span class="cd mid">剩 48 天</span></td>
+            <td class="nowrap"><span class="badge blue">未转正</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.openDrawer('drDetail')">详情</span>
+              <span class="link" onclick="doPromote('YGDY2026072086','保利柳江府二期 5-2-1201')">办理转正</span>
+              <span class="link" onclick="doCancel('YGDY2026072086')">注销</span>
+            </td>
+          </tr>
+          <tr data-st="no" data-near="0">
+            <td class="nowrap fw-600">YGDY2026072112</td>
+            <td>彰泰江湾城 11-1-2801</td>
+            <td class="nowrap">SPFBA450200202601368</td>
+            <td class="nowrap">李**</td>
+            <td class="nowrap">中国工商银行柳州分行</td>
+            <td class="num nowrap">862,000.00</td>
+            <td class="nowrap"><span class="badge blue">商业贷</span></td>
+            <td class="nowrap">2026-07-26</td>
+            <td class="nowrap">桂(2026)柳预抵证第 002312 号</td>
+            <td class="nowrap">2026-09-24 <span class="cd far">剩 54 天</span></td>
+            <td class="nowrap"><span class="badge blue">未转正</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.openDrawer('drDetail')">详情</span>
+              <span class="link" onclick="doPromote('YGDY2026072112','彰泰江湾城 11-1-2801')">办理转正</span>
+              <span class="link" onclick="doCancel('YGDY2026072112')">注销</span>
+            </td>
+          </tr>
+          <tr data-st="no" data-near="1">
+            <td class="nowrap fw-600">YGDY2026061808</td>
+            <td>恒兴时代广场 A-2-1102</td>
+            <td class="nowrap">SPFBA450200202601086</td>
+            <td class="nowrap">韦**</td>
+            <td class="nowrap">柳州银行</td>
+            <td class="num nowrap">486,000.00</td>
+            <td class="nowrap"><span class="badge blue">商业贷</span></td>
+            <td class="nowrap">2026-06-18</td>
+            <td class="nowrap">桂(2026)柳预抵证第 001886 号</td>
+            <td class="nowrap">2026-08-17 <span class="cd near"><i class="fa-regular fa-clock"></i>剩 16 天</span></td>
+            <td class="nowrap"><span class="badge blue">未转正</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.openDrawer('drDetail')">详情</span>
+              <span class="link" onclick="doPromote('YGDY2026061808','恒兴时代广场 A-2-1102')">办理转正</span>
+              <span class="link" onclick="doCancel('YGDY2026061808')">注销</span>
+            </td>
+          </tr>
+          <tr data-st="yes" data-near="0">
+            <td class="nowrap fw-600">YGDY2023031012</td>
+            <td>彰泰滨江学府 12-2-1802</td>
+            <td class="nowrap">SPFBA450200202100862</td>
+            <td class="nowrap">陈**</td>
+            <td class="nowrap">中国银行柳州分行</td>
+            <td class="num nowrap">820,000.00</td>
+            <td class="nowrap"><span class="badge blue">商业贷</span></td>
+            <td class="nowrap">2021-05-20</td>
+            <td class="nowrap">桂(2021)柳预抵证第 000862 号</td>
+            <td class="nowrap text-3">2023-05-12 <span class="cd far">已完成</span></td>
+            <td class="nowrap"><span class="badge green">已转正</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.openDrawer('drDetail')">详情</span>
+              <a class="link" href="mortgage-detail.html">正式备案</a>
+              <a class="link" href="archive-book.html">备案簿</a>
+            </td>
+          </tr>
+          <tr data-st="yes" data-near="0">
+            <td class="nowrap fw-600">YGDY2026041026</td>
+            <td>荣和公园大道 3-1-902</td>
+            <td class="nowrap">SPFBA450200202502186</td>
+            <td class="nowrap">韦**</td>
+            <td class="nowrap">中国建设银行柳州分行</td>
+            <td class="num nowrap">452,000.00</td>
+            <td class="nowrap"><span class="badge purple">组合贷</span></td>
+            <td class="nowrap">2026-01-10</td>
+            <td class="nowrap">桂(2026)柳预抵证第 000186 号</td>
+            <td class="nowrap text-3">2026-05-12 <span class="cd far">已完成</span></td>
+            <td class="nowrap"><span class="badge green">已转正</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.openDrawer('drDetail')">详情</span>
+              <a class="link" href="mortgage-detail.html">正式备案</a>
+              <a class="link" href="archive-book.html">备案簿</a>
+            </td>
+          </tr>
+          <tr data-st="dead" data-near="0">
+            <td class="nowrap fw-600">YGDY2026021018</td>
+            <td>阳光100城市广场 3-1-1602</td>
+            <td class="nowrap">SPFBA450200202600286</td>
+            <td class="nowrap">莫**</td>
+            <td class="nowrap">柳州银行</td>
+            <td class="num nowrap">368,000.00</td>
+            <td class="nowrap"><span class="badge blue">商业贷</span></td>
+            <td class="nowrap">2026-02-10</td>
+            <td class="nowrap">桂(2026)柳预抵证第 000386 号</td>
+            <td class="nowrap">2026-04-11 <span class="cd over">已超期 112 天</span></td>
+            <td class="nowrap"><span class="badge red">已失效</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.openDrawer('drDetail')">详情</span>
+              <span class="link" onclick="PMS.toast('失效原因：超过转正申请期限未提交转正申请，系统于 2026-04-12 00:05 自动置为已失效并通知抵押权人','error')">失效原因</span>
+              <span class="link" onclick="doRenew('YGDY2026021018')">补办延期</span>
+            </td>
+          </tr>
+          <tr data-st="del" data-near="0">
+            <td class="nowrap fw-600">YGDY2026032064</td>
+            <td>恒大城 8-1-2201</td>
+            <td class="nowrap">SPFBA450200202600642</td>
+            <td class="nowrap">吴**</td>
+            <td class="nowrap">中国工商银行柳州分行</td>
+            <td class="num nowrap">540,000.00</td>
+            <td class="nowrap"><span class="badge blue">商业贷</span></td>
+            <td class="nowrap">2026-03-20</td>
+            <td class="nowrap">桂(2026)柳预抵证第 000742 号</td>
+            <td class="nowrap text-3">2026-05-19 <span class="cd far">已终止</span></td>
+            <td class="nowrap"><span class="badge gray">已注销</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.openDrawer('drDetail')">详情</span>
+              <span class="link" onclick="PMS.toast('注销原因：商品房买卖合同解除（SPFBA450200202600642 已注销备案），预告抵押同步注销')">注销原因</span>
+              <a class="link" href="archive-book.html">备案簿</a>
+            </td>
+          </tr>
+          <tr data-st="no" data-near="0">
+            <td class="nowrap fw-600">YGDY2026072148</td>
+            <td>万科城 8-1-1602</td>
+            <td class="nowrap">SPFBA450200202601412</td>
+            <td class="nowrap">覃**</td>
+            <td class="nowrap">中国建设银行柳州分行</td>
+            <td class="num nowrap">738,000.00</td>
+            <td class="nowrap"><span class="badge purple">组合贷</span></td>
+            <td class="nowrap">2026-07-28</td>
+            <td class="nowrap">桂(2026)柳预抵证第 002348 号</td>
+            <td class="nowrap">2026-09-26 <span class="cd far">剩 56 天</span></td>
+            <td class="nowrap"><span class="badge blue">未转正</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.openDrawer('drDetail')">详情</span>
+              <span class="link" onclick="doPromote('YGDY2026072148','万科城 8-1-1602')">办理转正</span>
+              <span class="link" onclick="doCancel('YGDY2026072148')">注销</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- 新增预告抵押 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="drNew">
+  <div class="drawer-head">
+    <h3 style="margin:0;font-size:16px">新增预购商品房抵押（预告抵押）</h3>
+    <span class="text-3 text-sm">输入买卖合同编号后自动执行网签备案与资金缴存双校验</span>
+    <button type="button" class="btn btn-ghost" style="margin-left:auto" data-close-drawer><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="drawer-body">
+    <div class="section-title">第一步 · 关联商品房买卖合同</div>
+    <div class="flex gap-8" style="flex-wrap:wrap">
+      <input type="text" id="htNo" style="flex:1;min-width:300px" value="SPF450200202601286" placeholder="输入商品房买卖合同编号">
+      <button type="button" class="btn btn-primary" onclick="doVerify(true)"><i class="fa-solid fa-magnifying-glass"></i> 查询并校验</button>
+      <button type="button" class="btn" onclick="doVerify(false)"><i class="fa-solid fa-repeat"></i> 切换拦截示例</button>
+    </div>
+
+    <div class="section-title mt-16" style="margin-top:18px">校验结果</div>
+    <div id="vfBox"></div>
+
+    <div class="section-title mt-16" style="margin-top:18px">第二步 · 预告抵押要素</div>
+    <div class="form-grid form-align">
+      <div class="form-item"><label>预告抵押编号</label><input type="text" value="YGDY2026080102" readonly></div>
+      <div class="form-item"><label>抵押合同编号<span class="req">*</span></label><input type="text" value="DY450200202600192"></div>
+      <div class="form-item"><label>项目与房号</label><input type="text" value="荣和公园大道 8 栋 1 单元 1502" readonly></div>
+      <div class="form-item"><label>预告抵押人<span class="req">*</span></label><input type="text" value="李**"></div>
+      <div class="form-item"><label>证件号码<span class="req">*</span></label><input type="text" value="450***********2186"></div>
+      <div class="form-item">
+        <label>预告抵押权人<span class="req">*</span></label>
+        <select><option>中国建设银行柳州分行</option><option>中国银行柳州分行</option><option>中国工商银行柳州分行</option><option>柳州银行</option><option>XXXX市住房公积金管理中心</option></select>
+      </div>
+      <div class="form-item"><label>贷款金额（元）<span class="req">*</span></label><input type="text" value="620,000.00"></div>
+      <div class="form-item">
+        <label>贷款类型<span class="req">*</span></label>
+        <select onchange="PMS.toast('已切换贷款类型：' + this.value)"><option>组合贷（商贷 + 公积金）</option><option>商业贷款</option><option>公积金贷款</option></select>
+      </div>
+      <div class="form-item"><label>商贷分项（元）</label><input type="text" value="420,000.00"></div>
+      <div class="form-item"><label>公积金分项（元）</label><input type="text" value="200,000.00"></div>
+      <div class="form-item"><label>贷款期限（月）<span class="req">*</span></label><input type="text" value="360"></div>
+      <div class="form-item"><label>贷款年利率（%）<span class="req">*</span></label><input type="text" value="3.35 / 2.85"></div>
+      <div class="form-item"><label>预告登记时间<span class="req">*</span></label><input type="date" value="2026-08-01"></div>
+      <div class="form-item"><label>预告有效期止<span class="req">*</span></label><input type="date" value="2027-08-01"></div>
+      <div class="form-item"><label>转正申请期限<span class="req">*</span></label><input type="date" value="2026-09-30"></div>
+      <div class="form-item"><label>预告登记证明编号</label><input type="text" placeholder="登记完成后自动回填"></div>
+    </div>
+
+    <div class="section-title mt-16" style="margin-top:18px">材料上传</div>
+    <div class="table-wrap" style="max-height:none">
+      <table class="data-table compact" data-static>
+        <thead><tr><th>材料名称</th><th>必要性</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr><td>商品房买卖合同（网签备案件）</td><td><span class="badge red">必要</span></td><td><span class="badge green">系统自动调取</span></td><td><span class="link" onclick="PMS.toast('预览：SPFBA450200202601286.pdf')">预览</span></td></tr>
+          <tr><td>抵押合同（预告抵押）</td><td><span class="badge red">必要</span></td><td><span class="badge green">已上传</span></td><td><span class="link" onclick="PMS.toast('预览：DY450200202600192.pdf')">预览</span></td></tr>
+          <tr><td>借款合同</td><td><span class="badge red">必要</span></td><td><span class="badge green">已上传</span></td><td><span class="link" onclick="PMS.toast('预览：借款合同.pdf')">预览</span></td></tr>
+          <tr><td>抵押人身份证明</td><td><span class="badge red">必要</span></td><td><span class="badge green">已上传</span></td><td><span class="link" onclick="PMS.toast('预览：身份证明.pdf')">预览</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button type="button" class="btn" data-close-drawer>取消</button>
+    <button type="button" class="btn btn-primary" id="btnSubmitYg" onclick="submitYg()"><i class="fa-solid fa-paper-plane"></i> 提交预告抵押登记</button>
+  </div>
+</div>
+
+<!-- 预告抵押详情 -->
+<div class="drawer" id="drDetail">
+  <div class="drawer-head">
+    <h3 style="margin:0;font-size:16px">预告抵押详情 · YGDY2026070218</h3>
+    <span class="badge blue">未转正</span>
+    <button type="button" class="btn btn-ghost" style="margin-left:auto" data-close-drawer><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="drawer-body">
+    <div class="alert alert-warning">
+      <i class="fa-regular fa-clock"></i>
+      <div>转正申请期限 <b>2026-08-12</b>，剩余 <b>12 天</b>。系统已于 2026-07-13（前 30 天）、2026-07-28（前 15 天）推送提醒，2026-08-05（前 7 天）将推送最后一次提醒。</div>
+    </div>
+    <div class="section-title mt-16">基本信息</div>
+    <dl class="desc-list">
+      <div class="desc-item"><dt>预告抵押编号</dt><dd>YGDY2026070218</dd></div>
+      <div class="desc-item"><dt>抵押合同编号</dt><dd>DY450200202600156</dd></div>
+      <div class="desc-item"><dt>买卖合同编号</dt><dd>SPF450200202601286</dd></div>
+      <div class="desc-item"><dt>买卖合同备案编号</dt><dd>SPFBA450200202601286</dd></div>
+      <div class="desc-item"><dt>项目与房号</dt><dd>荣和公园大道 8 栋 1 单元 1502</dd></div>
+      <div class="desc-item"><dt>房屋坐落</dt><dd>柳州市鱼峰区公园大道 1 号荣和公园大道 8 栋 1 单元 1502</dd></div>
+      <div class="desc-item"><dt>预告抵押人</dt><dd>李**（450***********2186）</dd></div>
+      <div class="desc-item"><dt>预告抵押权人</dt><dd>中国建设银行柳州分行</dd></div>
+      <div class="desc-item"><dt>贷款金额</dt><dd class="fw-700">620,000.00 元</dd></div>
+      <div class="desc-item"><dt>贷款类型</dt><dd><span class="badge purple">组合贷</span> 商贷 420,000 + 公积金 200,000</dd></div>
+      <div class="desc-item"><dt>贷款期限</dt><dd>360 个月（30 年）</dd></div>
+      <div class="desc-item"><dt>贷款年利率</dt><dd>商贷 3.35% / 公积金 2.85%</dd></div>
+    </dl>
+    <div class="section-title mt-16" style="margin-top:18px">登记结果</div>
+    <dl class="desc-list">
+      <div class="desc-item"><dt>预告登记时间</dt><dd>2026-07-02</dd></div>
+      <div class="desc-item"><dt>预告登记证明编号</dt><dd>桂(2026)柳预抵证第 002186 号</dd></div>
+      <div class="desc-item"><dt>预告有效期止</dt><dd>2027-07-02</dd></div>
+      <div class="desc-item"><dt>转正申请期限</dt><dd class="text-warning fw-700">2026-08-12（剩 12 天）</dd></div>
+      <div class="desc-item"><dt>转正状态</dt><dd><span class="badge blue">0 未转正</span></dd></div>
+      <div class="desc-item"><dt>证明文件</dt><dd><span class="link" onclick="PMS.toast('预览：预告登记证明.pdf')"><i class="fa-solid fa-file-pdf"></i> 预告登记证明.pdf</span></dd></div>
+    </dl>
+    <div class="section-title mt-16" style="margin-top:18px">转正条件核验</div>
+    <div class="vf ok"><i class="fa-solid fa-circle-check"></i><div>商品房买卖合同已完成网签备案（SPFBA450200202601286，备案日期 2026-06-18）</div></div>
+    <div class="vf ok"><i class="fa-solid fa-circle-check"></i><div>预售监管资金已按规定缴存 1,286,000.00 元（缴存比例 100%）</div></div>
+    <div class="vf no"><i class="fa-solid fa-circle-xmark"></i><div><b>不动产权证尚未办理</b>，转移登记预计 2026-08-08 完成，办证后方可申请转正</div></div>
+    <div class="vf no"><i class="fa-solid fa-circle-xmark"></i><div><b>房屋尚未交付</b>，项目计划交付时间 2026-08-10</div></div>
+    <div class="section-title mt-16" style="margin-top:18px">提醒推送记录</div>
+    <div class="timeline">
+      <div class="tl-item pending"><span class="tl-dot"></span><div class="tl-title">前 7 天提醒（待推送）</div><div class="tl-meta">计划 2026-08-05 · 短信 + 银行端消息</div></div>
+      <div class="tl-item done"><span class="tl-dot"></span><div class="tl-title">前 15 天提醒</div><div class="tl-meta">2026-07-28 09:00 · 已推送至中国建设银行柳州分行与抵押人</div></div>
+      <div class="tl-item done"><span class="tl-dot"></span><div class="tl-title">前 30 天提醒</div><div class="tl-meta">2026-07-13 09:00 · 已推送</div></div>
+      <div class="tl-item done"><span class="tl-dot"></span><div class="tl-title">预告抵押登记完成</div><div class="tl-meta">2026-07-02 15:26 · 登记人 韦国强</div></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button type="button" class="btn" data-close-drawer>关闭</button>
+    <button type="button" class="btn btn-primary" onclick="doPromote('YGDY2026070218','荣和公园大道 8-1-1502')"><i class="fa-solid fa-arrow-up-right-dots"></i> 办理转正</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  var table = document.getElementById('tblYg');
+  document.getElementById('stTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var name = tab.getAttribute('data-tab');
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.style.display = (name === 'all' || tr.getAttribute('data-st') === name) ? '' : 'none';
+    });
+    document.getElementById('onlyNear').value = '0';
+  });
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 2669,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+
+function filterNear() {
+  var on = document.getElementById('onlyNear').value === '1';
+  document.querySelectorAll('#tblYg tbody tr').forEach(function (tr) {
+    tr.style.display = (!on || tr.getAttribute('data-near') === '1') ? '' : 'none';
+  });
+  if (on) PMS.toast('已筛选临期转正记录，共 14 条');
+}
+
+/* 新增预告抵押的三项前置校验：网签备案、资金缴存、房源限制 */
+function doVerify(pass) {
+  document.getElementById('vfBox').innerHTML = pass
+    ? '<div class="vf ok"><i class="fa-solid fa-circle-check"></i><div><b>网签备案校验通过</b>：该合同已于 2026-06-18 完成网签备案（备案编号 SPFBA450200202601286）</div></div>' +
+      '<div class="vf ok"><i class="fa-solid fa-circle-check"></i><div><b>预售资金缴存校验通过</b>：已按规定缴存监管资金 1,286,000.00 元（缴存比例 100%）</div></div>' +
+      '<div class="vf ok"><i class="fa-solid fa-circle-check"></i><div><b>房源限制校验通过</b>：无查封、无预查封、无异议登记</div></div>'
+    : '<div class="vf no"><i class="fa-solid fa-circle-xmark"></i><div><b>网签备案校验不通过</b>：合同 SPF450200202601412 处于「已签署待备案」状态，尚未完成网签备案，不得办理预告抵押</div></div>' +
+      '<div class="vf no"><i class="fa-solid fa-circle-xmark"></i><div><b>预售资金缴存校验不通过</b>：应缴存 986,000.00 元，实际缴存 420,000.00 元，缴存比例 42.6%，低于规定比例</div></div>' +
+      '<div class="vf ok"><i class="fa-solid fa-circle-check"></i><div><b>房源限制校验通过</b>：无查封、无预查封、无异议登记</div></div>';
+  document.getElementById('btnSubmitYg').disabled = !pass;
+  if (!pass) {
+    document.getElementById('htNo').value = 'SPF450200202601412';
+    PMS.toast('校验不通过，已列出缺失项', 'error');
+  } else {
+    document.getElementById('htNo').value = 'SPF450200202601286';
+    PMS.toast('三项校验全部通过', 'success');
+  }
+}
+
+function submitYg() {
+  PMS.confirm({
+    title: '提交预告抵押登记',
+    message: '确认提交预告抵押 YGDY2026080102 的登记申请？',
+    detail: '登记完成后生成预告登记证明编号，并按「预告登记后 60 日内」设定转正申请期限，到期前 30 / 15 / 7 天自动推送提醒。',
+    type: 'info',
+    okText: '确认提交',
+    onOk: function () {
+      PMS.closeDrawer('drNew');
+      PMS.toast('预告抵押登记成功，证明编号 桂(2026)柳预抵证第 002386 号', 'success');
+    }
+  });
+}
+
+/* 办理转正：核验办证与交付条件后生成正式抵押备案 */
+function doPromote(no, house) {
+  PMS.confirm({
+    title: '办理预告抵押转正',
+    message: '确认为 ' + no + '（' + house + '）办理转正？',
+    detail: '转正条件核验：不动产权证已办理 ✓ · 房屋已交付 ✓ · 买卖合同未解除 ✓。转正后生成正式抵押备案，并回填转正时间与转正后备案主键，备案类型置为「1 预告转正式」。',
+    type: 'info',
+    okText: '确认转正',
+    onOk: function () {
+      PMS.closeDrawer();
+      PMS.toast('转正成功，已生成正式抵押备案 DYBA450200202600312', 'success');
+      setTimeout(function () {
+        PMS.confirm({
+          title: '转正完成',
+          message: '预告抵押 ' + no + ' 已转为正式抵押备案 DYBA450200202600312。',
+          detail: '已同步：① 预告抵押转正状态置「1 已转正」；② 生成正式抵押备案并推送不动产登记办理抵押登记；③ 刷新该房交易限制状态。',
+          okText: '查看正式备案',
+          cancelText: '留在本页',
+          onOk: function () { location.href = 'mortgage-detail.html'; }
+        });
+      }, 800);
+    }
+  });
+}
+
+function doCancel(no) {
+  PMS.confirm({
+    title: '注销预告抵押',
+    message: '确认注销预告抵押 ' + no + '？',
+    detail: '注销须说明原因（买卖合同解除 / 贷款撤销 / 其他），注销后预告登记失效并刷新房屋交易限制状态。破坏性操作，请谨慎确认。',
+    type: 'danger',
+    okText: '确认注销',
+    onOk: function () { PMS.toast('预告抵押 ' + no + ' 已注销', 'success'); }
+  });
+}
+
+function doRenew(no) {
+  PMS.confirm({
+    title: '补办延期',
+    message: '确认为已失效的预告抵押 ' + no + ' 补办延期？',
+    detail: '补办延期须提供抵押权人延期申请与说明材料，延期通过后转正状态由「已失效」恢复为「未转正」，并重新设定转正申请期限。',
+    type: 'info',
+    okText: '提交延期申请',
+    onOk: function () { PMS.toast('延期申请已提交，待业务审核', 'success'); }
+  });
+}
+
+doVerify(true);
+</script>
+</body>
+</html>

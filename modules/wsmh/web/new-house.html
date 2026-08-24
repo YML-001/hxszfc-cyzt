@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新房专区 · 统一服务门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  /* 新房专区专属布局 */
+  .nh-body { padding-bottom: 40px; }
+  .nh-card-acts { display: flex; gap: 8px; padding: 0 14px 14px; }
+  .nh-card-acts .btn { flex: 1; }
+  .nh-wrap { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden; transition: .18s; }
+  .nh-wrap:hover { border-color: var(--primary); box-shadow: var(--shadow); }
+  .nh-wrap .house-card { border: 0; border-radius: 0; }
+  .nh-wrap .house-card:hover { transform: none; box-shadow: none; }
+</style>
+</head>
+<body data-nav="house">
+
+<div class="wrap">
+  <div class="crumb"><a href="home.html">首页</a><i class="fa-solid fa-angle-right"></i><a href="house-market.html">房源超市</a><i class="fa-solid fa-angle-right"></i>新房专区</div>
+</div>
+
+<div class="wrap nh-body">
+  <!-- 核验与实时同步说明（wsmh-08-02） -->
+  <div class="alert alert-success" data-fp="wsmh-08-02">
+    <i class="fa-solid fa-shield-halved"></i>
+    <span>本专区<b>只展示核验通过的商品房项目与房源</b>：项目须已取得商品房预售许可或完成现售备案，逐套房源经权属与销控核验后方可对外展示。
+      房源成交、下架、限制交易等状态与商品房网签备案管理系统<b>实时同步</b>，成交即时下架；
+      一房一价与销控表同源展示，价格为<b>备案（拟售）价格，实际成交以合同为准</b>。</span>
+  </div>
+
+  <!-- 筛选（wsmh-08-01） -->
+  <div class="filter-panel" id="filter-panel"></div>
+  <div class="filter-chosen" id="filter-chosen"></div>
+
+  <div class="sort-bar">
+    <span class="text-3">排序：</span>
+    <a class="on" data-sort="ys" data-fp="wsmh-08-01">预售证发证时间</a>
+    <a data-sort="pa" data-fp="wsmh-08-01">均价从低到高</a>
+    <a data-sort="pd" data-fp="wsmh-08-01">均价从高到低</a>
+    <a data-sort="ks" data-fp="wsmh-08-01">可售套数</a>
+    <span class="sb-r" id="sort-r"></span>
+  </div>
+
+  <div class="house-grid" id="list"></div>
+  <div id="pager"></div>
+  <div id="src-note"></div>
+</div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+var S = { sort: 'ys', page: 1, size: 8 };
+
+function pageInit() {
+  renderFilters();
+  document.querySelector('.sort-bar').onclick = function (e) {
+    var a = e.target.closest('[data-sort]'); if (!a) return;
+    document.querySelectorAll('.sort-bar [data-sort]').forEach(function (x) { x.classList.remove('on'); });
+    a.classList.add('on'); S.sort = a.getAttribute('data-sort'); S.page = 1; render();
+  };
+  document.getElementById('list').onclick = function (e) {
+    var c = e.target.closest('[data-cmp]');
+    if (c) { addCmp(c.getAttribute('data-cmp')); }
+  };
+  render();
+  document.getElementById('src-note').innerHTML = UI.sourceNote(
+    '新房项目信息来源于商品房网签备案管理系统与预售许可业务库，可售套数与销控表实时同源。');
+}
+
+window.onFilterChange = function () { S.page = 1; render(); };
+
+function renderFilters() {
+  var rows = [
+    ['qx', '区域', [['', '不限']].concat(PDATA.QX.map(function (q) { return [q, q]; }))],
+    ['zt', '销售状态', [['', '不限'], ['预售', '预售（已取得预售许可）'], ['现售', '现售（已完成现售备案）']]],
+    ['jj', '均价区间', [['', '不限'], ['0-9000', '9000 元/㎡ 以下'], ['9000-11000', '9000-11000 元/㎡'],
+      ['11000-13000', '11000-13000 元/㎡'], ['13000-', '13000 元/㎡ 以上']]],
+    ['ks', '可售套数', [['', '不限'], ['1-50', '50 套以内'], ['50-100', '50-100 套'], ['100-150', '100-150 套'], ['150-', '150 套以上']]],
+    ['pz', '品质与提示', [['', '不限'], ['good', '好房子认定项目'], ['risk', '带风险提示项目'], ['zjdy', '涉在建工程抵押']]]
+  ];
+  var initQx = UI.param('qx');
+  document.getElementById('filter-panel').innerHTML = rows.map(function (r) {
+    var cur = r[0] === 'qx' ? initQx : '';
+    return '<div class="filter-row" data-key="' + r[0] + '"><div class="fr-label">' + r[1] + '</div><div class="fr-opts">'
+      + r[2].map(function (o) {
+        return '<a class="' + (cur === o[0] ? 'on' : '') + '" data-v="' + o[0] + '" data-fp="wsmh-08-01">' + o[1] + '</a>';
+      }).join('') + '</div></div>';
+  }).join('');
+  UI.syncChosen();
+}
+
+function rangeOf(key) {
+  var v = UI.filterVal(key); if (!v) return null;
+  var a = v.split('-');
+  return { min: a[0] ? Number(a[0]) : 0, max: a[1] ? Number(a[1]) : 0 };
+}
+
+function query() {
+  var qx = UI.filterVal('qx'), zt = UI.filterVal('zt'), pz = UI.filterVal('pz');
+  var jj = rangeOf('jj'), ks = rangeOf('ks');
+  return PORTAL.projects({ qx: qx }).filter(function (p) {
+    if (zt && p.zt !== zt) return false;
+    if (jj && (p.junjia < jj.min || (jj.max && p.junjia > jj.max))) return false;
+    if (ks && (p.ksts < ks.min || (ks.max && p.ksts > ks.max))) return false;
+    if (pz === 'good' && !p.good) return false;
+    if (pz === 'risk' && !p.risk) return false;
+    if (pz === 'zjdy' && !p.zjdy) return false;
+    return true;
+  });
+}
+
+function render() {
+  var arr = query();
+  if (S.sort === 'pa') arr.sort(function (a, b) { return a.junjia - b.junjia; });
+  else if (S.sort === 'pd') arr.sort(function (a, b) { return b.junjia - a.junjia; });
+  else if (S.sort === 'ks') arr.sort(function (a, b) { return b.ksts - a.ksts; });
+  else arr.sort(function (a, b) { return a.ysrq < b.ysrq ? 1 : -1; });
+
+  var ks = 0;
+  arr.forEach(function (p) { ks += p.ksts; });
+  document.getElementById('sort-r').innerHTML = '共 <b>' + arr.length + '</b> 个项目 / 可售 <b>'
+    + UI.money(ks, 0) + '</b> 套　更新时间 ' + UI.today() + ' 06:00';
+
+  var box = document.getElementById('list');
+  if (!arr.length) {
+    box.className = '';
+    box.innerHTML = '<div class="card"><div class="card-body">'
+      + UI.empty('没有符合当前条件的核验项目', '可减少筛选条件，或到二手房、租房专区看看',
+        '<button class="btn btn-primary" id="clear-all" data-fp="wsmh-08-01"><i class="fa-solid fa-trash-can"></i> 清空筛选条件</button> '
+        + '<a class="btn" href="second-house.html" data-fp="wsmh-09-01">去二手房专区</a> '
+        + '<a class="btn" href="house-map.html" data-fp="wsmh-07-02">换地图找房</a>')
+      + '</div></div>';
+    document.getElementById('pager').innerHTML = '';
+    document.getElementById('clear-all').onclick = function () {
+      document.querySelectorAll('.filter-row').forEach(function (r) {
+        r.querySelectorAll('a').forEach(function (y) { y.classList.remove('on'); });
+        if (r.querySelector('a')) r.querySelector('a').classList.add('on');
+      });
+      UI.syncChosen(); S.page = 1; render(); UI.toast('已清空筛选条件', 'success');
+    };
+    return;
+  }
+
+  box.className = 'house-grid';
+  var start = (S.page - 1) * S.size;
+  box.innerHTML = arr.slice(start, start + S.size).map(card).join('');
+  UI.pager(document.getElementById('pager'), arr.length, S.page, S.size, function (p) {
+    S.page = p; render(); window.scrollTo({ top: 300, behavior: 'smooth' });
+  });
+}
+
+function card(p) {
+  return '<div class="nh-wrap">'
+    + '<a class="house-card" href="new-house-detail.html?id=' + p.id + '" data-fp="wsmh-07-06">'
+    + '<div class="hc-img"><img src="' + p.img + '" alt="' + UI.esc(p.xmmc) + '">'
+    + '<span class="hc-badge"><i class="fa-solid fa-shield-halved"></i> 已核验</span>'
+    + '<span class="hc-state">' + p.zt + '</span></div>'
+    + '<div class="hc-body">'
+    + '<div class="hc-t">' + p.xmmc + '</div>'
+    + '<div class="hc-sub">' + p.qx + ' · ' + p.sq + ' · ' + p.dz + '</div>'
+    + '<div class="hc-tags">'
+    + '<span class="tag-q g">可售 ' + p.ksts + ' 套</span>'
+    + '<span class="tag-q">总 ' + p.zts + ' 套</span>'
+    + (p.good ? '<span class="tag-q g">好房子</span>' : '')
+    + (p.risk ? '<span class="tag-q r">风险提示</span>' : '')
+    + (p.zjdy ? '<span class="tag-q o">在建工程抵押</span>' : '')
+    + '</div>'
+    + '<div class="hc-price">' + UI.money(p.junjia, 0) + '<em>元/㎡</em>'
+    + '<span class="hc-unit">备案（拟售）价格</span></div>'
+    + '<div class="hc-foot"><span>' + p.kfqy.replace('XXXX市', '').replace('有限公司', '') + '</span>'
+    + '<span>预售证 ' + p.ysrq + '</span></div>'
+    + '</div></a>'
+    + '<div class="nh-card-acts">'
+    + '<a class="btn btn-sm" href="price-table.html?id=' + p.id + '" data-fp="wsmh-08-04">一房一价</a>'
+    + '<button class="btn btn-sm" data-cmp="' + p.id + '" data-fp="wsmh-12-08">加入对比</button>'
+    + '<a class="btn btn-sm btn-primary" href="select-room.html?id=' + p.id + '" data-fp="wsmh-13-01">在线选房</a>'
+    + '</div></div>';
+}
+
+/* 对比栏（与检索页共用 sessionStorage） */
+function addCmp(id) {
+  var a = [];
+  try { a = JSON.parse(sessionStorage.getItem('wsmh.compare') || '[]'); } catch (e) { a = []; }
+  if (a.indexOf(id) >= 0) { UI.toast('该项目已在对比栏中', 'warning'); return; }
+  if (a.length >= 4) { UI.toast('最多同时对比 4 个，请先到对比页移除', 'warning'); return; }
+  a.push(id);
+  try { sessionStorage.setItem('wsmh.compare', JSON.stringify(a)); } catch (e) { }
+  if (a.length >= 2) {
+    UI.confirm('已加入对比', '对比栏当前有 <b>' + a.length + '</b> 个项目，是否立即查看逐指标对比？',
+      function () { UI.go('web/house-compare.html', { ids: a.join(',') }); }, '开始对比');
+  } else {
+    UI.toast('已加入对比栏，再选 1 个项目即可开始对比', 'success');
+  }
+}
+</script>
+</body>
+</html>

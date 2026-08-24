@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>原型框架自检</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body>
+<main class="app-main" style="margin-left:0;margin-top:0">
+  <div id="out"></div>
+</main>
+<script src="../assets/js/catalog.js"></script>
+<script src="../assets/js/app.js"></script>
+<script>
+/* 开发期自检：核对菜单与《菜单梳理v1.0》、角色白名单、首页配置与链接可达性。
+   浏览器打开 tools/audit.html 查看结果，window.AUDIT 为机器可读结论。 */
+(function () {
+  var CFGS = window.APP_CONFIGS, CAT = window.CATALOG;
+  var fails = [], stats = [], hrefs = {}, seenKeys = {};
+
+  function ck(cond, msg) { if (!cond) fails.push(msg); }
+
+  /* 菜单 href 是相对各端目录写的，自检页在 tools/ 下，按端目录换算成绝对地址 */
+  function abs(end, href) {
+    return new URL(href.split('?')[0], new URL('../' + end + '/', location.href)).href;
+  }
+
+  hrefs[new URL('../assets/img/logo.png', location.href).href] = 1;
+
+  Object.keys(CFGS).forEach(function (end) {
+    var cfg = CFGS[end], systems = cfg.systems || [], items = 0, keys = [], lines = [];
+
+    ck(!!cfg.endName && !!cfg.endIcon, end + ' 缺端名或端图标');
+    cfg.menu.forEach(function (it) {
+      items++; keys.push(it.key);
+      hrefs[abs(end, it.href)] = 1;
+    });
+    // 有子系统的端，侧栏全部菜单来自子系统；没有的端（移动端）留一个首页项兜底
+    ck(systems.length ? cfg.menu.length === 0
+                      : cfg.menu.length === 1 && cfg.menu[0].key === 'dashboard',
+       end + ' 常驻菜单配置不对：应当为空或只有首页');
+
+    systems.forEach(function (s) {
+      var sub = CAT.subs[s.key];
+      ck(!!sub, end + ' 子系统代号不在目录数据里：' + s.key);
+      if (sub) {
+        ck(sub.name === s.name, end + ' 子系统名与菜单梳理表不一致：' + s.key);
+        ck(sub.line === s.line, end + ' 子系统业务线不一致：' + s.key);
+      }
+      if (lines.indexOf(s.line) < 0) lines.push(s.line);
+      ck(s.menu.length > 0, end + ' 子系统没有菜单：' + s.key);
+      var first = s.menu[0];
+      ck(first && !first.children && first.label === '我的工作台',
+         end + '/' + s.key + ' 第一项不是「我的工作台」');
+      /* 工作台默认走本端首页；子系统自建了专属工作台 <代号>-01.html 的走那张真页 */
+      ck(!first || first.href.split('?')[0] === 'dashboard.html' ||
+         first.href.split('?')[0] === '../modules/' + s.key + '/' + first.key + '.html',
+         end + '/' + s.key + ' 我的工作台没有指向本端首页或本子系统工作台页');
+
+      s.menu.forEach(function (it) {
+        var leaves = it.children || [it];
+        if (it.children) {
+          ck(!!it.icon, end + ' 一级菜单缺图标：' + s.key + ' ' + it.label);
+          ck(leaves.length > 0, end + ' 一级菜单没有二级菜单：' + s.key + ' ' + it.label);
+        }
+        leaves.forEach(function (c) {
+          items++; keys.push(c.key);
+          seenKeys[c.key] = 1;
+          ck(!!c.key, end + ' 有菜单项缺菜单代号：' + c.label);
+          var m = CAT.menus[c.key];
+          ck(!!m, end + ' 菜单代号不在目录数据里：' + c.key);
+          if (m) {
+            ck(m.label === c.label,
+               end + ' 菜单名与梳理表不一致：' + c.key + ' ' + c.label + ' ≠ ' + m.label);
+            ck(m.sub === s.key, end + ' 菜单挂错子系统：' + c.key + ' 应属 ' + m.sub);
+            ck(m.group === (it.children ? it.label : ''),
+               end + ' 菜单的一级菜单归属不一致：' + c.key);
+          }
+          /* 占位页要靠 e= 参数才知道自己代表哪个端；已建成的业务页在 modules/<子系统>/
+             下按菜单代号命名，端由所在外壳决定，不需要也不应该带端参数 */
+          var hf = c.href.split('?')[0];
+          ck(hf === 'dashboard.html' ||
+             /^\.\.\/modules\/[a-z]+\/[a-z]+-\d{2}\.html$/.test(hf) ||
+             c.href.indexOf('e=' + end) > 0,
+             end + ' 菜单 href 缺端参数：' + c.key);
+          hrefs[abs(end, c.href)] = 1;
+        });
+      });
+    });
+    ck(!systems.length || systems.some(function (s) { return s.key === cfg.defaultSystem; }),
+       end + ' defaultSystem 不在子系统清单里：' + cfg.defaultSystem);
+
+    // 本端归属的子系统必须一一对应一套菜单，菜单也必须全部进侧栏。
+    // 移动端是单页式 H5，不走 PC 外壳，其子系统不在这里核对。
+    if (end !== 'mobile') {
+      Object.keys(CAT.subs).filter(function (c) { return CAT.subs[c].end === end; })
+        .forEach(function (c) {
+          ck(systems.filter(function (s) { return s.key === c; }).length === 1,
+             end + ' 子系统未生成唯一菜单树：' + c);
+        });
+      Object.keys(CAT.menus).filter(function (k) { return CAT.subs[CAT.menus[k].sub].end === end; })
+        .forEach(function (k) { ck(keys.indexOf(k) >= 0, end + ' 目录里的菜单未进侧栏：' + k); });
+    }
+
+    // 角色：roles / roleMenu / home 三者一致
+    var roles = Object.keys(cfg.roles);
+    ck(!!cfg.roles[cfg.defaultRole], end + ' defaultRole 不在 roles 里：' + cfg.defaultRole);
+    roles.forEach(function (r) {
+      ck(!!cfg.home[r], end + ' 角色缺 home 配置：' + r);
+      var allow = cfg.roleMenu[r];
+      if (allow) {
+        allow.forEach(function (k) { ck(keys.indexOf(k) >= 0, end + '/' + r + ' 白名单含无效菜单代号：' + k); });
+        ck(allow.length > 0 || !systems.length, end + '/' + r + ' 白名单没有任何菜单');
+        // 该角色至少能进一个业务子系统，否则顶栏切换系统会是空面板
+        ck(!systems.length || systems.some(function (s) {
+          return s.menu.some(function (it) {
+            return (it.children || [it]).some(function (c) { return allow.indexOf(c.key) >= 0; });
+          });
+        }), end + '/' + r + ' 没有任何可进入的业务子系统');
+      }
+      var h = cfg.home[r];
+      (h.shortcuts || []).forEach(function (s) {
+        hrefs[abs(end, s.h)] = 1;
+        var k = (s.h.match(/[?&]k=([^&]+)/) || [])[1];
+        ck(!k || !!CAT.menus[k], end + '/' + r + ' 快捷入口菜单代号无效：' + k);
+        ck(!k || !allow || allow.indexOf(k) >= 0,
+           end + '/' + r + ' 快捷入口不在本角色白名单里：' + k);
+      });
+      ck(!!(h.body || (h.kpis && h.kpis.length) || (h.todos && h.todos.length)),
+         end + '/' + r + ' 首页没有任何内容');
+    });
+    if (cfg.roleMenu && Object.keys(cfg.roleMenu).length) {
+      keys.forEach(function (k) {
+        if (k === 'dashboard') return;
+        var seen = roles.some(function (r) {
+          var a = cfg.roleMenu[r];
+          return !a || a.indexOf(k) >= 0;
+        });
+        ck(seen, end + ' 菜单无任何角色可见：' + k);
+      });
+    }
+    stats.push({ end: end, lines: lines.length, systems: systems.length,
+                 items: items, roles: roles.length });
+  });
+
+  // 目录数据自身核对
+  var mks = Object.keys(CAT.menus), pts = 0, subKeys = Object.keys(CAT.subs);
+  mks.forEach(function (k) {
+    var m = CAT.menus[k];
+    ck(!!CAT.subs[m.sub], '菜单的子系统代号无效：' + k);
+    /* 工作台与「新增菜单」（v1.9 中无对应功能点，如现网报表的专题统计页）不作要求 */
+    ck(m.points.length > 0 || m.label === '我的工作台' || m.note === '新增菜单',
+       '菜单无功能点：' + k);
+    ck(/^ws[a-z]+-\d{2}$/.test(k), '菜单代号不合规：' + k);
+    pts += m.points.length;
+  });
+  subKeys.forEach(function (c) {
+    ck(CAT.subs[c].menus.length > 0, '子系统无菜单：' + c);
+    ck(/^ws[a-z]+$/.test(c), '子系统代号不合规：' + c);
+    ck(CAT.subs[c].menus.every(function (k) { return seenKeys[k] || CAT.subs[c].end === 'mobile'; }),
+       '子系统有菜单没进任何端的侧栏：' + c);
+  });
+
+  // 链接可达性
+  var links = Object.keys(hrefs), pending = links.length, dead = [];
+  function render() {
+    var html = '<div class="home-hero"><div class="hero-l">' +
+      '<div class="hero-greet">原型框架自检' + (fails.length || dead.length ? ' · 未通过' : ' · 全部通过') + '</div>' +
+      '<div class="hero-sub">菜单与《菜单梳理v1.0》逐条比对、角色白名单、首页配置与链接可达性</div>' +
+      '</div><div class="hero-r">' +
+      '<div class="hs"><div class="hs-v">' + subKeys.length + '</div><div class="hs-l">业务子系统</div></div>' +
+      '<div class="hs-div"></div><div class="hs"><div class="hs-v">' + mks.length + '</div><div class="hs-l">菜单</div></div>' +
+      '<div class="hs-div"></div><div class="hs"><div class="hs-v">' + pts + '</div><div class="hs-l">功能点</div></div>' +
+      '</div></div>';
+    html += '<div class="alert alert-' + (fails.length || dead.length ? 'danger' : 'success') + '">' +
+      '<i class="fa-solid fa-' + (fails.length || dead.length ? 'circle-xmark' : 'circle-check') + '"></i><div>' +
+      (fails.length + dead.length) + ' 项问题，检查了 ' + links.length + ' 个链接目标</div></div>';
+    html += '<div class="card"><div class="card-head"><h3>各端菜单规模</h3></div><div class="card-body">' +
+      '<table class="data-table"><thead><tr><th>端</th><th class="num">业务线</th>' +
+      '<th class="num">业务子系统</th><th class="num">菜单项</th><th class="num">角色</th></tr></thead><tbody>' +
+      stats.map(function (s) {
+        return '<tr><td>' + s.end + '</td><td class="num">' + s.lines + '</td><td class="num">' +
+          s.systems + '</td><td class="num">' + s.items + '</td><td class="num">' + s.roles + '</td></tr>';
+      }).join('') + '</tbody></table></div></div>';
+    var all = fails.concat(dead.map(function (d) { return '死链：' + d; }));
+    html += '<div class="card"><div class="card-head"><h3>问题清单</h3></div><div class="card-body">' +
+      (all.length ? '<ol>' + all.map(function (m) { return '<li>' + m + '</li>'; }).join('') + '</ol>'
+        : '<div class="empty"><i class="fa-solid fa-circle-check"></i><div>没有发现问题</div></div>') +
+      '</div></div>';
+    document.getElementById('out').innerHTML = html;
+    window.AUDIT = { ok: all.length === 0, problems: all, stats: stats, links: links.length };
+  }
+  if (!pending) { render(); return; }
+  links.forEach(function (h) {
+    fetch(h, { method: 'HEAD' })
+      .then(function (r) { if (!r.ok) dead.push(h + ' → ' + r.status); })
+      .catch(function () { dead.push(h + ' → 请求失败'); })
+      .then(function () { if (--pending === 0) render(); });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>价格评估申请与报告管理 · 存量房交易网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：摇号动画与机构候选列表 */
+  .lot-box {
+    border: 1px dashed var(--primary-soft); border-radius: var(--radius);
+    background: var(--primary-light-2, var(--primary-light)); padding: 20px; text-align: center;
+  }
+  .lot-box .lb-name {
+    font-size: 19px; font-weight: 700; color: var(--primary); min-height: 30px;
+    letter-spacing: .5px; transition: color .2s;
+  }
+  .lot-box.done { border-style: solid; border-color: var(--success); background: var(--success-light); }
+  .lot-box.done .lb-name { color: var(--success); }
+  .lot-box .lb-tip { font-size: 12.5px; color: var(--text-3); margin-top: 8px; }
+  .org-list { display: flex; flex-direction: column; gap: 6px; }
+  .org-list .og {
+    display: flex; align-items: center; gap: 10px; font-size: 13px;
+    padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: #fff;
+  }
+  .org-list .og .og-n { flex: 1; }
+  .org-list .og .og-m { color: var(--text-3); font-size: 12.5px; }
+  .org-list .og.hit { border-color: var(--success); background: var(--success-light); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wscwb-20">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 存量房交易网签备案管理系统
+        <span class="sep">/</span> <a class="link" href="deal-ledger.html">成交信息管理</a>
+        <span class="sep">/</span> <span class="cur">价格评估管理</span>
+      </div>
+      <div class="page-title">价格评估申请与报告管理</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" data-open-drawer="dwNew"><i class="fa-solid fa-plus"></i> 新增评估申请</button>
+      <button type="button" class="btn" data-open-drawer="dwOrg"><i class="fa-solid fa-building-columns"></i> 机构管理</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《价格评估台账》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-shuffle"></i></div>
+      <div><div class="s-label">待分派</div><div class="s-value">8</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-spinner"></i></div>
+      <div><div class="s-label">评估中</div><div class="s-value">23</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-file-circle-check"></i></div>
+      <div><div class="s-label">本月出具报告</div><div class="s-value">96</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><div class="s-label">超时未出</div><div class="s-value">2</div><div class="s-trend text-danger">可改派其他机构</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-stopwatch"></i></div>
+      <div><div class="s-label">平均评估时长</div><div class="s-value">3.4 天</div><div class="s-trend">工作日</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>评估结论回填后，网签价格校验自动引用评估价作为参考基准；评估时限默认 5 个工作日，超时可改派其他机构。评估报告归档至房产档案管理系统（wsdagl）。</div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>关键词</label>
+        <input type="text" placeholder="评估申请编号 / 合同编号 / 坐落 / 机构">
+      </div>
+      <div class="filter-item">
+        <label>评估类型</label>
+        <select><option value="">全部</option><option>预评估</option><option>正式评估</option></select>
+      </div>
+      <div class="filter-item">
+        <label>评估状态</label>
+        <select><option value="">全部</option><option>待受理</option><option>待分派</option><option>已分派</option><option>查勘中</option><option>报告已出</option><option>已回填</option><option>超时</option></select>
+      </div>
+      <div class="filter-item">
+        <label>评估机构</label>
+        <select><option value="">全部</option><option>柳州正信房地产评估有限公司</option><option>柳州华源房地产评估咨询有限公司</option><option>广西中和资产评估有限公司柳州分公司</option><option>柳州兴业土地房地产评估有限公司</option></select>
+      </div>
+      <div class="filter-item">
+        <label>分派方式</label>
+        <select><option value="">全部</option><option>轮询</option><option>摇号</option><option>指定</option></select>
+      </div>
+      <div class="filter-item">
+        <label>申请时间</label>
+        <input type="date" value="2026-07-01">
+      </div>
+      <div class="filter-item">
+        <label>是否超时</label>
+        <select><option value="">全部</option><option>是</option><option>否</option></select>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 129 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="wait">待分派 <span class="badge orange">8</span></div>
+      <div class="tab" data-tab="doing">评估中 <span class="badge blue">23</span></div>
+      <div class="tab" data-tab="done">报告已出</div>
+      <div class="tab" data-tab="over">超时 <span class="badge red">2</span></div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblAp" data-static>
+        <thead>
+          <tr>
+            <th>评估申请编号</th>
+            <th>评估类型</th>
+            <th>合同编号</th>
+            <th>坐落</th>
+            <th class="num">建筑面积(㎡)</th>
+            <th class="num">申报成交价(元)</th>
+            <th>评估机构</th>
+            <th>分派方式</th>
+            <th>受理时间</th>
+            <th>评估时限</th>
+            <th class="num">剩余天数</th>
+            <th class="num">评估价格(元)</th>
+            <th class="num">评估单价(元/㎡)</th>
+            <th>评估状态</th>
+            <th>是否回填</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">PG20260731012</td>
+            <td class="nowrap"><span class="badge blue">正式评估</span></td>
+            <td class="nowrap">CLF450200202600309</td>
+            <td class="cell-lg">阳光 100 城市广场 A 座 1608</td>
+            <td class="num">52.18</td>
+            <td class="num">312,000</td>
+            <td class="nowrap text-3">待分派</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap">2026-07-31 10:48</td>
+            <td class="nowrap">5 个工作日</td>
+            <td class="num">5</td>
+            <td class="num text-3">—</td>
+            <td class="num text-3">—</td>
+            <td class="nowrap"><span class="badge orange">待分派</span></td>
+            <td class="nowrap"><span class="badge gray">否</span></td>
+            <td class="col-ops"><span class="link" onclick="openAssign(this,'PG20260731012')">分派</span></td>
+          </tr>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">PG20260731011</td>
+            <td class="nowrap"><span class="badge cyan">预评估</span></td>
+            <td class="nowrap">CLF450200202600318</td>
+            <td class="cell-lg">彰泰滨江学府 12-2-1802</td>
+            <td class="num">101.25</td>
+            <td class="num">1,268,000</td>
+            <td class="nowrap text-3">待分派</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap">2026-07-31 09:12</td>
+            <td class="nowrap">5 个工作日</td>
+            <td class="num">5</td>
+            <td class="num text-3">—</td>
+            <td class="num text-3">—</td>
+            <td class="nowrap"><span class="badge orange">待分派</span></td>
+            <td class="nowrap"><span class="badge gray">否</span></td>
+            <td class="col-ops"><span class="link" onclick="openAssign(this,'PG20260731011')">分派</span></td>
+          </tr>
+          <tr data-st="doing">
+            <td class="nowrap fw-600">PG20260729009</td>
+            <td class="nowrap"><span class="badge blue">正式评估</span></td>
+            <td class="nowrap">CLF450200202600301</td>
+            <td class="cell-lg">中航郡府 8-1-3301</td>
+            <td class="num">149.98</td>
+            <td class="num">3,152,000</td>
+            <td class="cell-lg">柳州正信房地产评估有限公司</td>
+            <td class="nowrap"><span class="badge purple">摇号</span></td>
+            <td class="nowrap">2026-07-29 14:20</td>
+            <td class="nowrap">5 个工作日</td>
+            <td class="num">3</td>
+            <td class="num text-3">—</td>
+            <td class="num text-3">—</td>
+            <td class="nowrap"><span class="badge cyan">查勘中</span></td>
+            <td class="nowrap"><span class="badge gray">否</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openTrack('PG20260729009')">跟踪</span>
+              <span class="link" onclick="openReport(this,'PG20260729009')">上传报告</span>
+            </td>
+          </tr>
+          <tr data-st="doing">
+            <td class="nowrap fw-600">PG20260728008</td>
+            <td class="nowrap"><span class="badge blue">正式评估</span></td>
+            <td class="nowrap">CLF450200202600294</td>
+            <td class="cell-lg">恒大城 6-1-1802</td>
+            <td class="num">104.82</td>
+            <td class="num">925,000</td>
+            <td class="cell-lg">柳州华源房地产评估咨询有限公司</td>
+            <td class="nowrap"><span class="badge blue">轮询</span></td>
+            <td class="nowrap">2026-07-28 11:05</td>
+            <td class="nowrap">5 个工作日</td>
+            <td class="num">2</td>
+            <td class="num text-3">—</td>
+            <td class="num text-3">—</td>
+            <td class="nowrap"><span class="badge blue">已分派</span></td>
+            <td class="nowrap"><span class="badge gray">否</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openTrack('PG20260728008')">跟踪</span>
+              <span class="link" onclick="openReport(this,'PG20260728008')">上传报告</span>
+            </td>
+          </tr>
+          <tr data-st="done">
+            <td class="nowrap fw-600">PG20260724006</td>
+            <td class="nowrap"><span class="badge blue">正式评估</span></td>
+            <td class="nowrap">CLF450200202600287</td>
+            <td class="cell-lg">彰泰春天 3-2-1502</td>
+            <td class="num">89.12</td>
+            <td class="num">1,011,000</td>
+            <td class="cell-lg">广西中和资产评估有限公司柳州分公司</td>
+            <td class="nowrap"><span class="badge">指定</span></td>
+            <td class="nowrap">2026-07-24 09:36</td>
+            <td class="nowrap">5 个工作日</td>
+            <td class="num text-3">已出具</td>
+            <td class="num">1,038,000</td>
+            <td class="num">11,647</td>
+            <td class="nowrap"><span class="badge green">报告已出</span></td>
+            <td class="nowrap"><span class="badge gray">否</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openTrack('PG20260724006')">跟踪</span>
+              <span class="link" onclick="fillBack(this,'PG20260724006','1,038,000')">回填结论</span>
+            </td>
+          </tr>
+          <tr data-st="done">
+            <td class="nowrap fw-600">PG20260718004</td>
+            <td class="nowrap"><span class="badge cyan">预评估</span></td>
+            <td class="nowrap">CLF450200202600276</td>
+            <td class="cell-lg">金龙湾 9-3-2201</td>
+            <td class="num">105.81</td>
+            <td class="num">728,000</td>
+            <td class="cell-lg">柳州兴业土地房地产评估有限公司</td>
+            <td class="nowrap"><span class="badge blue">轮询</span></td>
+            <td class="nowrap">2026-07-18 15:52</td>
+            <td class="nowrap">5 个工作日</td>
+            <td class="num text-3">已出具</td>
+            <td class="num">946,000</td>
+            <td class="num">8,940</td>
+            <td class="nowrap"><span class="badge purple">已回填</span></td>
+            <td class="nowrap"><span class="badge green">是</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openTrack('PG20260718004')">跟踪</span>
+              <a class="link" href="price-abnormal.html">看核查</a>
+            </td>
+          </tr>
+          <tr data-st="over">
+            <td class="nowrap fw-600">PG20260716003</td>
+            <td class="nowrap"><span class="badge blue">正式评估</span></td>
+            <td class="nowrap">CLF450200202600255</td>
+            <td class="cell-lg">万科城 12-2-905</td>
+            <td class="num">120.00</td>
+            <td class="num">1,638,000</td>
+            <td class="cell-lg">柳州兴业土地房地产评估有限公司</td>
+            <td class="nowrap"><span class="badge purple">摇号</span></td>
+            <td class="nowrap">2026-07-16 10:18</td>
+            <td class="nowrap">5 个工作日</td>
+            <td class="num text-danger fw-600">-6</td>
+            <td class="num text-3">—</td>
+            <td class="num text-3">—</td>
+            <td class="nowrap"><span class="badge red">超时</span></td>
+            <td class="nowrap"><span class="badge gray">否</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openTrack('PG20260716003')">跟踪</span>
+              <span class="link danger" onclick="openAssign(this,'PG20260716003')">改派机构</span>
+            </td>
+          </tr>
+          <tr data-st="over">
+            <td class="nowrap fw-600">PG20260714002</td>
+            <td class="nowrap"><span class="badge cyan">预评估</span></td>
+            <td class="nowrap">CLF450200202600231</td>
+            <td class="cell-lg">恒大城 3-2-706</td>
+            <td class="num">76.44</td>
+            <td class="num">596,000</td>
+            <td class="cell-lg">柳州华源房地产评估咨询有限公司</td>
+            <td class="nowrap"><span class="badge">指定</span></td>
+            <td class="nowrap">2026-07-14 16:40</td>
+            <td class="nowrap">5 个工作日</td>
+            <td class="num text-danger fw-600">-8</td>
+            <td class="num text-3">—</td>
+            <td class="num text-3">—</td>
+            <td class="nowrap"><span class="badge red">超时</span></td>
+            <td class="nowrap"><span class="badge gray">否</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openTrack('PG20260714002')">跟踪</span>
+              <span class="link danger" onclick="openAssign(this,'PG20260714002')">改派机构</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 分派 -->
+  <div class="drawer-mask"></div>
+  <div class="drawer drawer-lg" id="dwAssign">
+    <div class="drawer-head">
+      <h3 id="asTitle">评估机构分派</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-info">
+        <i class="fa-solid fa-scale-balanced"></i>
+        <div>分派方式与分派过程全程留痕，摇号采用系统随机数并记录种子值，供事后核查。</div>
+      </div>
+
+      <div class="form-grid form-align mt-16">
+        <div class="form-item">
+          <label>评估申请编号</label>
+          <input type="text" id="asNo" readonly style="background:var(--bg-soft)">
+        </div>
+        <div class="form-item">
+          <label>分派方式<span class="req">*</span></label>
+          <select id="asMode" onchange="switchMode()">
+            <option value="poll">轮询（按顺位轮流分派）</option>
+            <option value="lot" selected>摇号（系统随机抽取）</option>
+            <option value="fix">指定（须填写理由）</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="boxPoll" style="display:none">
+        <div class="section-title mt-16">轮询顺位</div>
+        <div class="org-list">
+          <div class="og hit"><i class="fa-solid fa-circle-check text-success"></i><span class="og-n">柳州华源房地产评估咨询有限公司</span><span class="og-m">下一顺位 · 本月已承接 21 单</span></div>
+          <div class="og"><span style="width:14px"></span><span class="og-n">广西中和资产评估有限公司柳州分公司</span><span class="og-m">第 2 顺位 · 本月已承接 24 单</span></div>
+          <div class="og"><span style="width:14px"></span><span class="og-n">柳州兴业土地房地产评估有限公司</span><span class="og-m">第 3 顺位 · 本月已承接 26 单</span></div>
+          <div class="og"><span style="width:14px"></span><span class="og-n">柳州正信房地产评估有限公司</span><span class="og-m">第 4 顺位 · 本月已承接 28 单</span></div>
+        </div>
+      </div>
+
+      <div id="boxLot">
+        <div class="section-title mt-16">参与摇号机构（4 家在册且未超载）</div>
+        <div class="org-list" id="lotList">
+          <div class="og"><span style="width:14px"></span><span class="og-n">柳州正信房地产评估有限公司</span><span class="og-m">在办 6 单 · 准时率 98.2%</span></div>
+          <div class="og"><span style="width:14px"></span><span class="og-n">柳州华源房地产评估咨询有限公司</span><span class="og-m">在办 5 单 · 准时率 96.4%</span></div>
+          <div class="og"><span style="width:14px"></span><span class="og-n">广西中和资产评估有限公司柳州分公司</span><span class="og-m">在办 7 单 · 准时率 97.1%</span></div>
+          <div class="og"><span style="width:14px"></span><span class="og-n">柳州兴业土地房地产评估有限公司</span><span class="og-m">在办 8 单 · 准时率 91.6%</span></div>
+        </div>
+        <div class="lot-box mt-16" id="lotBox">
+          <div class="lb-name" id="lotName">点击「开始摇号」抽取承办机构</div>
+          <div class="lb-tip" id="lotTip">摇号种子：系统时间戳 + 申请编号哈希，过程写入操作日志</div>
+        </div>
+        <div class="flex gap-8 mt-16" style="justify-content:center">
+          <button type="button" class="btn btn-primary" id="btnLot" onclick="startLot()"><i class="fa-solid fa-dice"></i> 开始摇号</button>
+        </div>
+      </div>
+
+      <div id="boxFix" style="display:none">
+        <div class="form-grid form-align mt-16">
+          <div class="form-item col-full">
+            <label>指定机构<span class="req">*</span></label>
+            <select><option>柳州正信房地产评估有限公司</option><option>柳州华源房地产评估咨询有限公司</option><option>广西中和资产评估有限公司柳州分公司</option><option>柳州兴业土地房地产评估有限公司</option></select>
+          </div>
+          <div class="form-item col-full">
+            <label>指定理由<span class="req">*</span></label>
+            <textarea placeholder="如：该房产为工业厂房，仅该机构具备相应专业资质"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-grid form-align mt-16">
+        <div class="form-item">
+          <label>评估时限</label>
+          <select><option>5 个工作日（默认）</option><option>3 个工作日（加急）</option><option>10 个工作日</option></select>
+        </div>
+        <div class="form-item">
+          <label>是否通知申请人</label>
+          <select><option>是（短信 + 门户消息）</option><option>否</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="doAssign()"><i class="fa-solid fa-paper-plane"></i> 确认分派</button>
+    </div>
+  </div>
+
+  <!-- 跟踪 -->
+  <div class="drawer" id="dwTrack">
+    <div class="drawer-head">
+      <h3 id="tkTitle">评估进度跟踪</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="timeline">
+        <div class="tl-item done">
+          <div class="tl-dot"></div>
+          <div class="tl-title">提交评估申请</div>
+          <div class="tl-meta">2026-07-29 14:12 · 系统自动发起</div>
+          <div class="tl-desc">成交价偏离同小区中位价触发核查，自动发起正式评估申请。</div>
+        </div>
+        <div class="tl-item done">
+          <div class="tl-dot"></div>
+          <div class="tl-title">受理并分派</div>
+          <div class="tl-meta">2026-07-29 14:20 · 韦国强</div>
+          <div class="tl-desc">摇号分派至柳州正信房地产评估有限公司，评估时限 5 个工作日。</div>
+        </div>
+        <div class="tl-item done">
+          <div class="tl-dot"></div>
+          <div class="tl-title">机构接单</div>
+          <div class="tl-meta">2026-07-29 16:05 · 柳州正信房地产评估有限公司</div>
+          <div class="tl-desc">指派评估师 蒋家伟（注册号 4520000186）承办。</div>
+        </div>
+        <div class="tl-item done">
+          <div class="tl-dot"></div>
+          <div class="tl-title">预约现场查勘</div>
+          <div class="tl-meta">2026-07-30 09:30 · 蒋家伟</div>
+          <div class="tl-desc">与产权人约定 7 月 31 日上午现场查勘。</div>
+        </div>
+        <div class="tl-item pending">
+          <div class="tl-dot"></div>
+          <div class="tl-title">现场查勘中</div>
+          <div class="tl-meta">进行中 · 当前节点</div>
+          <div class="tl-desc">已完成外业查勘与照片采集，正在做同小区可比实例筛选。</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot"></div>
+          <div class="tl-title">出具评估报告</div>
+          <div class="tl-meta">预计 2026-08-05 前</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot"></div>
+          <div class="tl-title">结论回填</div>
+          <div class="tl-meta">待办理</div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+      <button type="button" class="btn" onclick="PMS.toast('已向承办机构与评估师推送催办提醒','success')"><i class="fa-solid fa-bell"></i> 催办</button>
+    </div>
+  </div>
+
+  <!-- 上传报告 -->
+  <div class="drawer drawer-lg" id="dwReport">
+    <div class="drawer-head">
+      <h3 id="rpTitle">评估报告归集</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>评估报告编号<span class="req">*</span></label>
+          <input type="text" value="柳正信估字（2026）第 1128 号">
+        </div>
+        <div class="form-item">
+          <label>评估机构<span class="req">*</span></label>
+          <input type="text" value="柳州正信房地产评估有限公司" readonly style="background:var(--bg-soft)">
+        </div>
+        <div class="form-item">
+          <label>注册评估师<span class="req">*</span></label>
+          <input type="text" value="蒋家伟（4520000186）">
+        </div>
+        <div class="form-item">
+          <label>评估基准日<span class="req">*</span></label>
+          <input type="date" value="2026-07-31">
+        </div>
+        <div class="form-item">
+          <label>评估方法<span class="req">*</span></label>
+          <select><option>市场比较法</option><option>收益法</option><option>成本法</option><option>市场比较法 + 收益法</option></select>
+        </div>
+        <div class="form-item">
+          <label>评估价格（元）<span class="req">*</span></label>
+          <input type="number" id="rpPrice" value="3218000" oninput="calcUnit()">
+        </div>
+        <div class="form-item">
+          <label>建筑面积（㎡）</label>
+          <input type="number" id="rpArea" value="149.98" readonly style="background:var(--bg-soft)">
+        </div>
+        <div class="form-item">
+          <label>评估单价（元/㎡）</label>
+          <input type="text" id="rpUnit" value="21,456" readonly style="background:var(--bg-soft)">
+        </div>
+        <div class="form-item">
+          <label>报告出具日期<span class="req">*</span></label>
+          <input type="date" value="2026-08-03">
+        </div>
+        <div class="form-item">
+          <label>报告有效期<span class="req">*</span></label>
+          <select><option>1 年</option><option>6 个月</option><option>3 个月</option></select>
+        </div>
+        <div class="form-item col-full">
+          <label>评估报告文件<span class="req">*</span></label>
+          <div class="file-up">
+            <input type="hidden" class="file-up-val" value="房地产估价报告.pdf,估价师签字页.pdf">
+            <div class="file-up-grid">
+              <div class="file-up-tile file-up-add" title="添加文件（可多选）">
+                <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png">
+                <i class="fa-solid fa-plus"></i><span>上传</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="form-item col-full">
+          <label>现场查勘照片</label>
+          <div class="file-up">
+            <input type="hidden" class="file-up-val" value="外立面.jpg,客厅.jpg,主卧.jpg,厨卫.jpg,小区环境.jpg">
+            <div class="file-up-grid">
+              <div class="file-up-tile file-up-add" title="添加文件（可多选）">
+                <input type="file" multiple accept=".jpg,.jpeg,.png">
+                <i class="fa-solid fa-plus"></i><span>上传</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="saveReport()"><i class="fa-solid fa-cloud-arrow-up"></i> 提交报告</button>
+    </div>
+  </div>
+
+  <!-- 机构管理 -->
+  <div class="drawer drawer-lg" id="dwOrg">
+    <div class="drawer-head">
+      <h3>评估机构管理</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-info">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>在册机构须具备房地产估价机构资质并在XXXX市住建局备案；准时率连续两月低于 90% 的暂停参与摇号。</div>
+      </div>
+      <table class="data-table compact mt-16">
+        <thead><tr><th>机构名称</th><th>资质等级</th><th class="num">在办</th><th class="num">本月承接</th><th class="num">准时率</th><th>参与摇号</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>柳州正信房地产评估有限公司</td>
+            <td class="nowrap"><span class="badge green">一级</span></td>
+            <td class="num">6</td><td class="num">28</td><td class="num text-success">98.2%</td>
+            <td class="nowrap"><span class="badge green">是</span></td>
+            <td class="nowrap"><span class="link" onclick="PMS.toast('已暂停该机构参与摇号','success')">暂停</span></td>
+          </tr>
+          <tr>
+            <td>柳州华源房地产评估咨询有限公司</td>
+            <td class="nowrap"><span class="badge green">一级</span></td>
+            <td class="num">5</td><td class="num">21</td><td class="num text-success">96.4%</td>
+            <td class="nowrap"><span class="badge green">是</span></td>
+            <td class="nowrap"><span class="link" onclick="PMS.toast('已暂停该机构参与摇号','success')">暂停</span></td>
+          </tr>
+          <tr>
+            <td>广西中和资产评估有限公司柳州分公司</td>
+            <td class="nowrap"><span class="badge blue">二级</span></td>
+            <td class="num">7</td><td class="num">24</td><td class="num text-success">97.1%</td>
+            <td class="nowrap"><span class="badge green">是</span></td>
+            <td class="nowrap"><span class="link" onclick="PMS.toast('已暂停该机构参与摇号','success')">暂停</span></td>
+          </tr>
+          <tr>
+            <td>柳州兴业土地房地产评估有限公司</td>
+            <td class="nowrap"><span class="badge blue">二级</span></td>
+            <td class="num">8</td><td class="num">26</td><td class="num text-warning">91.6%</td>
+            <td class="nowrap"><span class="badge orange">观察中</span></td>
+            <td class="nowrap"><span class="link" onclick="PMS.toast('已暂停该机构参与摇号','success')">暂停</span></td>
+          </tr>
+          <tr>
+            <td>柳州汇通房地产土地评估有限公司</td>
+            <td class="nowrap"><span class="badge blue">二级</span></td>
+            <td class="num">0</td><td class="num">0</td><td class="num text-danger">86.3%</td>
+            <td class="nowrap"><span class="badge red">已暂停</span></td>
+            <td class="nowrap"><span class="link" onclick="PMS.toast('已恢复该机构参与摇号','success')">恢复</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+      <button type="button" class="btn" onclick="PMS.toast('已从市住建局机构备案库同步，无新增机构')"><i class="fa-solid fa-arrows-rotate"></i> 同步备案库</button>
+    </div>
+  </div>
+
+  <!-- 新增评估申请 -->
+  <div class="drawer" id="dwNew">
+    <div class="drawer-head">
+      <h3>新增评估申请</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>评估类型<span class="req">*</span></label>
+          <select><option>正式评估</option><option>预评估</option></select>
+        </div>
+        <div class="form-item">
+          <label>合同编号</label>
+          <input type="text" placeholder="CLF450200…（预评估可不填）">
+        </div>
+        <div class="form-item col-full">
+          <label>房屋坐落<span class="req">*</span></label>
+          <input type="text" placeholder="小区名称 + 幢单元房号">
+        </div>
+        <div class="form-item">
+          <label>建筑面积（㎡）<span class="req">*</span></label>
+          <input type="number" step="0.01" placeholder="0.00">
+        </div>
+        <div class="form-item">
+          <label>申报成交价（元）</label>
+          <input type="number" placeholder="0">
+        </div>
+        <div class="form-item">
+          <label>评估用途<span class="req">*</span></label>
+          <select><option>异常成交价核查</option><option>计税价格核定</option><option>资金监管额度核定</option><option>司法处置参考</option><option>其他</option></select>
+        </div>
+        <div class="form-item">
+          <label>评估时限</label>
+          <select><option>5 个工作日（默认）</option><option>3 个工作日（加急）</option><option>10 个工作日</option></select>
+        </div>
+        <div class="form-item col-full">
+          <label>申请说明</label>
+          <textarea placeholder="说明评估背景与特殊要求"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer('dwNew');PMS.toast('评估申请已受理，进入待分派','success')"><i class="fa-solid fa-paper-plane"></i> 提交申请</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  var table = document.getElementById('tblAp');
+  document.getElementById('stTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var name = tab.getAttribute('data-tab');
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.style.display = (name === 'all' || tr.getAttribute('data-st') === name) ? '' : 'none';
+    });
+  });
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 129,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+
+var ORGS = [
+  '柳州正信房地产评估有限公司',
+  '柳州华源房地产评估咨询有限公司',
+  '广西中和资产评估有限公司柳州分公司',
+  '柳州兴业土地房地产评估有限公司'
+];
+var curRow = null, lotWinner = '';
+
+function switchMode() {
+  var m = document.getElementById('asMode').value;
+  document.getElementById('boxPoll').style.display = m === 'poll' ? '' : 'none';
+  document.getElementById('boxLot').style.display = m === 'lot' ? '' : 'none';
+  document.getElementById('boxFix').style.display = m === 'fix' ? '' : 'none';
+}
+
+function openAssign(el, no) {
+  curRow = el.closest('tr');
+  lotWinner = '';
+  document.getElementById('asTitle').textContent = '评估机构分派 · ' + no;
+  document.getElementById('asNo').value = no;
+  document.getElementById('lotBox').className = 'lot-box';
+  document.getElementById('lotName').textContent = '点击「开始摇号」抽取承办机构';
+  document.getElementById('lotTip').textContent = '摇号种子：系统时间戳 + 申请编号哈希，过程写入操作日志';
+  document.querySelectorAll('#lotList .og').forEach(function (o) { o.classList.remove('hit'); });
+  document.getElementById('btnLot').disabled = false;
+  switchMode();
+  PMS.openDrawer('dwAssign');
+}
+
+function startLot() {
+  var btn = document.getElementById('btnLot');
+  var name = document.getElementById('lotName');
+  btn.disabled = true;
+  var i = 0, n = 0;
+  var timer = setInterval(function () {
+    name.textContent = ORGS[i % ORGS.length];
+    i++; n++;
+    if (n > 18) {
+      clearInterval(timer);
+      lotWinner = ORGS[Math.floor(Math.random() * ORGS.length)];
+      name.textContent = lotWinner;
+      document.getElementById('lotBox').className = 'lot-box done';
+      document.getElementById('lotTip').textContent =
+        '摇号完成　种子值 1754056820-8F3A　摇号时间 2026-07-31 21:47　过程已留痕';
+      document.querySelectorAll('#lotList .og').forEach(function (o) {
+        o.classList.toggle('hit', o.querySelector('.og-n').textContent === lotWinner);
+      });
+      PMS.toast('摇号完成：' + lotWinner, 'success');
+    }
+  }, 90);
+}
+
+function doAssign() {
+  var mode = document.getElementById('asMode').value;
+  var org = mode === 'poll' ? '柳州华源房地产评估咨询有限公司'
+    : mode === 'lot' ? lotWinner
+    : document.querySelector('#boxFix select').value;
+  if (mode === 'lot' && !org) { PMS.toast('请先完成摇号', 'error'); return; }
+  var label = mode === 'poll' ? '<span class="badge blue">轮询</span>'
+    : mode === 'lot' ? '<span class="badge purple">摇号</span>'
+    : '<span class="badge">指定</span>';
+  PMS.closeDrawer('dwAssign');
+  if (curRow) {
+    curRow.setAttribute('data-st', 'doing');
+    curRow.children[6].className = 'cell-lg';
+    curRow.children[6].textContent = org;
+    curRow.children[7].innerHTML = label;
+    curRow.children[10].className = 'num';
+    curRow.children[10].textContent = '5';
+    curRow.children[13].innerHTML = '<span class="badge blue">已分派</span>';
+    var no = curRow.children[0].textContent.trim();
+    curRow.querySelector('.col-ops').innerHTML =
+      '<span class="link" onclick="openTrack(\'' + no + '\')">跟踪</span>' +
+      '<span class="link" onclick="openReport(this,\'' + no + '\')">上传报告</span>';
+  }
+  PMS.toast('已分派至 ' + org + '，并已通知申请人', 'success');
+}
+
+function openTrack(no) {
+  document.getElementById('tkTitle').textContent = '评估进度跟踪 · ' + no;
+  PMS.openDrawer('dwTrack');
+}
+
+function openReport(el, no) {
+  curRow = el.closest('tr');
+  document.getElementById('rpTitle').textContent = '评估报告归集 · ' + no;
+  document.getElementById('rpArea').value = curRow.children[4].textContent.trim();
+  calcUnit();
+  PMS.openDrawer('dwReport');
+}
+
+function calcUnit() {
+  var p = parseFloat(document.getElementById('rpPrice').value) || 0;
+  var a = parseFloat(document.getElementById('rpArea').value) || 0;
+  document.getElementById('rpUnit').value = a ? Math.round(p / a).toLocaleString('en-US') : '—';
+}
+
+function saveReport() {
+  var p = parseFloat(document.getElementById('rpPrice').value) || 0;
+  var unit = document.getElementById('rpUnit').value;
+  PMS.closeDrawer('dwReport');
+  if (curRow) {
+    curRow.setAttribute('data-st', 'done');
+    curRow.children[10].className = 'num text-3';
+    curRow.children[10].textContent = '已出具';
+    curRow.children[11].className = 'num';
+    curRow.children[11].textContent = p.toLocaleString('en-US');
+    curRow.children[12].className = 'num';
+    curRow.children[12].textContent = unit;
+    curRow.children[13].innerHTML = '<span class="badge green">报告已出</span>';
+    var no = curRow.children[0].textContent.trim();
+    curRow.querySelector('.col-ops').innerHTML =
+      '<span class="link" onclick="openTrack(\'' + no + '\')">跟踪</span>' +
+      '<span class="link" onclick="fillBack(this,\'' + no + '\',\'' + p.toLocaleString('en-US') + '\')">回填结论</span>';
+  }
+  PMS.toast('评估报告已归集，并同步归档至房产档案管理系统（wsdagl）', 'success');
+}
+
+function fillBack(el, no, price) {
+  var tr = el.closest('tr');
+  PMS.confirm({
+    title: '回填评估结论',
+    message: '确认将 ' + no + ' 的评估价 ' + price + ' 元回填？',
+    detail: '回填目标：计税价格、资金监管额度、网签价格校验基准。回填后网签价格校验自动引用评估价作为参考基准，已备案合同不受影响。',
+    okText: '确认回填',
+    onOk: function () {
+      tr.setAttribute('data-st', 'done');
+      tr.children[13].innerHTML = '<span class="badge purple">已回填</span>';
+      tr.children[14].innerHTML = '<span class="badge green">是</span>';
+      tr.querySelector('.col-ops').innerHTML =
+        '<span class="link" onclick="openTrack(\'' + no + '\')">跟踪</span>' +
+        '<a class="link" href="price-abnormal.html">看核查</a>';
+      PMS.toast('评估结论已回填至计税价格、监管额度与价格校验基准', 'success');
+    }
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>测绘成果台账 · 房屋交易面积信息管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：版本链展开行、当前生效标识、质检入库双圆点 */
+  .exp { cursor: pointer; color: var(--primary); user-select: none; display: inline-block; width: 14px; text-align: center; }
+  .exp i { transition: transform .18s; }
+  .exp.open i { transform: rotate(90deg); }
+  tr.ver-row > td { background: #f8fafc; padding: 0 !important; }
+  .vc { padding: 10px 14px 10px 40px; display: flex; flex-direction: column; gap: 7px; }
+  .vc .vi {
+    display: flex; align-items: center; gap: 12px; font-size: 12.5px; background: #fff;
+    border: 1px solid var(--border); border-left: 3px solid var(--border-strong); border-radius: 6px; padding: 8px 13px;
+  }
+  .vc .vi.live { background: #f0fdf4; border-color: #bbf7d0; border-left-color: var(--success); }
+  .vc .vi .vn { width: 54px; flex-shrink: 0; font-weight: 700; color: var(--primary); }
+  .vc .vi.live .vn { color: var(--success); }
+  .vc .vi .vr { margin-left: auto; color: var(--text-3); }
+  .flag { color: var(--success); }
+  .amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .unit { color: var(--text-3); font-size: 11.5px; margin-left: 2px; }
+  /* 质检 / 入库双圆点 */
+  .dots { display: inline-flex; gap: 6px; align-items: center; }
+  .dots .d { width: 10px; height: 10px; border-radius: 50%; background: #cbd5e1; cursor: help; }
+  .dots .d.ok { background: var(--success); }
+  .dots .d.no { background: var(--danger); }
+  .dots .d.ing { background: var(--warning); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wschcg-02">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易面积信息管理系统
+        <span class="sep">/</span> 测绘成果接入
+        <span class="sep">/</span> <span class="cur">测绘成果台账</span>
+      </div>
+      <div class="page-title">测绘成果台账</div>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-inbox"></i></div>
+      <div><div class="s-label">待质检</div><div class="s-value">14 包</div><div class="s-trend text-3">涉及 42 幢</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><div class="s-label">质检不通过待整改</div><div class="s-value">6 包</div><div class="s-trend text-danger">含致命问题 2 包</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-database"></i></div>
+      <div><div class="s-label">质检通过待入库</div><div class="s-value">8 包</div><div class="s-trend text-3">其中 2 包待审批</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">本月入库生效</div><div class="s-value">126 幢</div><div class="s-trend text-success">8,462 户</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-code-branch"></i></div>
+      <div><div class="s-label">多版本幢数</div><div class="s-value">386 幢</div><div class="s-trend text-3">预测 + 实测双版本</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-layer-group"></i>
+    <div>成果报送后先落<b>暂存区</b>，通过 12 项质检并办理入库后才写入楼盘表正式区。同一幢楼可多次报送，通过成果类型与版本号区分，楼盘表数据永远指向<b>当前生效版本</b>；点击行首箭头展开该幢的完整版本链。</div>
+  </div>
+
+  <div class="card list-card">
+    <div class="filter-bar">
+      <div class="filter-item"><label>成果编号</label><input type="text" placeholder="如 CG450200202600186"></div>
+      <div class="filter-item"><label>项目 / 楼盘名称</label><input type="text" placeholder="如 荣和公园大道二期"></div>
+      <div class="filter-item"><label>幢号</label><input type="text" placeholder="如 8 栋"></div>
+      <div class="filter-item">
+        <label>成果类型</label>
+        <select id="fType">
+          <option value="">全部</option><option value="01">预测成果</option><option value="02">实测成果</option>
+          <option value="03">分户成果</option><option value="04">变更成果</option><option value="05">更正成果</option><option value="06">征收测绘成果</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>测绘机构</label>
+        <select><option value="">全部</option><option>XXXX市测绘院</option><option>广西华测</option><option>柳州建元</option><option>南宁精测</option><option>柳州恒信</option></select>
+      </div>
+      <div class="filter-item">
+        <label>成果状态</label>
+        <select id="fSt">
+          <option value="">全部</option><option value="0">已报送待质检</option><option value="1">质检中</option>
+          <option value="2">质检不通过待整改</option><option value="3">整改后重报</option><option value="4">质检通过待入库</option>
+          <option value="5">已入库生效</option><option value="6">已被新版本替代</option><option value="7">已作废</option>
+        </select>
+      </div>
+      <div class="filter-item"><label>报送时间起</label><input type="date" value="2026-01-01"></div>
+      <div class="filter-item"><label>报送时间止</label><input type="date" value="2026-08-01"></div>
+      <div class="filter-item">
+        <label>仅看当前生效版本</label>
+        <select id="fLive" onchange="applyFilter()"><option value="0">否</option><option value="1">是</option></select>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="applyFilter()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn" onclick="resetFilter()"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        <button type="button" class="btn btn-primary" onclick="location.href='result-import.html'"><i class="fa-solid fa-file-import"></i> 成果接入</button>
+        <button type="button" class="btn" onclick="batchCheck()"><i class="fa-solid fa-list-check"></i> 批量质检</button>
+        <button type="button" class="btn" onclick="PMS.toast('《测绘成果台账》Excel 已生成，正在下载','success')"><i class="fa-solid fa-download"></i> 导出台账</button>
+        <button type="button" class="btn" onclick="PMS.toast('已下载幢表 / 层表 / 户表三张标准导入模板（v3.2）','success')"><i class="fa-solid fa-file-arrow-down"></i> 下载导入模板</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblCg" data-static>
+        <thead>
+          <tr>
+            <th style="width:34px"></th>
+            <th>成果编号</th><th>版本</th><th>成果类型</th><th>项目 / 楼盘</th><th>幢号范围</th>
+            <th>幢数 / 总户数</th><th class="text-right">总建筑面积</th><th class="text-right">总套内面积</th><th class="text-right">总分摊面积</th>
+            <th>测绘机构</th><th>测绘日期</th><th>报送方式</th><th>成果状态</th><th>质检 / 入库</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-t="02" data-st="0" data-live="1">
+            <td class="text-center"><span class="exp" onclick="toggleVer(this)"><i class="fa-solid fa-caret-right"></i></span></td>
+            <td class="nowrap fw-600">CG450200202600186</td>
+            <td class="nowrap">V2.0 <i class="fa-solid fa-flag flag" title="当前生效版本"></i></td>
+            <td class="nowrap"><span class="badge blue">实测成果</span></td>
+            <td>荣和公园大道二期</td>
+            <td class="nowrap">8 栋</td>
+            <td class="nowrap">1 幢 / 96 户</td>
+            <td class="text-right amt">28,842.60<span class="unit">㎡</span></td>
+            <td class="text-right amt">22,486.42<span class="unit">㎡</span></td>
+            <td class="text-right amt">6,356.18<span class="unit">㎡</span></td>
+            <td class="nowrap">XXXX市测绘院</td>
+            <td class="nowrap">2026-07-22</td>
+            <td class="nowrap"><span class="badge cyan">接口报送</span></td>
+            <td class="nowrap"><span class="badge orange">已报送待质检</span></td>
+            <td class="nowrap"><span class="dots"><span class="d" title="质检：未执行"></span><span class="d" title="入库：未执行"></span></span></td>
+            <td class="col-ops">
+              <span class="link" onclick="location.href='result-detail.html'">详情</span>
+              <span class="link" onclick="location.href='result-check.html'">质检</span>
+              <span class="link" onclick="location.href='result-load.html'">入库</span>
+            </td>
+          </tr>
+          <tr class="ver-row" style="display:none">
+            <td class="idx-col"></td>
+            <td colspan="16">
+              <div class="vc">
+                <div class="vi">
+                  <span class="vn">V1.0</span>
+                  <span class="badge gray">预测成果</span>
+                  <span>CG450200202500862</span>
+                  <span>2025-03-18 测绘 · XXXX市测绘院</span>
+                  <span class="amt">28,600.00 ㎡ / 96 户</span>
+                  <span class="badge gray">已被新版本替代</span>
+                  <span class="vr">替换原因：竣工实测替换预测成果</span>
+                </div>
+                <div class="vi live">
+                  <span class="vn">V2.0</span>
+                  <span class="badge blue">实测成果</span>
+                  <span>CG450200202600186</span>
+                  <span>2026-07-22 测绘 · XXXX市测绘院</span>
+                  <span class="amt">28,842.60 ㎡ / 96 户</span>
+                  <span class="badge orange">待质检（入库后生效）</span>
+                  <span class="vr"><a class="link" href="result-version.html">查看版本树与逐户对比</a></span>
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          <tr data-t="01" data-st="0" data-live="1">
+            <td class="text-center"><span class="exp" onclick="toggleVer(this)"><i class="fa-solid fa-caret-right"></i></span></td>
+            <td class="nowrap fw-600">CG450200202600188</td>
+            <td class="nowrap">V1.0 <i class="fa-solid fa-flag flag" title="当前生效版本"></i></td>
+            <td class="nowrap"><span class="badge gray">预测成果</span></td>
+            <td>彰泰滨江学府</td>
+            <td class="nowrap">6 栋</td>
+            <td class="nowrap">1 幢 / 128 户</td>
+            <td class="text-right amt">36,428.80<span class="unit">㎡</span></td>
+            <td class="text-right amt">28,486.60<span class="unit">㎡</span></td>
+            <td class="text-right amt">7,942.20<span class="unit">㎡</span></td>
+            <td class="nowrap">广西华测</td>
+            <td class="nowrap">2026-07-28</td>
+            <td class="nowrap"><span class="badge">平台上传</span></td>
+            <td class="nowrap"><span class="badge orange">已报送待质检</span></td>
+            <td class="nowrap"><span class="dots"><span class="d" title="质检：未执行"></span><span class="d" title="入库：未执行"></span></span></td>
+            <td class="col-ops">
+              <span class="link" onclick="location.href='result-detail.html'">详情</span>
+              <span class="link" onclick="location.href='result-check.html'">质检</span>
+              <span class="link" onclick="PMS.toast('该成果尚未通过质检，暂不可入库','warning')">入库</span>
+            </td>
+          </tr>
+          <tr class="ver-row" style="display:none">
+            <td class="idx-col"></td>
+            <td colspan="16">
+              <div class="vc">
+                <div class="vi live">
+                  <span class="vn">V1.0</span>
+                  <span class="badge gray">预测成果</span>
+                  <span>CG450200202600188</span>
+                  <span>2026-07-28 测绘 · 广西华测</span>
+                  <span class="amt">36,428.80 ㎡ / 128 户</span>
+                  <span class="badge orange">已报送待质检</span>
+                  <span class="vr">首次报送，无历史版本</span>
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          <tr data-t="02" data-st="2" data-live="1">
+            <td class="text-center"><span class="exp" onclick="toggleVer(this)"><i class="fa-solid fa-caret-right"></i></span></td>
+            <td class="nowrap fw-600">CG450200202600174</td>
+            <td class="nowrap">V2.0 <i class="fa-solid fa-flag flag" title="当前生效版本"></i></td>
+            <td class="nowrap"><span class="badge blue">实测成果</span></td>
+            <td>彰泰滨江学府</td>
+            <td class="nowrap">3 栋</td>
+            <td class="nowrap">1 幢 / 112 户</td>
+            <td class="text-right amt">32,186.40<span class="unit">㎡</span></td>
+            <td class="text-right amt">25,142.86<span class="unit">㎡</span></td>
+            <td class="text-right amt">7,043.54<span class="unit">㎡</span></td>
+            <td class="nowrap">柳州建元</td>
+            <td class="nowrap">2026-07-16</td>
+            <td class="nowrap"><span class="badge cyan">接口报送</span></td>
+            <td class="nowrap"><span class="badge red">质检不通过待整改</span></td>
+            <td class="nowrap"><span class="dots"><span class="d no" title="质检：不通过（致命 1 · 严重 2）"></span><span class="d" title="入库：未执行"></span></span></td>
+            <td class="col-ops">
+              <span class="link" onclick="location.href='result-detail.html'">详情</span>
+              <span class="link" onclick="location.href='result-check.html'">质检</span>
+              <span class="link danger" onclick="doVoid('CG450200202600174')">作废</span>
+            </td>
+          </tr>
+          <tr class="ver-row" style="display:none">
+            <td class="idx-col"></td>
+            <td colspan="16">
+              <div class="vc">
+                <div class="vi">
+                  <span class="vn">V1.0</span>
+                  <span class="badge gray">预测成果</span>
+                  <span>CG450200202400618</span>
+                  <span>2024-11-06 测绘 · 柳州建元</span>
+                  <span class="amt">32,020.00 ㎡ / 112 户</span>
+                  <span class="badge green">已入库生效</span>
+                  <span class="vr">实测未通过质检，楼盘表仍指向本版</span>
+                </div>
+                <div class="vi live">
+                  <span class="vn">V2.0</span>
+                  <span class="badge blue">实测成果</span>
+                  <span>CG450200202600174</span>
+                  <span>2026-07-16 测绘 · 柳州建元</span>
+                  <span class="amt">32,186.40 ㎡ / 112 户</span>
+                  <span class="badge red">质检不通过（致命：房号重复）</span>
+                  <span class="vr">整改后重报方可入库</span>
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          <tr data-t="02" data-st="4" data-live="1">
+            <td class="text-center"></td>
+            <td class="nowrap fw-600">CG450200202600180</td>
+            <td class="nowrap">V2.0 <i class="fa-solid fa-flag flag" title="当前生效版本"></i></td>
+            <td class="nowrap"><span class="badge blue">实测成果</span></td>
+            <td>万科城</td>
+            <td class="nowrap">5 栋</td>
+            <td class="nowrap">1 幢 / 84 户</td>
+            <td class="text-right amt">24,286.60<span class="unit">㎡</span></td>
+            <td class="text-right amt">19,042.18<span class="unit">㎡</span></td>
+            <td class="text-right amt">5,244.42<span class="unit">㎡</span></td>
+            <td class="nowrap">XXXX市测绘院</td>
+            <td class="nowrap">2026-07-20</td>
+            <td class="nowrap"><span class="badge cyan">接口报送</span></td>
+            <td class="nowrap"><span class="badge blue">质检通过待入库</span></td>
+            <td class="nowrap"><span class="dots"><span class="d ok" title="质检：通过（2 项警告）"></span><span class="d" title="入库：未执行"></span></span></td>
+            <td class="col-ops">
+              <span class="link" onclick="location.href='result-detail.html'">详情</span>
+              <span class="link" onclick="location.href='result-check.html'">质检</span>
+              <span class="link" onclick="location.href='result-load.html'">入库</span>
+            </td>
+          </tr>
+
+          <tr data-t="03" data-st="5" data-live="1">
+            <td class="text-center"></td>
+            <td class="nowrap fw-600">CG450200202600172</td>
+            <td class="nowrap">V1.0 <i class="fa-solid fa-flag flag" title="当前生效版本"></i></td>
+            <td class="nowrap"><span class="badge cyan">分户成果</span></td>
+            <td>阳光100城市广场</td>
+            <td class="nowrap">3 栋 1602</td>
+            <td class="nowrap">1 幢 / 1 户</td>
+            <td class="text-right amt">128.64<span class="unit">㎡</span></td>
+            <td class="text-right amt">102.18<span class="unit">㎡</span></td>
+            <td class="text-right amt">26.46<span class="unit">㎡</span></td>
+            <td class="nowrap">南宁精测</td>
+            <td class="nowrap">2026-07-10</td>
+            <td class="nowrap"><span class="badge">平台上传</span></td>
+            <td class="nowrap"><span class="badge green">已入库生效</span></td>
+            <td class="nowrap"><span class="dots"><span class="d ok" title="质检：通过"></span><span class="d ok" title="入库：成功"></span></span></td>
+            <td class="col-ops">
+              <span class="link" onclick="location.href='result-detail.html'">详情</span>
+              <span class="link" onclick="location.href='drawing-viewer.html'">查看图纸</span>
+            </td>
+          </tr>
+
+          <tr data-t="02" data-st="5" data-live="1">
+            <td class="text-center"></td>
+            <td class="nowrap fw-600">CG450200202600166</td>
+            <td class="nowrap">V2.0 <i class="fa-solid fa-flag flag" title="当前生效版本"></i></td>
+            <td class="nowrap"><span class="badge blue">实测成果</span></td>
+            <td>恒大城</td>
+            <td class="nowrap">5 栋</td>
+            <td class="nowrap">1 幢 / 128 户</td>
+            <td class="text-right amt">38,642.20<span class="unit">㎡</span></td>
+            <td class="text-right amt">30,186.42<span class="unit">㎡</span></td>
+            <td class="text-right amt">8,455.78<span class="unit">㎡</span></td>
+            <td class="nowrap">XXXX市测绘院</td>
+            <td class="nowrap">2026-07-02</td>
+            <td class="nowrap"><span class="badge cyan">接口报送</span></td>
+            <td class="nowrap"><span class="badge green">已入库生效</span></td>
+            <td class="nowrap"><span class="dots"><span class="d ok" title="质检：通过"></span><span class="d ok" title="入库：成功"></span></span></td>
+            <td class="col-ops">
+              <span class="link" onclick="location.href='result-detail.html'">详情</span>
+              <span class="link" onclick="location.href='area-compare.html'">面积比对</span>
+            </td>
+          </tr>
+
+          <tr data-t="01" data-st="6" data-live="0">
+            <td class="text-center"></td>
+            <td class="nowrap fw-600">CG450200202500862</td>
+            <td class="nowrap text-3">V1.0</td>
+            <td class="nowrap"><span class="badge gray">预测成果</span></td>
+            <td>荣和公园大道二期</td>
+            <td class="nowrap">8 栋</td>
+            <td class="nowrap">1 幢 / 96 户</td>
+            <td class="text-right amt">28,600.00<span class="unit">㎡</span></td>
+            <td class="text-right amt">22,243.82<span class="unit">㎡</span></td>
+            <td class="text-right amt">6,356.18<span class="unit">㎡</span></td>
+            <td class="nowrap">XXXX市测绘院</td>
+            <td class="nowrap">2025-03-18</td>
+            <td class="nowrap"><span class="badge cyan">接口报送</span></td>
+            <td class="nowrap"><span class="badge gray">已被新版本替代</span></td>
+            <td class="nowrap"><span class="dots"><span class="d ok" title="质检：通过"></span><span class="d ok" title="入库：成功"></span></span></td>
+            <td class="col-ops">
+              <span class="link" onclick="location.href='result-detail.html'">详情</span>
+              <span class="link" onclick="location.href='result-version.html'">版本对比</span>
+            </td>
+          </tr>
+
+          <tr data-t="04" data-st="5" data-live="1">
+            <td class="text-center"></td>
+            <td class="nowrap fw-600">CG450200202600158</td>
+            <td class="nowrap">V3.0 <i class="fa-solid fa-flag flag" title="当前生效版本"></i></td>
+            <td class="nowrap"><span class="badge purple">变更成果</span></td>
+            <td>柳石路 128 号老厂区</td>
+            <td class="nowrap">2 栋</td>
+            <td class="nowrap">1 幢 / 24 户</td>
+            <td class="text-right amt">4,862.40<span class="unit">㎡</span></td>
+            <td class="text-right amt">3,986.20<span class="unit">㎡</span></td>
+            <td class="text-right amt">876.20<span class="unit">㎡</span></td>
+            <td class="nowrap">柳州建元</td>
+            <td class="nowrap">2026-06-24</td>
+            <td class="nowrap"><span class="badge orange">离线导入</span></td>
+            <td class="nowrap"><span class="badge green">已入库生效</span></td>
+            <td class="nowrap"><span class="dots"><span class="d ok" title="质检：通过"></span><span class="d ok" title="入库：成功"></span></span></td>
+            <td class="col-ops">
+              <span class="link" onclick="location.href='result-detail.html'">详情</span>
+              <span class="link" onclick="location.href='area-change.html'">变更记录</span>
+            </td>
+          </tr>
+
+          <tr data-t="05" data-st="5" data-live="1">
+            <td class="text-center"></td>
+            <td class="nowrap fw-600">CG450200202600154</td>
+            <td class="nowrap">V1.1 <i class="fa-solid fa-flag flag" title="当前生效版本"></i></td>
+            <td class="nowrap"><span class="badge orange">更正成果</span></td>
+            <td>保利花园</td>
+            <td class="nowrap">3 栋</td>
+            <td class="nowrap">1 幢 / 72 户</td>
+            <td class="text-right amt">21,486.60<span class="unit">㎡</span></td>
+            <td class="text-right amt">16,842.20<span class="unit">㎡</span></td>
+            <td class="text-right amt">4,644.40<span class="unit">㎡</span></td>
+            <td class="nowrap">广西华测</td>
+            <td class="nowrap">2026-06-18</td>
+            <td class="nowrap"><span class="badge">平台上传</span></td>
+            <td class="nowrap"><span class="badge green">已入库生效</span></td>
+            <td class="nowrap"><span class="dots"><span class="d ok" title="质检：通过"></span><span class="d ok" title="入库：成功"></span></span></td>
+            <td class="col-ops">
+              <span class="link" onclick="location.href='result-detail.html'">详情</span>
+              <span class="link" onclick="location.href='result-version.html'">版本对比</span>
+            </td>
+          </tr>
+
+          <tr data-t="06" data-st="5" data-live="1">
+            <td class="text-center"></td>
+            <td class="nowrap fw-600">CG450200202600142</td>
+            <td class="nowrap">V1.0 <i class="fa-solid fa-flag flag" title="当前生效版本"></i></td>
+            <td class="nowrap"><span class="badge gray">征收测绘成果</span></td>
+            <td>河东片区征收范围</td>
+            <td class="nowrap">12 ~ 18 栋</td>
+            <td class="nowrap">7 幢 / 186 户</td>
+            <td class="text-right amt">18,642.80<span class="unit">㎡</span></td>
+            <td class="text-right amt">15,486.20<span class="unit">㎡</span></td>
+            <td class="text-right amt">3,156.60<span class="unit">㎡</span></td>
+            <td class="nowrap">XXXX市测绘院</td>
+            <td class="nowrap">2026-05-28</td>
+            <td class="nowrap"><span class="badge orange">离线导入</span></td>
+            <td class="nowrap"><span class="badge green">已入库生效</span></td>
+            <td class="nowrap"><span class="dots"><span class="d ok" title="质检：通过"></span><span class="d ok" title="入库：成功"></span></span></td>
+            <td class="col-ops"><span class="link" onclick="location.href='result-detail.html'">详情</span></td>
+          </tr>
+
+          <tr data-t="02" data-st="1" data-live="1">
+            <td class="text-center"></td>
+            <td class="nowrap fw-600">CG450200202600190</td>
+            <td class="nowrap">V2.0 <i class="fa-solid fa-flag flag" title="当前生效版本"></i></td>
+            <td class="nowrap"><span class="badge blue">实测成果</span></td>
+            <td>南亚国际城</td>
+            <td class="nowrap">2 栋</td>
+            <td class="nowrap">1 幢 / 108 户</td>
+            <td class="text-right amt">30,486.20<span class="unit">㎡</span></td>
+            <td class="text-right amt">23,842.60<span class="unit">㎡</span></td>
+            <td class="text-right amt">6,643.60<span class="unit">㎡</span></td>
+            <td class="nowrap">柳州恒信</td>
+            <td class="nowrap">2026-07-30</td>
+            <td class="nowrap"><span class="badge cyan">接口报送</span></td>
+            <td class="nowrap"><span class="badge orange">质检中</span></td>
+            <td class="nowrap"><span class="dots"><span class="d ing" title="质检：进行中（已完成 7 / 12 项）"></span><span class="d" title="入库：未执行"></span></span></td>
+            <td class="col-ops">
+              <span class="link" onclick="location.href='result-detail.html'">详情</span>
+              <span class="link" onclick="location.href='result-check.html'">质检</span>
+            </td>
+          </tr>
+
+          <tr data-t="02" data-st="3" data-live="1">
+            <td class="text-center"></td>
+            <td class="nowrap fw-600">CG450200202600168</td>
+            <td class="nowrap">V2.1 <i class="fa-solid fa-flag flag" title="当前生效版本"></i></td>
+            <td class="nowrap"><span class="badge blue">实测成果</span></td>
+            <td>万科城</td>
+            <td class="nowrap">12 栋</td>
+            <td class="nowrap">1 幢 / 96 户</td>
+            <td class="text-right amt">27,486.40<span class="unit">㎡</span></td>
+            <td class="text-right amt">21,486.20<span class="unit">㎡</span></td>
+            <td class="text-right amt">6,000.20<span class="unit">㎡</span></td>
+            <td class="nowrap">柳州恒信</td>
+            <td class="nowrap">2026-07-26</td>
+            <td class="nowrap"><span class="badge">平台上传</span></td>
+            <td class="nowrap"><span class="badge cyan">整改后重报</span></td>
+            <td class="nowrap"><span class="dots"><span class="d ing" title="质检：待重新执行"></span><span class="d" title="入库：未执行"></span></span></td>
+            <td class="col-ops">
+              <span class="link" onclick="location.href='result-detail.html'">详情</span>
+              <span class="link" onclick="location.href='result-check.html'">质检</span>
+            </td>
+          </tr>
+
+          <tr data-t="01" data-st="7" data-live="0">
+            <td class="text-center"></td>
+            <td class="nowrap fw-600">CG450200202600120</td>
+            <td class="nowrap text-3">V1.0</td>
+            <td class="nowrap"><span class="badge gray">预测成果</span></td>
+            <td>华润万象天地</td>
+            <td class="nowrap">2 栋</td>
+            <td class="nowrap">1 幢 / 156 户</td>
+            <td class="text-right amt">42,186.60<span class="unit">㎡</span></td>
+            <td class="text-right amt">32,486.42<span class="unit">㎡</span></td>
+            <td class="text-right amt">9,700.18<span class="unit">㎡</span></td>
+            <td class="nowrap">南宁精测</td>
+            <td class="nowrap">2026-04-12</td>
+            <td class="nowrap"><span class="badge">平台上传</span></td>
+            <td class="nowrap"><span class="badge gray">已作废</span></td>
+            <td class="nowrap"><span class="dots"><span class="d no" title="质检：不通过（重复报送）"></span><span class="d" title="入库：未执行"></span></span></td>
+            <td class="col-ops"><span class="link" onclick="location.href='result-detail.html'">详情</span></td>
+          </tr>
+
+          <tr data-t="02" data-st="5" data-live="1">
+            <td class="text-center"></td>
+            <td class="nowrap fw-600">CG450200202600118</td>
+            <td class="nowrap">V2.0 <i class="fa-solid fa-flag flag" title="当前生效版本"></i></td>
+            <td class="nowrap"><span class="badge blue">实测成果</span></td>
+            <td>荣和公园大道一期</td>
+            <td class="nowrap">3 ~ 5 栋</td>
+            <td class="nowrap">3 幢 / 264 户</td>
+            <td class="text-right amt">76,428.60<span class="unit">㎡</span></td>
+            <td class="text-right amt">59,842.20<span class="unit">㎡</span></td>
+            <td class="text-right amt">16,586.40<span class="unit">㎡</span></td>
+            <td class="nowrap">XXXX市测绘院</td>
+            <td class="nowrap">2026-03-26</td>
+            <td class="nowrap"><span class="badge cyan">接口报送</span></td>
+            <td class="nowrap"><span class="badge green">已入库生效</span></td>
+            <td class="nowrap"><span class="dots"><span class="d ok" title="质检：通过"></span><span class="d ok" title="入库：成功"></span></span></td>
+            <td class="col-ops">
+              <span class="link" onclick="location.href='result-detail.html'">详情</span>
+              <span class="link" onclick="location.href='area-compare.html'">面积比对</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+/* 版本链展开行不占用序号，需在框架自动编号之后重排 */
+function renumberData() {
+  var n = 1;
+  document.querySelectorAll('#tblCg tbody tr').forEach(function (tr) {
+    var cell = tr.querySelector('td.idx-col');
+    if (!cell) return;
+    if (tr.classList.contains('ver-row')) { cell.textContent = ''; return; }
+    cell.textContent = n < 10 ? '0' + n : String(n);
+    n++;
+  });
+}
+document.addEventListener('DOMContentLoaded', renumberData);
+
+function toggleVer(el) {
+  var tr = el.closest('tr'), ver = tr.nextElementSibling;
+  if (!ver || !ver.classList.contains('ver-row')) return;
+  var open = ver.style.display !== 'none';
+  ver.style.display = open ? 'none' : '';
+  el.classList.toggle('open', !open);
+}
+
+function applyFilter() {
+  var t = document.getElementById('fType').value,
+      s = document.getElementById('fSt').value,
+      live = document.getElementById('fLive').value, n = 0;
+  document.querySelectorAll('#tblCg tbody tr').forEach(function (tr) {
+    if (tr.classList.contains('ver-row')) { tr.style.display = 'none'; return; }
+    var ok = (!t || tr.dataset.t === t) && (!s || tr.dataset.st === s) && (live !== '1' || tr.dataset.live === '1');
+    tr.style.display = ok ? '' : 'none';
+    if (ok) n++;
+  });
+  document.querySelectorAll('#tblCg .exp').forEach(function (e) { e.classList.remove('open'); });
+  PMS.toast('已按条件筛选，共 ' + n + ' 条');
+}
+
+function resetFilter() {
+  document.getElementById('fType').value = '';
+  document.getElementById('fSt').value = '';
+  document.getElementById('fLive').value = '0';
+  document.querySelectorAll('#tblCg tbody tr').forEach(function (tr) {
+    tr.style.display = tr.classList.contains('ver-row') ? 'none' : '';
+  });
+  document.querySelectorAll('#tblCg .exp').forEach(function (e) { e.classList.remove('open'); });
+  PMS.toast('筛选条件已重置');
+}
+
+function batchCheck() {
+  PMS.confirm({
+    title: '批量质检',
+    message: '对当前筛选结果中 14 包待质检成果执行 12 项自动质检？',
+    detail: '质检为只读校验，不会修改成果数据；单包（含数百户）平均耗时约 8 秒，完成后可在质检页查看逐项结果。',
+    type: 'info',
+    okText: '开始质检',
+    onOk: function () { PMS.toast('已提交批量质检任务，预计 2 分钟内完成，完成后将在待办中提醒', 'success'); }
+  });
+}
+
+function doVoid(no) {
+  PMS.confirm({
+    title: '作废成果',
+    message: '确认作废 ' + no + ' 吗？',
+    detail: '作废后该次报送不再参与质检与入库，楼盘表仍指向原当前生效版本；作废须填写原因并留痕，操作不可撤销。',
+    type: 'danger',
+    okText: '确认作废',
+    onOk: function () { PMS.toast('已作废 ' + no + '，已通知柳州建元重新报送', 'success'); }
+  });
+}
+
+PMS.renderPager(document.getElementById('tblCg'), {
+  pageNum: 1, pageSize: 20, total: 186,
+  onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>信用记分标准 · 从业主体与信用监管系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<link rel="stylesheet" href="../../assets/css/wsztxy.css">
+</head>
+<body data-role="manager" data-active="wsztxy-11">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 从业主体与信用监管系统
+        <span class="sep">/</span> 信用管理
+        <span class="sep">/</span> <span class="cur">信用记分标准</span>
+      </div>
+      <div class="page-title">信用记分标准</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-primary" onclick="ZT.exportAsync('信用记分标准')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="card">
+      <div class="card-body">
+        <div class="alert alert-warning" id="qzAlert">
+          <i class="fa-solid fa-scale-unbalanced"></i>
+          <div>
+            版本 <b>V2027.1（草稿）</b> 的一级指标权重合计为 <b id="qzSum">98%</b>，差额 <b id="qzGap">2%</b>，<b>不等于 100% 时不允许启用</b>。
+            <span class="link" onclick="fixQz()">把差额补到「合规经营」</span>
+            <span class="muted">基础分指标校验：有且仅有 1 个 <i class="fa-solid fa-circle-check text-success"></i></span>
+          </div>
+        </div>
+
+        <div class="zt-split">
+          <!-- 左：三层指标树 -->
+          <aside class="zt-tree card" style="padding:8px">
+            <div class="zt-tree-item on" data-zb="all" onclick="pickZb(this)"><i class="fa-solid fa-sitemap"></i> 全部指标 <span class="tc">42</span></div>
+            <div class="zt-tree-item" data-zb="jcf" onclick="pickZb(this)"><i class="fa-solid fa-circle-dot"></i> 基础分（起评 100） <span class="tc">1</span></div>
+
+            <div class="zt-tree-item" data-zb="d1" onclick="pickZb(this)"><i class="fa-solid fa-folder"></i> 一级 合规经营 <span class="tc">30%</span></div>
+            <div class="zt-tree-item lv2" data-zb="d1-1" onclick="pickZb(this)">二级 备案合规 <span class="tc">4</span></div>
+            <div class="zt-tree-item lv3" data-zb="d1-1-1" onclick="pickZb(this)">KF-01-05 资质到期未延续</div>
+            <div class="zt-tree-item lv3" data-zb="d1-1-2" onclick="pickZb(this)">KF-01-06 逾期未年报</div>
+            <div class="zt-tree-item lv2" data-zb="d1-2" onclick="pickZb(this)">二级 行政处罚 <span class="tc">3</span></div>
+
+            <div class="zt-tree-item" data-zb="d2" onclick="pickZb(this)"><i class="fa-solid fa-folder"></i> 一级 交易行为 <span class="tc">25%</span></div>
+            <div class="zt-tree-item lv2" data-zb="d2-1" onclick="pickZb(this)">二级 房源与广告 <span class="tc">5</span></div>
+            <div class="zt-tree-item lv2" data-zb="d2-2" onclick="pickZb(this)">二级 收费与合同 <span class="tc">4</span></div>
+
+            <div class="zt-tree-item" data-zb="d3" onclick="pickZb(this)"><i class="fa-solid fa-folder"></i> 一级 资金监管 <span class="tc">23%</span></div>
+            <div class="zt-tree-item lv2" data-zb="d3-1" onclick="pickZb(this)">二级 监管资金 <span class="tc">3</span></div>
+            <div class="zt-tree-item lv3 veto" data-zb="d3-1-1" onclick="pickZb(this)">KF-03-02 挪用监管资金 <span class="tc">一票否决</span></div>
+
+            <div class="zt-tree-item" data-zb="d4" onclick="pickZb(this)"><i class="fa-solid fa-folder"></i> 一级 服务质量 <span class="tc">12%</span></div>
+            <div class="zt-tree-item" data-zb="d5" onclick="pickZb(this)"><i class="fa-solid fa-folder"></i> 一级 守信激励 <span class="tc">8%</span></div>
+            <div class="zt-tree-item lv2" data-zb="d5-1" onclick="pickZb(this)">二级 表彰与荣誉 <span class="tc">3</span></div>
+
+            <p class="hint" style="padding:8px 6px 4px">
+              <i class="fa-solid fa-circle-info"></i>
+              一票否决指标以红字标注：命中即强制 D 级，<b>但得分照算照显示</b>，便于说明「虽然 82 分但触发一票否决评为 D 级」。
+            </p>
+          </aside>
+
+          <!-- 右：指标属性 + 权重 + 版本 -->
+          <div class="zt-pane">
+            <div class="zt-scroll">
+              <div class="zt-block">
+                <div class="zt-block-h"><i class="fa-solid fa-percent"></i> 一级指标权重 <span class="sub" id="zbScopeTip">当前查看：全部指标</span></div>
+                <div class="zt-block-b">
+                  <div class="zt-score" id="qzList">
+                    <div class="sc-row"><span class="sc-name">合规经营</span><span class="sc-bar"><span style="width:30%"></span></span><span class="sc-val" id="qzD1">30%</span></div>
+                    <div class="sc-row"><span class="sc-name">交易行为</span><span class="sc-bar"><span style="width:25%"></span></span><span class="sc-val">25%</span></div>
+                    <div class="sc-row"><span class="sc-name">资金监管</span><span class="sc-bar"><span style="width:23%"></span></span><span class="sc-val">23%</span></div>
+                    <div class="sc-row"><span class="sc-name">服务质量</span><span class="sc-bar"><span style="width:12%"></span></span><span class="sc-val">12%</span></div>
+                    <div class="sc-row"><span class="sc-name">守信激励</span><span class="sc-bar add"><span style="width:8%"></span></span><span class="sc-val add">8%</span></div>
+                  </div>
+                  <div class="zt-sum" style="margin-top:10px">
+                    <span class="sv" id="qzBig">98</span><span class="su">% 合计 · 须等于 100%</span>
+                    <span class="su" style="margin-left:auto">权重制：加权后得分 = 指标得分 × 权重；若采用直接加减分制，全部指标权重置 100% 并在体系说明中注明，两种模式不得混用</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="zt-block">
+                <div class="zt-block-h"><i class="fa-solid fa-list-check"></i> 指标明细 <span class="sub">共 42 条 · 版本 V2027.1（草稿）</span></div>
+                <div class="zt-block-b pad0">
+                  <div class="zt-tw">
+                    <table class="data-table">
+                      <thead><tr>
+                        <th>指标代码</th><th>指标名称</th><th>层级</th><th>指标类型</th>
+                        <th>计算方式</th><th class="num">单次分值</th><th class="num">加分上限</th><th class="num">扣分下限</th>
+                        <th>适用主体</th><th>评价对象</th><th>操作</th>
+                      </tr></thead>
+                      <tbody>
+                        <tr>
+                          <td>JC-00-01</td><td>基础分（起评分）</td><td>一级</td><td><span class="badge blue">基础分</span></td>
+                          <td>—</td><td class="num">100</td><td class="num">—</td><td class="num">—</td>
+                          <td>全部 14 类</td><td>企业 / 个人 / 门店</td>
+                          <td><span class="link" onclick="openZb(this)">编辑</span></td>
+                        </tr>
+                        <tr>
+                          <td>KF-01-05</td><td>资质到期未延续</td><td>三级</td><td><span class="badge red">减分项</span></td>
+                          <td>0 累加</td><td class="num">−2</td><td class="num">—</td><td class="num">−6</td>
+                          <td>开发 / 测绘 / 监理</td><td>企业</td>
+                          <td><span class="link" onclick="openZb(this)">编辑</span></td>
+                        </tr>
+                        <tr>
+                          <td>KF-01-06</td><td>逾期未年报</td><td>三级</td><td><span class="badge red">减分项</span></td>
+                          <td>1 取最值</td><td class="num">−5</td><td class="num">—</td><td class="num">−5</td>
+                          <td>全部 14 类</td><td>企业</td>
+                          <td><span class="link" onclick="openZb(this)">编辑</span></td>
+                        </tr>
+                        <tr>
+                          <td>KF-02-01</td><td>违规发布虚假房源</td><td>三级</td><td><span class="badge red">减分项</span></td>
+                          <td>2 按次数分档</td><td class="num">−8 起</td><td class="num">—</td><td class="num">−24</td>
+                          <td>经纪 / 租赁</td><td>企业 / 个人</td>
+                          <td>
+                            <span class="link" onclick="openZb(this)">编辑</span>
+                            <span class="link" onclick="ZT.todo('分档规则：1 次 −8 分；2—3 次 −16 分；4 次及以上 −24 分（已达扣分下限）')">分档规则</span>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>KF-03-02</td><td>挪用监管资金</td><td>三级</td><td><span class="badge red">一票否决</span></td>
+                          <td>1 取最值</td><td class="num">−20</td><td class="num">—</td><td class="num">−20</td>
+                          <td>开发</td><td>企业</td>
+                          <td><span class="link" onclick="openZb(this)">编辑</span></td>
+                        </tr>
+                        <tr>
+                          <td>KF-04-03</td><td>服务质量投诉率</td><td>三级</td><td><span class="badge red">减分项</span></td>
+                          <td>3 自动计算</td><td class="num">公式</td><td class="num">—</td><td class="num">−12</td>
+                          <td>物业 / 经纪 / 租赁</td><td>企业 / 门店</td>
+                          <td>
+                            <span class="link" onclick="openZb(this)">编辑</span>
+                            <span class="link" onclick="ZT.todo('计算公式：投诉核实属实件数 ÷ 在管项目数（物业）或成交量（经纪）；受限表达式语法，只允许引用已登记变量与四则运算')">查看公式</span>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>JF-01-02</td><td>市级以上表彰</td><td>三级</td><td><span class="badge green">加分项</span></td>
+                          <td>0 累加</td><td class="num">+6</td><td class="num">+12</td><td class="num">—</td>
+                          <td>全部 14 类</td><td>企业</td>
+                          <td><span class="link" onclick="openZb(this)">编辑</span></td>
+                        </tr>
+                        <tr>
+                          <td>JF-01-04</td><td>公益贡献与保障房参与</td><td>三级</td><td><span class="badge green">加分项</span></td>
+                          <td>4 人工评定</td><td class="num">+1 — +5</td><td class="num">+5</td><td class="num">—</td>
+                          <td>开发 / 施工</td><td>企业</td>
+                          <td>
+                            <span class="link" onclick="openZb(this)">编辑</span>
+                            <span class="link" onclick="ZT.todo('人工评定的指标在评价时必须填写评定理由，理由随得分明细留存，不允许空理由打分')">评定要求</span>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div class="zt-block">
+                <div class="zt-block-h"><i class="fa-solid fa-code-branch"></i> 指标体系版本 <span class="sub">一个区划同一时点只有一个启用版本</span></div>
+                <div class="zt-block-b pad0">
+                  <div class="zt-tw">
+                    <table class="data-table">
+                      <thead><tr>
+                        <th>版本号</th><th>适用区划</th><th class="num">指标数</th><th>生效范围</th>
+                        <th>试算状态</th><th>版本状态</th><th>创建人 / 时间</th><th>操作</th>
+                      </tr></thead>
+                      <tbody>
+                        <tr>
+                          <td>V2027.1 <span class="badge blue">草稿</span></td><td>柳州市本级（含县区）</td><td class="num">42</td>
+                          <td>拟用于 2027 年度评价</td>
+                          <td><span class="badge gray" id="ssBadge">未试算</span></td>
+                          <td><span class="badge blue">草稿</span></td>
+                          <td>蒙丽华 2026-07-20</td>
+                          <td>
+                            <span class="link" onclick="PMS.openDrawer('ssDrawer')">模型试算</span>
+                            <span class="link" id="qyLink" onclick="ZT.denied('未完成试算不允许启用：请先完成试算并阅读试算报告（权重合计 98% 亦须先补足为 100%）')">启用版本</span>
+                            <span class="link" onclick="ZT.todo('已复制为新版本 V2027.2（草稿），原草稿保留')">复制</span>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>V2026.1</td><td>柳州市本级（含县区）</td><td class="num">40</td>
+                          <td>2026-01-01 起 · 用于 2026 年度与季度评价</td>
+                          <td><span class="badge green">试算完成</span> <span class="muted">2025-12-08</span></td>
+                          <td><span class="badge green">启用中</span></td>
+                          <td>蒙丽华 2025-12-01</td>
+                          <td>
+                            <span class="link" onclick="ZT.todo('已打开 V2026.1 试算报告：参评 16,842 个对象，A+ 3.1%、A 24.6%、B 51.2%、C 16.8%、D 4.3%，一票否决命中 12 个')">试算报告</span>
+                            <span class="link" onclick="ZT.todo('启用中的版本不允许直接改指标，须复制为新版本后调整（指标调整不追溯已发布结果）')">查看指标</span>
+                          </td>
+                        </tr>
+                        <tr class="row-off">
+                          <td>V2025.1</td><td>柳州市本级（含县区）</td><td class="num">36</td>
+                          <td>2025-01-01 至 2025-12-31</td>
+                          <td><span class="badge green">试算完成</span></td>
+                          <td><span class="badge gray">已停用</span></td>
+                          <td>蒙丽华 2024-12-03</td>
+                          <td><span class="link" onclick="ZT.todo('已停用版本的记录与试算报告保留，历史评价结果仍按当时版本显示，指标名称取评价时的冗余值')">查看</span></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <p class="hint">
+                <i class="fa-solid fa-circle-info"></i>
+                指标调整<b>不追溯已发布的评价结果</b>：调整须新建版本，旧版本停用但记录保留；跨越指标生效变更的评价期，按评价期止日的启用版本计算。历史结果一律显示当时冗余存储的指标名称与分值，不联查当前指标表。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    <!-- ===================== 页签四 · 评价结果 ===================== -->
+  </div>
+</main>
+
+
+<!-- ========== 抽屉五 · 模型试算（启用前的强制前置） ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="ssDrawer">
+  <div class="drawer-head"><h3>模型试算 · 指标体系版本 V2027.1（草稿）</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div>试算与正式评价<b>共用同一套计算引擎</b>，只是输出目标不同；试算<b>不生成正式评价记录、不推送、不公示</b>，报告可导出并与其他试算方案对比，保留不少于 1 年作为设计留痕。</div>
+    </div>
+
+    <h4 class="section-title" data-icon="fa-sliders">试算范围</h4>
+    <div class="form-grid form-align">
+      <div class="form-item"><label>试算评价期 <span class="req">*</span></label>
+        <select><option>2026 年度（2026-01-01 至 2026-12-31）</option><option>2025 年度</option><option>2026 年第二季度</option></select></div>
+      <div class="form-item"><label>主体范围 <span class="req">*</span></label>
+        <select><option>全部参评对象</option><option>按主体类型</option><option>按区划</option><option>指定主体</option></select></div>
+      <div class="form-item"><label>评价对象类型</label>
+        <select><option>企业 + 人员 + 门店</option><option>仅企业</option><option>仅人员</option></select></div>
+      <div class="form-item"><label>对比方案</label>
+        <select><option>与启用版本 V2026.1 对比</option><option>与试算方案 V2027.1-A 对比</option><option>不对比</option></select></div>
+    </div>
+
+    <h4 class="section-title" data-icon="fa-chart-column">试算报告摘要 <span class="text-sm">本次试算 2026-07-30 16:42 完成，用时 6 分 12 秒</span></h4>
+    <div class="stat-grid" style="margin-bottom:10px">
+      <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-users"></i></div><div>
+        <div class="s-label">参评对象（个）</div><div class="s-value">16,842</div><div class="s-trend text-2">信用数据 9,842 条</div></div></div>
+      <div class="stat-card"><div class="s-icon orange"><i class="fa-solid fa-arrows-turn-to-dots"></i></div><div>
+        <div class="s-label">等级变动（个）</div><div class="s-value">1,286</div><div class="s-trend text-warning">升 486 · 降 800</div></div></div>
+      <div class="stat-card"><div class="s-icon red"><i class="fa-solid fa-hand"></i></div><div>
+        <div class="s-label">一票否决命中（个）</div><div class="s-value">14</div><div class="s-trend text-2">较现版本 +2</div></div></div>
+      <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-list-ol"></i></div><div>
+        <div class="s-label">上下榜变化（家）</div><div class="s-value">18</div><div class="s-trend text-2">新增黑名单候选 5 · 红名单候选 13</div></div></div>
+    </div>
+
+    <div class="zt-block">
+      <div class="zt-block-h"><i class="fa-solid fa-chart-simple"></i> 等级分布对比 <span class="sub">左 现版本 V2026.1 · 右 试算 V2027.1</span></div>
+      <div class="zt-block-b">
+        <div class="zt-chart">
+          <svg viewBox="0 0 620 170" role="img" aria-label="等级分布对比柱状图">
+            <line class="gd" x1="42" y1="140" x2="600" y2="140"></line>
+            <line class="gd" x1="42" y1="100" x2="600" y2="100"></line>
+            <line class="gd" x1="42" y1="60" x2="600" y2="60"></line>
+            <line class="gd" x1="42" y1="20" x2="600" y2="20"></line>
+            <text class="ax" x="8" y="144">0</text><text class="ax" x="4" y="104">20</text>
+            <text class="ax" x="4" y="64">40</text><text class="ax" x="4" y="24">60</text>
+            <rect class="bar g" x="70" y="128" width="26" height="12"></rect>
+            <rect class="bar" x="100" y="126" width="26" height="14"></rect>
+            <text class="ax" x="80" y="156">A+</text>
+            <rect class="bar g" x="180" y="91" width="26" height="49"></rect>
+            <rect class="bar" x="210" y="98" width="26" height="42"></rect>
+            <text class="ax" x="192" y="156">A</text>
+            <rect class="bar g" x="290" y="38" width="26" height="102"></rect>
+            <rect class="bar" x="320" y="44" width="26" height="96"></rect>
+            <text class="ax" x="302" y="156">B</text>
+            <rect class="bar y" x="400" y="107" width="26" height="33"></rect>
+            <rect class="bar y" x="430" y="98" width="26" height="42"></rect>
+            <text class="ax" x="412" y="156">C</text>
+            <rect class="bar r" x="510" y="132" width="26" height="8"></rect>
+            <rect class="bar r" x="540" y="126" width="26" height="14"></rect>
+            <text class="ax" x="522" y="156">D</text>
+          </svg>
+        </div>
+        <p class="hint">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          试算版本下 C 级由 16.8% 升至 21.4%、D 级由 4.3% 升至 5.6%，主要来自「服务质量投诉率」指标扣分下限由 −8 放宽至 −12。启用后将有 <b>5 家</b>新增进入黑名单候选，需评估惩戒面。
+        </p>
+      </div>
+    </div>
+
+    <div class="zt-block">
+      <div class="zt-block-h"><i class="fa-solid fa-list-check"></i> 指标命中率与平均分值贡献 <span class="sub">仅列变化最大的 5 条</span></div>
+      <div class="zt-block-b pad0">
+        <div class="zt-tw">
+          <table class="data-table">
+            <thead><tr><th>指标</th><th class="num">命中对象</th><th class="num">命中率</th><th class="num">平均分值贡献</th><th class="num">较现版本</th></tr></thead>
+            <tbody>
+              <tr><td>KF-04-03 服务质量投诉率</td><td class="num">2,146</td><td class="num">12.7%</td><td class="num">−4.2</td><td class="num text-danger">−1.6</td></tr>
+              <tr><td>KF-02-01 违规发布虚假房源</td><td class="num">886</td><td class="num">5.3%</td><td class="num">−9.8</td><td class="num text-danger">−1.8</td></tr>
+              <tr><td>KF-01-06 逾期未年报</td><td class="num">142</td><td class="num">0.8%</td><td class="num">−5.0</td><td class="num">0.0</td></tr>
+              <tr><td>JF-01-02 市级以上表彰</td><td class="num">268</td><td class="num">1.6%</td><td class="num">+6.4</td><td class="num text-success">+0.4</td></tr>
+              <tr><td>KF-03-02 挪用监管资金（一票否决）</td><td class="num">14</td><td class="num">0.08%</td><td class="num">−20.0</td><td class="num">0.0</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-item col-full" style="margin-top:10px">
+      <label><input type="checkbox" id="ssRead" onchange="onSsRead(this)"> 我已阅读试算报告，了解启用后的等级变动与上下榜影响</label>
+      <div class="hint">勾选后方可启用版本。<b>版本变更不追溯已发布的历史评价结果</b>：已发布结果不因指标变更而重算，新版本只作用于其后的评价批次。</div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn" onclick="ZT.exportAsync('V2027.1 模型试算报告')"><i class="fa-solid fa-download"></i> 导出试算报告</button>
+    <button class="btn btn-primary" id="ssEnable" disabled onclick="ZT.denied('请先勾选「已阅读试算报告」，并把一级指标权重合计补足为 100%')"><i class="fa-solid fa-toggle-on"></i> 启用版本</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉六 · 指标编辑 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="zbDrawer">
+  <div class="drawer-head"><h3>指标配置 · <span data-fill="zbmc">—</span></h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-warning">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div>当前编辑的是<b>草稿版本 V2027.1</b>。启用中的版本不允许直接改指标，须复制为新版本后调整；指标调整不追溯已发布的评价结果。</div>
+    </div>
+    <div class="form-grid form-align">
+      <div class="form-item"><label>指标代码 <span class="req">*</span></label><input type="text" data-fill="zbdm"></div>
+      <div class="form-item"><label>指标名称 <span class="req">*</span></label><input type="text" data-fill="zbmc"></div>
+      <div class="form-item"><label>指标层级 <span class="req">*</span></label>
+        <select data-fill="zbcj"><option>一级</option><option>二级</option><option>三级</option></select></div>
+      <div class="form-item"><label>上级指标</label><input type="text" value="KF-01 合规经营 / KF-01-0 备案合规"></div>
+      <div class="form-item"><label>指标类型 <span class="req">*</span></label>
+        <select data-fill="zblx"><option>基础分</option><option>加分项</option><option>减分项</option><option>一票否决</option></select>
+        <div class="hint">一个版本内基础分指标有且仅有一个，否则阻断启用。</div></div>
+      <div class="form-item"><label>计算方式 <span class="req">*</span></label>
+        <select data-fill="jsfs"><option>0 累加</option><option>1 取最值</option><option>2 按次数分档</option><option>3 自动计算</option><option>4 人工评定</option></select></div>
+      <div class="form-item"><label>单次分值 <span class="req">*</span></label><input type="text" data-fill="dcff"></div>
+      <div class="form-item"><label>权重（%）</label><input type="text" value="30" >
+        <div class="hint">权重按一级指标配置，同版本内一级指标权重之和须等于 100%。</div></div>
+      <div class="form-item"><label>加分上限</label><input type="text" data-fill="zgjf"></div>
+      <div class="form-item"><label>扣分下限</label><input type="text" data-fill="zdkf"></div>
+      <div class="form-item"><label>影响有效期（月）</label><input type="text" value="24"></div>
+      <div class="form-item"><label>生效 / 失效日期</label><input type="text" value="2027-01-01 / —"></div>
+      <div class="form-item col-full"><label>适用主体类型（多选）</label>
+        <input type="text" value="房地产开发企业、房产测绘机构、工程监理企业">
+        <div class="hint">不同主体类型可用不同指标；未勾选的主体类型不参与本指标计分。</div></div>
+      <div class="form-item col-full"><label>评价对象类型（多选）</label><input type="text" value="企业"></div>
+      <div class="form-item col-full"><label>评分标准说明 <span class="req">*</span></label>
+        <textarea rows="2">资质有效期届满未办理延续，每发现一次扣 2 分，累计扣分不超过 6 分。以备案系统的资质有效期与延续办件为判定依据。</textarea></div>
+      <div class="form-item col-full"><label>政策依据</label><input type="text" value="《房地产开发企业资质管理规定》第十三条"></div>
+      <div class="form-item col-full"><label>数据来源方式 <span class="req">*</span></label>
+        <input type="text" value="本系统 FR-001 备案数据 + FR-010 信用信息（xxlx = 17 / 18）">
+        <div class="hint">每条参与计算的信用信息主键必须写入得分明细，做不到回溯的指标不允许上线。</div></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('已保存指标配置到草稿版本 V2027.1','success')"><i class="fa-solid fa-check"></i> 保存</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/wsztxy.js"></script>
+<script>
+  /* ---------- 当前登录人：双人授权的比对基准 ---------- */
+  document.addEventListener('DOMContentLoaded', function () {
+    var me = ZT.me();
+    ['mePj', 'meSp', 'tfWho', 'rdWho'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.textContent = me;
+    });
+    var t = ZT.param('tab');
+    if (t) ZT.tab(t);
+  });
+  /* ================= 页签三 · 评价指标与模型 ================= */
+  function pickZb(el) {
+    ZT.pick(el, '.zt-tree-item');
+    var tip = document.getElementById('zbScopeTip');
+    if (tip) tip.textContent = '当前查看：' + el.textContent.replace(/\s+/g, ' ').trim();
+  }
+  function fixQz() {
+    document.getElementById('qzD1').textContent = '32%';
+    document.querySelector('#qzList .sc-row .sc-bar > span').style.width = '32%';
+    document.getElementById('qzSum').textContent = '100%';
+    document.getElementById('qzGap').textContent = '0%';
+    document.getElementById('qzBig').textContent = '100';
+    var alertBox = document.getElementById('qzAlert');
+    alertBox.className = 'alert alert-success';
+    alertBox.querySelector('div').innerHTML = '一级指标权重合计已补足为 <b>100%</b>，基础分指标校验通过（有且仅有 1 个）。权重校验已通过，是否可启用仍取决于模型试算。';
+    PMS.toast('权重合计已补足为 100%；启用版本仍需先完成试算并勾选已阅读试算报告', 'success');
+  }
+  function openZb(el) {
+    var td = el.closest('tr').children;
+    PMS.fill('zbDrawer', {
+      zbdm: td[0].textContent.trim(),
+      zbmc: td[1].textContent.trim(),
+      zbcj: td[2].textContent.trim(),
+      zblx: td[3].textContent.trim(),
+      jsfs: td[4].textContent.trim(),
+      dcff: td[5].textContent.trim(),
+      zgjf: td[6].textContent.trim(),
+      zdkf: td[7].textContent.trim()
+    });
+    PMS.openDrawer('zbDrawer');
+  }
+  function onSsRead(cb) {
+    var btn = document.getElementById('ssEnable');
+    var qzOk = document.getElementById('qzSum').textContent === '100%';
+    btn.disabled = !cb.checked;
+    btn.setAttribute('onclick', cb.checked && qzOk
+      ? "enableVer()"
+      : "ZT.denied('" + (cb.checked ? '一级指标权重合计须先补足为 100%' : '请先勾选「已阅读试算报告」') + "')");
+    if (cb.checked) {
+      document.getElementById('ssBadge').className = 'badge green';
+      document.getElementById('ssBadge').textContent = '试算完成';
+    }
+  }
+  function enableVer() {
+    PMS.confirm({
+      title: '启用指标体系版本 V2027.1',
+      message: '确认启用该版本并停用 V2026.1？',
+      detail: '启用后：① 新版本作用于其后的评价批次；② 版本变更不追溯已发布的历史评价结果，已发布结果不重算；③ 旧版本置停用但记录与试算报告保留；④ 一个区划同一时点只有一个启用版本。',
+      type: 'warning',
+      okText: '确认启用',
+      onOk: function () { PMS.closeDrawer(); PMS.toast('已启用 V2027.1，V2026.1 转为已停用（记录保留）', 'success'); }
+    });
+  }
+
+  /* ================= 页签四 · 评价结果 ================= */
+  var lastName = '';
+  document.addEventListener('input', function (e) {
+    if (e.target && e.target.id === 'tfWhy') {
+    }
+  });
+
+
+</script>
+</body>
+</html>

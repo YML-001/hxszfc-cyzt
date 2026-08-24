@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>固化数据查询 · 房产交易数据中心</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+</head>
+<body data-role="admin" data-active="wsdata-08">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房产交易数据中心
+        <span class="sep">/</span> 统计口径固化
+        <span class="sep">/</span> <span class="cur">固化数据查询</span>
+      </div>
+      <div class="page-title">固化数据查询</div>
+    </div>
+  </div>
+
+  <div class="dc-layout">
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-folder-tree"></i> 业务数据类别</h3></div>
+      <div class="dc-scroll tight dc-tree" id="catTree"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head" id="catHead"></div>
+      <div class="card-body">
+        <div class="alert alert-info"><i class="fa-solid fa-circle-info"></i><div>查询的是<b>具体业务结果数据</b>（项目、楼栋、销售许可证、网签备案合同等明细记录），非统计汇总数据。涉及个人信息的字段默认脱敏，明细按数据共享授权范围提供。</div></div>
+        <div class="filter-bar">
+          <div class="filter-item"><label>关键字</label><input type="text" id="kw" placeholder="编号 / 名称 / 坐落"></div>
+          <div class="filter-item"><label>行政区划</label><select data-dict="said"></select></div>
+          <div class="filter-item"><label>起始日期</label><input type="date"></div>
+          <div class="filter-item"><label>截止日期</label><input type="date"></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按条件查询')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="document.getElementById('kw').value='';PMS.toast('已重置查询条件')">重置</button>
+            <button class="btn" onclick="PMS.toast('已导出查询结果明细')"><i class="fa-solid fa-download"></i> 导出</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" data-static id="listTable">
+            <thead id="tblHead"></thead>
+            <tbody id="tblBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- 记录详情抽屉 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="recDrawer">
+  <div class="drawer-head"><h3 id="rdTitle">记录详情</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <dl class="desc-list" id="rdBody"></dl>
+    <p class="hint mt-16"><i class="fa-solid fa-circle-info"></i> 以上为该业务记录的固化明细。涉及个人信息字段已按脱敏规则显示，如需原始明细请通过数据共享授权申请。</p>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn btn-primary" onclick="PMS.toast('已导出该记录明细')"><i class="fa-solid fa-download"></i> 导出记录</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+  var CAT = {
+    xm: { name: "项目信息数据", icon: "fa-diagram-project", cnt: "12,486",
+      head: ["项目编号", "项目名称", "开发企业", "项目坐落", "建筑面积(㎡)", "项目状态", "更新时间"],
+      rows: [
+        ["XM202600128", "龙城新苑二期", "XXXX市龙建房地产开发有限公司", "城中区文昌路 128 号", "186,420.00", "在建", "2026-08-01 03:38"],
+        ["XM202600086", "江湾府邸", "XXXX市江湾置业有限公司", "柳南区柳石路 86 号", "248,600.00", "在售", "2026-08-01 03:38"],
+        ["XM202600042", "碧水云天花园", "广西碧水房地产开发有限公司", "鱼峰区东环大道 42 号", "126,800.00", "竣工", "2026-08-01 03:38"],
+        ["XM202600206", "融水民族家园", "融水苗族自治县安居建设投资有限公司", "融水苗族自治县和睦镇", "62,400.00", "在建", "2026-08-01 03:38"]
+      ] },
+    ld: { name: "楼栋信息数据", icon: "fa-building", cnt: "68,240",
+      head: ["楼栋编号", "所属项目", "楼栋名称", "总层数", "总户数", "楼栋状态", "更新时间"],
+      rows: [
+        ["LD20260012801", "龙城新苑二期", "1 号楼", "26", "104", "预售", "2026-08-01 03:38"],
+        ["LD20260012802", "龙城新苑二期", "2 号楼", "26", "104", "预售", "2026-08-01 03:38"],
+        ["LD20260008603", "江湾府邸", "3 号楼", "32", "128", "现售", "2026-08-01 03:38"],
+        ["LD20260004201", "碧水云天花园", "1 号楼", "18", "72", "现售", "2026-08-01 03:38"]
+      ] },
+    xkz: { name: "销售许可证数据", icon: "fa-certificate", cnt: "8,642",
+      head: ["许可证编号", "所属项目", "许可证类型", "许可销售面积(㎡)", "发证日期", "发证机关", "状态"],
+      rows: [
+        ["柳房预售证〔2026〕第 086 号", "龙城新苑二期", "商品房预售许可", "96,420.00", "2026-06-18", "XXXX市住房和城乡建设局", "有效"],
+        ["柳房现售证〔2026〕第 012 号", "江湾府邸", "商品房现售备案", "128,600.00", "2026-05-12", "XXXX市住房和城乡建设局", "有效"],
+        ["柳房预售证〔2026〕第 042 号", "碧水云天花园", "商品房预售许可", "62,800.00", "2026-03-06", "XXXX市住房和城乡建设局", "有效"],
+        ["柳房预售证〔2025〕第 218 号", "阳光新城三期", "商品房预售许可", "42,600.00", "2025-11-22", "XXXX市住房和城乡建设局", "已售罄"]
+      ] },
+    spht: { name: "商品房网签备案合同数据", icon: "fa-file-signature", cnt: "2,486,200",
+      head: ["合同编号", "房屋坐落", "买受人", "建筑面积(㎡)", "合同金额(元)", "网签时间", "合同状态"],
+      rows: [
+        ["LZSPHT202600128601", "龙城新苑二期 1 号楼 1 单元 1801", "张*", "98.62", "986,200.00", "2026-07-31 15:26", "备案"],
+        ["LZSPHT202600086302", "江湾府邸 3 号楼 2 单元 0602", "李*", "126.40", "1,486,800.00", "2026-07-31 11:12", "备案"],
+        ["LZSPHT202600042101", "碧水云天花园 1 号楼 1 单元 0306", "覃*", "88.20", "742,600.00", "2026-07-30 16:42", "变更"],
+        ["LZSPHT202600128608", "龙城新苑二期 2 号楼 1 单元 0104", "韦*", "104.80", "1,048,000.00", "2026-07-30 09:18", "注销"]
+      ] },
+    clht: { name: "存量房网签备案合同数据", icon: "fa-file-contract", cnt: "1,862,000",
+      head: ["合同编号", "房屋坐落", "出卖人", "买受人", "成交金额(元)", "网签时间", "合同状态"],
+      rows: [
+        ["LZCLHT202600086201", "城中区映山街 26 号 3 单元 0502", "陈*", "黄*", "628,000.00", "2026-07-31 14:06", "备案"],
+        ["LZCLHT202600042602", "柳北区跃进路 18 号 1 单元 0801", "莫*", "梁*", "486,200.00", "2026-07-31 10:26", "备案"],
+        ["LZCLHT202600128203", "鱼峰区箭盘路 52 号 2 单元 0304", "刘*", "周*", "562,400.00", "2026-07-30 15:48", "变更"],
+        ["LZCLHT202600096204", "柳南区潭中西路 66 号 4 单元 1102", "吴*", "杨*", "718,600.00", "2026-07-30 09:32", "备案"]
+      ] },
+    zlht: { name: "住房租赁备案合同数据", icon: "fa-house-chimney-user", cnt: "862,400",
+      head: ["备案编号", "房屋坐落", "出租人", "承租人", "月租金(元)", "备案时间", "状态"],
+      rows: [
+        ["LZZLHT202600128601", "城中区解放北路 88 号 2 单元 0602", "赵*", "孙*", "2,600.00", "2026-07-31 16:12", "有效"],
+        ["LZZLHT202600086202", "柳南区航鹰大道 36 号 1 单元 1201", "钱*", "郑*", "1,800.00", "2026-07-31 11:26", "有效"],
+        ["LZZLHT202600042603", "鱼峰区荣军路 12 号 3 单元 0304", "冯*", "褚*", "2,200.00", "2026-07-30 14:48", "注销"]
+      ] },
+    jgzh: { name: "监管账户数据", icon: "fa-building-columns", cnt: "12,486",
+      head: ["账户编号", "所属项目", "开户银行", "账户余额(元)", "账户状态", "更新时间"],
+      rows: [
+        ["JGZH20260012801", "龙城新苑二期", "中国建设银行柳州分行", "68,420,600.00", "正常", "2026-08-01 04:02"],
+        ["JGZH20260008602", "江湾府邸", "中国工商银行柳州分行", "126,800,400.00", "正常", "2026-08-01 04:02"],
+        ["JGZH20260004203", "碧水云天花园", "柳州银行", "42,600,200.00", "正常", "2026-08-01 04:02"],
+        ["JGZH20260020604", "融水民族家园", "中国农业银行融水支行", "12,480,000.00", "冻结", "2026-08-01 04:02"]
+      ] }
+  };
+
+  var cur = "xm";
+
+  function renderTree() {
+    var html = "";
+    Object.keys(CAT).forEach(function (k) {
+      var c = CAT[k];
+      html += '<div class="t-node' + (k === cur ? ' on' : '') + '" onclick="selCat(\'' + k + '\')"><i class="fa-solid ' + c.icon + '"></i> ' + c.name + '</div>';
+    });
+    document.getElementById("catTree").innerHTML = html;
+  }
+
+  function selCat(k) { cur = k; LIST_PAGE.num = 1; renderTree(); renderHead(); renderList(); }
+
+  var LIST_PAGE = { num: 1, size: 10 };
+
+  function renderHead() {
+    var c = CAT[cur];
+    document.getElementById("catHead").innerHTML = '<h3><i class="fa-solid ' + c.icon + '"></i> ' + c.name + '</h3><span class="sub">全市数据量约 ' + c.cnt + ' 条</span>';
+  }
+
+  function renderList() {
+    var c = CAT[cur];
+    var th = "<tr>";
+    c.head.forEach(function (h) { th += "<th>" + h + "</th>"; });
+    th += "<th>操作</th></tr>";
+    document.getElementById("tblHead").innerHTML = th;
+
+    var table = document.getElementById("listTable");
+    var start = (LIST_PAGE.num - 1) * LIST_PAGE.size;
+    var pageItems = c.rows.slice(start, start + LIST_PAGE.size);
+    var body = "";
+    pageItems.forEach(function (r, pi) {
+      var ri = start + pi;
+      body += "<tr>";
+      r.forEach(function (v, ci) {
+        var cls = (ci === 0) ? "nowrap" : "";
+        body += '<td class="' + cls + '">' + v + "</td>";
+      });
+      body += '<td class="nowrap"><span class="link" onclick="viewRec(' + ri + ')">详情</span></td></tr>';
+    });
+    document.getElementById("tblBody").innerHTML = body;
+    PMS.renderPager(table, { pageNum: LIST_PAGE.num, pageSize: LIST_PAGE.size, total: c.rows.length, onChange: function (s) { LIST_PAGE.num = s.pageNum; LIST_PAGE.size = s.pageSize; renderList(); } });
+  }
+
+  function viewRec(ri) {
+    var c = CAT[cur];
+    var r = c.rows[ri];
+    document.getElementById("rdTitle").innerHTML = c.name + " · " + r[0];
+    var html = "";
+    c.head.forEach(function (h, i) {
+      var full = (h.indexOf("坐落") >= 0 || h.indexOf("名称") >= 0 || h.indexOf("企业") >= 0) ? " full" : "";
+      html += '<div class="desc-item' + full + '"><dt>' + h + '</dt><dd>' + r[i] + '</dd></div>';
+    });
+    document.getElementById("rdBody").innerHTML = html;
+    PMS.openDrawer("recDrawer");
+  }
+
+  renderTree();
+  renderHead();
+  renderList();
+</script>
+</body>
+</html>

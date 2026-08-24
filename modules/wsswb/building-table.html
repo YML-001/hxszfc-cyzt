@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>楼盘表与销控图 · 新建商品房网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：楼盘表销控网格。六色对应六种销控状态，角标标注价格未备案 / 工抵 / 自持 */
+  .pj-bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .pj-bar .pb-name { font-size: 17px; font-weight: 700; }
+  .pj-bar .pb-no { font-size: 13px; color: var(--text-3); }
+  .pj-bar select { width: 250px; }
+
+  .legend-bar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 12.5px; }
+  .legend-bar .lgi { display: flex; align-items: center; gap: 6px; }
+  .legend-bar .sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0, 0, 0, .06); }
+
+  .xk-wrap { display: flex; gap: 14px; align-items: flex-start; }
+  .unit-side { width: 132px; flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; }
+  .unit-side .us-t { font-size: 12.5px; color: var(--text-3); padding: 0 4px 2px; }
+  .unit-btn {
+    text-align: left; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius);
+    background: #fff; font-size: 13px; cursor: pointer; transition: .15s; white-space: nowrap;
+  }
+  .unit-btn:hover { border-color: var(--primary-soft); background: var(--primary-light); }
+  .unit-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }
+
+  .xk-grid { flex: 1; min-width: 0; overflow: auto; max-height: 620px; border: 1px solid var(--border); border-radius: var(--radius); }
+  .xk-row { display: flex; border-bottom: 1px solid var(--row-line); }
+  .xk-row:last-child { border-bottom: 0; }
+  .xk-floor {
+    width: 56px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 12.5px; font-weight: 600; color: var(--text-2); background: var(--bg-soft);
+    border-right: 1px solid var(--border); position: sticky; left: 0; z-index: 2;
+  }
+  .xk-cell {
+    flex: 1 1 0; min-width: 104px; padding: 7px 9px; border-right: 1px solid var(--row-line);
+    cursor: pointer; position: relative; transition: .12s; line-height: 1.5;
+  }
+  .xk-cell:last-child { border-right: 0; }
+  .xk-cell:hover { outline: 2px solid var(--primary); outline-offset: -2px; z-index: 1; }
+  .xk-cell .rm { font-size: 13px; font-weight: 700; }
+  .xk-cell .ar { font-size: 11.5px; opacity: .82; }
+  .xk-cell .pr { font-size: 11.5px; opacity: .82; font-variant-numeric: tabular-nums; }
+  .xk-cell .cor {
+    position: absolute; top: 3px; right: 3px; width: 16px; height: 16px; border-radius: 4px;
+    background: rgba(15, 23, 42, .68); color: #fff; font-size: 10px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  /* 六色销控：可售 / 已认购 / 已签约 / 已备案 / 已抵押 / 限制销售 */
+  .s0 { background: #eafaf0; color: #14683c; }
+  .s1 { background: #fff4e2; color: #92500c; }
+  .s2 { background: #e8f0ff; color: #1d4ed8; }
+  .s3 { background: #e6f7fb; color: #0e6f86; }
+  .s4 { background: #eef1f6; color: #4b5563; }
+  .s5 { background: #fdeaea; color: #b91c1c; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsswb-25">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房网签备案管理系统
+        <span class="sep">/</span> <a class="link" href="develop-filing.html">开发项目备案</a>
+        <span class="sep">/</span> <span class="cur">楼盘表与销控图</span>
+      </div>
+      <div class="page-title">楼盘表与销控图</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="location.href='building-import.html'"><i class="fa-solid fa-file-import"></i> 导入核对</button>
+      <button type="button" class="btn" onclick="location.href='building-correct.html'"><i class="fa-solid fa-pen-ruler"></i> 勘误申请</button>
+      <button type="button" class="btn btn-primary" onclick="location.href='subscribe-create.html'"><i class="fa-solid fa-hand-pointer"></i> 发起认购</button>
+      <button type="button" class="btn" onclick="PMS.toast('销控状态已刷新至 2026-07-31 09:38','success')"><i class="fa-solid fa-rotate"></i> 刷新销控</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <div class="pj-bar">
+        <div>
+          <div class="pb-name">彰泰江湾城（三期）</div>
+          <div class="pb-no">项目编号 XM450200202600386　|　城中区文昌路 9 号</div>
+        </div>
+        <div class="form-item" style="min-width:260px">
+          <label>预售许可证</label>
+          <select onchange="PMS.toast('已切换至 ' + this.options[this.selectedIndex].text)">
+            <option>柳房预售证第〔2026〕0087 号（8# 9#，610 套）</option>
+            <option>柳房预售证第〔2026〕0072 号（10#，232 套）</option>
+          </select>
+        </div>
+        <div class="flex gap-8" style="margin-left:auto;flex-wrap:wrap">
+          <span class="badge blue">预售</span>
+          <span class="badge orange">好房子（第二批）</span>
+          <span class="badge green">资金监管中</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-house-circle-check"></i></div>
+      <div><div class="s-label">可售</div><div class="s-value">186</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+      <div><div class="s-label">已认购</div><div class="s-value">42</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-file-signature"></i></div>
+      <div><div class="s-label">已签约</div><div class="s-value">68</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-stamp"></i></div>
+      <div><div class="s-label">已备案</div><div class="s-value">214</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-building-lock"></i></div>
+      <div><div class="s-label">已抵押</div><div class="s-value">96</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-ban"></i></div>
+      <div><div class="s-label">限制销售</div><div class="s-value">4</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-table-cells"></i> 销控图</h3>
+      <span class="sub" id="unitTitle">8# 幢 · 1 单元 · 26 层 × 4 户</span>
+    </div>
+    <div class="card-body">
+      <div class="legend-bar mb-16">
+        <div class="lgi"><span class="sw" style="background:#eafaf0"></span> 可售</div>
+        <div class="lgi"><span class="sw" style="background:#fff4e2"></span> 已认购</div>
+        <div class="lgi"><span class="sw" style="background:#e8f0ff"></span> 已签约</div>
+        <div class="lgi"><span class="sw" style="background:#e6f7fb"></span> 已备案</div>
+        <div class="lgi"><span class="sw" style="background:#eef1f6"></span> 已抵押</div>
+        <div class="lgi"><span class="sw" style="background:#fdeaea"></span> 限制销售</div>
+        <div class="lgi" style="margin-left:auto;color:var(--text-3)">
+          角标：<b>价</b> 未备案价格　<b>抵</b> 工抵房　<b>持</b> 自持不售
+        </div>
+      </div>
+
+      <div class="xk-wrap">
+        <div class="unit-side" id="unitSide">
+          <div class="us-t">幢 / 单元</div>
+        </div>
+        <div class="xk-grid" id="xkGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-shield-halved"></i>
+    <div>销控状态由业务动作自动驱动（认购 → 已认购、签署 → 已签约、备案 → 已备案），手工干预仅限限制销售与自持标记，且全程写入销售许可操作日志；销控状态实时推送统一服务门户新房专区。</div>
+  </div>
+
+  <!-- 房屋详情 -->
+  <div class="drawer-mask"></div>
+  <div class="drawer drawer-lg" id="dwRoom">
+    <div class="drawer-head">
+      <h3>房屋详情 · <span id="rmTitle">8-1-2601</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert" id="rmAlert"><i class="fa-solid fa-circle-info"></i><div id="rmAlertTxt">—</div></div>
+
+      <div class="section-title mt-16">基础信息</div>
+      <dl class="desc-list">
+        <div class="desc-item"><dt>房号</dt><dd id="rmNo">—</dd></div>
+        <div class="desc-item"><dt>幢 / 单元 / 层</dt><dd id="rmPos">—</dd></div>
+        <div class="desc-item"><dt>建筑面积（㎡）</dt><dd id="rmArea">—</dd></div>
+        <div class="desc-item"><dt>套内面积（㎡）</dt><dd id="rmIn">—</dd></div>
+        <div class="desc-item"><dt>分摊面积（㎡）</dt><dd id="rmShare">—</dd></div>
+        <div class="desc-item"><dt>房屋用途</dt><dd>成套住宅</dd></div>
+        <div class="desc-item"><dt>房屋结构</dt><dd>剪力墙</dd></div>
+        <div class="desc-item"><dt>朝向</dt><dd id="rmFace">—</dd></div>
+        <div class="desc-item"><dt>装修情况</dt><dd>精装（含中央新风、全屋净水）</dd></div>
+        <div class="desc-item"><dt>所属预售许可证</dt><dd>柳房预售证第〔2026〕0087 号</dd></div>
+        <div class="desc-item"><dt>备案单价（元/㎡）</dt><dd id="rmUnit">—</dd></div>
+        <div class="desc-item"><dt>备案总价（万元）</dt><dd id="rmTotal">—</dd></div>
+        <div class="desc-item"><dt>当前销控状态</dt><dd id="rmSt">—</dd></div>
+        <div class="desc-item"><dt>一房一价备案批次</dt><dd id="rmBatch">—</dd></div>
+      </dl>
+
+      <div class="section-title mt-16">状态变更历史</div>
+      <div class="timeline" id="rmLine"></div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+      <button type="button" class="btn" onclick="PMS.toast('已标记为自持不售，销控图角标已更新')"><i class="fa-solid fa-hand"></i> 标记自持</button>
+      <button type="button" class="btn btn-danger" data-open-modal="mdLimit"><i class="fa-solid fa-ban"></i> 设为限制销售</button>
+      <button type="button" class="btn" onclick="PMS.toast('已解除限制销售，销控状态回退为可售','success')"><i class="fa-solid fa-lock-open"></i> 解除限制</button>
+      <button type="button" class="btn btn-primary" onclick="location.href='subscribe-create.html'"><i class="fa-solid fa-hand-pointer"></i> 发起认购</button>
+    </div>
+  </div>
+
+  <!-- 设为限制销售 -->
+  <div class="modal-mask" id="mdLimit">
+    <div class="modal">
+      <div class="modal-head">设为限制销售</div>
+      <div class="modal-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>限制销售属于手工干预销控状态，须填写原因、依据文号与起止日期，提交后写入销售许可操作日志并同步对外公示。</div>
+        </div>
+        <div class="form-grid form-align mt-16">
+          <div class="form-item">
+            <label>限制类型<span class="req">*</span></label>
+            <select><option>司法查封</option><option>违规处置</option><option>资金异常</option><option>企业自持</option><option>其他</option></select>
+          </div>
+          <div class="form-item">
+            <label>依据文号<span class="req">*</span></label>
+            <input type="text" placeholder="如：柳中法执字〔2026〕0186 号">
+          </div>
+          <div class="form-item">
+            <label>限制起始日期<span class="req">*</span></label>
+            <input type="date" value="2026-07-31">
+          </div>
+          <div class="form-item">
+            <label>限制终止日期</label>
+            <input type="date" value="2027-07-30">
+          </div>
+          <div class="form-item">
+            <label>经办人<span class="req">*</span></label>
+            <input type="text" value="韦国强">
+          </div>
+          <div class="form-item">
+            <label>批准人<span class="req">*</span></label>
+            <input type="text" value="梁志远">
+          </div>
+          <div class="form-item col-full">
+            <label>限制原因<span class="req">*</span></label>
+            <textarea placeholder="请说明限制销售的具体事由"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-close-modal>取消</button>
+        <button type="button" class="btn btn-danger-solid" onclick="submitLimit()"><i class="fa-solid fa-ban"></i> 确认限制销售</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+/* 演示用销控数据：按幢单元生成 26 层 × 4 户，状态用固定算法散布，保证每次打开一致 */
+var UNITS = [
+  { key: '8-1', label: '8# 幢 · 1 单元', floors: 26, rooms: 4 },
+  { key: '8-2', label: '8# 幢 · 2 单元', floors: 26, rooms: 4 },
+  { key: '9-1', label: '9# 幢 · 1 单元', floors: 26, rooms: 4 },
+  { key: '9-2', label: '9# 幢 · 2 单元', floors: 26, rooms: 4 },
+  { key: '10-1', label: '10# 幢 · 1 单元', floors: 24, rooms: 4 },
+  { key: '10-2', label: '10# 幢 · 2 单元', floors: 24, rooms: 4 }
+];
+var ST_NAME = ['可售', '已认购', '已签约', '已备案', '已抵押', '限制销售'];
+var ST_BADGE = ['green', 'orange', 'blue', 'cyan', 'gray', 'red'];
+var AREAS = [118.65, 96.42, 142.80, 89.36];
+var FACES = ['南北通透', '朝南', '东南', '西南'];
+
+var side = document.getElementById('unitSide');
+UNITS.forEach(function (u, i) {
+  var b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'unit-btn' + (i === 0 ? ' active' : '');
+  b.textContent = u.label;
+  b.onclick = function () {
+    side.querySelectorAll('.unit-btn').forEach(function (x) { x.classList.remove('active'); });
+    b.classList.add('active');
+    render(i);
+  };
+  side.appendChild(b);
+});
+
+function statusOf(ui, f, r) {
+  /* 楼层越低越可能已成交，顶层多为可售；固定算式保证演示数据稳定 */
+  var seed = (ui * 31 + f * 7 + r * 13) % 100;
+  if (f >= 24 && seed % 3 !== 0) return 0;
+  if (seed < 6) return 5;
+  if (seed < 22) return 4;
+  if (seed < 48) return 3;
+  if (seed < 62) return 2;
+  if (seed < 72) return 1;
+  return 0;
+}
+function cornerOf(ui, f, r) {
+  var seed = (ui * 17 + f * 5 + r * 11) % 100;
+  if (seed < 4) return '抵';
+  if (seed < 8) return '持';
+  if (f >= 25 && seed % 5 === 0) return '价';
+  return '';
+}
+function unitPrice(f) { return 12000 + f * 42; }
+
+function render(ui) {
+  var u = UNITS[ui];
+  document.getElementById('unitTitle').textContent = u.label + ' · ' + u.floors + ' 层 × ' + u.rooms + ' 户';
+  var html = '';
+  for (var f = u.floors; f >= 1; f--) {
+    html += '<div class="xk-row"><div class="xk-floor">' + f + ' 层</div>';
+    for (var r = 1; r <= u.rooms; r++) {
+      var st = statusOf(ui, f, r);
+      var cor = cornerOf(ui, f, r);
+      var area = AREAS[(r - 1) % AREAS.length];
+      var no = u.key + '-' + (f < 10 ? '0' + f : f) + '0' + r;
+      html += '<div class="xk-cell s' + st + '" onclick="openRoom(\'' + no + '\',' + st + ',' + f + ',' + r + ',' + ui + ')">' +
+        (cor ? '<div class="cor">' + cor + '</div>' : '') +
+        '<div class="rm">' + no + '</div>' +
+        '<div class="ar">' + area.toFixed(2) + ' ㎡</div>' +
+        '<div class="pr">' + unitPrice(f).toLocaleString('en-US') + ' 元/㎡</div>' +
+        '</div>';
+    }
+    html += '</div>';
+  }
+  document.getElementById('xkGrid').innerHTML = html;
+}
+render(0);
+
+function openRoom(no, st, f, r, ui) {
+  var area = AREAS[(r - 1) % AREAS.length];
+  var unit = unitPrice(f);
+  var cor = cornerOf(ui, f, r);
+  document.getElementById('rmTitle').textContent = no;
+  document.getElementById('rmNo').textContent = no;
+  document.getElementById('rmPos').textContent = UNITS[ui].label + ' · ' + f + ' 层 · ' + r + ' 号房';
+  document.getElementById('rmArea').textContent = area.toFixed(2);
+  document.getElementById('rmIn').textContent = (area * 0.78).toFixed(2);
+  document.getElementById('rmShare').textContent = (area * 0.22).toFixed(2);
+  document.getElementById('rmFace').textContent = FACES[(r - 1) % FACES.length];
+  document.getElementById('rmUnit').textContent = unit.toLocaleString('en-US');
+  document.getElementById('rmTotal').textContent = (area * unit / 10000).toFixed(2);
+  document.getElementById('rmSt').innerHTML = '<span class="badge ' + ST_BADGE[st] + '">' + ST_NAME[st] + '</span>';
+  document.getElementById('rmBatch').textContent = cor === '价' ? '未备案' : 'PF2026061801（2026-06-20）';
+
+  var box = document.getElementById('rmAlert'), txt = document.getElementById('rmAlertTxt');
+  if (cor === '价') {
+    box.className = 'alert alert-danger';
+    txt.innerHTML = '本房尚未完成一房一价备案，<b>不允许发起认购</b>，请先到「一房一价备案」为本房号登记备案价格。';
+  } else if (cor === '抵') {
+    box.className = 'alert alert-warning';
+    txt.innerHTML = '本房为<b>工抵房</b>，已单独标记，不计入正常销售统计；对外销售仍须按正常流程网签备案。';
+  } else if (cor === '持') {
+    box.className = 'alert alert-warning';
+    txt.innerHTML = '本房已标记为<b>企业自持不售</b>，不参与销售统计与去化率计算。';
+  } else if (st === 5) {
+    box.className = 'alert alert-danger';
+    txt.innerHTML = '本房处于<b>限制销售</b>状态（司法查封，依据 柳中法执字〔2026〕0186 号），认购与网签一律拦截。';
+  } else {
+    box.className = 'alert alert-info';
+    txt.innerHTML = '本房在预售许可证 <b>柳房预售证第〔2026〕0087 号</b> 的房间清单内，网签校验以该清单为准。';
+  }
+
+  var line = [
+    { t: '楼盘表建立', m: '2026-05-30 · 导入核对通过 · 经办 韦国强', d: 'done' },
+    { t: '一房一价备案', m: cor === '价' ? '未完成' : '2026-06-20 · 批次 PF2026061801 · 备案单价 ' + unit.toLocaleString('en-US') + ' 元/㎡', d: cor === '价' ? 'pending' : 'done' },
+    { t: '取得预售许可，状态置为可售', m: '2026-06-18 · 柳房预售证第〔2026〕0087 号', d: 'done' }
+  ];
+  if (st >= 1 && st !== 5) line.push({ t: '认购锁定，状态置为已认购', m: '2026-07-12 · 认购编号 RG20260712086', d: 'done' });
+  if (st >= 2 && st !== 5) line.push({ t: '合同签署完成，状态置为已签约', m: '2026-07-18 · 合同编号 SF450200202601286', d: 'done' });
+  if (st === 3) line.push({ t: '网签备案完成，状态置为已备案', m: '2026-07-18 · 备案编号 柳房商备字〔2026〕第 001286 号', d: 'done' });
+  if (st === 4) line.push({ t: '预购商品房抵押备案，状态置为已抵押', m: '2026-07-20 · 抵押权人 中国建设银行柳州分行', d: 'done' });
+  if (st === 5) line.push({ t: '手工设为限制销售', m: '2026-07-06 · 批准 梁志远 · 已写入销售许可操作日志', d: 'done' });
+
+  document.getElementById('rmLine').innerHTML = line.reverse().map(function (i) {
+    return '<div class="tl-item ' + i.d + '"><div class="tl-dot"></div>' +
+      '<div class="tl-title">' + i.t + '</div><div class="tl-meta">' + i.m + '</div></div>';
+  }).join('');
+
+  PMS.openDrawer('dwRoom');
+}
+
+function submitLimit() {
+  PMS.closeModal('mdLimit');
+  PMS.toast('已设为限制销售，并写入销售许可操作日志', 'success');
+}
+</script>
+</body>
+</html>

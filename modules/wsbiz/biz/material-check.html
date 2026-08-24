@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>材料核验 · 统一工作门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="biz" data-active="material-check">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 收件受理
+        <span class="sep">/</span> <span class="cur">材料核验</span>
+      </div>
+      <div class="page-title">材料核验</div>
+    </div>
+    <div class="page-actions">
+      <span class="node-tag"><i class="fa-solid fa-user-shield"></i>窗口受理员 · 业务审核员</span>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <span>按事项材料清单<b>逐项勾选收取</b>，缺件即时提示；<b>形式要件核验</b>检查完整性、清晰度、签章与有效期，不合格须填写原因；<b>AI 智能预检</b>识别要件并比对关键信息，可一键采纳生成补正项。</span>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item" style="flex:1">
+        <label>选择办件</label>
+        <select id="caseSel" onchange="pick(this.value)" style="width:100% !important"></select>
+      </div>
+      <button class="btn" onclick="doPrecheck()"><i class="fa-solid fa-robot"></i> AI 智能预检</button>
+      <button class="btn btn-primary" onclick="goRegister()"><i class="fa-solid fa-stamp"></i> 去收件登记</button>
+    </div>
+  </div>
+
+  <div id="root"></div>
+
+  <!-- 表格骨架写在 HTML 里，app.js 才能补上序号列与右侧固定操作列；行由 flow 渲染 -->
+  <div class="card">
+    <div class="card-head">
+      <h3>材料清单核对</h3>
+      <span class="sub" id="matSub">—</span>
+      <div class="head-actions">
+        <button class="btn btn-sm" onclick="takeAll()"><i class="fa-solid fa-check-double"></i> 全部收取</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tbMat" data-static>
+        <thead>
+          <tr><th>材料名称</th><th>是否必要</th><th>提交方式</th><th>页数</th>
+              <th>是否收取</th><th>形式要件</th><th>操作</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- 形式要件核验 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="formDrawer">
+  <div class="drawer-head"><h3>材料形式要件核验</h3><span class="badge blue" id="fdName">—</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>
+      <span>四项形式要件全部合格才算通过；任一项不合格须选择或填写原因，结果写入收件材料表并在审批页提示。</span></div>
+    <div class="section-title">形式要件逐项检查</div>
+    <div class="form-grid">
+      <div class="form-item col-full">
+        <label class="flex items-center gap-8" style="font-weight:400"><input type="checkbox" id="ck1" checked onchange="syncForm()"> 材料完整，无缺页</label>
+        <label class="flex items-center gap-8" style="font-weight:400"><input type="checkbox" id="ck2" checked onchange="syncForm()"> 影像清晰，字迹可辨</label>
+        <label class="flex items-center gap-8" style="font-weight:400"><input type="checkbox" id="ck3" checked onchange="syncForm()"> 签字盖章齐全</label>
+        <label class="flex items-center gap-8" style="font-weight:400"><input type="checkbox" id="ck4" checked onchange="syncForm()"> 在有效期内</label>
+      </div>
+      <div class="form-item col-full" id="badBox" style="display:none">
+        <label>不合格原因<span class="req">*</span></label>
+        <select id="badReason">
+          <option value="">请选择或在下方补充</option>
+          <option value="材料缺页，需补齐完整件">材料缺页，需补齐完整件</option>
+          <option value="影像模糊无法辨认，需重新扫描">影像模糊无法辨认，需重新扫描</option>
+          <option value="签章缺失，需补盖单位公章">签章缺失，需补盖单位公章</option>
+          <option value="材料已超过有效期，需提供最新件">材料已超过有效期，需提供最新件</option>
+        </select>
+        <textarea id="badNote" rows="2" class="mt-8" placeholder="补充说明（可选）"></textarea>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="saveForm()"><i class="fa-solid fa-check"></i> 保存核验结果</button>
+  </div>
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/flow-data.js"></script>
+<script src="../assets/js/flow.js"></script>
+<script>
+(function () {
+  var cid = null, curMat = null;
+
+  function render() {
+    /* 办件下拉：优先展示可核验的在办件 */
+    var list = FLOW.where('cases', function (c) {
+      return c.blzt === '0' || c.blzt === '1' || c.blzt === '5';
+    });
+    if (!list.length) list = FLOW.get('cases');
+    if (!cid || !FLOW.byId('cases', cid)) cid = list[0] ? list[0].id : null;
+    document.getElementById('caseSel').innerHTML = list.map(function (c) {
+      return '<option value="' + c.id + '"' + (cid === c.id ? ' selected' : '') + '>' +
+        FLOW.esc(c.sjbh) + '　' + FLOW.esc(c.sxmc) + '　' + FLOW.esc(c.sqr) +
+        '　[' + FLOW.dict('blzt', c.blzt) + ']</option>';
+    }).join('');
+
+    var c = FLOW.byId('cases', cid);
+    var root = document.getElementById('root');
+    if (!c) {
+      root.innerHTML = '<div class="card"><div class="card-body"><div class="empty">' +
+        '<i class="fa-regular fa-folder-open"></i><div>暂无可核验的办件</div></div></div></div>';
+      return;
+    }
+    var mats = FLOW.where('materials', function (m) { return m.bjzj === c.id; });
+    var miss = mats.filter(function (m) { return m.must && !m.got && m.tjfs === '0'; });
+    var bad = mats.filter(function (m) { return !m.ok; });
+    var exempt = mats.filter(function (m) { return m.tjfs !== '0' && m.tjfs !== '1'; });
+
+    var html = '';
+
+    html += '<div class="stat-grid">' +
+      kpi('blue', 'fa-list', '材料总数', mats.length) +
+      kpi('green', 'fa-circle-check', '已收取', mats.filter(function (m) { return m.got; }).length) +
+      kpi(miss.length ? 'red' : 'cyan', 'fa-circle-exclamation', '缺件', miss.length) +
+      kpi(bad.length ? 'orange' : 'cyan', 'fa-triangle-exclamation', '形式要件不合格', bad.length) +
+      kpi('purple', 'fa-shield-halved', '免提交', exempt.length) +
+    '</div>';
+
+    if (miss.length) {
+      html += '<div class="alert alert-danger"><i class="fa-solid fa-triangle-exclamation"></i>' +
+        '<span>缺少必要材料 ' + miss.length + ' 项：' + miss.map(function (m) { return FLOW.esc(m.clmc); }).join('、') +
+        '。缺件状态下不能出具受理通知书。</span></div>';
+    } else {
+      html += '<div class="alert alert-success"><i class="fa-solid fa-circle-check"></i>' +
+        '<span>必要材料齐全，可进入受理与出件环节。</span></div>';
+    }
+
+    /* AI 预检结果 */
+    if (c.precheck) {
+      var p = c.precheck;
+      var total = p.miss.length + p.diff.length;
+      html += '<div class="card"><div class="card-head"><h3>AI 智能预检结果</h3>' +
+        '<span class="sub">' + FLOW.fmt.time(p.at) + '</span>' +
+        '<div class="head-actions">' +
+          (total ? '<button class="btn btn-sm btn-primary" onclick="adopt()"><i class="fa-solid fa-check-double"></i> 一键采纳生成补正项</button>' : '') +
+        '</div></div><div class="card-body">' +
+        (total === 0
+          ? '<div class="alert alert-success"><i class="fa-solid fa-circle-check"></i><span>预检未发现疑似缺项与信息不一致。</span></div>'
+          : (p.miss.length ? '<div class="alert alert-warning"><i class="fa-solid fa-magnifying-glass"></i><span><b>疑似缺项 ' +
+              p.miss.length + ' 项：</b>' + p.miss.map(FLOW.esc).join('、') + '</span></div>' : '') +
+            (p.diff.length ? '<div class="alert alert-danger"><i class="fa-solid fa-not-equal"></i><span><b>信息不一致 ' +
+              p.diff.length + ' 处：</b>' + p.diff.map(FLOW.esc).join('；') + '</span></div>' : '')) +
+        '</div></div>';
+    }
+
+    root.innerHTML = html;
+    document.getElementById('matSub').textContent = c.sjbh + '　' + c.sxmc;
+    FLOW.paint('tbMat');
+  }
+
+  function kpi(color, icon, label, value) {
+    return '<div class="stat-card"><div class="s-icon ' + color + '"><i class="fa-solid ' + icon + '"></i></div><div>' +
+      '<div class="s-label">' + label + '</div><div class="s-value">' + value + '</div></div></div>';
+  }
+
+  window.pick = function (id) { cid = id; render(); };
+  window.goRegister = function () { FLOW.goto('intake-register.html', { id: cid }); };
+
+  /* 功能点 25 材料清单核对 */
+  window.toggleMat = function (mid, el) { FLOW.act.toggleMaterial(mid, el.checked); };
+  window.takeAll = function () {
+    var n = 0;
+    FLOW.where('materials', function (m) { return m.bjzj === cid && !m.got; }).forEach(function (m) {
+      m.got = 1; n++;
+    });
+    FLOW.commit();
+    PMS.toast(n ? ('已收取 ' + n + ' 项材料') : '材料均已收取', n ? 'success' : 'error');
+  };
+
+  /* 功能点 26 形式要件核验 */
+  window.openForm = function (mid) {
+    curMat = FLOW.byId('materials', mid);
+    if (!curMat) return;
+    document.getElementById('fdName').textContent = curMat.clmc;
+    ['ck1', 'ck2', 'ck3', 'ck4'].forEach(function (id) { document.getElementById(id).checked = !!curMat.ok; });
+    document.getElementById('badReason').value = curMat.bad || '';
+    document.getElementById('badNote').value = '';
+    syncForm();
+    PMS.openDrawer('formDrawer');
+  };
+  window.syncForm = function () {
+    var allOk = ['ck1', 'ck2', 'ck3', 'ck4'].every(function (id) { return document.getElementById(id).checked; });
+    document.getElementById('badBox').style.display = allOk ? 'none' : '';
+  };
+  window.saveForm = function () {
+    if (!curMat) return;
+    var allOk = ['ck1', 'ck2', 'ck3', 'ck4'].every(function (id) { return document.getElementById(id).checked; });
+    var reason = document.getElementById('badReason').value ||
+                 document.getElementById('badNote').value.trim();
+    if (FLOW.act.formCheck(curMat.id, allOk, reason)) PMS.closeDrawer('formDrawer');
+  };
+
+  /* 功能点 27 AI 智能预检 */
+  window.doPrecheck = function () {
+    if (!cid) { PMS.toast('请先选择办件', 'error'); return; }
+    PMS.toast('正在调用 AI 能力做要件识别与信息比对…');
+    setTimeout(function () { FLOW.act.aiPrecheck(cid); }, 600);
+  };
+  window.adopt = function () {
+    PMS.confirm({
+      title: '采纳预检结果', type: 'warning', okText: '生成补正项',
+      message: '将预检发现的问题生成一次性补正通知？',
+      detail: '同一办件只能发出一次一次性补正告知，生成后办件转为待补正。',
+      onOk: function () { FLOW.act.adoptPrecheck(cid); }
+    });
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    cid = FLOW.param('id');
+    FLOW.table({
+      id: 'tbMat', pageSize: 12, empty: '该办件暂无材料', icon: 'fa-folder-open',
+      rows: function () { return FLOW.where('materials', function (m) { return m.bjzj === cid; }); },
+      cells: function (m) {
+        var isExempt = (m.tjfs !== '0' && m.tjfs !== '1');
+        return [
+          '<td class="cell-lg">' + FLOW.esc(m.clmc) + '</td>',
+          '<td>' + (m.must ? FLOW.badge('必要', 'red') : FLOW.badge('可选', 'gray')) + '</td>',
+          '<td>' + (isExempt
+            ? FLOW.badge(FLOW.dict('tjfs', m.tjfs).replace('免提交-', ''), 'green')
+            : FLOW.esc(FLOW.dict('tjfs', m.tjfs))) + '</td>',
+          '<td>' + m.pages + ' 页</td>',
+          '<td>' + (isExempt
+            ? '<span class="text-success">无需收取</span>'
+            : '<input type="checkbox"' + (m.got ? ' checked' : '') +
+              ' onclick="event.stopPropagation()" onchange="toggleMat(\'' + m.id + '\',this)">') + '</td>',
+          '<td>' + (m.ok ? '<span class="text-success">合格</span>' : '<span class="miss">' + FLOW.esc(m.bad || '不合格') + '</span>') + '</td>',
+          '<td><span class="link" onclick="event.stopPropagation();openForm(\'' + m.id + '\')">形式要件核验</span></td>'
+        ];
+      },
+      attrs: function (m) { return ' data-focus="' + m.id + '"'; }
+    });
+    FLOW.on(render);
+  });
+})();
+</script>
+</body>
+</html>

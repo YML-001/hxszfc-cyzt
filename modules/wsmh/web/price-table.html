@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>一房一价与销控表 · 统一服务门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  /* 一房一价页专属布局 */
+  .pt-body { padding-bottom: 40px; }
+  .pt-head { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card); padding: 16px 18px; margin-bottom: 14px; }
+  .pt-head .ph-t { font-size: 21px; font-weight: 700; }
+  .pt-head .ph-m { font-size: 13px; color: var(--text-3); margin-top: 6px; }
+  .pt-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 14px; }
+  .pt-stats .stat-card { padding: 13px 14px; gap: 10px; }
+  .pt-stats .s-ico { width: 38px; height: 38px; font-size: 16px; border-radius: 10px; }
+  .pt-stats .s-value { font-size: 20px; }
+  .pt-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .pt-cell-note { font-size: 11px; opacity: .85; }
+</style>
+</head>
+<body data-nav="house">
+
+<div class="wrap">
+  <div class="crumb">
+    <a href="home.html">首页</a><i class="fa-solid fa-angle-right"></i>
+    <a href="house-market.html">房源超市</a><i class="fa-solid fa-angle-right"></i>
+    <a href="new-house.html">新房专区</a><i class="fa-solid fa-angle-right"></i>一房一价与销控表
+  </div>
+</div>
+
+<div class="wrap pt-body" id="pt-body"></div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+var XM = null, PL = null, UNIT = 1;
+var ST_NAME = ['未售', '已认购', '已签约', '限制交易', '已备案'];
+var ST_WHY = [
+  '',
+  '该房号已被其他购房人认购登记，认购后 7 日内未签约的将自动释放',
+  '该房号已签订《商品房买卖合同》，正在办理备案',
+  '该房号存在查封、在建工程抵押等限制交易情形，暂不可售',
+  '该房号已完成网签备案，不再对外销售'
+];
+
+function pageInit() {
+  var id = UI.param('id') || 'XM01';
+  XM = PORTAL.project(id);
+  PL = PORTAL.plate(id);
+  if (!XM || !PL) { renderNoPlate(id); return; }
+  document.title = XM.xmmc + ' 一房一价 · 统一服务门户';
+  render();
+}
+
+/* 未接入销控快照的项目：引导切换到已接入项目 */
+function renderNoPlate(id) {
+  var list = plateProjects();
+  document.getElementById('pt-body').innerHTML = '<div class="card"><div class="card-body">'
+    + UI.empty('该项目的楼盘表销控快照尚未接入',
+      (XM ? '「' + XM.xmmc + '」' : '该项目') + '的一房一价数据正在与商品房网签备案管理系统同步，可先查看已接入项目',
+      '<a class="btn btn-primary" href="new-house-detail.html?id=' + id + '" data-fp="wsmh-07-06">返回楼盘详情</a> '
+      + '<a class="btn" href="new-house.html" data-fp="wsmh-08-01">回新房专区</a>')
+    + '<div class="col-head mt-20" style="margin-bottom:10px"><h2 style="font-size:16px">已接入一房一价的项目</h2></div>'
+    + '<div class="pill-tabs">' + list.map(function (p) {
+      return '<a href="price-table.html?id=' + p.id + '" data-fp="wsmh-08-04">' + p.xmmc + '</a>';
+    }).join('') + '</div>'
+    + '</div></div>';
+}
+
+function plateProjects() {
+  return PORTAL.projects().filter(function (p) { return !!PORTAL.plate(p.id); });
+}
+
+/* ------------------------- 渲染 ------------------------- */
+function render() {
+  var st = stats();
+  var html = '';
+
+  html += '<div class="pt-head">'
+    + '<div class="flex items-center gap-12 wrapf">'
+    + '<div class="flex-1"><div class="ph-t">' + XM.xmmc + ' · ' + PL.lc + ' 一房一价与销控表</div>'
+    + '<div class="ph-m">' + XM.qx + ' · ' + XM.sq + ' · ' + XM.dz + '　|　预售许可证 ' + XM.yszh + '（' + XM.ysrq + '）'
+    + '　|　开发企业 ' + XM.kfqy + '</div></div>'
+    + '<a class="btn" href="new-house-detail.html?id=' + XM.id + '" data-fp="wsmh-07-06">楼盘详情</a>'
+    + '<a class="btn btn-accent" href="select-room.html?id=' + XM.id + '" data-fp="wsmh-13-01">在线选房与认购登记</a>'
+    + '</div>'
+    + '<div class="pill-tabs mt-12" id="xm-tabs">' + plateProjects().map(function (p) {
+      return '<a class="' + (p.id === XM.id ? 'on' : '') + '" href="price-table.html?id=' + p.id + '" data-fp="wsmh-08-04">' + p.xmmc + '</a>';
+    }).join('') + '</div>'
+    + '</div>';
+
+  /* 统计条（wsmh-08-03） */
+  html += '<div class="pt-stats">'
+    + stat('fa-layer-group', 'blue', st.all, '总套数')
+    + stat('fa-door-open', 'green', st.s0, '未售')
+    + stat('fa-hand-pointer', 'orange', st.s1, '已认购')
+    + stat('fa-file-signature', 'cyan', st.s2, '已签约')
+    + stat('fa-stamp', 'red', st.s4, '已备案')
+    + stat('fa-lock', 'blue', st.s3, '限制交易')
+    + '</div>';
+
+  /* 图例与单元切换（wsmh-08-04） */
+  html += '<div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>'
+    + '<span>点击任意房号可查看该套房屋的<b>建面单价与套内单价双口径价格</b>与销售状态。'
+    + '表中价格均为<b>备案（拟售）价格，实际成交以合同为准</b>；销售状态与商品房网签备案管理系统实时一致，选房认购后色块即时变更。</span></div>'
+    + '<div class="pt-bar">'
+    + '<div class="plate-legend" style="margin-bottom:0">'
+    + '<span><i class="l0"></i>未售（可选）</span><span><i class="l1"></i>已认购</span>'
+    + '<span><i class="l2"></i>已签约</span><span><i class="l4"></i>已备案</span><span><i class="l3"></i>限制交易</span>'
+    + '</div>'
+    + '<div class="pill-tabs ml-auto" id="unit-tabs">' + PL.units.map(function (u) {
+      return '<a class="' + (u.u === UNIT ? 'on' : '') + '" data-u="' + u.u + '" data-fp="wsmh-08-04">' + u.u + ' 单元</a>';
+    }).join('') + '</div>'
+    + '</div>';
+
+  /* 楼盘表 */
+  var unit = PL.units.filter(function (u) { return u.u === UNIT; })[0] || PL.units[0];
+  var cols = unit.floors[0].cells.length;
+  var head = '<tr><th></th>';
+  for (var i = 1; i <= cols; i++) head += '<th>' + i + ' 号房</th>';
+  head += '</tr>';
+
+  var rows = unit.floors.map(function (f) {
+    return '<tr><td class="floor-no">' + f.f + ' 层</td>'
+      + f.cells.map(function (c) {
+        return '<td><div class="plate-cell s' + c.s + '" data-fh="' + c.fh + '" data-fp="wsmh-08-04" title="'
+          + c.fh + '　' + c.hx + '　' + ST_NAME[c.s] + '"><b>' + c.fh + '</b>'
+          + '<span class="pt-cell-note">' + c.mj + '㎡</span></div></td>';
+      }).join('') + '</tr>';
+  }).join('');
+
+  html += '<div class="plate-wrap"><table class="plate-table"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table></div>';
+
+  html += '<div class="disclaimer"><b>一房一价公示口径：</b>本表为建设单位申报、主管部门核验后公示的一房一价与销控表，'
+    + '建面单价 = 该套备案（拟售）总价 ÷ 建筑面积，套内单价 = 该套备案（拟售）总价 ÷ 套内建筑面积，两者口径不同不可直接比较。'
+    + '公示价格为<b>备案（拟售）价格，实际成交以合同为准</b>，建设单位不得高于公示价格对外销售。'
+    + '销售状态由商品房网签备案管理系统实时回传，更新时间 ' + UI.today() + ' 06:00。'
+    + '购房款一律缴入 ' + XM.jgyh + ' 预售资金监管账户（' + XM.jgzh + '），切勿转入个人账户。</div>'
+    + '<div id="src-note"></div>';
+
+  document.getElementById('pt-body').innerHTML = html;
+  document.getElementById('src-note').innerHTML = UI.sourceNote();
+
+  document.getElementById('unit-tabs').onclick = function (e) {
+    var a = e.target.closest('[data-u]'); if (!a) return;
+    UNIT = Number(a.getAttribute('data-u'));
+    render();
+  };
+  document.querySelector('.plate-wrap').onclick = function (e) {
+    var c = e.target.closest('[data-fh]'); if (!c) return;
+    openCell(c.getAttribute('data-fh'));
+  };
+}
+
+function stat(ico, color, v, label) {
+  return '<div class="stat-card"><span class="s-ico ' + color + '"><i class="fa-solid ' + ico + '"></i></span>'
+    + '<span><span class="s-value" style="display:block">' + v + '<em>套</em></span>'
+    + '<span class="s-label" style="display:block">' + label + '</span></span></div>';
+}
+
+function stats() {
+  var r = { all: 0, s0: 0, s1: 0, s2: 0, s3: 0, s4: 0 };
+  PL.units.forEach(function (u) {
+    u.floors.forEach(function (f) {
+      f.cells.forEach(function (c) { r.all++; r['s' + c.s]++; });
+    });
+  });
+  return r;
+}
+
+function findCell(fh) {
+  var unit = PL.units.filter(function (u) { return u.u === UNIT; })[0] || PL.units[0];
+  var hit = null;
+  unit.floors.forEach(function (f) {
+    f.cells.forEach(function (c) { if (c.fh === fh) hit = c; });
+  });
+  return hit;
+}
+
+/* ------------------------- 房号弹窗（wsmh-08-04 / 13-01） ------------------------- */
+function openCell(fh) {
+  var c = findCell(fh); if (!c) return;
+  var can = c.s === 0;
+  var body = '<div class="flex items-center gap-12 mb-16 wrapf">'
+    + '<span style="font-size:22px;font-weight:700">' + PL.lc + ' ' + UNIT + ' 单元 ' + c.fh + ' 室</span>'
+    + '<span class="badge ' + ['green', 'orange', 'blue', 'gray', 'red'][c.s] + '">' + ST_NAME[c.s] + '</span>'
+    + '</div>'
+    + '<div class="desc-list c2"><dl>'
+    + dd('项目名称', XM.xmmc) + dd('房号', PL.lc + ' ' + UNIT + ' 单元 ' + c.fh)
+    + dd('户型', c.hx) + dd('朝向', c.cx)
+    + dd('建筑面积', '<b>' + c.mj + '</b> ㎡') + dd('套内建筑面积', '<b>' + c.tnmj + '</b> ㎡')
+    + dd('建面单价', '<b class="text-accent num">' + UI.money(c.dj, 0) + '</b> 元/㎡')
+    + dd('套内单价', '<b class="text-accent num">' + UI.money(c.tndj, 0) + '</b> 元/㎡')
+    + dd('参考总价', '<b class="text-accent num">' + UI.money(c.mj * c.dj, 0) + '</b> 元（约 ' + c.zj + ' 万元）')
+    + dd('销售状态', ST_NAME[c.s])
+    + '</dl></div>'
+    + '<div class="alert alert-warning mt-16" style="margin-bottom:0"><i class="fa-solid fa-triangle-exclamation"></i>'
+    + '<span><b>备案（拟售）价格，实际成交以合同为准。</b>'
+    + '总价按建筑面积 × 建面单价测算，未包含契税、维修资金、物业费等其他费用；'
+    + '购房款必须缴入 ' + XM.jgyh + ' 预售资金监管账户，切勿转入个人账户。</span></div>'
+    + (can ? '' : '<div class="alert alert-info mt-12" style="margin-bottom:0"><i class="fa-solid fa-circle-info"></i>'
+      + '<span><b>该房号当前不可选：</b>' + ST_WHY[c.s] + '。可在本表中选择绿色「未售」房号，或到楼盘详情了解其他楼栋。</span></div>');
+
+  var foot = '<button class="btn" data-act="close-modal">关闭</button>'
+    + (can
+      ? '<button class="btn btn-accent" id="pick" data-fp="wsmh-13-01"><i class="fa-solid fa-hand-pointer"></i> 选此房</button>'
+      : '<button class="btn dis" disabled data-fp="wsmh-13-01">该房号' + ST_NAME[c.s] + '，不可选</button>');
+
+  UI.modal('<i class="fa-solid fa-table-cells text-primary"></i> 一房一价详情', body, foot, 1);
+
+  if (can) {
+    document.getElementById('pick').onclick = function () {
+      if (!UI.needLogin('在线选房与认购登记')) return;
+      var r = PORTAL.act('room.select', { xmzj: XM.id, unit: UNIT, fh: c.fh });
+      if (!r) { UI.toast('选房未成功，该房号状态可能已变化，请刷新后重试', 'error'); render(); return; }
+      UI.closeModal();
+      UI.toast('已锁定 ' + c.fh + '，销控表状态更新为「已认购」，并生成认购书与定金缴款单', 'success');
+      render();
+      setTimeout(function () {
+        UI.confirm('房号已锁定，去填写认购登记',
+          '<b>' + XM.xmmc + ' ' + PL.lc + ' ' + UNIT + ' 单元 ' + c.fh + '</b> 已在销控表中变更为「已认购」（橙色）。'
+          + '请继续填写购房人信息并确认认购条款，完成认购登记；'
+          + '<b>认购后 7 日内未签订购房合同的，房号将自动释放</b>。',
+          function () { UI.go('web/select-room.html', { id: XM.id, unit: UNIT, fh: c.fh }); }, '去填写认购登记');
+      }, 400);
+    };
+  }
+}
+
+function dd(k, v) { return '<dt>' + k + '</dt><dd>' + v + '</dd>'; }
+</script>
+</body>
+</html>

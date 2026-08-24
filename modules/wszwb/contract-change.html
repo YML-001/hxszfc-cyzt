@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>租赁变更续租备案 · 房屋租赁网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：变更前后对照表、涨幅计算 */
+  .cmp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .cmp-table th, .cmp-table td { border: 1px solid var(--border); padding: 9px 12px; }
+  .cmp-table thead th { background: var(--bg-soft); font-size: 12.5px; color: var(--text-3); font-weight: 600; }
+  .cmp-table td.lb { width: 132px; background: #fbfcfe; color: var(--text-3); }
+  .cmp-table tr.changed td { background: #fffaf0; }
+  .cmp-table tr.changed td.new { font-weight: 700; color: var(--text-1); }
+
+  .calc-box {
+    border: 1px solid #bfdbfe; background: #f5f9ff; border-radius: var(--radius); padding: 14px 16px;
+    font-size: 13px; color: var(--text-2); line-height: 2;
+  }
+  .calc-box .cb-f { font-family: Consolas, monospace; font-size: 14px; color: var(--primary); font-weight: 600; }
+
+  /* 办理 Tab 内容较长，允许面板内部滚动 */
+  .card.list-card > .tab-panel.active > .card-body { flex: 1 1 auto; min-height: 0; overflow: auto; }
+
+  .up { color: #d97706; font-weight: 600; }
+  .down { color: #16a34a; font-weight: 600; }
+  .data-table tbody tr.is-warn > td { background: #fff8ed; }
+  .data-table tbody tr.is-warn:hover > td { background: #fdf0d9; }
+  .radio-line { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; min-height: 32px; }
+  .radio-line label { font-size: 14px; color: var(--text-2); font-weight: 400; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+  .up-box { display: flex; flex-wrap: wrap; gap: 8px; }
+  .up-box .uf {
+    display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 9px 13px; font-size: 12.5px; color: var(--text-2); background: #fff;
+  }
+  .up-box .uf i { color: var(--primary); }
+  .up-box .uf.add { border-style: dashed; color: var(--primary); cursor: pointer; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wszwb-17">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋租赁网签备案管理系统
+        <span class="sep">/</span> 合同网签备案
+        <span class="sep">/</span> <span class="cur">变更续租备案</span>
+      </div>
+      <div class="page-title">租赁变更续租备案</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn btn-primary" href="contract-list.html"><i class="fa-solid fa-plus"></i> 新增变更申请</a>
+      <button type="button" class="btn" onclick="PMS.toast('已导出《变更续租备案台账》Excel','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">待审</div><div class="s-value">28</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-check-double"></i></div>
+      <div><div class="s-label">本月已办</div><div class="s-value">342</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-rotate"></i></div>
+      <div><div class="s-label">其中续租</div><div class="s-value">268</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-arrow-trend-up"></i></div>
+      <div><div class="s-label">涨幅超约定</div><div class="s-value">12</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      租金变动幅度超过合同约定涨幅上限的，须双方书面确认后方可备案。已注销的备案不得再发起变更；变更备案完成后原备案编号保留，备案类型标记为变更备案。
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="tabs" data-tabs-scope>
+      <div class="tab active" data-tab="list">变更申请台账</div>
+      <div class="tab" data-tab="do">变更审批办理</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="list">
+      <div class="filter-bar">
+        <div class="filter-item">
+          <label>关键词</label>
+          <input type="text" placeholder="变更编号 / 原合同编号 / 坐落 / 当事人">
+        </div>
+        <div class="filter-item">
+          <label>变更类型</label>
+          <select><option value="">全部</option><option>续租</option><option>租金变更</option><option>承租人变更</option><option>期限变更</option><option>其他变更</option></select>
+        </div>
+        <div class="filter-item">
+          <label>审核结果</label>
+          <select><option value="">全部</option><option>待审</option><option>通过</option><option>退回补正</option><option>不予备案</option></select>
+        </div>
+        <div class="filter-item">
+          <label>是否超过约定涨幅</label>
+          <select><option value="">全部</option><option>是</option><option>否</option></select>
+        </div>
+        <div class="filter-item">
+          <label>申请时间起</label>
+          <input type="date" value="2026-07-01">
+        </div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 370 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table" id="tblBg" data-static>
+          <thead>
+            <tr>
+              <th>变更编号</th>
+              <th>原合同编号</th>
+              <th>坐落</th>
+              <th>变更类型</th>
+              <th class="num">原月租金</th>
+              <th class="num">新月租金</th>
+              <th class="num">变动幅度</th>
+              <th>是否超约定涨幅</th>
+              <th>续租期限</th>
+              <th>新合同编号</th>
+              <th>申请时间</th>
+              <th>审核结果</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="is-warn">
+              <td class="nowrap fw-600">BG2026000386</td>
+              <td class="nowrap">ZLHT450200202500186</td>
+              <td class="cell-lg">城中区解放北路 41 号天湖国际 2-1-1508</td>
+              <td class="nowrap">续租</td>
+              <td class="num">2,100.00</td>
+              <td class="num">2,320.00</td>
+              <td class="num up">+10.48%</td>
+              <td class="nowrap"><span class="badge red">超约定涨幅</span></td>
+              <td class="nowrap">2026-09-01 至 2027-08-31</td>
+              <td class="nowrap">ZLHT450200202600541</td>
+              <td class="nowrap">2026-07-29</td>
+              <td class="nowrap"><span class="badge orange">待审</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openDo('BG2026000386')">审核</span>
+                <a class="link" href="contract-detail.html">查看原合同</a>
+                <span class="link" onclick="withdraw('BG2026000386')">撤回</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">BG2026000372</td>
+              <td class="nowrap">ZLHT450200202500097</td>
+              <td class="cell-lg">鱼峰区屏山大道 118 号万科城 7-1-902</td>
+              <td class="nowrap">续租</td>
+              <td class="num">3,100.00</td>
+              <td class="num">3,200.00</td>
+              <td class="num up">+3.23%</td>
+              <td class="nowrap"><span class="badge green">未超</span></td>
+              <td class="nowrap">2026-08-15 至 2028-08-14</td>
+              <td class="nowrap">ZLHT450200202600528</td>
+              <td class="nowrap">2026-07-28</td>
+              <td class="nowrap"><span class="badge orange">待审</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openDo('BG2026000372')">审核</span>
+                <a class="link" href="contract-detail.html">查看原合同</a>
+                <span class="link" onclick="withdraw('BG2026000372')">撤回</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">BG2026000358</td>
+              <td class="nowrap">ZLHT450200202500342</td>
+              <td class="cell-lg">柳南区潭中西路 5 号保利大江郡 9-2-1802</td>
+              <td class="nowrap">承租人变更</td>
+              <td class="num">2,650.00</td>
+              <td class="num">2,650.00</td>
+              <td class="num text-3">0.00%</td>
+              <td class="nowrap"><span class="badge green">未超</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap">2026-07-26</td>
+              <td class="nowrap"><span class="badge green">通过</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openDo('BG2026000358')">查看</span>
+                <a class="link" href="contract-detail.html">查看原合同</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">BG2026000341</td>
+              <td class="nowrap">ZLHT450200202500268</td>
+              <td class="cell-lg">柳北区跃进路 33 号桂中华府 6-2-1104 分间 B</td>
+              <td class="nowrap">租金变更</td>
+              <td class="num">1,450.00</td>
+              <td class="num">1,380.00</td>
+              <td class="num down">-4.83%</td>
+              <td class="nowrap"><span class="badge green">未超</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap">2026-07-24</td>
+              <td class="nowrap"><span class="badge green">通过</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openDo('BG2026000341')">查看</span>
+                <a class="link" href="contract-detail.html">查看原合同</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">BG2026000326</td>
+              <td class="nowrap">ZLHT450200202500154</td>
+              <td class="cell-lg">柳东新区花岭路 8 号人才驿站 A 座 1206</td>
+              <td class="nowrap">期限变更</td>
+              <td class="num">1,180.00</td>
+              <td class="num">1,180.00</td>
+              <td class="num text-3">0.00%</td>
+              <td class="nowrap"><span class="badge green">未超</span></td>
+              <td class="nowrap">2026-08-01 至 2027-01-31</td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap">2026-07-22</td>
+              <td class="nowrap"><span class="badge red">退回补正</span><br><span class="text-3 text-sm">缺双方确认书</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openDo('BG2026000326')">查看</span>
+                <a class="link" href="contract-detail.html">查看原合同</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">BG2026000312</td>
+              <td class="nowrap">ZLHT450200202500088</td>
+              <td class="cell-lg">柳北区白露大道 77 号华润幸福里 3-2-1701</td>
+              <td class="nowrap">续租</td>
+              <td class="num">1,580.00</td>
+              <td class="num">1,620.00</td>
+              <td class="num up">+2.53%</td>
+              <td class="nowrap"><span class="badge green">未超</span></td>
+              <td class="nowrap">2026-08-01 至 2027-07-31</td>
+              <td class="nowrap">ZLHT450200202600486</td>
+              <td class="nowrap">2026-07-20</td>
+              <td class="nowrap"><span class="badge green">通过</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openDo('BG2026000312')">查看</span>
+                <a class="link" href="contract-detail.html">查看原合同</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="do">
+      <div class="card-body">
+        <div class="section-title">变更申请 · <span id="doNo">BG2026000386</span> <span class="badge orange">待审</span></div>
+        <dl class="desc-list">
+          <div class="desc-item full"><dt>房屋坐落</dt><dd class="fw-600">柳州市城中区解放北路 41 号天湖国际 2 栋 1 单元 1508 室</dd></div>
+          <div class="desc-item"><dt>原合同编号</dt><dd>ZLHT450200202500186</dd></div>
+          <div class="desc-item"><dt>原备案编号</dt><dd>ZLBA450200202500142</dd></div>
+          <div class="desc-item"><dt>变更类型</dt><dd>续租</dd></div>
+          <div class="desc-item"><dt>申请人</dt><dd>陈某某（出租人）</dd></div>
+          <div class="desc-item"><dt>申请时间</dt><dd>2026-07-29 10:26</dd></div>
+        </dl>
+
+        <div class="section-title mt-16">变更前后对照</div>
+        <table class="cmp-table">
+          <thead>
+            <tr><th style="width:132px">项目</th><th>变更前</th><th>变更后</th></tr>
+          </thead>
+          <tbody>
+            <tr class="changed">
+              <td class="lb">租赁期限</td>
+              <td>2025-09-01 至 2026-08-31（12 个月）</td>
+              <td class="new">2026-09-01 至 2027-08-31（12 个月） <span class="badge orange">已变更</span></td>
+            </tr>
+            <tr class="changed">
+              <td class="lb">月租金</td>
+              <td>2,100.00 元</td>
+              <td class="new">2,320.00 元 <span class="badge orange">已变更</span></td>
+            </tr>
+            <tr class="changed">
+              <td class="lb">租金单价</td>
+              <td>37.37 元/㎡·月</td>
+              <td class="new">41.28 元/㎡·月 <span class="badge orange">已变更</span></td>
+            </tr>
+            <tr class="changed">
+              <td class="lb">租金总额</td>
+              <td>25,200.00 元</td>
+              <td class="new">27,840.00 元 <span class="badge orange">已变更</span></td>
+            </tr>
+            <tr>
+              <td class="lb">押金</td>
+              <td>2,100.00 元</td>
+              <td>2,100.00 元</td>
+            </tr>
+            <tr>
+              <td class="lb">支付周期</td>
+              <td>季付 · 每期首月 1 日</td>
+              <td>季付 · 每期首月 1 日</td>
+            </tr>
+            <tr>
+              <td class="lb">承租人</td>
+              <td>梁某某（4502**********0917）</td>
+              <td>梁某某（4502**********0917）</td>
+            </tr>
+            <tr class="changed">
+              <td class="lb">随同居住人数</td>
+              <td>1 人</td>
+              <td class="new">2 人 <span class="badge orange">已变更</span></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="section-title mt-16">续租专属信息</div>
+        <div class="form-grid form-align">
+          <div class="form-item"><label>续租起始日期<span class="req">*</span></label><input type="date" value="2026-09-01"></div>
+          <div class="form-item"><label>续租终止日期<span class="req">*</span></label><input type="date" value="2027-08-31"></div>
+          <div class="form-item"><label>新月租金(元)<span class="req">*</span></label><input type="number" id="newRent" value="2320" oninput="calcUp()"></div>
+          <div class="form-item"><label>合同约定涨幅上限</label><input type="text" readonly value="5%"></div>
+          <div class="form-item"><label>新合同编号</label><input type="text" readonly value="ZLHT450200202600541"></div>
+          <div class="form-item"><label>是否超过约定涨幅</label><div class="radio-line" id="upChk"><span class="badge red">超过 · 需双方书面确认</span></div></div>
+        </div>
+
+        <div class="calc-box mt-16">
+          <div>涨幅计算过程</div>
+          <div class="cb-f" id="calcF">2,100.00 元 × (1 + 10.48%) = 2,320.00 元</div>
+          <div>原合同第三条约定「续租时租金涨幅不超过 5%」，本次涨幅 <b class="up" id="calcR">10.48%</b> 已超过约定上限，须双方书面确认后方可备案。</div>
+          <div>新合同编号按「ZLHT + 行政区划码 + 年份 + 6 位流水」规则生成，原备案编号 ZLBA450200202500142 保留，备案类型标记为「2 续租备案」。</div>
+        </div>
+
+        <div class="section-title mt-16">变更原因与附件</div>
+        <div class="form-grid form-align">
+          <div class="form-item col-full">
+            <label>变更原因<span class="req">*</span></label>
+            <textarea rows="3">原合同 2026-08-31 到期，双方协商一致续租一年。因周边同品质房源租金上涨，经协商月租金由 2,100 元调整为 2,320 元，涨幅 10.48%，双方已签署书面确认书。承租人配偶迁入，随同居住人由 1 人增至 2 人。</textarea>
+          </div>
+        </div>
+        <div class="up-box">
+          <div class="uf"><i class="fa-regular fa-file-pdf"></i> 补充协议影像.pdf <span class="text-3">1.2MB</span></div>
+          <div class="uf"><i class="fa-regular fa-file-image"></i> 双方书面确认书.jpg <span class="text-3">862KB</span></div>
+          <div class="uf"><i class="fa-regular fa-file-image"></i> 随同居住人身份证明.jpg <span class="text-3">640KB</span></div>
+          <div class="uf add" onclick="PMS.toast('已打开本地文件选择器（演示）')"><i class="fa-solid fa-plus"></i> 上传附件</div>
+        </div>
+
+        <div class="section-title mt-16">审核意见</div>
+        <div class="form-grid form-align">
+          <div class="form-item"><label>审核人</label><input type="text" readonly value="韦国强"></div>
+          <div class="form-item"><label>审核时间</label><input type="datetime-local" value="2026-07-31T16:20"></div>
+          <div class="form-item col-full">
+            <label>审核意见</label>
+            <textarea rows="3">涨幅超过合同约定上限，但双方已提交书面确认书且材料齐全，同意办理续租备案，生效时间自 2026-09-01 起。</textarea>
+          </div>
+        </div>
+
+        <div class="flex gap-8 mt-16">
+          <button type="button" class="btn btn-primary" onclick="pass()"><i class="fa-solid fa-check"></i> 审核通过并备案</button>
+          <button type="button" class="btn" onclick="back()"><i class="fa-solid fa-rotate-left"></i> 退回补正</button>
+          <button type="button" class="btn" onclick="PMS.toast('已生成续租合同并推送双方签署','success')"><i class="fa-solid fa-file-signature"></i> 生成续租合同并推送签署</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function openDo(no) {
+  document.getElementById('doNo').textContent = no;
+  var tabs = document.querySelectorAll('[data-tabs-scope] .tab');
+  tabs[1].click();
+}
+
+function withdraw(no) {
+  PMS.confirm({
+    title: '撤回申请',
+    message: '撤回变更申请「' + no + '」？',
+    detail: '撤回后申请单作废，原合同与原备案不受影响，可重新发起。',
+    type: 'warning',
+    okText: '撤回',
+    onOk: function () { PMS.toast('申请已撤回', 'success'); }
+  });
+}
+
+function calcUp() {
+  var n = parseFloat(document.getElementById('newRent').value || '0');
+  var old = 2100;
+  var r = (n - old) / old * 100;
+  document.getElementById('calcF').textContent =
+    '2,100.00 元 × (1 + ' + r.toFixed(2) + '%) = ' + n.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) + ' 元';
+  var el = document.getElementById('calcR');
+  el.textContent = r.toFixed(2) + '%';
+  el.className = r >= 0 ? 'up' : 'down';
+  document.getElementById('upChk').innerHTML = r > 5
+    ? '<span class="badge red">超过 · 需双方书面确认</span>'
+    : '<span class="badge green">未超过约定涨幅上限</span>';
+}
+
+function pass() {
+  PMS.confirm({
+    title: '审核通过并备案',
+    message: '通过本次变更续租申请并办理备案？',
+    detail: '通过后生成新合同 ZLHT450200202600541，原备案编号保留，备案类型标记为续租备案。',
+    type: 'info',
+    okText: '通过并备案',
+    onOk: function () { PMS.toast('审核通过，续租备案已完成，变更生效时间 2026-09-01', 'success'); }
+  });
+}
+
+function back() {
+  PMS.confirm({
+    title: '退回补正',
+    message: '退回该变更申请要求补正材料？',
+    detail: '退回后短信告知申请人补正事项，补正期限 5 个工作日。',
+    type: 'warning',
+    okText: '退回',
+    onOk: function () { PMS.toast('已退回补正并告知申请人', 'success'); }
+  });
+}
+
+(function () {
+  PMS.renderPager(document.getElementById('tblBg'), {
+    pageNum: 1, pageSize: 20, total: 370,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+</script>
+</body>
+</html>

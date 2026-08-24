@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>抵押银行线上办理 · 房屋交易备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：材料清单卡片与接口报文代码块 */
+  .mat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+  .mat-item { border: 1px solid var(--border); border-radius: var(--radius); padding: 11px 13px; background: #fff; }
+  .mat-item.miss { border-color: #fecaca; background: #fef7f7; }
+  .mat-item .mt-n { font-size: 13.5px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .mat-item .mt-b { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12.5px; }
+  .mat-item .mt-b .link { font-size: 12.5px; }
+  .code-box {
+    background: #0f172a; color: #cbd5e1; border-radius: var(--radius); padding: 12px 14px;
+    font-family: Consolas, "Courier New", monospace; font-size: 12.5px; line-height: 1.75;
+    overflow: auto; max-height: 320px; white-space: pre;
+  }
+  .code-box .k { color: #7dd3fc; } .code-box .s { color: #86efac; } .code-box .n { color: #fca5a5; }
+  .code-toggle {
+    display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600;
+    padding: 8px 0; user-select: none;
+  }
+  .code-toggle i.caret { transition: transform .2s; }
+  .code-toggle.open i.caret { transform: rotate(90deg); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdwb-08">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易备案管理系统
+        <span class="sep">/</span> 抵押合同备案
+        <span class="sep">/</span> <span class="cur">抵押银行线上办理</span>
+      </div>
+      <div class="page-title">抵押银行线上办理</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" onclick="batchRecv()"><i class="fa-solid fa-inbox"></i> 批量接收</button>
+      <button type="button" class="btn" onclick="location.href='loan-ledger.html'">贷款信息台账</button>
+      <button type="button" class="btn" onclick="PMS.toast('《银行联办申请台账》Excel 已生成，正在下载','success')"><i class="fa-solid fa-download"></i> 导出台账</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-inbox"></i></div>
+      <div><div class="s-label">待接收</div><div class="s-value">9</div><div class="s-trend text-danger">最早 2 小时前提交</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-list-check"></i></div>
+      <div><div class="s-label">已接收待办</div><div class="s-value">23</div><div class="s-trend text-3">与窗口申请合并队列</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-spinner"></i></div>
+      <div><div class="s-label">办理中</div><div class="s-value">6</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">本月已办结</div><div class="s-value">386</div><div class="s-trend text-success">线上办理占比 82.4%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-rotate-left"></i></div>
+      <div><div class="s-label">已退回</div><div class="s-value">12</div><div class="s-trend text-3">材料不齐一次性告知</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-stopwatch"></i></div>
+      <div><div class="s-label">平均办结时长</div><div class="s-value">1.6 天</div><div class="s-trend text-success">较窗口快 2.4 天</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-building-columns"></i>
+    <div><b>银行一网通办</b>：抵押登记、抵押注销、抵押变更、预告抵押、带押过户五类业务支持银行端在线提交，银行端申请与窗口申请<b>进入同一个待审队列</b>，办结后结果自动推送银行。材料不齐全的一次性告知退回，不做多次退补。</div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>联办申请编号</label>
+        <input type="text" placeholder="如 LB20260731026">
+      </div>
+      <div class="filter-item">
+        <label>银行名称</label>
+        <select><option value="">全部</option><option>中国建设银行柳州分行</option><option>中国银行柳州分行</option><option>中国工商银行柳州分行</option><option>柳州银行</option><option>XXXX市住房公积金管理中心</option></select>
+      </div>
+      <div class="filter-item">
+        <label>银行网点</label>
+        <input type="text" placeholder="如 城中支行">
+      </div>
+      <div class="filter-item">
+        <label>业务类型</label>
+        <select><option value="">全部</option><option>抵押登记</option><option>抵押注销</option><option>抵押变更</option><option>预告抵押</option><option>带押过户</option></select>
+      </div>
+      <div class="filter-item">
+        <label>材料齐全状态</label>
+        <select><option value="">全部</option><option>齐全</option><option>不齐全</option></select>
+      </div>
+      <div class="filter-item">
+        <label>接收状态</label>
+        <select><option value="">全部</option><option>待接收</option><option>已接收</option><option>已退回</option></select>
+      </div>
+      <div class="filter-item">
+        <label>申请时间起</label>
+        <input type="date" value="2026-07-01">
+      </div>
+      <div class="filter-item">
+        <label>申请时间止</label>
+        <input type="date" value="2026-08-01">
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 436 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="wait">待接收 <span class="badge blue">9</span></div>
+      <div class="tab" data-tab="todo">已接收待办 <span class="badge cyan">23</span></div>
+      <div class="tab" data-tab="ing">办理中 <span class="badge orange">6</span></div>
+      <div class="tab" data-tab="done">已办结</div>
+      <div class="tab" data-tab="back">已退回 <span class="badge red">12</span></div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblLb" data-static>
+        <thead>
+          <tr>
+            <th>联办申请编号</th>
+            <th>银行名称与网点</th>
+            <th>银行经办人</th>
+            <th>业务类型</th>
+            <th>房屋坐落</th>
+            <th>不动产单元号</th>
+            <th>申请时间</th>
+            <th>材料齐全</th>
+            <th>接收状态</th>
+            <th>办理状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">LB20260731026</td>
+            <td class="nowrap">中国建设银行柳州分行 · 城中支行</td>
+            <td class="nowrap">李** / 138****2168</td>
+            <td class="nowrap"><span class="badge blue">抵押登记</span></td>
+            <td>荣和公园大道 8-1-1502</td>
+            <td class="nowrap text-3">450203001012GB00087F00080021</td>
+            <td class="nowrap">2026-07-31 09:26</td>
+            <td class="nowrap"><span class="badge green">齐全</span></td>
+            <td class="nowrap"><span class="badge blue">待接收</span></td>
+            <td class="nowrap"><span class="badge gray">待办</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="doRecv('LB20260731026')">接收</span>
+              <span class="link" onclick="PMS.openDrawer('drLb')">详情</span>
+              <span class="link" onclick="doBack('LB20260731026')">退回</span>
+            </td>
+          </tr>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">LB20260731024</td>
+            <td class="nowrap">中国银行柳州分行 · 滨江支行</td>
+            <td class="nowrap">梁** / 137****8642</td>
+            <td class="nowrap"><span class="badge purple">带押过户</span></td>
+            <td>彰泰滨江学府 12-2-1802</td>
+            <td class="nowrap text-3">450202001005GB00123F00020017</td>
+            <td class="nowrap">2026-07-31 08:52</td>
+            <td class="nowrap"><span class="badge green">齐全</span></td>
+            <td class="nowrap"><span class="badge blue">待接收</span></td>
+            <td class="nowrap"><span class="badge gray">待办</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="doRecv('LB20260731024')">接收</span>
+              <span class="link" onclick="PMS.openDrawer('drLb')">详情</span>
+              <span class="link" onclick="doBack('LB20260731024')">退回</span>
+            </td>
+          </tr>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">LB20260731018</td>
+            <td class="nowrap">柳州银行 · 五一路支行</td>
+            <td class="nowrap">韦** / 136****3286</td>
+            <td class="nowrap"><span class="badge orange">抵押注销</span></td>
+            <td>阳光100城市广场 3-1-1602</td>
+            <td class="nowrap text-3">450202001007GB00198F00010026</td>
+            <td class="nowrap">2026-07-31 08:14</td>
+            <td class="nowrap"><span class="badge orange">不齐全</span></td>
+            <td class="nowrap"><span class="badge blue">待接收</span></td>
+            <td class="nowrap"><span class="badge gray">待办</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="doRecv('LB20260731018')">接收</span>
+              <span class="link" onclick="PMS.openDrawer('drLb')">详情</span>
+              <span class="link" onclick="doBack('LB20260731018')">退回</span>
+            </td>
+          </tr>
+          <tr data-st="todo">
+            <td class="nowrap fw-600">LB20260730086</td>
+            <td class="nowrap">中国工商银行柳州分行 · 河东支行</td>
+            <td class="nowrap">吴** / 135****9126</td>
+            <td class="nowrap"><span class="badge cyan">抵押变更</span></td>
+            <td>彰泰江湾城 11-1-2801</td>
+            <td class="nowrap text-3">450204001011GB00276F00110028</td>
+            <td class="nowrap">2026-07-30 16:38</td>
+            <td class="nowrap"><span class="badge green">齐全</span></td>
+            <td class="nowrap"><span class="badge green">已接收</span></td>
+            <td class="nowrap"><span class="badge cyan">待办</span></td>
+            <td class="col-ops">
+              <a class="link" href="mortgage-change.html">办理</a>
+              <span class="link" onclick="PMS.openDrawer('drLb')">详情</span>
+              <span class="link" onclick="doBack('LB20260730086')">退件</span>
+            </td>
+          </tr>
+          <tr data-st="todo">
+            <td class="nowrap fw-600">LB20260730072</td>
+            <td class="nowrap">中国建设银行柳州分行 · 柳南支行</td>
+            <td class="nowrap">陆** / 139****4218</td>
+            <td class="nowrap"><span class="badge green">预告抵押</span></td>
+            <td>万科城 8-1-1602</td>
+            <td class="nowrap text-3">450204001008GB00256F00080016</td>
+            <td class="nowrap">2026-07-30 14:06</td>
+            <td class="nowrap"><span class="badge green">齐全</span></td>
+            <td class="nowrap"><span class="badge green">已接收</span></td>
+            <td class="nowrap"><span class="badge cyan">待办</span></td>
+            <td class="col-ops">
+              <a class="link" href="presale-mortgage.html">办理</a>
+              <span class="link" onclick="PMS.openDrawer('drLb')">详情</span>
+              <span class="link" onclick="doBack('LB20260730072')">退件</span>
+            </td>
+          </tr>
+          <tr data-st="ing">
+            <td class="nowrap fw-600">LB20260729054</td>
+            <td class="nowrap">XXXX市住房公积金管理中心 · 本部</td>
+            <td class="nowrap">周** / 138****7734</td>
+            <td class="nowrap"><span class="badge blue">抵押登记</span></td>
+            <td>保利柳江府二期 5-2-1201</td>
+            <td class="nowrap text-3">450206001003GB00064F00050012</td>
+            <td class="nowrap">2026-07-29 10:22</td>
+            <td class="nowrap"><span class="badge green">齐全</span></td>
+            <td class="nowrap"><span class="badge green">已接收</span></td>
+            <td class="nowrap"><span class="badge orange">办理中</span></td>
+            <td class="col-ops">
+              <a class="link" href="mortgage-detail.html">办理</a>
+              <span class="link" onclick="PMS.openDrawer('drLb')">详情</span>
+              <span class="link" onclick="doBack('LB20260729054')">退件</span>
+            </td>
+          </tr>
+          <tr data-st="ing">
+            <td class="nowrap fw-600">LB20260729042</td>
+            <td class="nowrap">中国银行柳州分行 · 城中支行</td>
+            <td class="nowrap">黄** / 137****5028</td>
+            <td class="nowrap"><span class="badge orange">抵押注销</span></td>
+            <td>恒大城 8-1-2201</td>
+            <td class="nowrap text-3">450205001006GB00145F00080033</td>
+            <td class="nowrap">2026-07-29 09:08</td>
+            <td class="nowrap"><span class="badge green">齐全</span></td>
+            <td class="nowrap"><span class="badge green">已接收</span></td>
+            <td class="nowrap"><span class="badge orange">办理中</span></td>
+            <td class="col-ops">
+              <a class="link" href="mortgage-cancel.html">办理</a>
+              <span class="link" onclick="PMS.openDrawer('drLb')">详情</span>
+              <span class="link" onclick="doBack('LB20260729042')">退件</span>
+            </td>
+          </tr>
+          <tr data-st="done">
+            <td class="nowrap fw-600">LB20260728036</td>
+            <td class="nowrap">中国建设银行柳州分行 · 城中支行</td>
+            <td class="nowrap">李** / 138****2168</td>
+            <td class="nowrap"><span class="badge blue">抵押登记</span></td>
+            <td>华润万象天地 2-1-1802</td>
+            <td class="nowrap text-3">450202001009GB00312F00020018</td>
+            <td class="nowrap">2026-07-28 15:44</td>
+            <td class="nowrap"><span class="badge green">齐全</span></td>
+            <td class="nowrap"><span class="badge green">已接收</span></td>
+            <td class="nowrap"><span class="badge green">已办结</span></td>
+            <td class="col-ops">
+              <a class="link" href="mortgage-detail.html">查看备案</a>
+              <span class="link" onclick="PMS.openDrawer('drLb')">详情</span>
+              <span class="link" onclick="PMS.toast('结果已于 2026-07-29 10:06 推送至中国建设银行柳州分行，推送状态：已推送')">推送记录</span>
+            </td>
+          </tr>
+          <tr data-st="done">
+            <td class="nowrap fw-600">LB20260726018</td>
+            <td class="nowrap">中国工商银行柳州分行 · 城中支行</td>
+            <td class="nowrap">覃** / 136****6612</td>
+            <td class="nowrap"><span class="badge purple">带押过户</span></td>
+            <td>荣和公园大道 12-1-703</td>
+            <td class="nowrap text-3">450203001012GB00087F00120003</td>
+            <td class="nowrap">2026-07-26 11:20</td>
+            <td class="nowrap"><span class="badge green">齐全</span></td>
+            <td class="nowrap"><span class="badge green">已接收</span></td>
+            <td class="nowrap"><span class="badge green">已办结</span></td>
+            <td class="col-ops">
+              <a class="link" href="mortgage-detail.html">查看备案</a>
+              <span class="link" onclick="PMS.openDrawer('drLb')">详情</span>
+              <span class="link" onclick="PMS.toast('结果已于 2026-07-27 09:32 推送至中国工商银行柳州分行，推送状态：已推送')">推送记录</span>
+            </td>
+          </tr>
+          <tr data-st="back">
+            <td class="nowrap fw-600">LB20260725012</td>
+            <td class="nowrap">柳州银行 · 屏山支行</td>
+            <td class="nowrap">莫** / 135****8804</td>
+            <td class="nowrap"><span class="badge cyan">抵押变更</span></td>
+            <td>阳光100城市广场 5-2-2101</td>
+            <td class="nowrap text-3">450202001007GB00198F00050021</td>
+            <td class="nowrap">2026-07-25 14:52</td>
+            <td class="nowrap"><span class="badge orange">不齐全</span></td>
+            <td class="nowrap"><span class="badge red">已退回</span></td>
+            <td class="nowrap"><span class="badge gray">已退件</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.openDrawer('drLb')">详情</span>
+              <span class="link" onclick="PMS.toast('退回原因：缺少相对方（抵押人）变更确认书；补充说明：请一次性补齐后重新提交','error')">退回原因</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- 联办申请详情抽屉 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="drLb">
+  <div class="drawer-head">
+    <h3 style="margin:0;font-size:16px">联办申请详情 · LB20260731026</h3>
+    <span class="badge blue">抵押登记</span>
+    <span class="badge blue">待接收</span>
+    <button type="button" class="btn btn-ghost" style="margin-left:auto" data-close-drawer><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="drawer-body">
+    <div class="section-title">申请信息</div>
+    <dl class="desc-list">
+      <div class="desc-item"><dt>联办申请编号</dt><dd>LB20260731026</dd></div>
+      <div class="desc-item"><dt>银行名称</dt><dd>中国建设银行柳州分行</dd></div>
+      <div class="desc-item"><dt>银行代码</dt><dd>B0002S345020001</dd></div>
+      <div class="desc-item"><dt>银行网点</dt><dd>城中支行（B0002S345020018）</dd></div>
+      <div class="desc-item"><dt>银行经办人</dt><dd>李**</dd></div>
+      <div class="desc-item"><dt>经办人电话</dt><dd>138****2168</dd></div>
+      <div class="desc-item"><dt>业务类型</dt><dd><span class="badge blue">0 抵押登记</span></dd></div>
+      <div class="desc-item"><dt>关联抵押合同</dt><dd>DY450200202600156</dd></div>
+      <div class="desc-item"><dt>关联贷款编号</dt><dd>DK202607280192</dd></div>
+      <div class="desc-item"><dt>房屋坐落</dt><dd>柳州市鱼峰区公园大道 1 号荣和公园大道 8 栋 1 单元 1502</dd></div>
+      <div class="desc-item"><dt>不动产单元号</dt><dd>450203001012GB00087F00080021</dd></div>
+      <div class="desc-item"><dt>申请时间</dt><dd>2026-07-31 09:26:18</dd></div>
+      <div class="desc-item"><dt>材料齐全状态</dt><dd><span class="badge green">齐全</span></dd></div>
+      <div class="desc-item"><dt>接收状态</dt><dd><span class="badge blue">0 待接收</span></dd></div>
+      <div class="desc-item full"><dt>材料清单说明</dt><dd>抵押合同、借款合同、买卖合同网签备案件、抵押人身份证明、银行授权委托书共 5 项，均已随申请一并上传。</dd></div>
+    </dl>
+
+    <div class="section-title mt-16" style="margin-top:18px">材料清单</div>
+    <div class="mat-grid">
+      <div class="mat-item">
+        <div class="mt-n"><i class="fa-solid fa-file-pdf text-danger"></i> 抵押合同</div>
+        <div class="mt-b"><span class="badge red">必要</span><span class="badge green">已上传</span>
+          <span class="link" style="margin-left:auto" onclick="PMS.toast('预览：DY450200202600156.pdf')">预览</span>
+          <span class="link" onclick="PMS.toast('已开始下载')">下载</span></div>
+      </div>
+      <div class="mat-item">
+        <div class="mt-n"><i class="fa-solid fa-file-pdf text-danger"></i> 借款合同</div>
+        <div class="mt-b"><span class="badge red">必要</span><span class="badge green">已上传</span>
+          <span class="link" style="margin-left:auto" onclick="PMS.toast('预览：借款合同 JK450200202607280192.pdf')">预览</span>
+          <span class="link" onclick="PMS.toast('已开始下载')">下载</span></div>
+      </div>
+      <div class="mat-item">
+        <div class="mt-n"><i class="fa-solid fa-file-pdf text-danger"></i> 商品房买卖合同（备案件）</div>
+        <div class="mt-b"><span class="badge red">必要</span><span class="badge green">已上传</span>
+          <span class="link" style="margin-left:auto" onclick="PMS.toast('预览：SPFBA450200202601286.pdf')">预览</span>
+          <span class="link" onclick="PMS.toast('已开始下载')">下载</span></div>
+      </div>
+      <div class="mat-item">
+        <div class="mt-n"><i class="fa-solid fa-id-card text-primary"></i> 抵押人身份证明</div>
+        <div class="mt-b"><span class="badge red">必要</span><span class="badge green">已上传</span>
+          <span class="link" style="margin-left:auto" onclick="PMS.toast('预览：身份证明.pdf')">预览</span>
+          <span class="link" onclick="PMS.toast('已开始下载')">下载</span></div>
+      </div>
+      <div class="mat-item">
+        <div class="mt-n"><i class="fa-solid fa-file-signature text-primary"></i> 银行授权委托书</div>
+        <div class="mt-b"><span class="badge red">必要</span><span class="badge green">已上传</span>
+          <span class="link" style="margin-left:auto" onclick="PMS.toast('预览：授权委托书.pdf')">预览</span>
+          <span class="link" onclick="PMS.toast('已开始下载')">下载</span></div>
+      </div>
+      <div class="mat-item miss">
+        <div class="mt-n"><i class="fa-solid fa-file-circle-xmark text-danger"></i> 房地产评估报告</div>
+        <div class="mt-b"><span class="badge gray">可选</span><span class="badge gray">未上传</span>
+          <span class="text-3" style="margin-left:auto">可选材料，不影响受理</span></div>
+      </div>
+    </div>
+
+    <div class="section-title mt-16" style="margin-top:18px">贷款信息（银行同步提交）</div>
+    <dl class="desc-list">
+      <div class="desc-item"><dt>借款人</dt><dd>李**（450***********2186）</dd></div>
+      <div class="desc-item"><dt>共同借款人</dt><dd>覃**（450***********3072）</dd></div>
+      <div class="desc-item"><dt>贷款类型</dt><dd><span class="badge purple">组合贷</span></dd></div>
+      <div class="desc-item"><dt>贷款金额</dt><dd class="fw-700">620,000.00 元</dd></div>
+      <div class="desc-item"><dt>商贷分项</dt><dd>420,000.00 元</dd></div>
+      <div class="desc-item"><dt>公积金分项</dt><dd>200,000.00 元</dd></div>
+      <div class="desc-item"><dt>贷款期限</dt><dd>360 个月</dd></div>
+      <div class="desc-item"><dt>年利率</dt><dd>商贷 3.35% / 公积金 2.85%</dd></div>
+      <div class="desc-item"><dt>还款方式</dt><dd>等额本息</dd></div>
+      <div class="desc-item"><dt>月还款额</dt><dd>2,942.86 元</dd></div>
+      <div class="desc-item"><dt>首付比例</dt><dd>32.4%</dd></div>
+      <div class="desc-item"><dt>首付金额</dt><dd>296,000.00 元</dd></div>
+      <div class="desc-item"><dt>是否进入监管账户</dt><dd><span class="badge green">是</span></dd></div>
+      <div class="desc-item"><dt>贷款状态</dt><dd><span class="badge blue">2 已批复</span></dd></div>
+    </dl>
+
+    <div class="section-title mt-16" style="margin-top:18px">接口报文留痕</div>
+    <div class="alert alert-info">
+      <i class="fa-solid fa-code"></i>
+      <div>接收时间 2026-07-31 09:26:18　接口版本 v2.3　报文摘要 <b>a7k29m4x86c1e5f2</b>　通道 wsdjh 数据交换网关</div>
+    </div>
+    <div class="code-toggle open" onclick="toggleCode(this,'codeReq')">
+      <i class="fa-solid fa-angle-right caret"></i> 请求报文（银行 → 平台）
+    </div>
+    <div class="code-box" id="codeReq">{
+  <span class="k">"head"</span>: {
+    <span class="k">"msgId"</span>: <span class="s">"LB20260731026"</span>,
+    <span class="k">"bankCode"</span>: <span class="s">"B0002S345020001"</span>,
+    <span class="k">"branchCode"</span>: <span class="s">"B0002S345020018"</span>,
+    <span class="k">"service"</span>: <span class="s">"mortgage.register.apply"</span>,
+    <span class="k">"version"</span>: <span class="s">"v2.3"</span>,
+    <span class="k">"timestamp"</span>: <span class="s">"2026-07-31T09:26:18+08:00"</span>
+  },
+  <span class="k">"body"</span>: {
+    <span class="k">"ywlx"</span>: <span class="s">"0"</span>,
+    <span class="k">"htbh"</span>: <span class="s">"DY450200202600156"</span>,
+    <span class="k">"bdcdyh"</span>: <span class="s">"450203001012GB00087F00080021"</span>,
+    <span class="k">"zl"</span>: <span class="s">"荣和公园大道 8 栋 1 单元 1502"</span>,
+    <span class="k">"dyr"</span>: { <span class="k">"xm"</span>: <span class="s">"李**"</span>, <span class="k">"zjhm"</span>: <span class="s">"450***********2186"</span> },
+    <span class="k">"dkbh"</span>: <span class="s">"DK202607280192"</span>,
+    <span class="k">"dkje"</span>: <span class="n">620000.00</span>,
+    <span class="k">"dklx"</span>: <span class="s">"3"</span>,
+    <span class="k">"cljqq"</span>: <span class="s">"1"</span>,
+    <span class="k">"clqd"</span>: [<span class="s">"抵押合同"</span>, <span class="s">"借款合同"</span>, <span class="s">"买卖合同备案件"</span>, <span class="s">"身份证明"</span>, <span class="s">"授权委托书"</span>]
+  }
+}</div>
+    <div class="code-toggle" onclick="toggleCode(this,'codeRes')">
+      <i class="fa-solid fa-angle-right caret"></i> 响应报文（平台 → 银行）
+    </div>
+    <div class="code-box hidden" id="codeRes">{
+  <span class="k">"head"</span>: {
+    <span class="k">"msgId"</span>: <span class="s">"LB20260731026"</span>,
+    <span class="k">"code"</span>: <span class="s">"0000"</span>,
+    <span class="k">"message"</span>: <span class="s">"申请已受理，等待窗口接收"</span>,
+    <span class="k">"timestamp"</span>: <span class="s">"2026-07-31T09:26:19+08:00"</span>
+  },
+  <span class="k">"body"</span>: {
+    <span class="k">"lbsqbh"</span>: <span class="s">"LB20260731026"</span>,
+    <span class="k">"jszt"</span>: <span class="s">"0"</span>,
+    <span class="k">"blzt"</span>: <span class="s">"0"</span>,
+    <span class="k">"xzjyjg"</span>: { <span class="k">"kjybs"</span>: <span class="s">"2"</span>, <span class="k">"jyjybh"</span>: <span class="s">"JY202607310926004"</span> },
+    <span class="k">"ycljg"</span>: <span class="s">"平台已完成房源限制预校验，无查封无异议，可继续办理"</span>
+  }
+}</div>
+
+    <div class="section-title mt-16" style="margin-top:18px">办理流转</div>
+    <div class="timeline">
+      <div class="tl-item pending"><span class="tl-dot"></span><div class="tl-title">结果推送银行</div><div class="tl-meta">办结后自动推送，推送状态：未推送</div></div>
+      <div class="tl-item pending"><span class="tl-dot"></span><div class="tl-title">备案办理</div><div class="tl-meta">接收后进入待审队列，与窗口申请合并</div></div>
+      <div class="tl-item pending"><span class="tl-dot"></span><div class="tl-title">窗口接收</div><div class="tl-meta">待接收</div></div>
+      <div class="tl-item done"><span class="tl-dot"></span><div class="tl-title">银行端提交</div><div class="tl-meta">2026-07-31 09:26:18　中国建设银行柳州分行城中支行 · 李**</div></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button type="button" class="btn" data-close-drawer>关闭</button>
+    <button type="button" class="btn btn-danger" onclick="doBack('LB20260731026')">退回</button>
+    <button type="button" class="btn btn-primary" onclick="doRecv('LB20260731026')"><i class="fa-solid fa-inbox"></i> 接收并进入待审队列</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  var table = document.getElementById('tblLb');
+  document.getElementById('stTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var name = tab.getAttribute('data-tab');
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.style.display = (name === 'all' || tr.getAttribute('data-st') === name) ? '' : 'none';
+    });
+  });
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 436,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+
+function toggleCode(el, id) {
+  el.classList.toggle('open');
+  document.getElementById(id).classList.toggle('hidden');
+}
+
+function doRecv(no) {
+  PMS.confirm({
+    title: '接收联办申请',
+    message: '确认接收银行联办申请 ' + no + '？',
+    detail: '接收后该申请进入备案待审队列，与窗口申请合并办理；办结后结果自动推送银行端。',
+    type: 'info',
+    okText: '确认接收',
+    onOk: function () {
+      PMS.closeDrawer();
+      PMS.toast('已接收，申请已进入待审队列', 'success');
+    }
+  });
+}
+
+function batchRecv() {
+  PMS.confirm({
+    title: '批量接收',
+    message: '确认批量接收 9 笔待接收的银行联办申请？',
+    detail: '其中 1 笔材料不齐全（LB20260731018 缺少债务清偿证明），建议先退回后再批量接收其余 8 笔。',
+    type: 'info',
+    okText: '确认接收',
+    onOk: function () { PMS.toast('已接收 8 笔，1 笔材料不齐全未接收', 'success'); }
+  });
+}
+
+/* 退回须选择原因并可补充说明，材料不齐一次性告知，不做多次退补 */
+function doBack(no) {
+  PMS.confirm({
+    title: '退回联办申请',
+    message: '确认退回 ' + no + '？',
+    detail: '退回原因（常用）：材料不齐全 / 要素填写有误 / 房源存在限制情形 / 重复提交。退回须一次性告知全部问题，退回后银行端需重新提交。',
+    type: 'danger',
+    okText: '确认退回',
+    onOk: function () {
+      PMS.closeDrawer();
+      PMS.toast('已退回，退回原因已推送银行端', 'success');
+    }
+  });
+}
+</script>
+</body>
+</html>

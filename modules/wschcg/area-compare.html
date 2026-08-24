@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>预实测面积比对 · 房屋交易面积信息管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：比对结论卡、总面积大号对照块、结算方向汇总、差异分布柱状图、逐户差值着色 */
+  .amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .cc { display: grid; grid-template-columns: 226px 1fr 300px; gap: 0; }
+  .cc > div { padding: 14px 16px; }
+  .cc .c1 { border-right: 1px solid var(--border); }
+  .cc .c3 { border-left: 1px solid var(--border); background: #fafbfd; }
+  .cc .c1 .pj { font-size: 15px; font-weight: 800; color: var(--text-1); }
+  .cc .c1 .pl { font-size: 12.5px; color: var(--text-3); margin-top: 3px; }
+  .vs { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .vs .vi { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--text-2); }
+  .vs .vi .vb { width: 34px; text-align: center; flex-shrink: 0; }
+
+  .cst { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .cst .ci { border: 1px solid var(--border); border-radius: var(--radius); padding: 9px 12px; background: #fff; }
+  .cst .ci .l { font-size: 12px; color: var(--text-3); }
+  .cst .ci .v { font-size: 25px; font-weight: 800; line-height: 1.15; margin-top: 1px; font-variant-numeric: tabular-nums; }
+  .cst .ci .f { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
+  .cst .ci.bad { background: #fef2f2; border-color: #fecaca; } .cst .ci.bad .v { color: var(--danger); }
+  .cst .ci.ok { background: #f0fdf4; border-color: #bbf7d0; } .cst .ci.ok .v { color: var(--success); }
+  .cst .ci.blue .v { color: var(--primary); }
+
+  .sd { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .sd .si { flex: 1; min-width: 168px; border: 1px solid var(--border); border-left-width: 3px; border-radius: var(--radius); padding: 8px 12px; background: #fff; }
+  .sd .si .l { font-size: 12px; color: var(--text-3); }
+  .sd .si .v { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .sd .si.up { border-left-color: var(--danger); } .sd .si.up .v { color: var(--danger); }
+  .sd .si.dn { border-left-color: var(--success); } .sd .si.dn .v { color: var(--success); }
+  .sd .si.no { border-left-color: var(--text-3); } .sd .si.no .v { color: var(--text-2); }
+  .sd .si.net { border-left-color: var(--primary); background: var(--primary-light); } .sd .si.net .v { color: var(--primary); }
+
+  .ta { text-align: center; }
+  .ta .tl { font-size: 12px; color: var(--text-3); }
+  .ta .row { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 6px; }
+  .ta .n { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text-1); }
+  .ta .n small { display: block; font-size: 11.5px; font-weight: 500; color: var(--text-3); }
+  .ta .ar { color: var(--primary); font-size: 15px; }
+  .ta .dd { margin-top: 9px; font-size: 13px; }
+  .ta .dd b { font-size: 20px; font-weight: 800; color: var(--warning); font-variant-numeric: tabular-nums; }
+  .ta .dd span { color: var(--text-3); }
+
+  .dist { display: flex; flex-direction: column; gap: 7px; }
+  .dist .dr { display: grid; grid-template-columns: 96px 1fr 76px; align-items: center; gap: 10px; font-size: 12.5px; }
+  .dist .dr .lb { color: var(--text-2); text-align: right; font-variant-numeric: tabular-nums; }
+  .dist .dr .bar { height: 16px; background: var(--bg-soft); border-radius: 4px; overflow: hidden; }
+  .dist .dr .bar i { display: block; height: 100%; background: var(--primary); border-radius: 4px; transition: width .5s; }
+  .dist .dr .bar i.g { background: var(--success); }
+  .dist .dr .bar i.r { background: var(--danger); }
+  .dist .dr .bar i.o { background: var(--warning); }
+  .dist .dr .vn { color: var(--text-2); font-variant-numeric: tabular-nums; }
+  .dist .dr .vn b { font-weight: 700; }
+  .dist .dr.hot .lb, .dist .dr.hot .vn b { color: var(--danger); font-weight: 700; }
+
+  td.dp { color: var(--warning); font-weight: 700; }
+  td.dn { color: var(--success); font-weight: 700; }
+  td.dz { color: var(--text-3); }
+  tr.over > td { background: #fef2f2; }
+  tr.over:hover > td { background: #fee9e9; }
+  .no-ct { color: var(--text-3); }
+
+  .a4 { background: #fff; padding: 22px 26px; border: 1px solid var(--border); }
+  .a4 h2 { text-align: center; font-size: 19px; font-weight: 800; letter-spacing: 1px; }
+  .a4 .sub2 { text-align: center; font-size: 12.5px; color: var(--text-3); margin: 5px 0 14px; }
+  .a4 .sign { display: flex; justify-content: flex-end; gap: 46px; margin-top: 22px; font-size: 13px; color: var(--text-2); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wschcg-17">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易面积信息管理系统
+        <span class="sep">/</span> 面积核验管理
+        <span class="sep">/</span> <span class="cur">预实测面积比对</span>
+      </div>
+      <div class="page-title">预实测面积比对</div>
+    </div>
+    <div class="page-actions">
+      <select style="width:250px" onchange="PMS.toast('已切换比对对象：' + this.value)">
+        <option>荣和公园大道二期 8 栋 · V1.0 → V2.0</option>
+        <option>万科城 5 栋 · V1.0 → V2.0</option>
+        <option>保利大都会 3 栋 · V1.0 → V2.0</option>
+      </select>
+      <button type="button" class="btn" onclick="reCompare()"><i class="fa-solid fa-rotate"></i> 重新比对</button>
+      <button type="button" class="btn" onclick="PMS.openDrawer('drPrint')"><i class="fa-solid fa-print"></i> 打印比对表</button>
+      <button type="button" class="btn" onclick="PMS.toast('《预实测面积比对表》Excel 已生成，正在下载','success')"><i class="fa-solid fa-download"></i> 导出比对表</button>
+      <button type="button" class="btn btn-primary" onclick="location.href='area-diff.html'"><i class="fa-solid fa-calculator"></i> 处理超阈值差异</button>
+    </div>
+  </div>
+
+  <!-- 第一段：比对结论卡 -->
+  <div class="card">
+    <div class="cc">
+      <div class="c1">
+        <div class="pj">荣和公园大道二期 8 栋</div>
+        <div class="pl">柳州市城中区文昌路 26 号 · 96 户 / 26 层</div>
+        <div class="vs">
+          <div class="vi"><span class="badge vb">V1.0</span> 预测成果 <span class="link" onclick="location.href='result-detail.html'">CG450200202600151</span></div>
+          <div class="vi"><span class="text-3" style="padding-left:2px">测绘日期 2024-03-18 · XXXX市测绘院</span></div>
+          <div class="vi"><span class="badge blue vb">V2.0</span> 实测成果 <span class="link" onclick="location.href='result-detail.html'">CG450200202600186</span></div>
+          <div class="vi"><span class="text-3" style="padding-left:2px">测绘日期 2026-07-26 · XXXX市测绘院</span></div>
+        </div>
+      </div>
+      <div class="c2">
+        <div class="cst">
+          <div class="ci blue"><div class="l">比对户数</div><div class="v">96</div><div class="f">全项目逐户自动比对</div></div>
+          <div class="ci bad"><div class="l">超 3% 约定幅度</div><div class="v">5</div><div class="f">须走差异处理流程</div></div>
+          <div class="ci ok"><div class="l">需结算</div><div class="v">91</div><div class="f">已关联备案合同</div></div>
+          <div class="ci"><div class="l">无需结算</div><div class="v">5</div><div class="f">未关联合同 / 无差异</div></div>
+        </div>
+        <div class="sd">
+          <div class="si up"><div class="l">购房人补款 · 68 户</div><div class="v">+186,420.60 元</div></div>
+          <div class="si dn"><div class="l">开发企业退款 · 23 户</div><div class="v">−62,846.20 元</div></div>
+          <div class="si no"><div class="l">无需结算 · 5 户</div><div class="v">0.00 元</div></div>
+          <div class="si net"><div class="l">净额（补款 − 退款）</div><div class="v">+123,574.40 元</div></div>
+        </div>
+      </div>
+      <div class="c3">
+        <div class="ta">
+          <div class="tl">总建筑面积对照（㎡）</div>
+          <div class="row">
+            <div class="n">28,600.00<small>预测 V1.0</small></div>
+            <div class="ar"><i class="fa-solid fa-arrow-right"></i></div>
+            <div class="n">28,842.60<small>实测 V2.0</small></div>
+          </div>
+          <div class="dd">差值 <b>+242.60</b> <span>㎡ · 总差异比例</span> <b>+0.85%</b></div>
+          <div class="text-3 text-sm mt-8">套内 22,024.60 → 22,368.42（+343.82）<br>分摊 6,575.40 → 6,474.18（−101.22）</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div><b>5 户差异比例超出合同约定 3% 误差幅度</b>（8-2-1806 +4.11%、8-2-2102 +3.20%、8-1-2602 +3.42%、8-3-902 −4.65%、8-3-0402 −3.12%），不得直接结算，须逐户走<a class="link" href="area-diff.html">面积差异处理与找补</a>流程；未关联已备案合同的 5 户只记录比对结果不做结算。</div>
+  </div>
+
+  <!-- 第二段：差异分布图 -->
+  <div class="card">
+    <div class="card-head">
+      <h3>差异比例分布</h3>
+      <span class="sub">按建筑面积差异比例区间分组统计（共 96 户）</span>
+      <div class="head-actions">
+        <button type="button" class="btn btn-sm" onclick="onlyOver()"><i class="fa-solid fa-filter"></i> 仅看超阈值</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="dist">
+        <div class="dr hot"><span class="lb">≤ −3%</span><span class="bar"><i class="r" style="width:4.3%"></i></span><span class="vn"><b>2</b> 户 · 2.1%</span></div>
+        <div class="dr"><span class="lb">−3% ~ −1%</span><span class="bar"><i class="o" style="width:26.1%"></i></span><span class="vn"><b>12</b> 户 · 12.5%</span></div>
+        <div class="dr"><span class="lb">−1% ~ 0</span><span class="bar"><i style="width:19.6%"></i></span><span class="vn"><b>9</b> 户 · 9.4%</span></div>
+        <div class="dr"><span class="lb">0 ~ +1%</span><span class="bar"><i class="g" style="width:100%"></i></span><span class="vn"><b>46</b> 户 · 47.9%</span></div>
+        <div class="dr"><span class="lb">+1% ~ +3%</span><span class="bar"><i class="o" style="width:52.2%"></i></span><span class="vn"><b>24</b> 户 · 25.0%</span></div>
+        <div class="dr hot"><span class="lb">&gt; +3%</span><span class="bar"><i class="r" style="width:6.5%"></i></span><span class="vn"><b>3</b> 户 · 3.1%</span></div>
+      </div>
+      <div class="mt-16 text-sm text-3">
+        <i class="fa-solid fa-lightbulb"></i>
+        实测面积普遍略大于预测面积（73 户为正差异），符合本市外墙实测计量惯例；两端超阈值共 5 户，集中在顶层跃层与端头户，须核实测量口径后处理。
+      </div>
+    </div>
+  </div>
+
+  <!-- 第三段：逐户比对表 -->
+  <div class="card list-card">
+    <div class="card-head">
+      <h3>逐户比对明细</h3>
+      <span class="sub">SUV_MJBDXX · 比对编号 BD450200202600186</span>
+    </div>
+    <div class="filter-bar">
+      <div class="filter-item"><label>房号</label><input type="text" id="fRoom" placeholder="如 8-1-1502"></div>
+      <div class="filter-item">
+        <label>户型</label>
+        <select id="fHx"><option value="">全部</option><option>两室两厅</option><option>三室两厅</option><option>四室两厅</option></select>
+      </div>
+      <div class="filter-item">
+        <label>结算方向</label>
+        <select id="fDir"><option value="">全部</option><option value="up">购房人补款</option><option value="dn">开发企业退款</option><option value="no">无需结算</option></select>
+      </div>
+      <div class="filter-item">
+        <label>仅看超阈值</label>
+        <select id="fOver"><option value="0">否</option><option value="1">是</option></select>
+      </div>
+      <div class="filter-item">
+        <label>仅看有差异</label>
+        <select id="fDiff"><option value="0">否</option><option value="1">是</option></select>
+      </div>
+      <div class="filter-item">
+        <label>是否关联合同</label>
+        <select id="fCt"><option value="">全部</option><option value="1">已关联</option><option value="0">未关联</option></select>
+      </div>
+      <div class="filter-item">
+        <label>处理状态</label>
+        <select id="fSt"><option value="">全部</option><option value="1">已比对</option><option value="2">已处理</option></select>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="applyFilter()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn" onclick="resetFilter()"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table compact" id="tbBd" data-static>
+        <thead>
+          <tr>
+            <th>房号</th><th>户型</th><th>合同编号</th>
+            <th class="text-right">预测建面</th><th class="text-right">实测建面</th><th class="text-right">建面差</th><th class="text-right">差异比例</th>
+            <th class="text-right">预测套内</th><th class="text-right">实测套内</th><th class="text-right">套内差</th>
+            <th class="text-right">预测分摊</th><th class="text-right">实测分摊</th><th class="text-right">分摊差</th>
+            <th class="text-right">预测系数</th><th class="text-right">实测系数</th>
+            <th class="text-right">约定面积</th><th class="text-right">约定单价</th><th class="text-center">误差幅度</th>
+            <th>是否超幅度</th><th class="text-right">应结算找补金额</th><th>结算方向</th><th>比对状态</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-hx="三室两厅" data-dir="up" data-over="0" data-diff="1" data-ct="1" data-st="1">
+            <td class="fw-600 nowrap">8-1-1502</td><td class="nowrap">三室两厅</td>
+            <td class="nowrap"><span class="link" onclick="PMS.toast('合同 SPF450200202601286 · 购房人 张** · 2024-05-12 备案')">SPF450200202601286</span></td>
+            <td class="text-right amt">118.65</td><td class="text-right amt">120.86</td><td class="text-right amt dp">+2.21</td><td class="text-right amt dp">+1.86%</td>
+            <td class="text-right amt">92.18</td><td class="text-right amt">93.62</td><td class="text-right amt dp">+1.44</td>
+            <td class="text-right amt">26.47</td><td class="text-right amt">27.24</td><td class="text-right amt dp">+0.77</td>
+            <td class="text-right amt">0.2225</td><td class="text-right amt">0.2270</td>
+            <td class="text-right amt">118.65</td><td class="text-right amt">10,838.60</td><td class="text-center">3%</td>
+            <td class="nowrap"><span class="badge green">否</span></td>
+            <td class="text-right amt fw-600">23,953.31</td>
+            <td class="nowrap"><span class="badge orange">购房人补款</span></td>
+            <td class="nowrap"><span class="badge blue">已比对</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="location.href='area-diff.html'">处理差异</span>
+              <span class="link" onclick="showDetail('8-1-1502')">详情</span>
+            </td>
+          </tr>
+          <tr class="over" data-hx="两室两厅" data-dir="up" data-over="1" data-diff="1" data-ct="1" data-st="1">
+            <td class="fw-600 nowrap">8-2-1806</td><td class="nowrap">两室两厅</td>
+            <td class="nowrap"><span class="link" onclick="PMS.toast('合同 SPF450200202601302 · 购房人 李** · 2024-06-18 备案')">SPF450200202601302</span></td>
+            <td class="text-right amt">96.20</td><td class="text-right amt">100.15</td><td class="text-right amt dp">+3.95</td><td class="text-right amt dp">+4.11%</td>
+            <td class="text-right amt">74.86</td><td class="text-right amt">77.92</td><td class="text-right amt dp">+3.06</td>
+            <td class="text-right amt">21.34</td><td class="text-right amt">22.23</td><td class="text-right amt dp">+0.89</td>
+            <td class="text-right amt">0.2218</td><td class="text-right amt">0.2220</td>
+            <td class="text-right amt">96.20</td><td class="text-right amt">11,268.19</td><td class="text-center">3%</td>
+            <td class="nowrap"><span class="badge red">超 3%</span></td>
+            <td class="text-right amt fw-600">32,519.99</td>
+            <td class="nowrap"><span class="badge orange">购房人补款</span></td>
+            <td class="nowrap"><span class="badge blue">已比对</span></td>
+            <td class="col-ops">
+              <span class="link danger fw-600" onclick="location.href='area-diff.html'">处理差异</span>
+              <span class="link" onclick="showDetail('8-2-1806')">详情</span>
+            </td>
+          </tr>
+          <tr class="over" data-hx="四室两厅" data-dir="dn" data-over="1" data-diff="1" data-ct="1" data-st="1">
+            <td class="fw-600 nowrap">8-3-902</td><td class="nowrap">四室两厅</td>
+            <td class="nowrap"><span class="link" onclick="PMS.toast('合同 SPF450200202601268 · 购房人 周** · 2024-04-26 备案')">SPF450200202601268</span></td>
+            <td class="text-right amt">142.30</td><td class="text-right amt">135.68</td><td class="text-right amt dn">−6.62</td><td class="text-right amt dn">−4.65%</td>
+            <td class="text-right amt">110.92</td><td class="text-right amt">105.76</td><td class="text-right amt dn">−5.16</td>
+            <td class="text-right amt">31.38</td><td class="text-right amt">29.92</td><td class="text-right amt dn">−1.46</td>
+            <td class="text-right amt">0.2205</td><td class="text-right amt">0.2205</td>
+            <td class="text-right amt">142.30</td><td class="text-right amt">10,642.80</td><td class="text-center">3%</td>
+            <td class="nowrap"><span class="badge red">超 3%</span></td>
+            <td class="text-right amt fw-600 text-3">待处理确定</td>
+            <td class="nowrap"><span class="badge cyan">开发企业退款</span></td>
+            <td class="nowrap"><span class="badge blue">已比对</span></td>
+            <td class="col-ops">
+              <span class="link danger fw-600" onclick="location.href='area-diff.html'">处理差异</span>
+              <span class="link" onclick="showDetail('8-3-902')">详情</span>
+            </td>
+          </tr>
+          <tr class="over" data-hx="两室两厅" data-dir="up" data-over="1" data-diff="1" data-ct="1" data-st="1">
+            <td class="fw-600 nowrap">8-2-2102</td><td class="nowrap">两室两厅</td>
+            <td class="nowrap"><span class="link" onclick="PMS.toast('合同 SPF450200202601318 · 购房人 覃** · 2024-07-02 备案')">SPF450200202601318</span></td>
+            <td class="text-right amt">96.20</td><td class="text-right amt">99.28</td><td class="text-right amt dp">+3.08</td><td class="text-right amt dp">+3.20%</td>
+            <td class="text-right amt">74.86</td><td class="text-right amt">77.24</td><td class="text-right amt dp">+2.38</td>
+            <td class="text-right amt">21.34</td><td class="text-right amt">22.04</td><td class="text-right amt dp">+0.70</td>
+            <td class="text-right amt">0.2218</td><td class="text-right amt">0.2220</td>
+            <td class="text-right amt">96.20</td><td class="text-right amt">11,486.60</td><td class="text-center">3%</td>
+            <td class="nowrap"><span class="badge red">超 3%</span></td>
+            <td class="text-right amt fw-600">33,150.33</td>
+            <td class="nowrap"><span class="badge orange">购房人补款</span></td>
+            <td class="nowrap"><span class="badge blue">已比对</span></td>
+            <td class="col-ops">
+              <span class="link danger fw-600" onclick="location.href='area-diff.html'">处理差异</span>
+              <span class="link" onclick="showDetail('8-2-2102')">详情</span>
+            </td>
+          </tr>
+          <tr class="over" data-hx="四室两厅" data-dir="dn" data-over="1" data-diff="1" data-ct="1" data-st="2">
+            <td class="fw-600 nowrap">8-3-0402</td><td class="nowrap">四室两厅</td>
+            <td class="nowrap"><span class="link" onclick="PMS.toast('合同 SPF450200202601240 · 购房人 罗** · 2024-03-30 备案')">SPF450200202601240</span></td>
+            <td class="text-right amt">142.30</td><td class="text-right amt">137.86</td><td class="text-right amt dn">−4.44</td><td class="text-right amt dn">−3.12%</td>
+            <td class="text-right amt">110.92</td><td class="text-right amt">107.44</td><td class="text-right amt dn">−3.48</td>
+            <td class="text-right amt">31.38</td><td class="text-right amt">30.42</td><td class="text-right amt dn">−0.96</td>
+            <td class="text-right amt">0.2205</td><td class="text-right amt">0.2206</td>
+            <td class="text-right amt">142.30</td><td class="text-right amt">10,268.40</td><td class="text-center">3%</td>
+            <td class="nowrap"><span class="badge red">超 3%</span></td>
+            <td class="text-right amt fw-600">47,347.60</td>
+            <td class="nowrap"><span class="badge cyan">开发企业退款</span></td>
+            <td class="nowrap"><span class="badge green">已处理</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="location.href='area-diff.html'">处理详情</span>
+              <span class="link" onclick="showDetail('8-3-0402')">详情</span>
+            </td>
+          </tr>
+          <tr data-hx="三室两厅" data-dir="up" data-over="0" data-diff="1" data-ct="1" data-st="1">
+            <td class="fw-600 nowrap">8-1-0801</td><td class="nowrap">三室两厅</td>
+            <td class="nowrap"><span class="link" onclick="PMS.toast('合同 SPF450200202601252 · 购房人 韦** · 2024-04-08 备案')">SPF450200202601252</span></td>
+            <td class="text-right amt">118.65</td><td class="text-right amt">119.02</td><td class="text-right amt dp">+0.37</td><td class="text-right amt dp">+0.31%</td>
+            <td class="text-right amt">92.18</td><td class="text-right amt">92.46</td><td class="text-right amt dp">+0.28</td>
+            <td class="text-right amt">26.47</td><td class="text-right amt">26.56</td><td class="text-right amt dp">+0.09</td>
+            <td class="text-right amt">0.2231</td><td class="text-right amt">0.2232</td>
+            <td class="text-right amt">118.65</td><td class="text-right amt">10,642.50</td><td class="text-center">3%</td>
+            <td class="nowrap"><span class="badge green">否</span></td>
+            <td class="text-right amt fw-600">3,937.73</td>
+            <td class="nowrap"><span class="badge orange">购房人补款</span></td>
+            <td class="nowrap"><span class="badge blue">已比对</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="location.href='area-diff.html'">处理差异</span>
+              <span class="link" onclick="showDetail('8-1-0801')">详情</span>
+            </td>
+          </tr>
+          <tr data-hx="两室两厅" data-dir="dn" data-over="0" data-diff="1" data-ct="1" data-st="1">
+            <td class="fw-600 nowrap">8-2-0606</td><td class="nowrap">两室两厅</td>
+            <td class="nowrap"><span class="link" onclick="PMS.toast('合同 SPF450200202601274 · 购房人 黄** · 2024-05-06 备案')">SPF450200202601274</span></td>
+            <td class="text-right amt">96.20</td><td class="text-right amt">95.42</td><td class="text-right amt dn">−0.78</td><td class="text-right amt dn">−0.81%</td>
+            <td class="text-right amt">74.86</td><td class="text-right amt">74.28</td><td class="text-right amt dn">−0.58</td>
+            <td class="text-right amt">21.34</td><td class="text-right amt">21.14</td><td class="text-right amt dn">−0.20</td>
+            <td class="text-right amt">0.2218</td><td class="text-right amt">0.2216</td>
+            <td class="text-right amt">96.20</td><td class="text-right amt">10,986.40</td><td class="text-center">3%</td>
+            <td class="nowrap"><span class="badge green">否</span></td>
+            <td class="text-right amt fw-600">8,569.39</td>
+            <td class="nowrap"><span class="badge cyan">开发企业退款</span></td>
+            <td class="nowrap"><span class="badge blue">已比对</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="location.href='area-diff.html'">处理差异</span>
+              <span class="link" onclick="showDetail('8-2-0606')">详情</span>
+            </td>
+          </tr>
+          <tr data-hx="四室两厅" data-dir="up" data-over="0" data-diff="1" data-ct="1" data-st="1">
+            <td class="fw-600 nowrap">8-3-1205</td><td class="nowrap">四室两厅</td>
+            <td class="nowrap"><span class="link" onclick="PMS.toast('合同 SPF450200202601290 · 购房人 莫** · 2024-05-20 备案')">SPF450200202601290</span></td>
+            <td class="text-right amt">142.30</td><td class="text-right amt">143.16</td><td class="text-right amt dp">+0.86</td><td class="text-right amt dp">+0.60%</td>
+            <td class="text-right amt">110.92</td><td class="text-right amt">111.58</td><td class="text-right amt dp">+0.66</td>
+            <td class="text-right amt">31.38</td><td class="text-right amt">31.58</td><td class="text-right amt dp">+0.20</td>
+            <td class="text-right amt">0.2205</td><td class="text-right amt">0.2206</td>
+            <td class="text-right amt">142.30</td><td class="text-right amt">10,468.20</td><td class="text-center">3%</td>
+            <td class="nowrap"><span class="badge green">否</span></td>
+            <td class="text-right amt fw-600">9,002.65</td>
+            <td class="nowrap"><span class="badge orange">购房人补款</span></td>
+            <td class="nowrap"><span class="badge blue">已比对</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="location.href='area-diff.html'">处理差异</span>
+              <span class="link" onclick="showDetail('8-3-1205')">详情</span>
+            </td>
+          </tr>
+          <tr data-hx="两室两厅" data-dir="up" data-over="0" data-diff="1" data-ct="1" data-st="1">
+            <td class="fw-600 nowrap">8-2-1002</td><td class="nowrap">两室两厅</td>
+            <td class="nowrap"><span class="link" onclick="PMS.toast('合同 SPF450200202601296 · 购房人 秦** · 2024-05-28 备案')">SPF450200202601296</span></td>
+            <td class="text-right amt">96.20</td><td class="text-right amt">97.06</td><td class="text-right amt dp">+0.86</td><td class="text-right amt dp">+0.89%</td>
+            <td class="text-right amt">74.86</td><td class="text-right amt">75.48</td><td class="text-right amt dp">+0.62</td>
+            <td class="text-right amt">21.34</td><td class="text-right amt">21.58</td><td class="text-right amt dp">+0.24</td>
+            <td class="text-right amt">0.2218</td><td class="text-right amt">0.2223</td>
+            <td class="text-right amt">96.20</td><td class="text-right amt">10,742.80</td><td class="text-center">3%</td>
+            <td class="nowrap"><span class="badge green">否</span></td>
+            <td class="text-right amt fw-600">9,238.81</td>
+            <td class="nowrap"><span class="badge orange">购房人补款</span></td>
+            <td class="nowrap"><span class="badge blue">已比对</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="location.href='area-diff.html'">处理差异</span>
+              <span class="link" onclick="showDetail('8-2-1002')">详情</span>
+            </td>
+          </tr>
+          <tr data-hx="四室两厅" data-dir="dn" data-over="0" data-diff="1" data-ct="1" data-st="1">
+            <td class="fw-600 nowrap">8-3-1802</td><td class="nowrap">四室两厅</td>
+            <td class="nowrap"><span class="link" onclick="PMS.toast('合同 SPF450200202601310 · 购房人 卢** · 2024-06-24 备案')">SPF450200202601310</span></td>
+            <td class="text-right amt">142.30</td><td class="text-right amt">141.24</td><td class="text-right amt dn">−1.06</td><td class="text-right amt dn">−0.74%</td>
+            <td class="text-right amt">110.92</td><td class="text-right amt">110.18</td><td class="text-right amt dn">−0.74</td>
+            <td class="text-right amt">31.38</td><td class="text-right amt">31.06</td><td class="text-right amt dn">−0.32</td>
+            <td class="text-right amt">0.2205</td><td class="text-right amt">0.2199</td>
+            <td class="text-right amt">142.30</td><td class="text-right amt">10,864.20</td><td class="text-center">3%</td>
+            <td class="nowrap"><span class="badge green">否</span></td>
+            <td class="text-right amt fw-600">11,516.05</td>
+            <td class="nowrap"><span class="badge cyan">开发企业退款</span></td>
+            <td class="nowrap"><span class="badge blue">已比对</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="location.href='area-diff.html'">处理差异</span>
+              <span class="link" onclick="showDetail('8-3-1802')">详情</span>
+            </td>
+          </tr>
+          <tr data-hx="三室两厅" data-dir="no" data-over="0" data-diff="0" data-ct="1" data-st="1">
+            <td class="fw-600 nowrap">8-1-2201</td><td class="nowrap">三室两厅</td>
+            <td class="nowrap"><span class="link" onclick="PMS.toast('合同 SPF450200202601324 · 购房人 甘** · 2024-07-10 备案')">SPF450200202601324</span></td>
+            <td class="text-right amt">118.65</td><td class="text-right amt">118.65</td><td class="text-right amt dz">0.00</td><td class="text-right amt dz">0.00%</td>
+            <td class="text-right amt">92.18</td><td class="text-right amt">92.18</td><td class="text-right amt dz">0.00</td>
+            <td class="text-right amt">26.47</td><td class="text-right amt">26.47</td><td class="text-right amt dz">0.00</td>
+            <td class="text-right amt">0.2231</td><td class="text-right amt">0.2231</td>
+            <td class="text-right amt">118.65</td><td class="text-right amt">10,924.60</td><td class="text-center">3%</td>
+            <td class="nowrap"><span class="badge green">否</span></td>
+            <td class="text-right amt">0.00</td>
+            <td class="nowrap"><span class="badge">无需结算</span></td>
+            <td class="nowrap"><span class="badge blue">已比对</span></td>
+            <td class="col-ops"><span class="link" onclick="showDetail('8-1-2201')">详情</span></td>
+          </tr>
+          <tr data-hx="三室两厅" data-dir="no" data-over="0" data-diff="1" data-ct="0" data-st="1">
+            <td class="fw-600 nowrap">8-1-0302</td><td class="nowrap">三室两厅</td>
+            <td class="nowrap no-ct">未签约</td>
+            <td class="text-right amt">118.65</td><td class="text-right amt">118.98</td><td class="text-right amt dp">+0.33</td><td class="text-right amt dp">+0.28%</td>
+            <td class="text-right amt">92.18</td><td class="text-right amt">92.44</td><td class="text-right amt dp">+0.26</td>
+            <td class="text-right amt">26.47</td><td class="text-right amt">26.54</td><td class="text-right amt dp">+0.07</td>
+            <td class="text-right amt">0.2231</td><td class="text-right amt">0.2231</td>
+            <td class="text-right amt text-3">—</td><td class="text-right amt text-3">—</td><td class="text-center text-3">—</td>
+            <td class="nowrap text-3">—</td>
+            <td class="text-right amt text-3">—</td>
+            <td class="nowrap"><span class="badge">无需结算</span></td>
+            <td class="nowrap"><span class="badge blue">已比对</span></td>
+            <td class="col-ops"><span class="link" onclick="showDetail('8-1-0302')">详情</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- 单户比对详情抽屉 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="drOne">
+  <div class="drawer-head">
+    <h3 style="margin:0;font-size:16px">单户比对详情 · <span id="oRoom">8-1-1502</span></h3>
+    <button type="button" class="btn btn-ghost" style="margin-left:auto" data-close-drawer><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="drawer-body">
+    <div class="section-title">房源与合同</div>
+    <dl class="desc-list">
+      <div class="desc-item"><dt>比对编号</dt><dd>BD450200202600186-015</dd></div>
+      <div class="desc-item"><dt>房源主键</dt><dd>FY45020020260018615</dd></div>
+      <div class="desc-item span-2"><dt>坐落</dt><dd>柳州市城中区文昌路 26 号荣和公园大道二期 8 栋 1 单元 1502</dd></div>
+      <div class="desc-item"><dt>不动产单元号</dt><dd>450202001005GB00186F00011502</dd></div>
+      <div class="desc-item"><dt>合同编号</dt><dd>SPF450200202601286</dd></div>
+      <div class="desc-item"><dt>购房人</dt><dd>张**（450***********0126）</dd></div>
+      <div class="desc-item"><dt>合同约定面积</dt><dd>118.65 ㎡</dd></div>
+      <div class="desc-item"><dt>合同约定单价</dt><dd>10,838.60 元/㎡</dd></div>
+      <div class="desc-item"><dt>约定误差幅度</dt><dd>3%</dd></div>
+      <div class="desc-item"><dt>比对状态</dt><dd><span class="badge blue">已比对</span></dd></div>
+    </dl>
+
+    <div class="section-title mt-16" style="margin-top:20px">面积对照</div>
+    <table class="data-table compact" data-static>
+      <thead><tr><th>面积项</th><th class="text-right">预测 V1.0</th><th class="text-right">实测 V2.0</th><th class="text-right">差值</th><th class="text-right">差异比例</th></tr></thead>
+      <tbody>
+        <tr><td>建筑面积（㎡）</td><td class="text-right amt">118.65</td><td class="text-right amt">120.86</td><td class="text-right amt dp">+2.21</td><td class="text-right amt dp">+1.86%</td></tr>
+        <tr><td>套内建筑面积（㎡）</td><td class="text-right amt">92.18</td><td class="text-right amt">93.62</td><td class="text-right amt dp">+1.44</td><td class="text-right amt dp">+1.56%</td></tr>
+        <tr><td>分摊面积（㎡）</td><td class="text-right amt">26.47</td><td class="text-right amt">27.24</td><td class="text-right amt dp">+0.77</td><td class="text-right amt dp">+2.91%</td></tr>
+        <tr><td>分摊系数</td><td class="text-right amt">0.2225</td><td class="text-right amt">0.2270</td><td class="text-right amt dp">+0.0045</td><td class="text-right amt dp">+2.02%</td></tr>
+      </tbody>
+    </table>
+
+    <div class="section-title mt-16" style="margin-top:20px">结算测算</div>
+    <div class="alert alert-info">
+      <i class="fa-solid fa-calculator"></i>
+      <div>差异比例 +1.86% <b>未超</b>合同约定 3% 误差幅度，按<b>据实结算（多退少补）</b>处理：找补金额 = 2.21 ㎡ × 10,838.60 元/㎡ = <b>23,953.31 元</b>，结算方向<b>购房人补款</b>。</div>
+    </div>
+    <dl class="desc-list">
+      <div class="desc-item"><dt>是否超幅度</dt><dd><span class="badge green">否</span></dd></div>
+      <div class="desc-item"><dt>处理方式</dt><dd>0 据实结算（多退少补）</dd></div>
+      <div class="desc-item"><dt>应结算找补金额</dt><dd class="fw-700">23,953.31 元</dd></div>
+      <div class="desc-item"><dt>结算方向</dt><dd>购房人补款</dd></div>
+      <div class="desc-item"><dt>政策版本号</dt><dd>V2026.03</dd></div>
+      <div class="desc-item"><dt>比对时间</dt><dd>2026-08-01 18:42（系统自动）</dd></div>
+    </dl>
+  </div>
+  <div class="drawer-foot">
+    <button type="button" class="btn" data-close-drawer>关闭</button>
+    <button type="button" class="btn" onclick="location.href='drawing-viewer.html'"><i class="fa-solid fa-image"></i> 预实测分户图对照</button>
+    <button type="button" class="btn btn-primary" onclick="location.href='area-diff.html'"><i class="fa-solid fa-calculator"></i> 处理差异找补</button>
+  </div>
+</div>
+
+<!-- 打印预览抽屉 -->
+<div class="drawer-mask"></div>
+<div class="drawer drawer-xl" id="drPrint">
+  <div class="drawer-head">
+    <h3 style="margin:0;font-size:16px">预实测面积比对表 · 打印预览</h3>
+    <span class="badge">A4 横向</span>
+    <button type="button" class="btn btn-ghost" style="margin-left:auto" data-close-drawer><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="drawer-body" style="background:#eef1f6">
+    <div class="a4">
+      <h2>预实测面积比对表</h2>
+      <div class="sub2">XXXX市房产交易所 · 比对编号 BD450200202600186 · 制表时间 2026-08-01 18:45</div>
+      <dl class="desc-list">
+        <div class="desc-item"><dt>项目名称</dt><dd>荣和公园大道二期</dd></div>
+        <div class="desc-item"><dt>幢号</dt><dd>8 栋</dd></div>
+        <div class="desc-item"><dt>预测成果</dt><dd>CG450200202600151 V1.0（2024-03-18）</dd></div>
+        <div class="desc-item"><dt>实测成果</dt><dd>CG450200202600186 V2.0（2026-07-26）</dd></div>
+        <div class="desc-item"><dt>测绘机构</dt><dd>XXXX市测绘院</dd></div>
+        <div class="desc-item"><dt>开发企业</dt><dd>柳州荣和房地产开发有限公司</dd></div>
+      </dl>
+      <div class="section-title mt-16" style="margin-top:16px">统计汇总</div>
+      <table class="data-table compact" data-static>
+        <thead><tr><th>比对户数</th><th>超约定幅度</th><th>需结算</th><th>无需结算</th><th class="text-right">预测总建面</th><th class="text-right">实测总建面</th><th class="text-right">差值</th><th class="text-right">总差异比例</th><th class="text-right">净结算额</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>96 户</td><td class="text-danger fw-600">5 户</td><td>91 户</td><td>5 户</td>
+            <td class="text-right amt">28,600.00</td><td class="text-right amt">28,842.60</td>
+            <td class="text-right amt dp">+242.60</td><td class="text-right amt dp">+0.85%</td>
+            <td class="text-right amt fw-600">+123,574.40 元</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="section-title mt-16" style="margin-top:16px">逐户比对（节选 6 户，实际打印 96 户）</div>
+      <table class="data-table compact" data-static>
+        <thead>
+          <tr><th>房号</th><th>合同编号</th><th class="text-right">预测建面</th><th class="text-right">实测建面</th><th class="text-right">面积差</th><th class="text-right">差异比例</th><th class="text-right">约定单价</th><th>是否超幅度</th><th class="text-right">找补金额</th><th>结算方向</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>8-1-1502</td><td>SPF450200202601286</td><td class="text-right amt">118.65</td><td class="text-right amt">120.86</td><td class="text-right amt dp">+2.21</td><td class="text-right amt dp">+1.86%</td><td class="text-right amt">10,838.60</td><td>否</td><td class="text-right amt">23,953.31</td><td>购房人补款</td></tr>
+          <tr><td>8-2-1806</td><td>SPF450200202601302</td><td class="text-right amt">96.20</td><td class="text-right amt">100.15</td><td class="text-right amt dp">+3.95</td><td class="text-right amt dp">+4.11%</td><td class="text-right amt">11,268.19</td><td class="text-danger fw-600">超 3%</td><td class="text-right amt">32,519.99</td><td>购房人补款</td></tr>
+          <tr><td>8-2-2102</td><td>SPF450200202601318</td><td class="text-right amt">96.20</td><td class="text-right amt">99.28</td><td class="text-right amt dp">+3.08</td><td class="text-right amt dp">+3.20%</td><td class="text-right amt">11,486.60</td><td class="text-danger fw-600">超 3%</td><td class="text-right amt">33,150.33</td><td>购房人补款</td></tr>
+          <tr><td>8-3-902</td><td>SPF450200202601268</td><td class="text-right amt">142.30</td><td class="text-right amt">135.68</td><td class="text-right amt dn">−6.62</td><td class="text-right amt dn">−4.65%</td><td class="text-right amt">10,642.80</td><td class="text-danger fw-600">超 3%</td><td class="text-right amt">待处理</td><td>开发企业退款</td></tr>
+          <tr><td>8-3-0402</td><td>SPF450200202601240</td><td class="text-right amt">142.30</td><td class="text-right amt">137.86</td><td class="text-right amt dn">−4.44</td><td class="text-right amt dn">−3.12%</td><td class="text-right amt">10,268.40</td><td class="text-danger fw-600">超 3%</td><td class="text-right amt">47,347.60</td><td>开发企业退款</td></tr>
+          <tr><td>8-1-0801</td><td>SPF450200202601252</td><td class="text-right amt">118.65</td><td class="text-right amt">119.02</td><td class="text-right amt dp">+0.37</td><td class="text-right amt dp">+0.31%</td><td class="text-right amt">10,642.50</td><td>否</td><td class="text-right amt">3,937.73</td><td>购房人补款</td></tr>
+        </tbody>
+      </table>
+      <div class="sign"><span>制表人：韦国强</span><span>复核人：____________</span><span>制表日期：2026-08-01</span></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button type="button" class="btn" data-close-drawer>关闭</button>
+    <button type="button" class="btn" onclick="PMS.toast('比对表 PDF 已生成，正在下载','success')"><i class="fa-solid fa-file-pdf"></i> 导出 PDF</button>
+    <button type="button" class="btn btn-primary" onclick="window.print()"><i class="fa-solid fa-print"></i> 打印</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+function applyFilter() {
+  var room = document.getElementById('fRoom').value.trim(),
+      hx = document.getElementById('fHx').value,
+      dir = document.getElementById('fDir').value,
+      over = document.getElementById('fOver').value,
+      diff = document.getElementById('fDiff').value,
+      ct = document.getElementById('fCt').value,
+      st = document.getElementById('fSt').value, n = 0;
+  document.querySelectorAll('#tbBd tbody tr').forEach(function (tr) {
+    var d = tr.dataset;
+    var ok = (!room || tr.cells[0].textContent.indexOf(room) > -1)
+      && (!hx || d.hx === hx) && (!dir || d.dir === dir)
+      && (over !== '1' || d.over === '1') && (diff !== '1' || d.diff === '1')
+      && (!ct || d.ct === ct) && (!st || d.st === st);
+    tr.style.display = ok ? '' : 'none';
+    if (ok) n++;
+  });
+  PMS.toast('已按条件筛选：' + n + ' 户');
+}
+
+function resetFilter() {
+  document.getElementById('fRoom').value = '';
+  ['fHx', 'fDir', 'fCt', 'fSt'].forEach(function (id) { document.getElementById(id).value = ''; });
+  document.getElementById('fOver').value = '0';
+  document.getElementById('fDiff').value = '0';
+  document.querySelectorAll('#tbBd tbody tr').forEach(function (tr) { tr.style.display = ''; });
+  PMS.toast('筛选条件已重置');
+}
+
+function onlyOver() {
+  document.getElementById('fOver').value = '1';
+  applyFilter();
+  document.getElementById('tbBd').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function showDetail(room) {
+  document.getElementById('oRoom').textContent = room;
+  PMS.openDrawer('drOne');
+}
+
+function reCompare() {
+  PMS.confirm({
+    title: '重新比对',
+    message: '按当前生效版本重新执行全项目逐户比对？',
+    detail: '重新比对以预测成果 V1.0 与实测成果 V2.0 为基准逐户计算面积差与找补金额；已完成结算的房源不受影响，仅刷新未处理房源的比对结果。',
+    type: 'info', okText: '开始比对',
+    onOk: function () {
+      PMS.toast('正在逐户比对 96 户…');
+      setTimeout(function () { PMS.toast('比对完成：96 户已比对，5 户超 3% 约定幅度，净结算额 +123,574.40 元', 'success'); }, 900);
+    }
+  });
+}
+</script>
+</body>
+</html>

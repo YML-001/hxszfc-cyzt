@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>面积成果同步楼盘表 · 房屋交易面积信息管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：影响评估面板、已签约未关联处理意见的硬性拦截、同步结果页 */
+  .amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .sum { display: grid; grid-template-columns: 1fr 260px; }
+  .sum > div { padding: 13px 16px; }
+  .sum .r { border-left: 1px solid var(--border); background: #fafbfd; text-align: center; }
+  .sum .r .l { font-size: 12px; color: var(--text-3); }
+  .sum .r .v { font-size: 26px; font-weight: 800; color: var(--primary); font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .sum .r .s { font-size: 12.5px; color: var(--text-2); margin-top: 3px; }
+
+  .scope { display: flex; gap: 10px; }
+  .scope label {
+    flex: 1; border: 1.5px solid var(--border); border-radius: var(--radius); padding: 10px 14px; cursor: pointer;
+    display: flex; gap: 9px; align-items: flex-start; background: #fff; transition: all .15s;
+  }
+  .scope label:hover { border-color: var(--primary); }
+  .scope label.on { border-color: var(--primary); background: var(--primary-light); }
+  .scope label .st { display: block; font-size: 13.5px; font-weight: 700; color: var(--text-1); }
+  .scope label .sd { display: block; font-size: 12px; color: var(--text-3); margin-top: 2px; }
+
+  .ev { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .ev .e { border: 1px solid var(--border); border-radius: var(--radius); background: #fff; padding: 9px 12px; }
+  .ev .e .l { font-size: 12px; color: var(--text-3); }
+  .ev .e .v { font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums; margin-top: 1px; }
+  .ev .e.warn { background: #fffbeb; border-color: #fde68a; } .ev .e.warn .v { color: #b45309; }
+  .ev .e.ok { background: #f0fdf4; border-color: #bbf7d0; } .ev .e.ok .v { color: var(--success); }
+  .ev .e.bad { background: #fef2f2; border-color: #fecaca; } .ev .e.bad .v { color: var(--danger); }
+
+  .block {
+    border: 1.5px solid var(--danger); background: #fef2f2; border-radius: var(--radius); padding: 14px 16px;
+  }
+  .block .bt { font-size: 14.5px; font-weight: 800; color: var(--danger); display: flex; align-items: center; gap: 8px; }
+  .block .bd { font-size: 13px; color: var(--text-2); margin-top: 6px; line-height: 1.65; }
+
+  .res { text-align: center; padding: 26px 20px 20px; }
+  .res .ic {
+    width: 62px; height: 62px; border-radius: 50%; background: #dcfce7; color: var(--success);
+    display: flex; align-items: center; justify-content: center; font-size: 28px; margin: 0 auto 12px;
+  }
+  .res .rt { font-size: 19px; font-weight: 800; color: var(--text-1); }
+  .res .rs { font-size: 13px; color: var(--text-2); margin-top: 5px; }
+  .res .rk { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; max-width: 760px; margin: 18px auto 0; }
+  .res .rk .k { border: 1px solid var(--border); border-radius: var(--radius); padding: 9px; background: #fff; }
+  .res .rk .k .l { font-size: 12px; color: var(--text-3); }
+  .res .rk .k .v { font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .lk { max-width: 760px; margin: 16px auto 0; text-align: left; }
+  .lk .li { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 7px; background: #fff; font-size: 13px; }
+  .lk .li i.st { color: var(--success); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wschcg-19">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易面积信息管理系统
+        <span class="sep">/</span> 面积核验管理
+        <span class="sep">/</span> <span class="cur">面积成果同步楼盘表</span>
+      </div>
+      <div class="page-title">面积成果同步楼盘表</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="location.href='area-change.html'"><i class="fa-solid fa-clock-rotate-left"></i> 面积变更记录</button>
+      <button type="button" class="btn" onclick="location.href='area-verify.html'"><i class="fa-solid fa-clipboard-check"></i> 面积核验办理</button>
+    </div>
+  </div>
+
+  <!-- 步骤 1：同步对象 -->
+  <div class="card" id="stepBox">
+    <div class="card-head"><h3>一、同步对象</h3><span class="sub">选择已核验通过的成果或核验单</span></div>
+    <div class="card-body">
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>同步来源<span class="req">*</span></label>
+          <select onchange="PMS.toast('已切换同步来源：' + this.options[this.selectedIndex].text)">
+            <option>按核验单同步（HY450200202600126）</option>
+            <option>按成果同步（CG450200202600186 V2.0）</option>
+          </select>
+        </div>
+        <div class="form-item">
+          <label>成果编号<span class="req">*</span></label>
+          <select onchange="PMS.toast('已切换成果：' + this.options[this.selectedIndex].text)">
+            <option>CG450200202600186 · 荣和公园大道二期 8 栋 V2.0</option>
+            <option>CG450200202600180 · 万科城 5 栋 V2.0</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="sum mt-16" style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+        <div class="l">
+          <dl class="desc-list">
+            <div class="desc-item"><dt>成果编号 / 版本</dt><dd class="fw-700">CG450200202600186 · V2.0 实测成果</dd></div>
+            <div class="desc-item"><dt>项目 / 幢号</dt><dd>荣和公园大道二期 / 8 栋</dd></div>
+              <div class="desc-item"><dt>核验单号</dt><dd>HY450200202600126 · 已通过</dd></div>
+            <div class="desc-item"><dt>核验人 / 时间</dt><dd>韦国强 · 2026-08-01 18:40</dd></div>
+            <div class="desc-item"><dt>成果状态</dt><dd><span class="badge green">已入库生效</span></dd></div>
+              <div class="desc-item"><dt>被替代版本</dt><dd>V1.0 预测成果 CG450200202600151</dd></div>
+          </dl>
+        </div>
+        <div class="r">
+          <div class="l">总建筑面积变化</div>
+          <div class="v">+242.60</div>
+          <div class="s">28,600.00 → 28,842.60 ㎡（+0.85%）</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 步骤 2：同步范围 -->
+  <div class="card">
+    <div class="card-head"><h3>二、同步范围</h3><span class="sub">同步内容：建筑面积、套内建筑面积、分摊面积、分摊系数、户型、朝向、房屋用途</span></div>
+    <div class="card-body">
+      <div class="scope">
+        <label class="on" id="sc1"><input type="radio" name="sc" value="1" checked onchange="onScope(this)"><span><span class="st">全幢同步</span><span class="sd">8 栋全部 96 户，推荐用于竣工实测替换预测</span></span></label>
+        <label id="sc2"><input type="radio" name="sc" value="2" onchange="onScope(this)"><span><span class="st">按层同步</span><span class="sd">指定楼层范围同步，适用于分批交付</span></span></label>
+        <label id="sc3"><input type="radio" name="sc" value="3" onchange="onScope(this)"><span><span class="st">按户同步</span><span class="sd">勾选具体房号同步，适用于个别更正</span></span></label>
+      </div>
+      <div class="form-grid form-align mt-16" id="scDetail" style="display:none">
+        <div class="form-item"><label>指定范围</label><input type="text" value="15 层 ~ 26 层" placeholder="如 15 层 ~ 26 层，或房号 8-1-1502,8-2-1806"></div>
+        <div class="form-item"><label>涉及户数</label><input type="text" value="48" readonly></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 步骤 3：影响评估 -->
+  <div class="card">
+    <div class="card-head">
+      <h3>三、影响评估</h3>
+      <span class="sub">已签约房屋的面积变更必须先关联合同处理意见才允许同步，这是硬性拦截</span>
+      <div class="head-actions"><button type="button" class="btn btn-sm" onclick="reEval()"><i class="fa-solid fa-rotate"></i> 重新评估</button></div>
+    </div>
+    <div class="card-body">
+      <div class="ev">
+        <div class="e"><div class="l">涉及房源</div><div class="v">96 户</div></div>
+        <div class="e"><div class="l">面积发生变化</div><div class="v">91 户</div></div>
+        <div class="e"><div class="l">面积变化合计</div><div class="v">+242.60 ㎡</div></div>
+        <div class="e warn"><div class="l">涉及已备案合同</div><div class="v">68 户</div></div>
+      </div>
+      <div class="ev mt-16">
+        <div class="e ok"><div class="l">已关联合同处理意见</div><div class="v" id="okN">65 户</div></div>
+        <div class="e bad"><div class="l">未关联合同处理意见</div><div class="v" id="badN">3 户</div></div>
+        <div class="e"><div class="l">涉及不动产登记</div><div class="v">0 户</div></div>
+        <div class="e"><div class="l">预计同步耗时</div><div class="v">约 26 秒</div></div>
+      </div>
+
+      <div class="block mt-16" id="blockBox">
+        <div class="bt"><i class="fa-solid fa-hand"></i> 存在未关联合同处理意见的已签约房屋，不允许同步</div>
+        <div class="bd">有 <b>3 户</b>已签约房屋的面积变更尚未关联合同处理意见。请先完成<b>补充协议签署</b>或<b>合同变更备案</b>，处理完成后重新评估。</div>
+        <div class="table-wrap mt-16">
+          <table class="data-table compact" data-static>
+            <thead>
+              <tr><th>房号</th><th>合同编号</th><th>购房人</th><th class="text-right">变更前建面</th><th class="text-right">变更后建面</th><th class="text-right">面积变化</th><th class="text-right">差异比例</th><th>缺失的处理意见</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr id="b1">
+                <td class="fw-600 nowrap">8-2-1806</td><td class="nowrap">SPF450200202601302</td><td>李**</td>
+                <td class="text-right amt">96.20</td><td class="text-right amt">100.15</td>
+                <td class="text-right amt text-warning">+3.95</td><td class="text-right amt text-danger">+4.11%</td>
+                <td class="nowrap"><span class="badge red">补充协议未签署</span></td>
+                <td class="col-ops"><span class="link danger" onclick="location.href='area-diff.html'">去处理</span></td>
+              </tr>
+              <tr id="b2">
+                <td class="fw-600 nowrap">8-3-902</td><td class="nowrap">SPF450200202601268</td><td>周**</td>
+                <td class="text-right amt">142.30</td><td class="text-right amt">135.68</td>
+                <td class="text-right amt text-success">−6.62</td><td class="text-right amt text-danger">−4.65%</td>
+                <td class="nowrap"><span class="badge red">退房流程未办结</span></td>
+                <td class="col-ops"><span class="link danger" onclick="location.href='area-diff.html'">去处理</span></td>
+              </tr>
+              <tr id="b3">
+                <td class="fw-600 nowrap">8-2-2102</td><td class="nowrap">SPF450200202601318</td><td>覃**</td>
+                <td class="text-right amt">96.20</td><td class="text-right amt">99.28</td>
+                <td class="text-right amt text-warning">+3.08</td><td class="text-right amt text-danger">+3.20%</td>
+                <td class="nowrap"><span class="badge red">合同变更备案未办理</span></td>
+                <td class="col-ops"><span class="link danger" onclick="location.href='area-diff.html'">去处理</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="flex gap-8 mt-16">
+          <button type="button" class="btn" onclick="location.href='area-diff.html'"><i class="fa-solid fa-calculator"></i> 批量处理面积差异</button>
+          <button type="button" class="btn" onclick="mockDone()"><i class="fa-solid fa-check"></i> 演示：三户处理意见已关联</button>
+        </div>
+      </div>
+
+      <div class="alert alert-success mt-16" id="passBox" style="display:none">
+        <i class="fa-solid fa-circle-check"></i>
+        <div>68 户已备案合同房屋<b>均已关联合同处理意见</b>（补充协议 62 户 / 合同变更备案 5 户 / 退房办结 1 户），影响评估通过，可执行同步。</div>
+      </div>
+
+      <div class="flex gap-8 mt-16">
+        <button type="button" class="btn" onclick="PMS.toast('同步方案草稿已保存','success')"><i class="fa-solid fa-floppy-disk"></i> 保存草稿</button>
+        <button type="button" class="btn btn-primary" id="btnSync" disabled onclick="doSync()"><i class="fa-solid fa-rotate"></i> 确认同步楼盘表</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 同步结果 -->
+  <div class="card" id="resCard" style="display:none">
+    <div class="card-head"><h3>四、同步结果</h3><span class="sub">同步编号 TB450200202600186</span></div>
+    <div class="card-body">
+      <div class="res">
+        <div class="ic"><i class="fa-solid fa-check"></i></div>
+        <div class="rt">楼盘表面积同步成功</div>
+        <div class="rs">同步编号 TB450200202600186 · 同步范围 全幢（8 栋 96 户）· 同步时间 2026-08-01 19:02 · 耗时 24 秒</div>
+        <div class="rk">
+          <div class="k"><div class="l">成功</div><div class="v text-success">96 户</div></div>
+          <div class="k"><div class="l">失败</div><div class="v">0 户</div></div>
+          <div class="k"><div class="l">面积变化合计</div><div class="v text-warning">+242.60 ㎡</div></div>
+          <div class="k"><div class="l">生成变更记录</div><div class="v">91 条</div></div>
+        </div>
+        <div class="lk">
+          <div class="li"><i class="fa-solid fa-circle-check st"></i> 楼盘表房源面积已更新（建筑面积 / 套内 / 分摊 / 分摊系数 / 户型 / 朝向 / 用途）</div>
+          <div class="li"><i class="fa-solid fa-circle-check st"></i> 已生成 91 条面积变更记录，可逐条追溯每一次面积改动 <span class="link" style="margin-left:auto" onclick="location.href='area-change.html'">查看变更记录</span></div>
+          <div class="li"><i class="fa-solid fa-circle-check st"></i> 68 份已备案合同的标的面积已同步更新，结算数据回写 wsswb</div>
+          <div class="li"><i class="fa-solid fa-circle-info" style="color:var(--text-3)"></i> 本次不涉及不动产登记，未通知登记机构</div>
+        </div>
+        <div class="flex gap-8 mt-16" style="justify-content:center">
+          <button type="button" class="btn" onclick="location.href='area-change.html'"><i class="fa-solid fa-clock-rotate-left"></i> 查看变更记录</button>
+          <button type="button" class="btn" onclick="PMS.toast('同步回执 PDF 已生成，正在下载','success')"><i class="fa-solid fa-file-pdf"></i> 下载同步回执</button>
+          <button type="button" class="btn btn-primary" onclick="location.href='area-service.html'"><i class="fa-solid fa-share-nodes"></i> 面积成果对外服务</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function onScope(el) {
+  ['sc1', 'sc2', 'sc3'].forEach(function (id) { document.getElementById(id).classList.remove('on'); });
+  el.closest('label').classList.add('on');
+  document.getElementById('scDetail').style.display = el.value === '1' ? 'none' : '';
+  PMS.toast('同步范围已切换，请重新评估影响');
+}
+
+function mockDone() {
+  document.getElementById('okN').textContent = '68 户';
+  document.getElementById('badN').textContent = '0 户';
+  document.getElementById('blockBox').style.display = 'none';
+  document.getElementById('passBox').style.display = '';
+  document.getElementById('btnSync').disabled = false;
+  PMS.toast('三户合同处理意见已关联（补充协议 2 / 退房办结 1），拦截已解除', 'success');
+}
+
+function reEval() {
+  PMS.toast('正在评估同步影响…');
+  setTimeout(function () {
+    var pass = document.getElementById('blockBox').style.display === 'none';
+    PMS.toast(pass
+      ? '评估完成：96 户可同步，无拦截项'
+      : '评估完成：3 户已签约房屋未关联合同处理意见，同步被拦截', pass ? 'success' : 'warning');
+  }, 700);
+}
+
+function doSync() {
+  PMS.confirm({
+    title: '确认同步楼盘表',
+    message: '将本次实测面积同步至楼盘表？',
+    detail: '同步后楼盘表房源面积以 V2.0 实测成果为准，涉及 96 户、面积变化 +242.60 ㎡，并生成变更记录供追溯。已备案合同的标的面积同步更新，操作留痕。',
+    type: 'info', okText: '确认同步',
+    onOk: function () {
+      PMS.toast('正在同步 96 户面积数据…');
+      setTimeout(function () {
+        document.getElementById('resCard').style.display = '';
+        document.getElementById('btnSync').disabled = true;
+        document.getElementById('resCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        PMS.toast('同步完成：96 户成功、0 户失败，已生成 91 条变更记录', 'success');
+      }, 1200);
+    }
+  });
+}
+</script>
+</body>
+</html>

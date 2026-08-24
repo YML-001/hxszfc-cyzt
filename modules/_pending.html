@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>待建设 · 华信数智房产交易一体化平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="reviewer">
+<main class="app-main">
+  <div id="pending-root"></div>
+</main>
+<script src="../assets/js/catalog.js"></script>
+<script>
+/* 全平台统一占位页：283 条菜单共用这一份。
+   ?k=<菜单代号> 决定渲染哪条菜单，?e=<端> 决定侧栏用哪套配置。
+   必须在 app.js 之前写好 body[data-active]，侧栏才能按菜单代号高亮。 */
+(function () {
+  var key = '', end = '';
+  try {
+    var qs = new URLSearchParams(location.search);
+    key = qs.get('k') || '';
+    end = qs.get('e') || '';
+  } catch (e) {}
+  if (key) document.body.setAttribute('data-active', key);
+
+  var C = window.CATALOG || { subs: {}, menus: {} };
+  var menu = C.menus[key];
+  var sub = menu ? C.subs[menu.sub] : null;
+  var root = document.getElementById('pending-root');
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  var END_NAME = {
+    government: '业务办理端', company: '单位机构端', portal: '统一服务门户',
+    datacenter: '数据中心', ai: '数智大脑', mobile: '移动端'
+  };
+
+  if (!menu || !sub) {
+    document.title = '待建设 · 华信数智房产交易一体化平台';
+    root.innerHTML =
+      '<div class="page-head"><div class="ph-l"><div class="breadcrumb">' +
+        '<i class="fa-solid fa-house bc-home"></i> 首页 <span class="sep">/</span> <span class="cur">待建设</span>' +
+      '</div><div class="page-title">待建设</div></div></div>' +
+      '<div class="card"><div class="card-body"><div class="empty">' +
+        '<i class="fa-solid fa-compass-drafting"></i>' +
+        '<div>未识别到菜单' + (key ? '（' + esc(key) + '）' : '') + '</div>' +
+        '<div class="text-3 text-sm mt-8">请从左侧菜单进入，链接形如 <code>_pending.html?k=wsswb-13&amp;e=government</code></div>' +
+      '</div></div></div>';
+    return;
+  }
+
+  var path = (menu.group ? esc(menu.group) + ' <span class="sep">/</span> ' : '');
+  document.title = menu.label + ' · ' + sub.name;
+
+  var pts = menu.points || [];
+  var aiCnt = 0, cfgCnt = 0, i;
+  for (i = 0; i < pts.length; i++) {
+    if ((pts[i].ai || '').indexOf('是') === 0) aiCnt++;
+    if ((pts[i].cfg || '').indexOf('是') === 0) cfgCnt++;
+  }
+
+  var html = '';
+
+  html += '<div class="page-head"><div class="ph-l"><div class="breadcrumb">' +
+      '<i class="fa-solid fa-house bc-home"></i> ' + esc(sub.name) +
+      ' <span class="sep">/</span> ' + path + '<span class="cur">' + esc(menu.label) + '</span>' +
+    '</div><div class="page-title">' + esc(menu.label) + '</div></div>' +
+    '<div class="page-actions"><span class="badge orange"><i class="fa-solid fa-hammer"></i> 待建设</span></div></div>';
+
+  html += '<div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation"></i><div>' +
+    '本菜单页面尚未生成。框架阶段全部菜单统一指向本占位页，页面内容即该菜单后续要落地的二级功能点清单。' +
+    '页面建成后放在 <code>modules/' + esc(menu.sub) + '/</code> 下，并把菜单 href 从占位页换成真实页面。' +
+    '</div></div>';
+
+  html += '<div class="stat-grid">' +
+    '<div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-list-ol"></i></div><div>' +
+      '<div class="s-label">二级功能点</div><div class="s-value">' + pts.length + '</div></div></div>' +
+    '<div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-sitemap"></i></div><div>' +
+      '<div class="s-label">适用层级</div><div class="s-value" style="font-size:15px">' + esc(menu.level || '市县两级') + '</div></div></div>' +
+    '<div class="stat-card"><div class="s-icon purple"><i class="fa-solid fa-brain"></i></div><div>' +
+      '<div class="s-label">AI 赋能功能点</div><div class="s-value">' + aiCnt + '</div></div></div>' +
+    '<div class="stat-card"><div class="s-icon orange"><i class="fa-solid fa-scale-balanced"></i></div><div>' +
+      '<div class="s-label">一城一策可配置</div><div class="s-value">' + cfgCnt + '</div></div></div>' +
+    '</div>';
+
+  html += '<div class="card"><div class="card-head"><h3><i class="fa-solid fa-circle-info"></i> 菜单定位</h3>' +
+      '</div><div class="card-body">' +
+    '<dl class="desc-list">' +
+      '<div class="desc-item"><dt>所属端</dt><dd>' + esc(END_NAME[end || sub.end] || sub.end) + '</dd></div>' +
+      '<div class="desc-item"><dt>业务子系统</dt><dd>' + esc(sub.name) + '</dd></div>' +
+      '<div class="desc-item"><dt>业务线</dt><dd>' + esc(sub.line) + '</dd></div>' +
+      '<div class="desc-item"><dt>一级菜单</dt><dd>' + esc(menu.group || menu.label + '（顶层单项）') + '</dd></div>' +
+      '<div class="desc-item"><dt>二级菜单</dt><dd>' + esc(menu.group ? menu.label : '—') + '</dd></div>' +
+      '<div class="desc-item"><dt>菜单代号</dt><dd><code>' + esc(key) + '</code></dd></div>' +
+      '<div class="desc-item"><dt>子系统代号</dt><dd><code>' + esc(menu.sub) + '</code></dd></div>' +
+      '<div class="desc-item"><dt>页面落位</dt><dd><code>modules/' + esc(menu.sub) + '/</code></dd></div>' +
+      '<div class="desc-item"><dt>对应 v1.9 功能板块</dt><dd>' + esc((menu.boards || []).join('；') || '—（新增菜单）') + '</dd></div>' +
+      '<div class="desc-item"><dt>对应 v1.9 一级功能模块</dt><dd>' + esc((menu.modules || []).join('；') || '—（新增菜单）') +
+        (menu.note ? ' <span class="badge blue">' + esc(menu.note) + '</span>' : '') + '</dd></div>' +
+      (sub.legacy ? '<div class="desc-item full"><dt>子系统承接原有系统</dt><dd>' + esc(sub.legacy) + '</dd></div>' : '') +
+    '</dl></div></div>';
+
+  var rows = '';
+  for (i = 0; i < pts.length; i++) {
+    var p = pts[i];
+    var tags = '';
+    if ((p.ai || '').indexOf('是') === 0) tags += '<span class="badge purple">AI</span> ';
+    if ((p.cfg || '').indexOf('是') === 0) tags += '<span class="badge orange">一城一策</span>';
+    rows += '<tr><td class="nowrap">' + (i + 1) + '</td>' +
+      '<td class="nowrap fw-600">' + esc(p.n) + '</td>' +
+      '<td>' + esc(p.d) + '</td>' +
+      '<td class="nowrap">' + esc(p.lv) + '</td>' +
+      '<td class="nowrap">' + (tags || '<span class="text-3">—</span>') + '</td></tr>';
+  }
+  html += '<div class="card"><div class="card-head"><h3><i class="fa-solid fa-list-check"></i> 二级功能点清单</h3>' +
+      '<span class="sub">' + (pts.length ? '共 ' + pts.length + ' 项，即本菜单的建设范围'
+        : '本菜单是各子系统统一入口，v1.9 中无对应功能点') + '</span></div><div class="card-body">' +
+    (pts.length ? '<table class="data-table"><thead><tr><th>序号</th><th>二级功能点</th><th>功能说明</th>' +
+      '<th>适用层级</th><th>标签</th></tr></thead><tbody>' + rows + '</tbody></table>'
+      : '<div class="empty"><i class="fa-solid fa-table-columns"></i><div>工作台按角色出待办、指标与快捷入口</div></div>') +
+    '</div></div>';
+
+  var sibs = '', group = '';
+  var keys = sub.menus || [];
+  for (i = 0; i < keys.length; i++) {
+    var mk = keys[i], m2 = C.menus[mk];
+    var on = mk === key;
+    var g2 = m2.group || '';
+    if (g2 !== group) {
+      group = g2;
+      sibs += '<tr><td colspan="5" class="fw-600" style="background:var(--bg-soft)">' +
+        (g2 ? '<i class="fa-solid fa-folder-open text-3"></i> ' + esc(g2)
+            : '<span class="text-3">顶层单项</span>') + '</td></tr>';
+    }
+    sibs += '<tr><td class="nowrap"><code>' + esc(mk) + '</code></td>' +
+      '<td class="nowrap' + (on ? ' fw-600 text-primary' : '') + '">' + esc(m2.label) + '</td>' +
+      '<td class="num nowrap">' + m2.points.length + '</td>' +
+      '<td class="nowrap">' + esc(m2.level) + '</td>' +
+      '<td class="nowrap">' + (on ? '<span class="badge blue">当前</span>'
+        : '<a class="link" href="_pending.html?k=' + esc(mk) + (end ? '&e=' + esc(end) : '') + '">查看</a>') + '</td></tr>';
+  }
+  html += '<div class="card"><div class="card-head"><h3><i class="fa-solid fa-layer-group"></i> ' +
+      esc(sub.name) + ' 的菜单结构</h3>' +
+      '<span class="sub">共 ' + keys.length + ' 条菜单，同属 <code>modules/' + esc(menu.sub) + '/</code></span>' +
+    '</div><div class="card-body">' +
+    '<table class="data-table"><thead><tr><th>菜单代号</th><th>菜单名</th>' +
+      '<th class="num">功能点</th><th>适用层级</th><th>操作</th></tr></thead><tbody>' + sibs + '</tbody></table></div></div>';
+
+  root.innerHTML = html;
+})();
+</script>
+<script src="../assets/js/app.js"></script>
+</body>
+</html>

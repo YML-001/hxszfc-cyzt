@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>面积成果对外服务 · 房屋交易面积信息管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：调用方分布条形图、服务能力卡、报文代码块 */
+  .amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* 调用方分布横向条形 */
+  .dist { display: flex; flex-direction: column; gap: 9px; }
+  .dist .r { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+  .dist .r .lb { width: 168px; flex-shrink: 0; color: var(--text-2); text-align: right; }
+  .dist .r .bar { flex: 1; height: 18px; background: var(--bg-soft); border-radius: 3px; overflow: hidden; }
+  .dist .r .bar i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #3b82f6, #2563eb); }
+  .dist .r .bar i.g { background: linear-gradient(90deg, #34d399, #10b981); }
+  .dist .r .bar i.p { background: linear-gradient(90deg, #a78bfa, #7c3aed); }
+  .dist .r .bar i.o { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
+  .dist .r .vn { width: 128px; flex-shrink: 0; font-variant-numeric: tabular-nums; color: var(--text-1); font-weight: 600; }
+  .dist .r .vn .p { color: var(--text-3); font-weight: 400; margin-left: 6px; font-size: 12px; }
+
+  /* 服务能力卡 */
+  .caps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .caps .c { border: 1px solid var(--border); border-radius: var(--radius); padding: 13px 15px; background: #fff; }
+  .caps .c .h { display: flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 700; color: var(--text-1); }
+  .caps .c .h i {
+    width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    background: var(--primary-light); color: var(--primary); font-size: 14px;
+  }
+  .caps .c .d { font-size: 12.5px; color: var(--text-2); line-height: 1.7; margin-top: 8px; }
+  .caps .c .m { font-size: 12px; color: var(--text-3); margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); }
+
+  .data-table tbody td.ret { max-width: 320px; white-space: normal; line-height: 1.55; font-size: 12.5px; color: var(--text-2); }
+  .data-table tbody td.why { max-width: 200px; white-space: normal; line-height: 1.55; font-size: 12.5px; color: var(--danger); }
+  tr.fail td { background: #fef2f2; }
+  tr.fail:hover td { background: #fee2e2; }
+  .ms { font-variant-numeric: tabular-nums; }
+  .ms.slow { color: #b45309; font-weight: 700; }
+
+  /* 报文代码块 */
+  .json {
+    font-family: "Consolas", "Courier New", monospace; font-size: 12.5px; line-height: 1.75;
+    background: #0f172a; color: #e2e8f0; border-radius: var(--radius); padding: 13px 15px; white-space: pre;
+    overflow-x: auto;
+  }
+  .json .k { color: #7dd3fc; } .json .s { color: #86efac; } .json .n { color: #fcd34d; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wschcg-23">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易面积信息管理系统
+        <span class="sep">/</span> 面积核验管理
+        <span class="sep">/</span> <span class="cur">面积成果对外服务</span>
+      </div>
+      <div class="page-title">面积成果对外服务</div>
+    </div>
+    <div class="page-actions">
+      <select style="width:150px" onchange="PMS.toast('统计区间已切换：' + this.value)">
+        <option>本月（2026-08）</option><option>近 7 日</option><option>本年度</option>
+      </select>
+      <button type="button" class="btn" onclick="PMS.toast('《对外服务调用月报》PDF 已生成，正在下载','success')"><i class="fa-solid fa-file-pdf"></i> 导出服务月报</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.openModal('mdSub')"><i class="fa-solid fa-plus"></i> 新增订阅</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-tower-broadcast"></i></div>
+      <div><div class="s-label">本月调用总量</div><div class="s-value">18,462 次</div><div class="s-trend text-3">日均 596 次</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">成功</div><div class="s-value">18,386 次</div><div class="s-trend text-success">成功率 99.6%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-circle-xmark"></i></div>
+      <div><div class="s-label">失败</div><div class="s-value">76 次</div><div class="s-trend text-danger">主因：单元号不存在 52 次</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-gauge-high"></i></div>
+      <div><div class="s-label">平均响应</div><div class="s-value">186 ms</div><div class="s-trend text-3">P95 420 ms</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-bell"></i></div>
+      <div><div class="s-label">变更通知推送</div><div class="s-value">246 次</div><div class="s-trend text-3">订阅方 6 家</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3>各调用方分布</h3><span class="sub">本月 18,462 次调用按调用方统计</span></div>
+    <div class="card-body">
+      <div class="dist">
+        <div class="r"><span class="lb">不动产登记机构</span><span class="bar"><i style="width:100%"></i></span><span class="vn">6,842 次<span class="p">37.1%</span></span></div>
+        <div class="r"><span class="lb">税务部门</span><span class="bar"><i style="width:62.6%"></i></span><span class="vn">4,286 次<span class="p">23.2%</span></span></div>
+        <div class="r"><span class="lb">wsswb 商品房网签</span><span class="bar"><i class="g" style="width:46.6%"></i></span><span class="vn">3,186 次<span class="p">17.3%</span></span></div>
+        <div class="r"><span class="lb">wscwb 存量房网签</span><span class="bar"><i class="g" style="width:36.0%"></i></span><span class="vn">2,462 次<span class="p">13.3%</span></span></div>
+        <div class="r"><span class="lb">wsdwb 查档服务</span><span class="bar"><i class="p" style="width:17.3%"></i></span><span class="vn">1,186 次<span class="p">6.4%</span></span></div>
+        <div class="r"><span class="lb">住建部监管平台</span><span class="bar"><i class="o" style="width:7.1%"></i></span><span class="vn">486 次<span class="p">2.6%</span></span></div>
+        <div class="r"><span class="lb">其他</span><span class="bar"><i class="o" style="width:0.2%"></i></span><span class="vn">14 次<span class="p">0.1%</span></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3>服务能力</h3><span class="sub">面积成果以当前生效版本对外提供，附成果出处便于对方核验</span></div>
+    <div class="card-body">
+      <div class="caps">
+        <div class="c">
+          <div class="h"><i class="fa-solid fa-magnifying-glass"></i> 面积成果查询</div>
+          <div class="d">按不动产单元号或房源主键查询<b>当前生效</b>的建筑面积、套内建筑面积、分摊面积、分摊系数、房屋用途、户型。</div>
+          <div class="m">接口 /api/area/query · 本月 15,286 次 · 平均 168 ms</div>
+        </div>
+        <div class="c">
+          <div class="h"><i class="fa-solid fa-fingerprint"></i> 成果出处溯源</div>
+          <div class="d">返回结果附带成果编号、成果类型与版本、测绘机构、测绘日期，便于对方<b>核验数据权威性</b>。</div>
+          <div class="m">接口 /api/area/trace · 本月 2,930 次 · 平均 242 ms</div>
+        </div>
+        <div class="c">
+          <div class="h"><i class="fa-solid fa-bell"></i> 面积变更订阅</div>
+          <div class="d">面积发生变更时向已订阅部门<b>推送变更通知</b>，支持按项目或区域订阅，推送失败自动重试 3 次。</div>
+          <div class="m">接口 /api/area/subscribe · 本月推送 246 次 · 成功 244 次</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="log"><i class="fa-solid fa-list"></i> 调用记录</div>
+    <div class="tab" data-tab="sub"><i class="fa-solid fa-rss"></i> 订阅管理</div>
+  </div>
+
+  <!-- 调用记录 -->
+  <div class="tab-panel active" data-panel="log">
+    <div class="card">
+      <div class="filter-bar">
+        <div class="filter-item">
+          <label>调用方</label>
+          <select id="fWho" onchange="applyFilter()">
+            <option value="">全部</option><option value="dj">不动产登记机构</option><option value="sw">税务部门</option>
+            <option value="ss">wsswb 商品房网签</option><option value="cw">wscwb 存量房网签</option>
+            <option value="dw">wsdwb 查档服务</option><option value="zj">住建部监管平台</option>
+          </select>
+        </div>
+        <div class="filter-item"><label>查询参数</label><input type="text" id="fKw" placeholder="不动产单元号 / 房源主键"></div>
+        <div class="filter-item">
+          <label>调用接口</label>
+          <select><option value="">全部</option><option>/api/area/query</option><option>/api/area/trace</option><option>/api/area/subscribe</option></select>
+        </div>
+        <div class="filter-item">
+          <label>状态</label>
+          <select id="fSt" onchange="applyFilter()"><option value="">全部</option><option value="1">成功</option><option value="0">失败</option></select>
+        </div>
+        <div class="filter-item">
+          <label>响应耗时</label>
+          <select><option value="">全部</option><option>200 ms 以内</option><option>200 ~ 500 ms</option><option>500 ms 以上</option></select>
+        </div>
+        <div class="filter-item"><label>调用时间起</label><input type="date" value="2026-08-01"></div>
+        <div class="filter-item"><label>调用时间止</label><input type="date" value="2026-08-01"></div>
+        <div class="filter-item">
+          <label>仅看失败</label>
+          <div class="radio-line"><label><input type="checkbox" id="fOnlyFail" onchange="applyFilter()"> 仅看失败调用</label></div>
+        </div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="applyFilter()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn" onclick="resetFilter()"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table" id="tblLog" data-static>
+          <thead>
+            <tr>
+              <th>调用流水号</th><th>调用方</th><th>调用接口</th><th>查询参数</th><th>返回结果摘要</th>
+              <th class="text-right">响应耗时</th><th>状态</th><th>失败原因</th><th>调用时间</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-who="dj" data-st="1">
+              <td class="nowrap fw-600">SV20260801190612</td>
+              <td class="nowrap">不动产登记机构</td>
+              <td class="nowrap">/api/area/query</td>
+              <td class="nowrap">450202001008GB00080F00150002</td>
+              <td class="ret">建面 131.98 ㎡ / 套内 107.86 ㎡ / 分摊 24.12 ㎡ / 成果 CG450200202600186 V2.0</td>
+              <td class="text-right ms">142 ms</td>
+              <td class="nowrap"><span class="badge green">成功</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap">2026-08-01 19:06:12</td>
+              <td class="col-ops"><span class="link" onclick="viewMsg('SV20260801190612')">查看报文</span></td>
+            </tr>
+            <tr data-who="sw" data-st="1">
+              <td class="nowrap fw-600">SV20260801190548</td>
+              <td class="nowrap">税务部门</td>
+              <td class="nowrap">/api/area/query</td>
+              <td class="nowrap">450202001008GB00080F00180006</td>
+              <td class="ret">建面 100.15 ㎡ / 套内 78.30 ㎡ / 分摊 21.85 ㎡ / 成果 CG450200202600186 V2.0</td>
+              <td class="text-right ms">126 ms</td>
+              <td class="nowrap"><span class="badge green">成功</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap">2026-08-01 19:05:48</td>
+              <td class="col-ops"><span class="link" onclick="viewMsg('SV20260801190548')">查看报文</span></td>
+            </tr>
+            <tr data-who="ss" data-st="1">
+              <td class="nowrap fw-600">SV20260801190402</td>
+              <td class="nowrap">wsswb 商品房网签</td>
+              <td class="nowrap">/api/area/trace</td>
+              <td class="nowrap">FY450200202600186015</td>
+              <td class="ret">成果 CG450200202600186 · V2.0 实测成果 · XXXX市测绘院 · 测绘日期 2026-07-22</td>
+              <td class="text-right ms">238 ms</td>
+              <td class="nowrap"><span class="badge green">成功</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap">2026-08-01 19:04:02</td>
+              <td class="col-ops"><span class="link" onclick="viewMsg('SV20260801190402')">查看报文</span></td>
+            </tr>
+            <tr class="fail" data-who="dj" data-st="0">
+              <td class="nowrap fw-600">SV20260801185926</td>
+              <td class="nowrap">不动产登记机构</td>
+              <td class="nowrap">/api/area/query</td>
+              <td class="nowrap">450202001008GB00080F00990009</td>
+              <td class="ret text-3">—</td>
+              <td class="text-right ms">86 ms</td>
+              <td class="nowrap"><span class="badge red">失败</span></td>
+              <td class="why">不动产单元号不存在（E4041 查无此房源）</td>
+              <td class="nowrap">2026-08-01 18:59:26</td>
+              <td class="col-ops"><span class="link" onclick="viewMsg('SV20260801185926')">查看报文</span></td>
+            </tr>
+            <tr data-who="cw" data-st="1">
+              <td class="nowrap fw-600">SV20260801185740</td>
+              <td class="nowrap">wscwb 存量房网签</td>
+              <td class="nowrap">/api/area/query</td>
+              <td class="nowrap">450205002005GB00050F00180006</td>
+              <td class="ret">建面 96.86 ㎡ / 套内 79.13 ㎡ / 分摊 17.73 ㎡ / 成果 CG450200202600192 V2.1</td>
+              <td class="text-right ms">158 ms</td>
+              <td class="nowrap"><span class="badge green">成功</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap">2026-08-01 18:57:40</td>
+              <td class="col-ops"><span class="link" onclick="viewMsg('SV20260801185740')">查看报文</span></td>
+            </tr>
+            <tr data-who="dw" data-st="1">
+              <td class="nowrap fw-600">SV20260801185512</td>
+              <td class="nowrap">wsdwb 查档服务</td>
+              <td class="nowrap">/api/area/trace</td>
+              <td class="nowrap">450204005006GB00060F00110002</td>
+              <td class="ret">成果 CG450200202600156 · V2.0 实测成果 · XXXX市勘察测绘研究院 · 测绘日期 2026-06-18</td>
+              <td class="text-right ms">262 ms</td>
+              <td class="nowrap"><span class="badge green">成功</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap">2026-08-01 18:55:12</td>
+              <td class="col-ops"><span class="link" onclick="viewMsg('SV20260801185512')">查看报文</span></td>
+            </tr>
+            <tr data-who="zj" data-st="1">
+              <td class="nowrap fw-600">SV20260801184806</td>
+              <td class="nowrap">住建部监管平台</td>
+              <td class="nowrap">/api/area/query</td>
+              <td class="nowrap">批量：荣和公园大道二期 8 栋（96 户）</td>
+              <td class="ret">返回 96 户面积明细 · 总建面 28,842.60 ㎡ · 成果 CG450200202600186 V2.0</td>
+              <td class="text-right ms slow">1,286 ms</td>
+              <td class="nowrap"><span class="badge green">成功</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap">2026-08-01 18:48:06</td>
+              <td class="col-ops"><span class="link" onclick="viewMsg('SV20260801184806')">查看报文</span></td>
+            </tr>
+            <tr class="fail" data-who="sw" data-st="0">
+              <td class="nowrap fw-600">SV20260801183218</td>
+              <td class="nowrap">税务部门</td>
+              <td class="nowrap">/api/area/query</td>
+              <td class="nowrap">450204005006GB00060F00070005</td>
+              <td class="ret text-3">—</td>
+              <td class="text-right ms">92 ms</td>
+              <td class="nowrap"><span class="badge red">失败</span></td>
+              <td class="why">该房源面积同步失败，暂无当前生效成果（E4092）</td>
+              <td class="nowrap">2026-08-01 18:32:18</td>
+              <td class="col-ops"><span class="link" onclick="viewMsg('SV20260801183218')">查看报文</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 订阅管理 -->
+  <div class="tab-panel" data-panel="sub">
+    <div class="card">
+      <div class="card-head">
+        <h3>面积变更订阅</h3><span class="sub">面积发生变更时按订阅范围推送通知，推送失败自动重试 3 次</span>
+        <div class="head-actions"><button type="button" class="btn btn-sm" onclick="PMS.openModal('mdSub')"><i class="fa-solid fa-plus"></i> 新增订阅</button></div>
+      </div>
+      <div class="card-body">
+        <div class="table-wrap">
+          <table class="data-table" data-static>
+            <thead>
+              <tr><th>订阅方</th><th>订阅范围</th><th>订阅事件</th><th>推送地址</th><th>推送方式</th><th>订阅状态</th><th>最近推送时间</th><th>最近推送结果</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="fw-600 nowrap">XXXX市不动产登记中心</td>
+                <td class="nowrap">全市</td>
+                <td class="nowrap">面积变更 / 成果版本更新</td>
+                <td class="nowrap">https://bdc.liuzhou.gov.cn/api/notify/area</td>
+                <td class="nowrap">HTTP 回调（实时）</td>
+                <td class="nowrap"><span class="badge green">已启用</span></td>
+                <td class="nowrap">2026-08-01 19:02</td>
+                <td class="nowrap"><span class="badge green">推送成功</span></td>
+                <td class="col-ops">
+                  <span class="link" onclick="PMS.openModal('mdSub')">编辑</span>
+                  <span class="link" onclick="testPush('XXXX市不动产登记中心')">测试推送</span>
+                  <span class="link danger" onclick="stopSub('XXXX市不动产登记中心')">停用</span>
+                </td>
+              </tr>
+              <tr>
+                <td class="fw-600 nowrap">XXXX市税务局</td>
+                <td class="nowrap">全市</td>
+                <td class="nowrap">面积变更</td>
+                <td class="nowrap">https://tax.liuzhou.gov.cn/api/area/change</td>
+                <td class="nowrap">HTTP 回调（实时）</td>
+                <td class="nowrap"><span class="badge green">已启用</span></td>
+                <td class="nowrap">2026-08-01 19:02</td>
+                <td class="nowrap"><span class="badge green">推送成功</span></td>
+                <td class="col-ops">
+                  <span class="link" onclick="PMS.openModal('mdSub')">编辑</span>
+                  <span class="link" onclick="testPush('XXXX市税务局')">测试推送</span>
+                  <span class="link danger" onclick="stopSub('XXXX市税务局')">停用</span>
+                </td>
+              </tr>
+              <tr>
+                <td class="fw-600 nowrap">wsswb 商品房网签备案</td>
+                <td class="nowrap">全市</td>
+                <td class="nowrap">面积变更</td>
+                <td class="nowrap">内部消息总线 MQ:area.change</td>
+                <td class="nowrap">消息队列（实时）</td>
+                <td class="nowrap"><span class="badge green">已启用</span></td>
+                <td class="nowrap">2026-08-01 19:02</td>
+                <td class="nowrap"><span class="badge green">推送成功</span></td>
+                <td class="col-ops">
+                  <span class="link" onclick="PMS.openModal('mdSub')">编辑</span>
+                  <span class="link" onclick="testPush('wsswb 商品房网签备案')">测试推送</span>
+                  <span class="link danger" onclick="stopSub('wsswb 商品房网签备案')">停用</span>
+                </td>
+              </tr>
+              <tr>
+                <td class="fw-600 nowrap">城中区住建局</td>
+                <td class="nowrap">指定区县：城中区</td>
+                <td class="nowrap">面积变更</td>
+                <td class="nowrap">https://czq.liuzhou.gov.cn/api/notify</td>
+                <td class="nowrap">HTTP 回调（每日汇总）</td>
+                <td class="nowrap"><span class="badge green">已启用</span></td>
+                <td class="nowrap">2026-08-01 08:00</td>
+                <td class="nowrap"><span class="badge green">推送成功</span></td>
+                <td class="col-ops">
+                  <span class="link" onclick="PMS.openModal('mdSub')">编辑</span>
+                  <span class="link" onclick="testPush('城中区住建局')">测试推送</span>
+                  <span class="link danger" onclick="stopSub('城中区住建局')">停用</span>
+                </td>
+              </tr>
+              <tr>
+                <td class="fw-600 nowrap">住建部监管平台</td>
+                <td class="nowrap">全市</td>
+                <td class="nowrap">成果版本更新</td>
+                <td class="nowrap">https://jkpt.mohurd.gov.cn/api/area</td>
+                <td class="nowrap">HTTP 回调（每日汇总）</td>
+                <td class="nowrap"><span class="badge green">已启用</span></td>
+                <td class="nowrap">2026-08-01 08:00</td>
+                <td class="nowrap"><span class="badge orange">重试后成功</span></td>
+                <td class="col-ops">
+                  <span class="link" onclick="PMS.openModal('mdSub')">编辑</span>
+                  <span class="link" onclick="testPush('住建部监管平台')">测试推送</span>
+                  <span class="link danger" onclick="stopSub('住建部监管平台')">停用</span>
+                </td>
+              </tr>
+              <tr>
+                <td class="fw-600 nowrap">荣和地产集团</td>
+                <td class="nowrap">指定项目：荣和公园大道二期</td>
+                <td class="nowrap">面积变更</td>
+                <td class="nowrap">https://ronghe.com/openapi/area</td>
+                <td class="nowrap">HTTP 回调（实时）</td>
+                <td class="nowrap"><span class="badge">已停用</span></td>
+                <td class="nowrap">2026-07-18 15:30</td>
+                <td class="nowrap"><span class="badge red">推送失败</span></td>
+                <td class="col-ops">
+                  <span class="link" onclick="PMS.openModal('mdSub')">编辑</span>
+                  <span class="link" onclick="testPush('荣和地产集团')">测试推送</span>
+                  <span class="link" onclick="PMS.toast('该订阅已停用，如需恢复请编辑后启用','warning')">停用</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- 报文查看抽屉 -->
+<div class="drawer-mask"></div>
+<div class="drawer drawer-lg" id="drMsg">
+  <div class="drawer-head">
+    <h3 style="margin:0;font-size:16px">调用报文 · <span id="mNo">SV20260801190612</span></h3>
+    <button type="button" class="btn btn-ghost" style="margin-left:auto" data-close-drawer><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="drawer-body">
+    <div class="section-title">调用信息</div>
+    <dl class="desc-list">
+      <div class="desc-item"><dt>调用流水号</dt><dd class="fw-700" id="mNo2">SV20260801190612</dd></div>
+      <div class="desc-item"><dt>调用方</dt><dd>XXXX市不动产登记中心</dd></div>
+      <div class="desc-item"><dt>调用接口</dt><dd>/api/area/query</dd></div>
+      <div class="desc-item"><dt>调用时间</dt><dd>2026-08-01 19:06:12</dd></div>
+      <div class="desc-item"><dt>响应耗时</dt><dd>142 ms</dd></div>
+      <div class="desc-item"><dt>状态</dt><dd><span class="badge green">成功</span></dd></div>
+    </dl>
+
+    <div class="section-title" style="margin-top:20px">请求报文</div>
+    <div class="json">{
+  <span class="k">"appId"</span>: <span class="s">"LZ_BDC_REG"</span>,
+  <span class="k">"timestamp"</span>: <span class="s">"2026-08-01 19:06:12"</span>,
+  <span class="k">"method"</span>: <span class="s">"area.query"</span>,
+  <span class="k">"params"</span>: {
+    <span class="k">"bdcdyh"</span>: <span class="s">"450202001008GB00080F00150002"</span>,
+    <span class="k">"withTrace"</span>: <span class="n">true</span>
+  }
+}</div>
+
+    <div class="section-title" style="margin-top:20px">响应报文</div>
+    <div class="json">{
+  <span class="k">"code"</span>: <span class="n">200</span>,
+  <span class="k">"message"</span>: <span class="s">"success"</span>,
+  <span class="k">"data"</span>: {
+    <span class="k">"bdcdyh"</span>: <span class="s">"450202001008GB00080F00150002"</span>,
+    <span class="k">"zl"</span>: <span class="s">"柳州市城中区文昌路 88 号荣和公园大道二期 8 栋 1 单元 1502"</span>,
+    <span class="k">"jzmj"</span>: <span class="n">131.98</span>,
+    <span class="k">"tnmj"</span>: <span class="n">107.86</span>,
+    <span class="k">"ftmj"</span>: <span class="n">24.12</span>,
+    <span class="k">"ftxs"</span>: <span class="n">0.2236</span>,
+    <span class="k">"fwyt"</span>: <span class="s">"成套住宅"</span>,
+    <span class="k">"hx"</span>: <span class="s">"四室两厅两卫"</span>,
+    <span class="k">"trace"</span>: {
+      <span class="k">"cgbh"</span>: <span class="s">"CG450200202600186"</span>,
+      <span class="k">"cglx"</span>: <span class="s">"实测成果"</span>,
+      <span class="k">"bbh"</span>: <span class="s">"V2.0"</span>,
+      <span class="k">"sfdqbb"</span>: <span class="n">1</span>,
+      <span class="k">"chjg"</span>: <span class="s">"XXXX市测绘院"</span>,
+      <span class="k">"chrq"</span>: <span class="s">"2026-07-22"</span>,
+      <span class="k">"rksj"</span>: <span class="s">"2026-08-01 18:26:00"</span>
+    }
+  }
+}</div>
+
+    <div class="alert alert-info mt-16">
+      <i class="fa-solid fa-circle-info"></i>
+      <div>对外提供的面积始终取<b>当前生效版本</b>（sfdqbb = 1）；响应中的 trace 段用于对方核验数据出处与权威性，面积发生变更时会按订阅推送通知。</div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button type="button" class="btn" data-close-drawer>关闭</button>
+    <button type="button" class="btn" onclick="PMS.toast('报文 JSON 已复制到剪贴板','success')"><i class="fa-solid fa-copy"></i> 复制报文</button>
+    <button type="button" class="btn btn-primary" onclick="location.href='result-detail.html'"><i class="fa-solid fa-file-lines"></i> 查看成果详情</button>
+  </div>
+</div>
+
+<!-- 订阅编辑弹窗 -->
+<div class="modal-mask" id="mdSub">
+  <div class="modal modal-sm">
+    <div class="modal-head">订阅配置</div>
+    <div class="modal-body">
+      <div class="alert alert-info">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>订阅生效后，订阅范围内的房源面积发生变更时将按推送方式通知订阅方；推送失败自动重试 3 次，仍失败的记录留痕并告警。</div>
+      </div>
+      <div class="form-grid form-align mt-16">
+        <div class="form-item"><label>订阅方<span class="req">*</span></label><input type="text" value="XXXX市不动产登记中心"></div>
+        <div class="form-item">
+          <label>订阅范围<span class="req">*</span></label>
+          <select onchange="document.getElementById('subScope').style.display = this.selectedIndex === 0 ? 'none' : ''">
+            <option>全市</option><option>指定区县</option><option>指定项目</option>
+          </select>
+        </div>
+        <div class="form-item" id="subScope" style="display:none"><label>范围明细</label><input type="text" placeholder="如 城中区，或 荣和公园大道二期"></div>
+        <div class="form-item">
+          <label>订阅事件<span class="req">*</span></label>
+          <div class="radio-line">
+            <label><input type="checkbox" checked> 面积变更</label>
+            <label><input type="checkbox" checked> 成果版本更新</label>
+          </div>
+        </div>
+        <div class="form-item col-full"><label>推送地址<span class="req">*</span></label><input type="text" value="https://bdc.liuzhou.gov.cn/api/notify/area"></div>
+        <div class="form-item">
+          <label>推送方式<span class="req">*</span></label>
+          <select><option>HTTP 回调（实时）</option><option>HTTP 回调（每日汇总）</option><option>消息队列（实时）</option></select>
+        </div>
+        <div class="form-item">
+          <label>订阅状态</label>
+          <div class="radio-line">
+            <label><input type="radio" name="ss" checked> 启用</label>
+            <label><input type="radio" name="ss"> 停用</label>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" data-close-modal>取消</button>
+      <button type="button" class="btn" onclick="testPush('当前订阅')"><i class="fa-solid fa-paper-plane"></i> 测试推送</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeModal('mdSub');PMS.toast('订阅配置已保存并生效','success')"><i class="fa-solid fa-check"></i> 保存订阅</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+function applyFilter() {
+  var who = document.getElementById('fWho').value,
+      st = document.getElementById('fSt').value,
+      kw = document.getElementById('fKw').value.trim(),
+      onlyFail = document.getElementById('fOnlyFail').checked, n = 0;
+  document.querySelectorAll('#tblLog tbody tr').forEach(function (tr) {
+    var ok = (!who || tr.dataset.who === who) && (!st || tr.dataset.st === st)
+      && (!onlyFail || tr.dataset.st === '0') && (!kw || tr.textContent.indexOf(kw) > -1);
+    tr.style.display = ok ? '' : 'none';
+    if (ok) n++;
+  });
+  PMS.toast('已按条件筛选：' + n + ' 条调用记录');
+}
+
+function resetFilter() {
+  document.getElementById('fKw').value = '';
+  document.getElementById('fWho').value = '';
+  document.getElementById('fSt').value = '';
+  document.getElementById('fOnlyFail').checked = false;
+  document.querySelectorAll('#tblLog tbody tr').forEach(function (tr) { tr.style.display = ''; });
+  PMS.toast('筛选条件已重置');
+}
+
+function viewMsg(no) {
+  document.getElementById('mNo').textContent = no;
+  document.getElementById('mNo2').textContent = no;
+  PMS.openDrawer('drMsg');
+}
+
+function testPush(who) {
+  PMS.toast('正在向 ' + who + ' 发送测试通知…');
+  setTimeout(function () { PMS.toast('测试推送成功，对方返回 200 OK（耗时 216 ms）', 'success'); }, 800);
+}
+
+function stopSub(who) {
+  PMS.confirm({
+    title: '停用订阅',
+    message: '确认停用「' + who + '」的面积变更订阅？',
+    detail: '停用后该订阅方不再接收面积变更通知，历史推送记录保留。如对方仍需数据，可通过面积成果查询接口主动调用。',
+    type: 'warning', okText: '确认停用',
+    onOk: function () { PMS.toast(who + ' 的订阅已停用', 'success'); }
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能问数 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="fx" data-active="ask-data" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>智能应用</span>
+      <span class="sep">/</span><span>智能分析报告</span>
+      <span class="sep">/</span><span class="cur">智能问数</span>
+    </div>
+    <div class="page-actions">
+      <span class="node-tag"><i class="fa-solid fa-user-shield"></i>监管分析人员</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-chart-simple"></i>智能分析报告 wsai-09</span>
+    <a class="active" href="ask-data.html?role=fx">智能问数</a>
+    <a href="ask-data-scope.html?role=fx">问数口径约束</a>
+    <a href="report-gen.html?role=fx">AI 报告生成</a>
+    <a href="sentiment.html?role=fx">AI 舆情监测</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-scale-balanced"></i>
+    <span>智能问数受<b>数据权限与统计口径双约束</b>：越权范围的提问被直接拦截并记入日志；
+      问题必须命中统计口径库中的指标才作答，答案强制附<b>口径说明与数据来源</b>，与综合统计报表保持一致。</span>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>用自然语言提问</h3>
+      <span class="sub" id="scopeSub">—</span>
+    </div>
+    <div class="card-body">
+      <div class="flex gap-12" style="flex-wrap:wrap">
+        <input type="text" id="q" placeholder="例如：本月全市网签备案量是多少" style="flex:1;min-width:320px"
+               onkeydown="if(event.key==='Enter')ask()">
+        <button class="btn btn-primary" onclick="ask()"><i class="fa-solid fa-paper-plane"></i> 提问</button>
+      </div>
+      <div class="chat-quick" style="padding:12px 0 0">
+        <span onclick="fill('本月全市网签备案量是多少')">本月全市网签备案量</span>
+        <span onclick="fill('近三个月成交均价走势')">近三个月成交均价走势</span>
+        <span onclick="fill('存量房备案量变化')">存量房备案量变化</span>
+        <span onclick="fill('预售资金监管账户余额比值')">监管账户余额比值</span>
+        <span onclick="fill('办件按时办结率')">办件按时办结率</span>
+        <span onclick="fill('房屋租赁备案量')">租赁备案量</span>
+        <span onclick="fill('今天天气怎么样')" style="border-color:#fab6b6;color:var(--danger)">未命中口径（演示拦截）</span>
+      </div>
+      <div id="answer" class="mt-16"></div>
+    </div>
+  </div>
+
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3>问数历史</h3>
+      <span class="sub">含被拦截的提问</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tAsk" data-static>
+        <thead><tr>
+          <th class="cell-lg">问题</th><th>权限范围</th><th class="cell-lg">指标口径</th>
+          <th>数据来源</th><th>结果</th><th>提问人</th><th>时间</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  window.fill = function (t) {
+    document.getElementById('q').value = t;
+    ask();
+  };
+
+  function paintScope() {
+    var u = AI.me();
+    document.getElementById('scopeSub').textContent =
+      '当前账号：' + u.name + ' · 数据权限范围「' + AI.dict('said', u.said) + '」';
+  }
+
+  window.ask = function () {
+    var r = AI.act.askData(document.getElementById('q').value);
+    var box = document.getElementById('answer');
+    if (!r) {
+      /* 被拦截：展示最近一条拦截日志 */
+      var last = AI.get('asks')[0];
+      box.innerHTML = last && last.blocked
+        ? '<div class="ask-result" style="border-color:#fab6b6">' +
+            '<div class="ask-scope" style="background:var(--danger-light);color:var(--danger)">' +
+              '<i class="fa-solid fa-hand"></i><span><b>提问被拦截</b>：' + AI.esc(last.blockReason || '') + '</span></div>' +
+            '<div class="text-2">按输出治理要求，智能问数不得越权取数、不得使用口径库之外的指标口径，' +
+              '因此本次提问不予作答，并已记入拦截日志。</div>' +
+          '</div>'
+        : '';
+      AI.repaintAll();
+      return;
+    }
+    var o = r.output;
+    var mk = r.metric;
+    var max = 1;
+    mk.chart.forEach(function (c) { if (c[1] > max) max = c[1]; });
+    box.innerHTML =
+      '<div class="ask-result">' +
+        '<div class="ask-scope"><i class="fa-solid fa-shield-halved"></i>' +
+          '<span>权限范围：<b>' + AI.esc(r.ask.scope) + '</b>　｜　指标口径：' + AI.esc(mk.metric) + '</span></div>' +
+        '<div class="flex items-center gap-12 mb-16" style="flex-wrap:wrap">' +
+          AI.aiMark(o.qrzt) + AI.aiSource(o) + '</div>' +
+        '<div style="font-size:15px;font-weight:600;line-height:1.7;margin-bottom:14px">' + AI.esc(o.text) + '</div>' +
+        AI.barChart(mk.chart.map(function (c) { return { l: c[0], v: c[1] }; })) +
+        '<div class="text-3 text-sm mt-8" style="text-align:center">单位：' + AI.esc(mk.unit) + '</div>' +
+        '<div class="table-wrap mt-16"><table class="data-table compact" data-static data-fill="0">' +
+          '<thead><tr><th>统计月份</th><th class="num">' + AI.esc(mk.key) + '（' + AI.esc(mk.unit) + '）</th><th class="num">环比</th></tr></thead><tbody>' +
+          mk.chart.map(function (c, i) {
+            var prev = i ? mk.chart[i - 1][1] : null;
+            var d = prev ? Math.round((c[1] - prev) / prev * 1000) / 10 : null;
+            return '<tr><td>' + c[0] + '</td><td class="num">' + AI.num(c[1]) + '</td>' +
+              '<td class="num">' + (d == null ? '—' :
+                '<span class="' + (d >= 0 ? 'text-danger' : 'text-success') + '">' +
+                (d >= 0 ? '+' : '') + d + '%</span>') + '</td></tr>';
+          }).join('') + '</tbody></table></div>' +
+        '<div class="ask-src">' + mk.sources.map(function (s) {
+          return '<span><i class="fa-solid fa-database"></i>' + AI.esc(s) + '</span>';
+        }).join('') + '</div>' +
+        (o.qrzt === '0'
+          ? '<div class="mt-16 btn-row">' + AI.actTriplet(o.id) +
+            '<span class="text-3 text-sm">结论需人工确认后才可用于对外报送</span></div>'
+          : '<div class="alert alert-success mt-16"><i class="fa-solid fa-circle-check"></i>' +
+            '<span>结论已' + AI.dict('qrzt', o.qrzt) + '，可用于报告与对外报送。</span></div>') +
+      '</div>';
+    AI.repaintAll();
+  };
+
+  AI.table({
+    id: 'tAsk', pageSize: 10,
+    rows: function () { return AI.get('asks'); },
+    cells: function (a) {
+      return [
+        '<td class="cell-lg">' + AI.esc(a.q) + '</td>',
+        '<td>' + AI.esc(a.scope) + '</td>',
+        '<td class="cell-lg">' + AI.esc(a.metric) + '</td>',
+        '<td>' + ((a.sources || []).length
+          ? a.sources.map(function (s) { return '<div class="text-sm">' + AI.esc(s) + '</div>'; }).join('')
+          : '<span class="text-3">—</span>') + '</td>',
+        '<td>' + (a.blocked
+          ? '<span class="badge red">已拦截</span><div class="text-3 text-sm">' + AI.esc(a.blockReason || '') + '</div>'
+          : '<span class="badge green">已作答</span>') + '</td>',
+        '<td>' + AI.esc(a.czr) + '</td>',
+        '<td>' + AI.fmt.time(a.at) + '</td>'
+      ];
+    },
+    empty: '还没有问数记录'
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () { paintScope(); AI.repaintAll(); });
+  });
+})();
+</script>
+</body>
+</html>

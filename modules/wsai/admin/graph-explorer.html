@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>图谱可视化查询 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="pt" data-active="knowledge-base" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>知识库管理</span>
+      <span class="sep">/</span><span class="cur">图谱可视化查询</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-sitemap"></i>知识库管理 wsai-04</span>
+    <a href="knowledge-base.html?role=pt">政务知识库</a>
+    <a href="knowledge-audit.html?role=pt">更新审核</a>
+    <a href="graph-build.html?role=pt">图谱构建</a>
+    <a class="active" href="graph-explorer.html?role=pt">图谱可视化</a>
+    <a href="risk-path.html?role=pt">风险传导路径</a>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>实体类型</label>
+        <select id="fType" data-dict="sttype" onchange="draw()"></select>
+      </div>
+      <div class="filter-item">
+        <label>风险等级</label>
+        <select id="fLv" onchange="draw()">
+          <option value="">全部</option>
+          <option value="red">红色 · 严重</option>
+          <option value="orange">橙色 · 预警</option>
+          <option value="yellow">黄色 · 提示</option>
+          <option value="blue">蓝色 · 正常</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>实体名称</label>
+        <input type="text" id="fKw" placeholder="输入企业 / 项目 / 房屋名称" oninput="draw()">
+      </div>
+      <div class="filter-item">
+        <label>只看风险传导边</label>
+        <select id="fRisk" onchange="draw()">
+          <option value="">显示全部关系</option>
+          <option value="1">仅风险传导关系</option>
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-primary" onclick="draw()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button class="btn" onclick="resetF()"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="graph-legend mb-16">
+        <span><i style="background:var(--primary)"></i>企业</span>
+        <span><i style="background:var(--info)"></i>项目</span>
+        <span><i style="background:var(--success)"></i>账户</span>
+        <span><i style="background:var(--ai-purple)"></i>人员</span>
+        <span><i style="background:var(--warning)"></i>房屋</span>
+        <span style="margin-left:14px"><i style="background:var(--lv-red);border-radius:2px;height:3px;width:16px"></i>风险传导关系</span>
+        <span class="text-3">点击节点可逐层展开其关联关系</span>
+      </div>
+      <div class="graph-canvas" id="canvas" style="min-height:440px"></div>
+      <div id="nodeInfo" class="mt-16"></div>
+    </div>
+  </div>
+
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3>实体清单</h3>
+      <span class="sub" id="listSub">—</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tNode" data-static>
+        <thead><tr>
+          <th>实体名称</th><th>类型</th><th>风险等级</th><th class="num">关联关系</th>
+          <th class="cell-lg">关联实体</th><th>展开状态</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var TYPE_COLOR = {
+    '1': 'var(--primary)', '2': 'var(--info)', '3': 'var(--success)',
+    '4': 'var(--ai-purple)', '5': 'var(--warning)'
+  };
+  var LV_STROKE = {
+    red: 'var(--lv-red)', orange: 'var(--lv-orange)',
+    yellow: 'var(--lv-yellow)', blue: 'var(--lv-blue)'
+  };
+
+  window.resetF = function () {
+    ['fType', 'fLv', 'fRisk'].forEach(function (id) { document.getElementById(id).value = ''; });
+    document.getElementById('fKw').value = '';
+    draw();
+  };
+
+  function filtered() {
+    var t = document.getElementById('fType').value;
+    var lv = document.getElementById('fLv').value;
+    var kw = (document.getElementById('fKw').value || '').trim();
+    return AI.where('nodes', function (n) {
+      if (t && n.sttype !== t) return false;
+      if (lv && n.riskLv !== lv) return false;
+      if (kw && n.mc.indexOf(kw) < 0) return false;
+      return true;
+    });
+  }
+
+  /* 纯 SVG 画布：节点按实体类型着色，风险传导边红色虚线 */
+  window.draw = function () {
+    var ns = filtered();
+    var ids = {};
+    ns.forEach(function (n) { ids[n.id] = 1; });
+    var onlyRisk = document.getElementById('fRisk').value === '1';
+    var es = AI.where('edges', function (e) {
+      if (onlyRisk && !e.risk) return false;
+      return ids[e.from] && ids[e.to];
+    });
+
+    if (!ns.length) {
+      document.getElementById('canvas').innerHTML =
+        '<div class="empty" style="padding-top:150px"><i class="fa-regular fa-circle-xmark"></i><div>没有符合条件的实体</div></div>';
+      document.getElementById('listSub').textContent = '共 0 个实体';
+      AI.paint('tNode');
+      return;
+    }
+
+    var W = 900, H = 460;
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet">';
+    /* 先画边 */
+    es.forEach(function (e) {
+      var a = AI.byId('nodes', e.from), b = AI.byId('nodes', e.to);
+      if (!a || !b) return;
+      var mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      svg += '<path class="ge' + (e.risk ? ' risk' : '') + '" d="M' + a.x + ' ' + a.y +
+        ' Q' + mx + ' ' + (my - 18) + ' ' + b.x + ' ' + b.y + '"/>';
+      svg += '<text class="gl" x="' + mx + '" y="' + (my - 22) + '" text-anchor="middle">' + AI.esc(e.rel) + '</text>';
+    });
+    /* 再画节点，展开的节点加外环 */
+    ns.forEach(function (n) {
+      var c = TYPE_COLOR[n.sttype] || 'var(--text-3)';
+      var r = n.expanded ? 22 : 17;
+      svg += '<g class="gn" onclick="AI.act.expandNode(\'' + n.id + '\')">';
+      if (n.expanded) {
+        svg += '<circle cx="' + n.x + '" cy="' + n.y + '" r="' + (r + 6) + '" fill="none" stroke="' +
+          (LV_STROKE[n.riskLv] || c) + '" stroke-width="2" stroke-dasharray="3 3"/>';
+      }
+      svg += '<circle cx="' + n.x + '" cy="' + n.y + '" r="' + r + '" fill="' + c +
+        '" stroke="' + (LV_STROKE[n.riskLv] || '#fff') + '" stroke-width="3"/>';
+      svg += '<text x="' + n.x + '" y="' + (n.y + 4) + '" text-anchor="middle" fill="#fff" ' +
+        'style="font-size:11px;font-weight:700">' + AI.esc(AI.dict('sttype', n.sttype).slice(0, 2)) + '</text>';
+      svg += '<text x="' + n.x + '" y="' + (n.y + r + 15) + '" text-anchor="middle">' +
+        AI.esc(n.mc.length > 12 ? n.mc.slice(0, 12) + '…' : n.mc) + '</text>';
+      svg += '</g>';
+    });
+    svg += '</svg>';
+    document.getElementById('canvas').innerHTML = svg;
+    document.getElementById('listSub').textContent =
+      '共 ' + ns.length + ' 个实体、' + es.length + ' 条关系' + (onlyRisk ? '（仅风险传导）' : '');
+
+    /* 展开的节点在下方给出关联明细 */
+    var open = ns.filter(function (n) { return n.expanded; });
+    document.getElementById('nodeInfo').innerHTML = open.length ? open.map(function (n) {
+      var rel = AI.where('edges', function (e) { return e.from === n.id || e.to === n.id; });
+      return '<div class="grp-card"><div class="grp-head"><span class="gi"><i class="fa-solid fa-circle-nodes"></i></span>' +
+        AI.esc(n.mc) + AI.badge(AI.dict('sttype', n.sttype), 'blue') + AI.lv(n.riskLv, '风险' + AI.esc(
+          { red: '严重', orange: '预警', yellow: '提示', blue: '正常' }[n.riskLv] || '—')) + '</div>' +
+        '<table class="data-table compact" data-static><thead><tr><th>方向</th><th>关系</th><th>关联实体</th><th>类型</th><th>风险</th></tr></thead><tbody>' +
+        rel.map(function (e) {
+          var other = e.from === n.id ? AI.byId('nodes', e.to) : AI.byId('nodes', e.from);
+          return '<tr><td>' + (e.from === n.id ? '出向' : '入向') + '</td>' +
+            '<td>' + AI.esc(e.rel) + (e.risk ? ' <span class="badge red">风险传导</span>' : '') + '</td>' +
+            '<td>' + (other ? AI.esc(other.mc) : '—') + '</td>' +
+            '<td>' + (other ? AI.dict('sttype', other.sttype) : '—') + '</td>' +
+            '<td>' + (other ? AI.lv(other.riskLv, '') : '—') + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+    }).join('') : '';
+  };
+
+  AI.table({
+    id: 'tNode', pageSize: 10,
+    rows: filtered,
+    cells: function (n) {
+      var rel = AI.where('edges', function (e) { return e.from === n.id || e.to === n.id; });
+      var others = rel.map(function (e) {
+        return e.from === n.id ? e.toMc : e.fromMc;
+      });
+      return [
+        '<td>' + AI.esc(n.mc) + '</td>',
+        '<td>' + AI.dict('sttype', n.sttype) + '</td>',
+        '<td>' + AI.lv(n.riskLv, { red: '严重', orange: '预警', yellow: '提示', blue: '正常' }[n.riskLv] || '—') + '</td>',
+        '<td class="num">' + rel.length + '</td>',
+        '<td class="cell-lg">' + AI.esc(others.join('、') || '—') + '</td>',
+        '<td>' + (n.expanded ? '<span class="badge green">已展开</span>' : '<span class="badge gray">未展开</span>') + '</td>',
+        '<td class="col-ops">' +
+          '<button class="btn btn-sm" onclick="AI.act.expandNode(\'' + n.id + '\')">' +
+            '<i class="fa-solid fa-' + (n.expanded ? 'compress' : 'expand') + '"></i> ' +
+            (n.expanded ? '收起' : '逐层展开') + '</button> ' +
+          '<a class="btn btn-sm" href="risk-path.html?role=pt&node=' + n.id + '"><i class="fa-solid fa-route"></i> 挖掘路径</a>' +
+        '</td>'
+      ];
+    },
+    empty: '没有符合条件的实体'
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () { draw(); AI.repaintAll(); });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>专家评审与公示 · 新建商品房网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：去极值汇总卡与公示卡 */
+  .sum-card {
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; background: var(--primary-light);
+  }
+  .sum-card .sc-row { display: flex; font-size: 13.5px; padding: 4px 0; }
+  .sum-card .sc-row span:first-child { width: 110px; color: var(--text-3); flex-shrink: 0; }
+  .sum-card .sc-score { font-size: 28px; font-weight: 700; color: var(--primary); font-variant-numeric: tabular-nums; }
+  .pub-card {
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; background: #fff;
+    border-left: 3px solid #d99b1c;
+  }
+  .gh-title { color: #b8860b; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsswb-22">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房网签备案管理系统
+        <span class="sep">/</span> <a class="link" href="goodhouse-list.html">好房子认定</a>
+        <span class="sep">/</span> <span class="cur">专家评审与公示</span>
+      </div>
+      <div class="page-title"><i class="fa-solid fa-user-graduate gh-title"></i> 专家评审与公示</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" onclick="drawExperts()"><i class="fa-solid fa-shuffle"></i> 抽取专家</button>
+      <button type="button" class="btn" onclick="startPub()"><i class="fa-solid fa-tower-broadcast"></i> 发起公示</button>
+      <button type="button" class="btn" id="btnStock" onclick="stockIn()" disabled><i class="fa-solid fa-box-archive"></i> 入库认定</button>
+      <button type="button" class="btn" onclick="location.href='goodhouse-apply.html'">申报初审</button>
+      <button type="button" class="btn" onclick="location.href='goodhouse-list.html'"><i class="fa-solid fa-arrow-left"></i> 返回项目库</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-clipboard-list"></i></div>
+      <div><div class="s-label">评审中项目</div><div class="s-value">8</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-user-tie"></i></div>
+      <div><div class="s-label">参与专家</div><div class="s-value">15</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-pen"></i></div>
+      <div><div class="s-label">已完成打分</div><div class="s-value">96</div><div class="s-trend text-3">份</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-star"></i></div>
+      <div><div class="s-label">平均分</div><div class="s-value">87.6</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-bullhorn"></i></div>
+      <div><div class="s-label">公示中</div><div class="s-value">3</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-comment-dots"></i></div>
+      <div><div class="s-label">收到异议</div><div class="s-value">2</div><div class="s-trend text-3">已处理 1</div></div>
+    </div>
+  </div>
+
+  <div class="alert">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>专家打分按权重自动汇总，去掉最高最低分后取平均；公示期默认 7 天，无异议或异议处理完毕后方可入库认定。</div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="org">评审组织</div>
+      <div class="tab" data-tab="score">专家打分</div>
+      <div class="tab" data-tab="pub">公示与异议</div>
+    </div>
+
+    <!-- 评审组织 -->
+    <div class="tab-panel active" data-panel="org">
+      <div class="card-body">
+        <div class="section-title">专家抽取</div>
+        <div class="grid-3">
+          <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-database"></i></div><div><div class="s-label">专家库人数</div><div class="s-value">86</div></div></div>
+          <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-user-check"></i></div><div><div class="s-label">本次抽取</div><div class="s-value" id="drawN">5</div></div></div>
+          <div class="stat-card"><div class="s-icon orange"><i class="fa-solid fa-ban"></i></div><div><div class="s-label">回避规则</div><div class="s-value" style="font-size:14px">本项目相关单位</div></div></div>
+        </div>
+        <p class="text-3 text-sm mt-16">回避规则：与申报企业、五方责任主体存在劳动关系、持股或近三年合作关系的专家自动排除。</p>
+        <div class="btn-row mt-16">
+          <button type="button" class="btn btn-primary" onclick="drawExperts()"><i class="fa-solid fa-shuffle"></i> 随机抽取</button>
+        </div>
+        <div class="table-wrap mt-16">
+          <table class="data-table compact" id="tblExp" data-static>
+            <thead><tr><th>专家姓名</th><th>所在单位</th><th>专业领域</th><th>是否回避</th><th>抽取结果</th></tr></thead>
+            <tbody>
+              <tr><td class="nowrap">韦**</td><td class="nowrap">广西大学土木建筑工程学院</td><td class="nowrap">结构安全</td><td class="nowrap"><span class="badge green">否</span></td><td class="nowrap"><span class="badge green">已入选</span></td></tr>
+              <tr><td class="nowrap">陈**</td><td class="nowrap">XXXX市建筑设计院</td><td class="nowrap">建筑设计</td><td class="nowrap"><span class="badge green">否</span></td><td class="nowrap"><span class="badge green">已入选</span></td></tr>
+              <tr><td class="nowrap">黄**</td><td class="nowrap">广西建科院</td><td class="nowrap">绿色建筑</td><td class="nowrap"><span class="badge green">否</span></td><td class="nowrap"><span class="badge green">已入选</span></td></tr>
+              <tr><td class="nowrap">陆**</td><td class="nowrap">柳州职业技术学院</td><td class="nowrap">智慧社区</td><td class="nowrap"><span class="badge green">否</span></td><td class="nowrap"><span class="badge green">已入选</span></td></tr>
+              <tr><td class="nowrap">覃**</td><td class="nowrap">XXXX市质安监站（退休）</td><td class="nowrap">工程质量</td><td class="nowrap"><span class="badge green">否</span></td><td class="nowrap"><span class="badge green">已入选</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section-title mt-16">项目分配与打分进度</div>
+        <table class="data-table compact" data-static>
+          <thead><tr><th>项目</th><th class="num">分配专家数</th><th class="num">已打分数</th><th>进度</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="nowrap fw-600">阳光城翡丽湾</td><td class="num">5</td><td class="num">5</td>
+              <td><div class="progress green"><span style="width:100%"></span></div></td>
+              <td class="col-ops"><span class="link" onclick="goScore('阳光城翡丽湾')">查看打分</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">保利天悦（一期）</td><td class="num">5</td><td class="num">4</td>
+              <td><div class="progress"><span style="width:80%"></span></div></td>
+              <td class="col-ops"><span class="link" onclick="goScore('保利天悦（一期）')">查看打分</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">万科翡翠公园</td><td class="num">5</td><td class="num">3</td>
+              <td><div class="progress orange"><span style="width:60%"></span></div></td>
+              <td class="col-ops"><span class="link" onclick="goScore('万科翡翠公园')">查看打分</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">荣和公园里（一期）</td><td class="num">5</td><td class="num">0</td>
+              <td><div class="progress"><span style="width:0%"></span></div></td>
+              <td class="col-ops"><span class="link" onclick="goScore('荣和公园里（一期）')">开始打分</span></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="section-title mt-16">评分表配置（四维指标与权重）</div>
+        <table class="data-table compact" data-static>
+          <thead><tr><th>维度</th><th>指标项</th><th class="num">权重（%）</th><th>评分区间</th><th>是否必评</th></tr></thead>
+          <tbody>
+            <tr><td class="nowrap">安全</td><td class="nowrap">结构与消防</td><td class="num">25</td><td class="nowrap">0—100</td><td class="nowrap"><span class="badge green">是</span></td></tr>
+            <tr><td class="nowrap">舒适</td><td class="nowrap">层高隔声通风</td><td class="num">20</td><td class="nowrap">0—100</td><td class="nowrap"><span class="badge green">是</span></td></tr>
+            <tr><td class="nowrap">绿色</td><td class="nowrap">绿建与可再生能源</td><td class="num">20</td><td class="nowrap">0—100</td><td class="nowrap"><span class="badge green">是</span></td></tr>
+            <tr><td class="nowrap">智慧</td><td class="nowrap">智慧社区与充电桩</td><td class="num">15</td><td class="nowrap">0—100</td><td class="nowrap"><span class="badge green">是</span></td></tr>
+            <tr><td class="nowrap">健康</td><td class="nowrap">新风适老健身</td><td class="num">20</td><td class="nowrap">0—100</td><td class="nowrap"><span class="badge green">是</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 专家打分 -->
+    <div class="tab-panel" data-panel="score">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item">
+            <label>评审项目</label>
+            <select id="selPj" onchange="loadScore()">
+              <option>阳光城翡丽湾</option>
+              <option>保利天悦（一期）</option>
+              <option>万科翡翠公园</option>
+              <option>荣和公园里（一期）</option>
+            </select>
+          </div>
+          <div class="filter-item">
+            <label>代打分专家</label>
+            <select id="selExp"><option>韦**（结构安全）</option><option>陈**（建筑设计）</option><option>黄**（绿色建筑）</option><option>陆**（智慧社区）</option><option>覃**（工程质量）</option></select>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div>
+            <div class="section-title">专家打分表</div>
+            <table class="data-table compact" data-static>
+              <thead><tr><th>指标项</th><th>所属维度</th><th class="num">权重</th><th>评分区间</th><th class="num">本专家得分</th><th>评分意见</th></tr></thead>
+              <tbody>
+                <tr><td class="nowrap">结构与消防</td><td class="nowrap">安全</td><td class="num">25%</td><td class="nowrap">0—100</td><td class="num"><input type="number" id="s0" value="92" style="width:70px"></td><td><input type="text" value="结构合理，消防全覆盖" style="min-width:140px"></td></tr>
+                <tr><td class="nowrap">层高隔声通风</td><td class="nowrap">舒适</td><td class="num">20%</td><td class="nowrap">0—100</td><td class="num"><input type="number" id="s1" value="88" style="width:70px"></td><td><input type="text" value="层高达标，隔声良好" style="min-width:140px"></td></tr>
+                <tr><td class="nowrap">绿建与可再生能源</td><td class="nowrap">绿色</td><td class="num">20%</td><td class="nowrap">0—100</td><td class="num"><input type="number" id="s2" value="90" style="width:70px"></td><td><input type="text" value="二星绿建+光伏" style="min-width:140px"></td></tr>
+                <tr><td class="nowrap">智慧社区与充电桩</td><td class="nowrap">智慧</td><td class="num">15%</td><td class="nowrap">0—100</td><td class="num"><input type="number" id="s3" value="86" style="width:70px"></td><td><input type="text" value="平台已建，充电桩达标" style="min-width:140px"></td></tr>
+                <tr><td class="nowrap">新风适老健身</td><td class="nowrap">健康</td><td class="num">20%</td><td class="nowrap">0—100</td><td class="num"><input type="number" id="s4" value="90" style="width:70px"></td><td><input type="text" value="中央新风+适老设施" style="min-width:140px"></td></tr>
+              </tbody>
+            </table>
+            <div class="btn-row mt-16">
+              <button type="button" class="btn btn-primary" onclick="submitScore()"><i class="fa-solid fa-paper-plane"></i> 提交打分</button>
+              <button type="button" class="btn" onclick="recalc()"><i class="fa-solid fa-calculator"></i> 重新汇总</button>
+            </div>
+          </div>
+          <div>
+            <div class="section-title">去极值汇总</div>
+            <div class="sum-card">
+              <div class="sc-row"><span>各专家总分</span><span>92.0 / 89.6 / 91.2 / 86.4 / 94.8</span></div>
+              <div class="sc-row"><span>去掉最高分</span><span class="text-danger">94.8（覃**）</span></div>
+              <div class="sc-row"><span>去掉最低分</span><span class="text-danger">86.4（陆**）</span></div>
+              <div class="sc-row"><span>有效分平均</span><span class="sc-score" id="avgScore">90.9</span></div>
+              <div class="sc-row"><span>计算过程</span><span>(92.0 + 89.6 + 91.2) ÷ 3 = 90.93</span></div>
+              <div class="sc-row"><span>认定线</span><span>≥ 80 分 <span class="badge green">达标</span></span></div>
+            </div>
+            <div class="alert alert-success mt-16">
+              <i class="fa-solid fa-circle-check"></i>
+              <div>五位专家均已打分，去极值后综合分 <b>90.9</b>，可发起公示。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 公示与异议 -->
+    <div class="tab-panel" data-panel="pub">
+      <div class="card-body">
+        <div class="pub-card">
+          <div class="fw-600" style="font-size:15px;margin-bottom:8px"><i class="fa-solid fa-award gh-title"></i> XXXX市第三批好房子拟认定项目公示</div>
+          <dl class="desc-list">
+            <div class="desc-item"><dt>公示标题</dt><dd>关于拟认定第三批好房子项目的公示</dd></div>
+            <div class="desc-item"><dt>公示内容</dt><dd>阳光城翡丽湾等 3 个项目，综合评分均达认定线，拟认定为好房子项目</dd></div>
+            <div class="desc-item"><dt>公示起止</dt><dd>2026-07-24 至 2026-07-30（7 天）</dd></div>
+            <div class="desc-item"><dt>公示渠道</dt><dd>市住建局官网 · 统一服务门户新房专区 · 销售现场公示牌</dd></div>
+            <div class="desc-item"><dt>公示状态</dt><dd><span class="badge orange">公示中</span> 剩余 0 天（已到期，待处理异议）</dd></div>
+          </dl>
+        </div>
+
+        <div class="section-title mt-16">
+          异议登记
+          <button type="button" class="btn btn-sm" style="margin-left:auto" data-open-drawer="dwObj"><i class="fa-solid fa-plus"></i> 新增异议登记</button>
+        </div>
+        <table class="data-table compact" id="tblObj" data-static>
+          <thead>
+            <tr><th>异议编号</th><th>异议人</th><th>异议内容</th><th>提出时间</th><th>处理结论</th><th>处理人</th><th>处理时间</th><th>状态</th><th>操作</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="nowrap">YY20260726001</td>
+              <td class="nowrap">李**</td>
+              <td>阳光城翡丽湾充电桩预留比例与现场不符</td>
+              <td class="nowrap">2026-07-26</td>
+              <td class="nowrap">现场复测相符，异议不成立</td>
+              <td class="nowrap">韦国强</td>
+              <td class="nowrap">2026-07-28</td>
+              <td class="nowrap"><span class="badge green">已处理</span></td>
+              <td class="col-ops"><span class="link" onclick="openObj('YY20260726001','done')">查看</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap">YY20260728002</td>
+              <td class="nowrap">王**</td>
+              <td>保利天悦（一期）绿色建筑标识证书真实性存疑</td>
+              <td class="nowrap">2026-07-28</td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap"><span class="badge orange">待处理</span></td>
+              <td class="col-ops"><span class="link" onclick="openObj('YY20260728002','pending')">处理异议</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="alert alert-warning mt-16" id="pubAlert">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>尚有 <b>1</b> 条异议未处理，「入库认定」暂不可用。处理完毕后按钮将自动启用。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 处理异议 -->
+  <div class="drawer-mask"></div>
+  <div class="drawer" id="dwDeal">
+    <div class="drawer-head">
+      <h3>处理异议 · <span id="objNo">—</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <dl class="desc-list">
+        <div class="desc-item"><dt>异议人</dt><dd>王**</dd></div>
+        <div class="desc-item"><dt>涉及项目</dt><dd>保利天悦（一期）</dd></div>
+        <div class="desc-item full"><dt>异议内容</dt><dd>保利天悦（一期）绿色建筑标识证书真实性存疑，请求核查。</dd></div>
+      </dl>
+      <div class="form-grid form-align mt-16">
+        <div class="form-item col-full">
+          <label>处理结论<span class="req">*</span></label>
+          <div class="radio-line">
+            <label><input type="radio" name="oj" value="no" checked> 异议不成立</label>
+            <label><input type="radio" name="oj" value="yes"> 异议成立（暂缓入库）</label>
+          </div>
+        </div>
+        <div class="form-item"><label>处理人<span class="req">*</span></label><input type="text" value="韦国强"></div>
+        <div class="form-item"><label>处理日期<span class="req">*</span></label><input type="date" value="2026-07-31"></div>
+        <div class="form-item col-full">
+          <label>处理说明<span class="req">*</span></label>
+          <textarea>经向市绿色建筑标识管理平台核验，证书编号 LZLJ-2026-0086 真实有效，异议不成立。</textarea>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="dealObj()"><i class="fa-solid fa-check"></i> 提交处理结论</button>
+    </div>
+  </div>
+
+  <div class="drawer" id="dwObj">
+    <div class="drawer-head">
+      <h3>新增异议登记</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="form-grid form-align">
+        <div class="form-item"><label>异议人<span class="req">*</span></label><input type="text" placeholder="姓名（将脱敏展示）"></div>
+        <div class="form-item"><label>涉及项目<span class="req">*</span></label><select><option>阳光城翡丽湾</option><option>保利天悦（一期）</option><option>万科翡翠公园</option></select></div>
+        <div class="form-item col-full"><label>异议内容<span class="req">*</span></label><textarea placeholder="请说明异议事实与依据"></textarea></div>
+        <div class="form-item"><label>提出日期<span class="req">*</span></label><input type="date" value="2026-07-31"></div>
+        <div class="form-item"><label>联系电话</label><input type="text" placeholder="选填"></div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer('dwObj');PMS.toast('异议已登记，待处理','success')"><i class="fa-solid fa-plus"></i> 登记</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function drawExperts() {
+  document.getElementById('drawN').textContent = '5';
+  PMS.toast('已从专家库随机抽取 5 名专家（已自动排除回避人员）','success');
+}
+
+function goScore(pj) {
+  document.getElementById('selPj').value = pj;
+  document.querySelector('[data-tab="score"]').click();
+}
+
+function loadScore() { PMS.toast('已切换至「' + document.getElementById('selPj').value + '」打分表'); }
+
+function recalc() {
+  var w = [0.25, 0.20, 0.20, 0.15, 0.20], s = 0;
+  for (var i = 0; i < 5; i++) s += parseFloat(document.getElementById('s' + i).value || 0) * w[i];
+  document.getElementById('avgScore').textContent = s.toFixed(1);
+  PMS.toast('本专家加权总分 ' + s.toFixed(1) + '，汇总卡已刷新','success');
+}
+
+function submitScore() {
+  recalc();
+  PMS.toast('打分已提交（代 ' + document.getElementById('selExp').selectedOptions[0].text + '）','success');
+}
+
+function startPub() {
+  document.querySelector('[data-tab="pub"]').click();
+  PMS.toast('已发起公示，公示期 7 天（2026-07-24 至 2026-07-30）','success');
+}
+
+function openObj(no, st) {
+  document.getElementById('objNo').textContent = no;
+  PMS.openDrawer('dwDeal');
+}
+
+function dealObj() {
+  PMS.closeDrawer('dwDeal');
+  PMS.toast('异议处理结论已提交','success');
+  document.getElementById('pubAlert').className = 'alert alert-success mt-16';
+  document.getElementById('pubAlert').innerHTML = '<i class="fa-solid fa-circle-check"></i><div>公示期已结束且全部异议已处理完毕，「入库认定」已启用。</div>';
+  document.getElementById('btnStock').disabled = false;
+}
+
+function stockIn() {
+  PMS.confirm({
+    title: '入库认定',
+    message: '确认将公示无异议的项目入库认定为好房子？',
+    detail: '认定后回写项目主档 sfhfz=1，四项政策激励自动生效，并生成认定文号。',
+    okText: '确认入库',
+    onOk: function () {
+      PMS.toast('已入库认定，认定文号柳建房〔2026〕26 号','success');
+      setTimeout(function () { location.href = 'goodhouse-list.html'; }, 900);
+    }
+  });
+}
+</script>
+</body>
+</html>

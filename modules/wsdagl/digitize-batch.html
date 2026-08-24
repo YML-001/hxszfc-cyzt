@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>历史档案数字化加工 · 房屋交易档案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  .no-code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; }
+  .data-table tbody tr.is-warn > td { background: #fff8ed; }
+  .data-table tbody tr.is-warn:hover > td { background: #fdf0d9; }
+  /* 本页特有：技术规格核对表 */
+  .spec-row {
+    display: grid; grid-template-columns: 150px 1fr 1fr 60px; gap: 8px; align-items: center;
+    padding: 8px 10px; border-top: 1px dashed var(--border); font-size: 13px;
+  }
+  .spec-row:first-child { border-top: 0; font-weight: 700; color: var(--text-3); font-size: 12.5px; }
+  .spec-row .ok { color: var(--success); text-align: center; }
+  .spec-row .no { color: var(--danger); text-align: center; }
+  /* 本页特有：抽检合格率面板 */
+  .qc-panel { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .qc-ring {
+    width: 138px; height: 138px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .qc-ring > i {
+    width: 104px; height: 104px; border-radius: 50%; background: #fff; font-style: normal;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .qc-ring .qv { font-size: 26px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+  .qc-ring .ql { font-size: 12px; color: var(--text-3); margin-top: 3px; }
+  .qc-figs { display: flex; gap: 22px; flex-wrap: wrap; }
+  .qc-figs .fg .f-v { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .qc-figs .fg .f-l { font-size: 12px; color: var(--text-3); }
+  .prog-cell { min-width: 120px; }
+  .prog-cell .pt { font-size: 12px; color: var(--text-3); margin-top: 3px; }
+  .modal-head { display: flex; align-items: center; gap: 10px; }
+  .modal-head h3 { font-size: 16px; font-weight: 700; }
+  .modal-head .close { margin-left: auto; cursor: pointer; color: var(--text-3); font-size: 18px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: none; border: 0; }
+  .modal-head .close:hover { background: var(--bg-soft); color: var(--text-1); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdagl-09">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> <a class="link" href="index.html">房屋交易档案管理系统</a>
+        <span class="sep">/</span> 档案接收整理
+        <span class="sep">/</span> <span class="cur">历史档案数字化加工</span>
+      </div>
+      <div class="page-title">历史档案数字化加工</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" onclick="PMS.openModal('mdPlan')"><i class="fa-solid fa-plus"></i> 下达加工任务</button>
+      <a class="btn" href="warehouse.html"><i class="fa-solid fa-warehouse"></i> 出库交接</a>
+      <a class="btn" href="scan-collect.html"><i class="fa-solid fa-camera-retro"></i> 影像挂接</a>
+      <button type="button" class="btn" onclick="PMS.toast('已导出《数字化加工台账》Excel','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-images"></i></div>
+      <div><div class="s-label">累计数字化</div><div class="s-value">332,620</div><div class="s-trend text-3">完成率 68.4%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-spinner"></i></div>
+      <div><div class="s-label">在加工</div><div class="s-value">3 批</div><div class="s-trend text-3">1,286 卷在外加工</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-clipboard-check"></i></div>
+      <div><div class="s-label">待验收</div><div class="s-value">3 批</div><div class="s-trend text-warning">最长待验收 6 天</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-bullseye"></i></div>
+      <div><div class="s-label">本年计划</div><div class="s-value">86,000</div><div class="s-trend text-3">卷</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">本年已完成</div><div class="s-value">52,486</div><div class="s-trend text-success">进度 61.0%</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      按年度与档案类型分批下达加工任务，加工前办理档案出库交接、加工后归架；
+      <b>抽检合格率达标才能验收，不达标整批返工</b>；验收合格后档案载体由「纯纸质」变更为「双套」，数字化状态置为「已数字化」。
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>批次编号</label>
+        <input type="text" id="fPc" placeholder="SZH2026Q3-018">
+      </div>
+      <div class="filter-item">
+        <label>加工编号</label>
+        <input type="text" placeholder="JG20260728006">
+      </div>
+      <div class="filter-item">
+        <label>加工单位</label>
+        <input type="text" placeholder="广西方正档案数字化服务有限公司">
+      </div>
+      <div class="filter-item">
+        <label>加工方式</label>
+        <select><option value="">全部</option><option>自建队伍</option><option>外包服务</option><option>混合</option></select>
+      </div>
+      <div class="filter-item">
+        <label>加工内容</label>
+        <select><option value="">全部</option><option>扫描</option><option>OCR 识别</option><option>挂接</option><option>著录</option><option>全流程</option></select>
+      </div>
+      <div class="filter-item">
+        <label>加工状态</label>
+        <select><option value="">全部</option><option>待加工</option><option>加工中</option><option>已完成</option><option>已验收</option><option>已返工</option></select>
+      </div>
+      <div class="filter-item">
+        <label>验收结果</label>
+        <select><option value="">全部</option><option>待验收</option><option>合格</option><option>不合格</option><option>整改后合格</option></select>
+      </div>
+      <div class="filter-item">
+        <label>开始时间起</label>
+        <input type="date" value="2026-01-01">
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 42 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblSzh" data-static>
+        <thead>
+          <tr>
+            <th>批次编号</th>
+            <th>加工编号</th>
+            <th>档案范围</th>
+            <th>加工单位</th>
+            <th>加工方式</th>
+            <th>加工内容</th>
+            <th class="num">计划件 / 页</th>
+            <th class="num">已加工件 / 页</th>
+            <th>加工进度</th>
+            <th>分辨率 / 色彩</th>
+            <th class="num">OCR 准确率</th>
+            <th>加工状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="is-warn">
+            <td class="nowrap fw-600 no-code">SZH2026Q3-018</td>
+            <td class="nowrap no-code">JG20260728006</td>
+            <td class="cell-lg">1998 年公有住房与房改档案 486 卷</td>
+            <td class="cell-lg">广西方正档案数字化服务有限公司</td>
+            <td class="nowrap"><span class="badge cyan">外包服务</span></td>
+            <td class="nowrap"><span class="badge purple">全流程</span></td>
+            <td class="num">12,846 / 68,420</td>
+            <td class="num">12,846 / 68,420</td>
+            <td class="prog-cell">
+              <span class="progress green"><span style="width:100%"></span></span>
+              <div class="pt">100%</div>
+            </td>
+            <td class="nowrap">300 DPI / 灰度</td>
+            <td class="num text-success">96.8%</td>
+            <td class="nowrap"><span class="badge orange">已完成</span><br><span class="text-warning text-sm">待验收 · 合格率 97.2%</span></td>
+            <td class="col-ops">
+              <a class="link" onclick="openAcc()">验收</a>
+              <a class="link" onclick="PMS.toast('已打开加工明细')">详情</a>
+              <a class="link danger" onclick="rework()">退回返工</a>
+            </td>
+          </tr>
+          <tr class="is-warn">
+            <td class="nowrap fw-600 no-code">SZH2026Q3-016</td>
+            <td class="nowrap no-code">JG20260720004</td>
+            <td class="cell-lg">2005 年商品房交易档案 386 卷</td>
+            <td class="cell-lg">广西方正档案数字化服务有限公司</td>
+            <td class="nowrap"><span class="badge cyan">外包服务</span></td>
+            <td class="nowrap"><span class="badge blue">扫描 + OCR 识别</span></td>
+            <td class="num">9,286 / 42,860</td>
+            <td class="num">9,286 / 42,860</td>
+            <td class="prog-cell">
+              <span class="progress green"><span style="width:100%"></span></span>
+              <div class="pt">100%</div>
+            </td>
+            <td class="nowrap">300 DPI / 彩色</td>
+            <td class="num text-success">97.4%</td>
+            <td class="nowrap"><span class="badge orange">已完成</span><br><span class="text-warning text-sm">待验收</span></td>
+            <td class="col-ops">
+              <a class="link" onclick="openAcc()">验收</a>
+              <a class="link" onclick="PMS.toast('已打开加工明细')">详情</a>
+              <a class="link danger" onclick="rework()">退回返工</a>
+            </td>
+          </tr>
+          <tr class="is-warn">
+            <td class="nowrap fw-600 no-code">SZH2026Q3-014</td>
+            <td class="nowrap no-code">JG20260715002</td>
+            <td class="cell-lg">2008 年房产测绘档案 214 卷</td>
+            <td class="cell-lg">XXXX市档案数字化中心（自建）</td>
+            <td class="nowrap"><span class="badge green">自建队伍</span></td>
+            <td class="nowrap"><span class="badge blue">扫描</span></td>
+            <td class="num">4,286 / 22,486</td>
+            <td class="num">4,286 / 22,486</td>
+            <td class="prog-cell">
+              <span class="progress green"><span style="width:100%"></span></span>
+              <div class="pt">100%</div>
+            </td>
+            <td class="nowrap">600 DPI / 彩色</td>
+            <td class="num text-3">—</td>
+            <td class="nowrap"><span class="badge orange">已完成</span><br><span class="text-warning text-sm">待验收</span></td>
+            <td class="col-ops">
+              <a class="link" onclick="openAcc()">验收</a>
+              <a class="link" onclick="PMS.toast('已打开加工明细')">详情</a>
+              <a class="link danger" onclick="rework()">退回返工</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600 no-code">SZH2026Q3-020</td>
+            <td class="nowrap no-code">JG20260801008</td>
+            <td class="cell-lg">2010 年存量房交易档案 626 卷</td>
+            <td class="cell-lg">广西方正档案数字化服务有限公司</td>
+            <td class="nowrap"><span class="badge cyan">外包服务</span></td>
+            <td class="nowrap"><span class="badge purple">全流程</span></td>
+            <td class="num">16,428 / 82,640</td>
+            <td class="num">6,842 / 34,286</td>
+            <td class="prog-cell">
+              <span class="progress"><span style="width:42%"></span></span>
+              <div class="pt">41.6%</div>
+            </td>
+            <td class="nowrap">300 DPI / 灰度</td>
+            <td class="num">96.2%</td>
+            <td class="nowrap"><span class="badge blue">加工中</span><br><span class="text-3 text-sm">加工单位在线回填</span></td>
+            <td class="col-ops">
+              <a class="link" onclick="PMS.toast('已打开加工明细')">详情</a>
+              <a class="link" onclick="PMS.toast('已提醒加工单位回填进度','success')">催办进度</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600 no-code">SZH2026Q3-019</td>
+            <td class="nowrap no-code">JG20260730012</td>
+            <td class="cell-lg">2012 年抵押登记档案 486 卷</td>
+            <td class="cell-lg">XXXX市档案数字化中心（自建）· 广西方正（外包）</td>
+            <td class="nowrap"><span class="badge orange">混合</span></td>
+            <td class="nowrap"><span class="badge blue">挂接 + 著录</span></td>
+            <td class="num">11,286 / 56,420</td>
+            <td class="num">3,286 / 16,842</td>
+            <td class="prog-cell">
+              <span class="progress"><span style="width:29%"></span></span>
+              <div class="pt">29.1%</div>
+            </td>
+            <td class="nowrap">300 DPI / 灰度</td>
+            <td class="num">95.8%</td>
+            <td class="nowrap"><span class="badge blue">加工中</span></td>
+            <td class="col-ops">
+              <a class="link" onclick="PMS.toast('已打开加工明细')">详情</a>
+              <a class="link" onclick="PMS.toast('已提醒加工单位回填进度','success')">催办进度</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600 no-code">SZH2026Q3-021</td>
+            <td class="nowrap no-code">JG20260801016</td>
+            <td class="cell-lg">2015 年综合管理档案 186 卷</td>
+            <td class="cell-lg">XXXX市档案数字化中心（自建）</td>
+            <td class="nowrap"><span class="badge green">自建队伍</span></td>
+            <td class="nowrap"><span class="badge blue">扫描</span></td>
+            <td class="num">3,862 / 18,426</td>
+            <td class="num">0 / 0</td>
+            <td class="prog-cell">
+              <span class="progress"><span style="width:0%"></span></span>
+              <div class="pt">0%</div>
+            </td>
+            <td class="nowrap">300 DPI / 黑白</td>
+            <td class="num text-3">—</td>
+            <td class="nowrap"><span class="badge gray">待加工</span><br><span class="text-3 text-sm">待办理出库交接</span></td>
+            <td class="col-ops">
+              <a class="link" href="warehouse.html">办理出库</a>
+              <a class="link" onclick="PMS.toast('已打开加工明细')">详情</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600 no-code">SZH2026Q2-012</td>
+            <td class="nowrap no-code">JG20260612006</td>
+            <td class="cell-lg">2000 年公有住房档案 342 卷</td>
+            <td class="cell-lg">广西方正档案数字化服务有限公司</td>
+            <td class="nowrap"><span class="badge cyan">外包服务</span></td>
+            <td class="nowrap"><span class="badge purple">全流程</span></td>
+            <td class="num">8,426 / 42,186</td>
+            <td class="num">8,426 / 42,186</td>
+            <td class="prog-cell">
+              <span class="progress green"><span style="width:100%"></span></span>
+              <div class="pt">100%</div>
+            </td>
+            <td class="nowrap">300 DPI / 灰度</td>
+            <td class="num text-success">98.2%</td>
+            <td class="nowrap"><span class="badge green">已验收</span><br><span class="text-success text-sm">合格 · 载体转双套</span></td>
+            <td class="col-ops">
+              <a class="link" onclick="PMS.toast('已打开验收报告')">验收报告</a>
+              <a class="link" href="archive-list.html">查看档案</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600 no-code">SZH2026Q2-008</td>
+            <td class="nowrap no-code">JG20260520004</td>
+            <td class="cell-lg">2002 年征收安置档案 128 卷</td>
+            <td class="cell-lg">广西桂影档案服务有限公司</td>
+            <td class="nowrap"><span class="badge cyan">外包服务</span></td>
+            <td class="nowrap"><span class="badge blue">扫描 + OCR 识别</span></td>
+            <td class="num">3,286 / 16,428</td>
+            <td class="num">3,286 / 16,428</td>
+            <td class="prog-cell">
+              <span class="progress orange"><span style="width:100%"></span></span>
+              <div class="pt">100%（返工后重扫）</div>
+            </td>
+            <td class="nowrap">200 DPI / 黑白</td>
+            <td class="num text-danger">88.4%</td>
+            <td class="nowrap"><span class="badge red">已返工</span><br><span class="text-danger text-sm">合格率 91.2% 未达标</span></td>
+            <td class="col-ops">
+              <a class="link" onclick="PMS.toast('已打开不合格明细')">不合格明细</a>
+              <a class="link" onclick="openAcc()">复检验收</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="drawer-mask"></div>
+  <div class="drawer drawer-lg" id="drAcc">
+    <div class="drawer-head">
+      <h3>数字化加工验收 · <span class="no-code">SZH2026Q3-018</span></h3>
+      <button type="button" class="close" onclick="PMS.closeDrawer('drAcc')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="drawer-body">
+      <div class="section-title">批次信息与加工统计</div>
+      <dl class="desc-list">
+        <div class="desc-item"><dt>批次编号</dt><dd class="no-code">SZH2026Q3-018</dd></div>
+        <div class="desc-item"><dt>加工编号</dt><dd class="no-code">JG20260728006</dd></div>
+        <div class="desc-item"><dt>档案范围</dt><dd>1998 年公有住房与房改档案</dd></div>
+        <div class="desc-item"><dt>加工单位</dt><dd>广西方正档案数字化服务有限公司</dd></div>
+        <div class="desc-item"><dt>加工方式</dt><dd>外包服务</dd></div>
+        <div class="desc-item"><dt>加工内容</dt><dd>全流程（扫描 · OCR · 挂接 · 著录）</dd></div>
+        <div class="desc-item"><dt>计划 / 实际卷数</dt><dd>486 / 486 卷</dd></div>
+        <div class="desc-item"><dt>计划 / 实际件数</dt><dd>12,846 / 12,846 件</dd></div>
+        <div class="desc-item"><dt>计划 / 实际页数</dt><dd>68,420 / 68,420 页</dd></div>
+        <div class="desc-item"><dt>加工起止时间</dt><dd>2026-07-08 ~ 2026-07-26（19 天）</dd></div>
+      </dl>
+
+      <div class="section-title mt-16">技术规格核对</div>
+      <div class="card">
+        <div class="card-body tight">
+          <div class="spec-row"><span>核对项</span><span>计划规格</span><span>实际规格</span><span>结论</span></div>
+          <div class="spec-row"><span>扫描分辨率</span><span>300 DPI</span><span>300 DPI</span><span class="ok"><i class="fa-solid fa-check"></i></span></div>
+          <div class="spec-row"><span>色彩模式</span><span>灰度</span><span>灰度</span><span class="ok"><i class="fa-solid fa-check"></i></span></div>
+          <div class="spec-row"><span>存储格式</span><span>PDF</span><span>PDF</span><span class="ok"><i class="fa-solid fa-check"></i></span></div>
+          <div class="spec-row"><span>OCR 准确率</span><span>要求 ≥ 95%</span><span>实际 96.8%</span><span class="ok"><i class="fa-solid fa-check"></i></span></div>
+          <div class="spec-row"><span>影像挂接完整性</span><span>逐件挂接</span><span>12,846 / 12,846 件</span><span class="ok"><i class="fa-solid fa-check"></i></span></div>
+          <div class="spec-row"><span>著录补充</span><span>案卷级 + 文件级</span><span>案卷级 486 · 文件级 12,846</span><span class="ok"><i class="fa-solid fa-check"></i></span></div>
+        </div>
+      </div>
+
+      <div class="section-title mt-16">质量抽检</div>
+      <div class="card">
+        <div class="card-body">
+          <div class="qc-panel">
+            <div class="qc-ring" style="background:conic-gradient(var(--success) 0 97.2%, #e8edf5 97.2% 100%)">
+              <i><span class="qv text-success">97.2%</span><span class="ql">抽检合格率</span></i>
+            </div>
+            <div class="qc-figs">
+              <div class="fg"><div class="f-v">5%</div><div class="f-l">抽检比例</div></div>
+              <div class="fg"><div class="f-v">642</div><div class="f-l">抽检件数</div></div>
+              <div class="fg"><div class="f-v text-success">624</div><div class="f-l">合格件数</div></div>
+              <div class="fg"><div class="f-v text-danger">18</div><div class="f-l">不合格件数</div></div>
+              <div class="fg"><div class="f-v text-success">达标</div><div class="f-l">合格线 98% / 实际 97.2%</div></div>
+            </div>
+          </div>
+          <div class="alert alert-warning mt-16">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <div>合格率 97.2% 略低于 98% 的合格线，可选择「整改后合格」——要求加工单位对 18 件不合格件返工重扫后复检，其余 12,828 件先入库。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title mt-16">不合格明细（18 件）</div>
+      <div class="table-wrap">
+        <table class="data-table compact" data-static>
+          <thead>
+            <tr>
+              <th class="idx-col">序号</th>
+              <th>档案号</th>
+              <th>卷内文件</th>
+              <th>不合格项</th>
+              <th>问题描述</th>
+              <th>处理</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="idx-col">1</td>
+              <td class="nowrap no-code">DA450202199800126</td>
+              <td class="cell-lg">第 4 件 房改售房协议书</td>
+              <td class="nowrap"><span class="badge orange">图像倾斜</span></td>
+              <td class="cell-lg">整页倾斜约 6 度，自动纠偏未生效</td>
+              <td class="col-ops"><a class="link" onclick="PMS.toast('已标记返工')">返工重扫</a></td>
+            </tr>
+            <tr>
+              <td class="idx-col">2</td>
+              <td class="nowrap no-code">DA450202199800132</td>
+              <td class="cell-lg">第 2 件 职工购房申请表</td>
+              <td class="nowrap"><span class="badge orange">黑边未去</span></td>
+              <td class="cell-lg">右侧黑边约 12 mm 未裁切</td>
+              <td class="col-ops"><a class="link" onclick="PMS.toast('已标记返工')">返工重扫</a></td>
+            </tr>
+            <tr>
+              <td class="idx-col">3</td>
+              <td class="nowrap no-code">DA450202199800148</td>
+              <td class="cell-lg">第 6 件 房价计算表</td>
+              <td class="nowrap"><span class="badge red">页面缺失</span></td>
+              <td class="cell-lg">纸质 4 页，影像仅 3 页，缺第 3 页</td>
+              <td class="col-ops"><a class="link" onclick="PMS.toast('已标记返工')">返工重扫</a></td>
+            </tr>
+            <tr>
+              <td class="idx-col">4</td>
+              <td class="nowrap no-code">DA450202199800156</td>
+              <td class="cell-lg">第 3 件 单位证明</td>
+              <td class="nowrap"><span class="badge orange">OCR 错误率高</span></td>
+              <td class="cell-lg">手写体识别准确率仅 72%，低于 95% 要求</td>
+              <td class="col-ops"><a class="link" onclick="PMS.toast('已标记重新识别')">重新识别</a></td>
+            </tr>
+            <tr>
+              <td class="idx-col">5</td>
+              <td class="nowrap no-code">DA450202199800162</td>
+              <td class="cell-lg">第 5 件 产权登记表</td>
+              <td class="nowrap"><span class="badge red">挂接错误</span></td>
+              <td class="cell-lg">影像挂接到第 6 件，与卷内序号不对应</td>
+              <td class="col-ops"><a class="link" onclick="PMS.toast('已标记重新挂接')">重新挂接</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="text-3 text-sm mt-8">此处展示前 5 条，其余 13 条问题类型分布：图像倾斜 6 件、黑边未去 4 件、OCR 错误率高 3 件。</p>
+
+      <div class="section-title mt-16">验收结论</div>
+      <div class="form-grid form-align">
+        <div class="form-item col-full">
+          <label>验收结果<span class="req">*</span></label>
+          <div class="radio-line">
+            <label><input type="radio" name="acc" value="ok" onchange="accChange()"> 合格</label>
+            <label><input type="radio" name="acc" value="fix" checked onchange="accChange()"> 整改后合格</label>
+            <label><input type="radio" name="acc" value="no" onchange="accChange()"> 不合格（整批返工）</label>
+          </div>
+        </div>
+        <div class="form-item">
+          <label>验收人<span class="req">*</span></label>
+          <input type="text" value="韦国强" readonly>
+        </div>
+        <div class="form-item">
+          <label>验收时间<span class="req">*</span></label>
+          <input type="date" value="2026-08-01">
+        </div>
+        <div class="form-item col-full" id="badBox">
+          <label>不合格处理说明<span class="req">*</span></label>
+          <textarea rows="3">抽检合格率 97.2%，18 件不合格件按问题类型分别返工重扫、重新识别与重新挂接，限 2026-08-08 前完成并提交复检；其余 12,828 件先行入库归架。</textarea>
+        </div>
+        <div class="form-item col-full">
+          <label>验收报告</label>
+          <div class="file-up">
+            <input type="hidden" class="file-up-val" value="SZH2026Q3-018_数字化加工验收报告.pdf">
+            <div class="file-up-grid">
+              <div class="file-up-tile file-up-add" title="添加文件（可多选）">
+                <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png">
+                <i class="fa-solid fa-plus"></i><span>上传</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert alert-success mt-16">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>验收合格后，本批 <b>486 卷</b>档案的载体将由「纯纸质」变更为「<b>双套</b>」，数字化状态置为「<b>已数字化</b>」，并办理归架恢复库位占用。</div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" onclick="PMS.closeDrawer('drAcc')">取消</button>
+      <button type="button" class="btn btn-primary" onclick="submitAcc()"><i class="fa-solid fa-check"></i> 提交验收</button>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="mdPlan">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>下达数字化加工任务</h3>
+        <button type="button" class="close" onclick="PMS.closeModal('mdPlan')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid form-align">
+          <div class="form-item">
+            <label>批次编号<span class="req">*</span></label>
+            <input type="text" class="no-code" value="SZH2026Q4-001">
+          </div>
+          <div class="form-item">
+            <label>加工方式<span class="req">*</span></label>
+            <select><option>外包服务</option><option>自建队伍</option><option>混合</option></select>
+          </div>
+          <div class="form-item">
+            <label>档案年度<span class="req">*</span></label>
+            <input type="text" value="2016">
+          </div>
+          <div class="form-item">
+            <label>档案类型<span class="req">*</span></label>
+            <select><option>公有住房与房改档案</option><option>商品房交易档案</option><option>存量房交易档案</option><option>房产测绘档案</option></select>
+          </div>
+          <div class="form-item">
+            <label>加工单位<span class="req">*</span></label>
+            <select><option>广西方正档案数字化服务有限公司</option><option>广西桂影档案服务有限公司</option><option>XXXX市档案数字化中心（自建）</option></select>
+            <span class="hint">资质与信用信息取自 wsztxy 从业主体与信用监管</span>
+          </div>
+          <div class="form-item">
+            <label>加工内容<span class="req">*</span></label>
+            <select><option>全流程</option><option>扫描</option><option>OCR 识别</option><option>挂接</option><option>著录</option></select>
+          </div>
+          <div class="form-item">
+            <label>扫描分辨率<span class="req">*</span></label>
+            <select><option>300 DPI</option><option>600 DPI</option><option>200 DPI</option></select>
+          </div>
+          <div class="form-item">
+            <label>色彩模式<span class="req">*</span></label>
+            <select><option>灰度</option><option>彩色</option><option>黑白</option></select>
+          </div>
+          <div class="form-item">
+            <label>抽检比例<span class="req">*</span></label>
+            <select><option>5%</option><option>3%</option><option>10%</option></select>
+          </div>
+          <div class="form-item">
+            <label>合格率要求<span class="req">*</span></label>
+            <input type="text" value="≥ 98%">
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="PMS.closeModal('mdPlan')">取消</button>
+        <button type="button" class="btn btn-primary" onclick="PMS.closeModal('mdPlan');PMS.toast('加工任务已下达，待办理档案出库交接','success')">下达任务</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function openAcc() { PMS.openDrawer('drAcc'); }
+function accChange() {
+  var v = document.querySelector('input[name="acc"]:checked').value;
+  document.getElementById('badBox').style.display = v === 'ok' ? 'none' : '';
+}
+function submitAcc() {
+  var v = document.querySelector('input[name="acc"]:checked').value;
+  if (v === 'no') {
+    PMS.confirm({
+      title: '整批返工确认',
+      message: '验收不合格将触发整批 486 卷返工重扫，加工单位需重新提交成果。确认执行？',
+      detail: '返工期间档案继续在加工单位保管，档案状态维持「加工中」',
+      okText: '确认返工',
+      onOk: function () { PMS.closeDrawer('drAcc'); PMS.toast('已退回整批返工，加工状态置为「已返工」', 'warning'); }
+    });
+    return;
+  }
+  PMS.closeDrawer('drAcc');
+  PMS.toast(v === 'ok'
+    ? '验收合格，486 卷载体转为双套，数字化状态置为已数字化'
+    : '已按「整改后合格」验收，18 件返工限 08-08 前复检，其余 12,828 件入库归架', 'success');
+}
+function rework() {
+  PMS.confirm({
+    title: '退回返工',
+    message: '退回后本批次加工状态置为「已返工」，须填写返工原因。确认退回？',
+    detail: '批次 SZH2026Q3-018 · 486 卷 / 12,846 件',
+    okText: '确认退回',
+    onOk: function () { PMS.toast('已退回加工单位返工', 'warning'); }
+  });
+}
+(function () {
+  var table = document.getElementById('tblSzh');
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 42,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+  var pc = new URLSearchParams(location.search).get('pc');
+  if (pc) { document.getElementById('fPc').value = pc; openAcc(); }
+})();
+</script>
+</body>
+</html>

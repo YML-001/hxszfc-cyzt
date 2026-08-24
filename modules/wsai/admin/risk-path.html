@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>风险传导路径挖掘 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="pt" data-active="knowledge-base" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>知识库管理</span>
+      <span class="sep">/</span><span class="cur">风险传导路径挖掘</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-sitemap"></i>知识库管理 wsai-04</span>
+    <a href="knowledge-base.html?role=pt">政务知识库</a>
+    <a href="knowledge-audit.html?role=pt">更新审核</a>
+    <a href="graph-build.html?role=pt">图谱构建</a>
+    <a href="graph-explorer.html?role=pt">图谱可视化</a>
+    <a class="active" href="risk-path.html?role=pt">风险传导路径</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-route"></i>
+    <span>沿图谱中标记为「风险传导」的关系逐跳遍历，识别关联企业与项目间的<b>隐性关联风险</b>。
+      跳数越多风险等级越高；<b>严重与预警级别的路径可转为预警线索</b>，但仍进待确认池，人工确认后才推送督办中心。</span>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>路径挖掘</h3>
+      <span class="sub">选择起始实体后沿风险关系向下遍历</span>
+      <div class="head-actions">
+        <select id="startNode" style="width:250px"></select>
+        <button class="btn btn-primary btn-sm" onclick="mine()"><i class="fa-solid fa-route"></i> 开始挖掘</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div id="hint" class="alert alert-info">
+        <i class="fa-solid fa-circle-info"></i>
+        <span>提示：选「柳州鸿达建设集团」或「陈某（法定代表人）」这类处在关系上游的实体，能挖出较长的传导链。</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3>已挖掘的传导路径</h3>
+      <span class="sub" id="pathSub">—</span>
+    </div>
+    <div class="card-body">
+      <div id="pathList"></div>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var LV_TEXT = { red: '严重', orange: '预警', yellow: '提示', blue: '正常' };
+
+  function fillPicker() {
+    var sel = document.getElementById('startNode');
+    var keep = sel.value || AI.param('node') || '';
+    sel.innerHTML = AI.get('nodes').map(function (n) {
+      var out = AI.where('edges', function (e) { return e.from === n.id && e.risk; }).length;
+      return '<option value="' + n.id + '">' + AI.esc(n.mc) +
+        '（' + AI.dict('sttype', n.sttype) + (out ? ' · 有 ' + out + ' 条风险出向' : '') + '）</option>';
+    }).join('');
+    if (keep) sel.value = keep;
+  }
+
+  window.mine = function () {
+    AI.act.minePath(document.getElementById('startNode').value);
+  };
+
+  function paintPaths() {
+    var ps = AI.get('paths');
+    document.getElementById('pathSub').textContent = ps.length
+      ? ('共 ' + ps.length + ' 条，其中 ' + ps.filter(function (p) { return p.lv === 'red'; }).length + ' 条为严重级别')
+      : '还没有挖掘出传导路径';
+    document.getElementById('pathList').innerHTML = ps.length ? ps.map(function (p) {
+      /* 路径链：节点用箭头串联，严重级别红色 */
+      var chain = p.nodeMcs.map(function (mc, i) {
+        var n = AI.where('nodes', function (x) { return x.mc === mc; })[0];
+        return (i ? '<span class="flow-arrow" style="flex:0 0 24px"><i class="fa-solid fa-angle-right"></i></span>' : '') +
+          '<div class="flow-node" style="flex:0 1 auto;min-width:0;padding:8px 12px">' +
+            '<div class="fn-h" style="font-size:12.5px">' +
+              '<i class="fa-solid fa-circle" style="font-size:8px;color:' +
+                (n ? ({ red: 'var(--lv-red)', orange: 'var(--lv-orange)', yellow: 'var(--lv-yellow)', blue: 'var(--lv-blue)' }[n.riskLv]) : 'var(--text-3)') +
+              '"></i>' + AI.esc(mc) + '</div>' +
+            (n ? '<div class="fn-v" style="font-size:11.5px">' + AI.dict('sttype', n.sttype) + '</div>' : '') +
+          '</div>';
+      }).join('');
+      return '<div class="grp-card">' +
+        '<div class="grp-head"><span class="gi"><i class="fa-solid fa-route"></i></span>' +
+          (p.nodeMcs.length - 1) + ' 跳传导链 ' +
+          AI.lv(p.lv, LV_TEXT[p.lv] || '—') +
+          '<span class="text-3 text-sm" style="margin-left:auto;font-weight:400">' + AI.fmt.time(p.at) + '</span></div>' +
+        '<div class="flow-canvas" style="padding:12px 10px">' + chain + '</div>' +
+        '<div class="is-note mt-16">' + AI.esc(p.reason) + '</div>' +
+        '<div class="mt-16 btn-row">' +
+          (p.toClue
+            ? '<span class="badge green"><i class="fa-solid fa-check"></i>已生成预警线索</span>' +
+              '<a class="btn btn-sm" href="../analyst/risk-clue.html?role=fx"><i class="fa-solid fa-arrow-right"></i> 去线索池确认</a>'
+            : '<button class="btn btn-primary btn-sm" onclick="AI.act.pathToClue(\'' + p.id + '\')">' +
+              '<i class="fa-solid fa-flag"></i> 转预警线索（待确认）</button>') +
+        '</div></div>';
+    }).join('') : '<div class="empty"><i class="fa-regular fa-map"></i><div>还没有挖掘出传导路径，先在上方选择起始实体</div></div>';
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () { fillPicker(); paintPaths(); });
+  });
+})();
+</script>
+</body>
+</html>

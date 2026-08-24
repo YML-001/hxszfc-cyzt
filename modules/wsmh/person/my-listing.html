@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的房源与预约 · 个人中心</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  /* 我的房源与预约专属布局 */
+  .house-card .hc-img { display: block; }
+  .house-card .hc-foot { flex-wrap: wrap; gap: 8px; }
+  .hym-code { font-family: Menlo, Consolas, monospace; letter-spacing: .5px; }
+  .ls-card { border: 1px solid var(--border); border-radius: var(--radius-card); margin-bottom: 16px; overflow: hidden; }
+  .ls-card:last-child { margin-bottom: 0; }
+  .ls-card.near { border-color: #f5dab0; }
+  .ls-card.expired { border-color: #f7cdca; }
+  .ls-h { display: flex; align-items: center; gap: 10px; padding: 13px 16px; background: var(--primary-light-2); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .ls-h.near { background: var(--warning-light); }
+  .ls-h.expired { background: var(--accent-soft); }
+  .ls-b { padding: 16px; }
+  .ls-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 18px; }
+  .ls-f .lb { font-size: 12.5px; color: var(--text-3); }
+  .ls-f .vl { font-size: 14px; font-weight: 500; margin-top: 3px; }
+  .ls-acts { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px dashed var(--row-line); flex-wrap: wrap; }
+  .pub-table .acts { white-space: normal; }
+  .pub-table .acts a { display: inline-block; margin: 2px 10px 2px 0; }
+</style>
+</head>
+<body data-nav="home">
+
+<div class="wrap"><div class="crumb">
+  <a href="../web/home.html">首页</a><i class="fa-solid fa-angle-right"></i>
+  <a href="index.html">个人中心</a><i class="fa-solid fa-angle-right"></i>我的房源与预约
+</div></div>
+
+<div class="wrap">
+  <div class="desk">
+    <aside class="side-menu" id="side"></aside>
+    <main class="desk-main" id="dmain">
+
+      <div class="tabs" data-tabs data-scope="ml-box">
+        <a class="on" data-tab="ml-house" data-fp="wsmh-30-06"><i class="fa-solid fa-house-circle-check"></i> 我的挂牌房源</a>
+        <a data-tab="ml-fav" data-fp="wsmh-30-07"><i class="fa-regular fa-star"></i> 我的收藏</a>
+        <a data-tab="ml-appt" data-fp="wsmh-30-07"><i class="fa-regular fa-calendar-check"></i> 预约看房</a>
+      </div>
+
+      <div id="ml-box">
+        <!-- Tab 1：我的挂牌房源（wsmh-30-06 / wsmh-09-05） -->
+        <div class="tab-pane on" id="ml-house">
+          <div class="alert alert-info">
+            <i class="fa-solid fa-shield-halved"></i>
+            <span>个人自主挂牌房源须通过<b>实名与权属核验</b>后才对外展示，核验有效期 <b>90 天</b>。
+              有效期不足 7 天的房源标黄提醒，逾期自动下架并留痕，续期后有效期顺延 90 天。
+              房源一律不展示权利人姓名、身份证号与联系方式，房号按规定截断。</span>
+          </div>
+          <div id="ls-list"></div>
+        </div>
+
+        <!-- Tab 2：我的收藏（wsmh-30-07） -->
+        <div class="tab-pane" id="ml-fav">
+          <div class="alert alert-info">
+            <i class="fa-regular fa-star"></i>
+            <span>收藏的房源如已成交或下架，会自动标注状态提示。收藏与对比数据仅本人可见，不对外公开。</span>
+          </div>
+          <div id="fav-list"></div>
+        </div>
+
+        <!-- Tab 3：预约看房（wsmh-30-07） -->
+        <div class="tab-pane" id="ml-appt">
+          <div class="alert alert-info">
+            <i class="fa-solid fa-circle-info"></i>
+            <span>预约请求会推送到房源<b>委托机构的工作台</b>，机构确认后状态变为「已确认」；
+              改约与取消同样实时同步到机构端。机构处理界面见
+              <a href="../company/agency-desk.html?user=company" data-fp="wsmh-24-01">经纪机构工作台 → 预约请求</a>。</span>
+          </div>
+          <div id="appt-box"></div>
+        </div>
+      </div>
+
+      <div id="src-note"></div>
+    </main>
+  </div>
+</div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+function pageInit() {
+  if (!deskGuard('listing')) return;
+  renderAll();
+  document.getElementById('src-note').innerHTML = UI.sourceNote(
+    '挂牌房源、核验码与有效期来源于存量房交易网签备案管理系统；预约记录与经纪机构工作台同源。');
+  var t = UI.param('tab');
+  if (t) { var a = document.querySelector('[data-tab="' + t + '"]'); if (a) a.click(); }
+  PORTAL.on(function () { renderSide('listing'); renderAll(); });
+}
+function renderAll() { renderMine(); renderFavs(); renderAppts(); }
+
+/* ============ 个人中心左侧菜单（各页统一） ============ */
+function renderSide(active) {
+  var u = UI.user(), login = UI.isLogin();
+  var c = PORTAL.todoCounts();
+  var M = [
+    ['idx', '个人中心首页', 'fa-gauge', 'index.html', 0, 'wsmh-02-06'],
+    ['case', '我的办件', 'fa-list-check', 'my-case.html', c.fix, 'wsmh-30-01'],
+    ['contract', '我的合同与交易', 'fa-file-contract', 'my-contract.html', 0, 'wsmh-30-02'],
+    ['pay', '我的缴款与贷款', 'fa-money-bill-transfer', 'my-payment.html', c.pay, 'wsmh-30-04'],
+    ['listing', '我的房源与预约', 'fa-house-circle-check', 'my-listing.html', 0, 'wsmh-30-06'],
+    ['cert', '我的证照与消息', 'fa-file-shield', 'my-cert.html', PORTAL.unread(), 'wsmh-30-08'],
+    ['rating', '我的评价与授权', 'fa-star', 'my-rating.html', c.rate, 'wsmh-30-10']
+  ];
+  document.getElementById('side').innerHTML =
+    '<div class="sm-head"><div class="sm-n"><i class="fa-solid fa-circle-user"></i> '
+    + UI.esc(login ? u.name : '未登录') + '</div>'
+    + '<div class="sm-r">' + (login ? '个人用户 · 已实名（等级 ' + u.realname + '）' : '登录后查看办件、合同与证照') + '</div></div>'
+    + '<div class="sm-g"><div class="sm-gt">我的服务</div>'
+    + M.map(function (m) {
+      return '<a href="' + m[3] + '" class="' + (m[0] === active ? 'on' : '') + '" data-fp="' + m[5] + '">'
+        + '<i class="fa-solid ' + m[2] + '"></i>' + m[1]
+        + (login && m[4] ? '<span class="sm-b">' + m[4] + '</span>' : '') + '</a>';
+    }).join('')
+    + '</div><div class="sm-g" style="border-top:1px solid var(--border)">'
+    + '<a href="../web/home.html" data-fp="wsmh-34-01"><i class="fa-solid fa-arrow-left"></i>返回门户首页</a>'
+    + '</div>';
+}
+
+function deskGuard(active) {
+  renderSide(active);
+  if (UI.isLogin()) return true;
+  document.getElementById('dmain').innerHTML =
+    '<div class="desk-card"><div class="empty"><i class="fa-solid fa-user-lock"></i>'
+    + '<div class="em-t">个人中心需要登录后访问</div>'
+    + '<div class="em-d">门户配置的未登录浏览范围为「房源列表与详情、信息公示、办事指南」，我的房源与预约属于需登录实名的范围。</div>'
+    + '<div class="em-a"><a class="btn btn-primary" href="../web/login.html?from=person" data-fp="wsmh-34-06">立即登录</a>'
+    + '<button class="btn" style="margin-left:10px" onclick="demoLogin()" data-fp="wsmh-34-06">演示：一键登录个人用户</button>'
+    + '</div></div></div>';
+  UI.needLogin('我的房源与预约');
+  return false;
+}
+
+/* 演示用：保留当前页参数并以个人用户身份登录 */
+function demoLogin() {
+  var parts = location.search.replace(/^\?/, '').split('&').filter(function (x) {
+    return x && x.indexOf('user=') !== 0;
+  });
+  parts.push('user=person');
+  location.href = location.pathname + '?' + parts.join('&');
+}
+
+/* ============ 通用 ============ */
+function dayLeft(s) {
+  if (!s) return 999;
+  var t = new Date(String(s).replace(/-/g, '/') + ' 23:59:59').getTime();
+  return Math.ceil((t - Date.now()) / 86400000);
+}
+function detailUrl(h) {
+  return h.lx === '3' ? '../web/rent-house.html?id=' + h.id : '../web/second-house-detail.html?id=' + h.id;
+}
+/* 演示环境按房源编号推导的浏览量，正式环境取访问埋点统计 */
+function views(h) {
+  var n = Number(String(h.id).replace(/\D/g, '')) || 1;
+  return 120 + (n * 37) % 680;
+}
+function cmpGet() {
+  try { var s = sessionStorage.getItem('wsmh.cmp.house'); return s ? s.split(',') : []; } catch (e) { return []; }
+}
+function cmpSet(a) { try { sessionStorage.setItem('wsmh.cmp.house', a.join(',')); } catch (e) { } }
+function lsf(l, v) { return '<div class="ls-f"><div class="lb">' + l + '</div><div class="vl">' + v + '</div></div>'; }
+
+/* ============ Tab 1：我的挂牌房源 ============ */
+function renderMine() {
+  var arr = PORTAL.houses({ all: 1 }).filter(function (h) { return h.owner === 1; });
+  var box = document.getElementById('ls-list');
+  if (!arr.length) {
+    box.innerHTML = '<div class="desk-card">' + UI.empty('您还没有自主挂牌的房源',
+      '个人可自主发布二手房与租赁房源，实名与权属核验通过后立即出现在二手房专区与房源检索中。',
+      '<a class="btn btn-primary" href="../web/listing-publish.html" data-fp="wsmh-14-01">去发布房源</a>'
+      + '<a class="btn" style="margin-left:10px" href="../web/second-house.html" data-fp="wsmh-09-01">看看二手房专区</a>')
+      + '</div>';
+    return;
+  }
+  box.innerHTML = arr.map(function (h) {
+    var left = dayLeft(h.hyyxq);
+    var expired = h.fyzt === '5';
+    var near = !expired && h.hyyxq && left >= 0 && left <= 7;
+    var cls = expired ? ' expired' : (near ? ' near' : '');
+    var tip = '';
+    if (expired) {
+      tip = '<div class="alert alert-danger" style="margin:0 0 14px"><i class="fa-solid fa-circle-xmark"></i>'
+        + '<span><b>核验已过期，房源已自动下架并留痕。</b>过期时间 ' + h.hyyxq + '，续期后可恢复对外展示。</span></div>';
+    } else if (near) {
+      tip = '<div class="alert alert-warning" style="margin:0 0 14px"><i class="fa-solid fa-hourglass-half"></i>'
+        + '<span><b>即将到期，请及时续期。</b>核验有效期 ' + h.hyyxq + '，仅剩 ' + left + ' 天，逾期将自动下架。</span></div>';
+    }
+    return '<div class="ls-card' + cls + '">'
+      + '<div class="ls-h' + cls + '">'
+      + '<i class="fa-solid fa-house text-primary"></i>'
+      + '<span class="bold" style="font-size:15px">' + UI.esc(h.bt) + '</span>'
+      + '<span class="badge blue">' + UI.esc(h.lxmc) + '</span>'
+      + PORTAL.houseBadge(h)
+      + (h.hym ? '<span class="badge green"><i class="fa-solid fa-shield-halved"></i> 核验码 <b class="hym-code">' + h.hym + '</b></span>'
+        : '<span class="badge orange">待核验，核验通过后生成核验码</span>')
+      + '<span class="ml-auto text-xs text-3">更新 ' + h.gxsj + '</span></div>'
+      + '<div class="ls-b">' + tip
+      + '<div class="ls-grid">'
+      + lsf('核验有效期', h.hyyxq
+        ? h.hyyxq + (expired ? ' <span class="badge red">已过期</span>' : (near ? ' <span class="badge orange">剩 ' + left + ' 天</span>' : ''))
+        : '—')
+      + lsf('挂牌价格', h.lx === '3' ? UI.money(h.zj, 0) + ' 元/月' : h.zj + ' 万元（' + UI.money(h.dj, 0) + ' 元/㎡）')
+      + lsf('建筑面积', h.mj + ' ㎡　' + UI.esc(h.hx))
+      + lsf('房屋坐落', h.qx + ' · ' + UI.esc(h.xqmc) + ' · ' + UI.esc(h.fhMask))
+      + lsf('房源来源', UI.esc(h.lymc))
+      + lsf('委托机构', h.wtjg ? UI.esc(h.wtjg) + (h.wtjjr ? '（' + UI.esc(h.wtjjr) + '）' : '') : '无委托，权利人自主挂牌')
+      + lsf('挂牌时间', h.gpsj)
+      + lsf('浏览量', '<span class="num">' + views(h) + '</span> 次（近 30 天）')
+      + '</div></div>'
+      + '<div class="ls-acts">'
+      + (h.hym || expired
+        ? '<button class="btn btn-sm btn-primary" data-renew="' + h.id + '" data-fp="wsmh-09-05"><i class="fa-solid fa-rotate-right"></i> 续期</button>'
+        : '<a class="btn btn-sm" href="../web/listing-publish.html" data-fp="wsmh-14-01"><i class="fa-solid fa-shield-halved"></i> 查看核验进度</a>')
+      + '<button class="btn btn-sm" data-edit="' + h.id + '" data-fp="wsmh-30-06"><i class="fa-solid fa-pen"></i> 修改</button>'
+      + (h.fyzt === '4'
+        ? '<span class="badge gray" style="align-self:center">已下架，不再对外展示</span>'
+        : '<button class="btn btn-sm" data-off="' + h.id + '" data-fp="wsmh-30-06"><i class="fa-solid fa-eye-slash"></i> 下架</button>')
+      + (h.wtjg ? '<button class="btn btn-sm" data-unw="' + h.id + '" data-fp="wsmh-14-03"><i class="fa-solid fa-link-slash"></i> 解除委托</button>' : '')
+      + '<a class="btn btn-sm" href="' + detailUrl(h) + '" data-fp="wsmh-30-06"><i class="fa-solid fa-up-right-from-square"></i> 查看对外展示效果</a>'
+      + '</div></div>';
+  }).join('');
+
+  box.querySelectorAll('[data-renew]').forEach(function (b) {
+    b.onclick = function () {
+      var r = PORTAL.act('house.renew', { id: b.getAttribute('data-renew') });
+      if (!r) return;
+      UI.toast('核验有效期已顺延 90 天至 ' + r.hyyxq + '，房源恢复对外展示', 'success');
+    };
+  });
+  box.querySelectorAll('[data-edit]').forEach(function (b) {
+    b.onclick = function () { openEdit(b.getAttribute('data-edit')); };
+  });
+  box.querySelectorAll('[data-off]').forEach(function (b) {
+    b.onclick = function () { doOffline(b.getAttribute('data-off')); };
+  });
+  box.querySelectorAll('[data-unw]').forEach(function (b) {
+    b.onclick = function () { doUnentrust(b.getAttribute('data-unw')); };
+  });
+}
+
+function openEdit(id) {
+  var h = PORTAL.house(id);
+  if (!h) return;
+  UI.drawer('<i class="fa-solid fa-pen text-primary"></i> 修改房源信息',
+    '<div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation"></i>'
+    + '<span>房屋坐落、面积、户型等<b>权属核验字段不可自行修改</b>，如有变化须重新提交核验。'
+    + '价格调整会记入挂牌调价公示，客观呈现不作趋势解读。</span></div>'
+    + '<div class="form-grid">'
+    + '<div class="form-item"><label>房源标题</label><input class="input" id="ed-bt" value="' + UI.esc(h.bt) + '"></div>'
+    + '<div class="form-item"><label>' + (h.lx === '3' ? '月租金（元）' : '挂牌总价（万元）') + '</label>'
+    + '<input class="input" id="ed-zj" value="' + h.zj + '"></div>'
+    + '<div class="form-item"><label>看房方式</label><select class="select" id="ed-kf">'
+    + '<option>提前一天预约，工作日与周末均可</option><option>随时可看，房屋空置</option>'
+    + '<option>周末集中带看</option><option>需与租客协商时间</option></select></div>'
+    + '<div class="form-item"><label>委托机构</label><input class="input" value="'
+    + UI.esc(h.wtjg || '无委托，权利人自主挂牌') + '" readonly></div>'
+    + '<div class="form-item full"><label>房源描述</label>'
+    + '<textarea class="textarea" id="ed-desc" placeholder="补充房屋朝向、装修、周边配套等真实信息，不得含有夸大或误导性表述">'
+    + UI.esc(h.qx + ' ' + h.xqmc + '，' + h.hx + '，' + h.cx + '，' + h.zx + '，' + h.mj + '㎡，楼层 ' + h.lc + '。') + '</textarea></div>'
+    + '</div>'
+    + '<div class="text-xs text-3 mt-12">当前核验码 <b class="hym-code">' + (h.hym || '待核验') + '</b>，核验有效期 ' + (h.hyyxq || '—') + '。</div>',
+    '<button class="btn" data-act="close-drawer">取消</button>'
+    + '<button class="btn btn-primary" id="ed-ok" data-fp="wsmh-30-06">保存修改</button>');
+  document.getElementById('ed-ok').onclick = function () {
+    var zj = Number(document.getElementById('ed-zj').value);
+    if (!zj || zj <= 0) { UI.toast('请填写有效的挂牌价格', 'warning'); return; }
+    UI.closeDrawer();
+    UI.toast('房源信息修改已提交，价格调整将记入挂牌调价公示，对外展示同步更新', 'success');
+  };
+}
+
+function doOffline(id) {
+  var h = PORTAL.house(id);
+  if (!h) return;
+  UI.confirm('下架房源',
+    '下架后「<b>' + UI.esc(h.bt) + '</b>」将<b>从二手房专区与房源检索中移除</b>，'
+    + '已收到的看房预约不再接收新增。核验码与核验有效期保留，重新上架需再次核验。确定下架吗？',
+    function () {
+      var r = PORTAL.act('house.offline', { id: id });
+      if (!r) return;
+      UI.toast('房源已下架，状态变为「已下架」，已从二手房专区移除', 'success');
+      UI.modal('<i class="fa-solid fa-circle-check text-success"></i> 房源已下架',
+        '<div class="alert alert-success"><i class="fa-solid fa-circle-check"></i>'
+        + '<span>「' + UI.esc(h.bt) + '」已下架，房源状态变为<b>已下架</b>，对外专区不再展示，下架操作已留痕。</span></div>'
+        + '<div class="text-sm text-2">您可以到二手房专区确认该房源已不在列表中。</div>',
+        '<button class="btn" data-act="close-modal">知道了</button>'
+        + '<a class="btn btn-primary" href="../web/second-house.html" data-fp="wsmh-09-01">去专区确认</a>');
+    }, '确定下架');
+}
+
+function doUnentrust(id) {
+  var h = PORTAL.house(id);
+  if (!h) return;
+  UI.confirm('解除委托',
+    '将解除与「<b>' + UI.esc(h.wtjg) + '</b>」的房源委托关系，房源来源变更为<b>个人自主房源</b>。'
+    + '解除委托的全过程会留痕，已产生的带看与佣金约定由双方按服务合同处理。确定解除吗？',
+    function () {
+      var r = PORTAL.act('house.unentrust', { id: id });
+      if (!r) return;
+      UI.toast('已解除委托，房源来源变更为个人自主房源，全过程已留痕', 'success');
+    }, '确定解除');
+}
+
+/* ============ Tab 2：我的收藏（wsmh-30-07） ============ */
+function renderFavs() {
+  var favs = PORTAL.favs();
+  var box = document.getElementById('fav-list');
+  var arr = favs.map(function (f) {
+    var h = PORTAL.house(f.hid);
+    return h ? { h: h, t: f.t } : null;
+  }).filter(function (x) { return x; });
+
+  if (!arr.length) {
+    box.innerHTML = '<div class="desk-card">' + UI.empty('您还没有收藏房源',
+      '在房源列表或详情页点「收藏」，房源会出现在这里，成交或下架会自动提示。',
+      '<a class="btn btn-primary" href="../web/house-search.html" data-fp="wsmh-07-05">去房源综合检索</a>'
+      + '<a class="btn" style="margin-left:10px" href="../web/second-house.html" data-fp="wsmh-09-01">去二手房专区</a>')
+      + '</div>';
+    return;
+  }
+  box.innerHTML = '<div class="desk-card"><div class="card-head">'
+    + '<h3><i class="fa-regular fa-star text-primary"></i> 收藏的房源</h3>'
+    + '<span class="sub">共 ' + arr.length + ' 套</span>'
+    + '<div class="ca"><a class="btn btn-sm" href="../web/house-compare.html" data-fp="wsmh-07-05">去房源对比</a></div></div>'
+    + '<div class="card-body"><div class="house-grid c3">'
+    + arr.map(function (x) {
+      var h = x.h, rent = h.lx === '3';
+      var st = PORTAL.HOUSE_ST[h.fyzt];
+      return '<div class="house-card">'
+        + '<a class="hc-img" href="' + detailUrl(h) + '"><img src="' + h.img + '" alt="' + UI.esc(h.xqmc) + '房源实景">'
+        + '<span class="hc-badge' + (st.pub ? '' : ' gray') + '"><i class="fa-solid fa-shield-halved"></i> ' + st.n + '</span>'
+        + '<span class="hc-state">' + UI.esc(h.lymc) + '</span></a>'
+        + '<div class="hc-body">'
+        + '<a class="hc-t" href="' + detailUrl(h) + '" style="display:block">' + UI.esc(h.bt) + '</a>'
+        + '<div class="hc-sub">' + h.qx + ' · ' + UI.esc(h.xqmc) + ' · ' + UI.esc(h.fhMask) + '</div>'
+        + '<div class="hc-tags"><span class="tag-q">' + h.mj + '㎡</span><span class="tag-q">' + UI.esc(h.hx) + '</span>'
+        + '<span class="tag-q">' + UI.esc(h.cx) + '</span></div>'
+        + '<div class="hc-price">' + (rent ? UI.money(h.zj, 0) + '<em>元/月</em>' : h.zj + '<em>万元</em>')
+        + '<span class="hc-unit">' + (rent ? '参考价 ' + h.ckj[0] + '-' + h.ckj[1] : UI.money(h.dj, 0) + ' 元/㎡') + '</span></div>'
+        + '<div class="hc-foot"><span>收藏于 ' + x.t + '</span></div>'
+        + '<div class="flex gap-8 mt-12">'
+        + '<button class="btn btn-sm" data-unfav="' + h.id + '" data-fp="wsmh-30-07"><i class="fa-regular fa-star"></i> 取消收藏</button>'
+        + '<button class="btn btn-sm" data-cmp="' + h.id + '" data-fp="wsmh-07-05"><i class="fa-solid fa-scale-balanced"></i> 加入对比</button>'
+        + '</div></div></div>';
+    }).join('')
+    + '</div></div></div>';
+
+  box.querySelectorAll('[data-unfav]').forEach(function (b) {
+    b.onclick = function () {
+      PORTAL.act('house.unfav', { hid: b.getAttribute('data-unfav') });
+      UI.toast('已取消收藏', 'success');
+    };
+  });
+  box.querySelectorAll('[data-cmp]').forEach(function (b) {
+    b.onclick = function () {
+      var id = b.getAttribute('data-cmp'), ids = cmpGet();
+      if (ids.indexOf(id) >= 0) { UI.toast('该房源已在对比栏中', 'info'); return; }
+      if (ids.length >= 4) { UI.toast('最多同时对比 4 套房源，请先到对比页移除部分房源', 'warning'); return; }
+      ids.push(id); cmpSet(ids);
+      if (ids.length >= 2) {
+        UI.confirm('已加入对比', '对比栏已有 <b>' + ids.length + '</b> 套房源，可按面积、户型、单价、核验状态横向对比。是否立即查看？',
+          function () { UI.go('../web/house-compare.html', { ids: ids.join(',') }); }, '查看对比');
+      } else {
+        UI.toast('已加入对比栏，再选 1 套即可横向对比', 'success');
+      }
+    };
+  });
+}
+
+/* ============ Tab 3：预约看房（wsmh-30-07） ============ */
+var SLOTS = ['上午 09:00-10:00', '上午 10:00-11:00', '上午 11:00-12:00',
+  '下午 14:00-15:00', '下午 15:00-16:00', '下午 16:00-17:00'];
+
+function apptBadge(zt) {
+  if (zt === '已确认') return '<span class="badge green">已确认</span>';
+  if (zt === '已取消') return '<span class="badge gray">已取消</span>';
+  return '<span class="badge orange">待确认</span>';
+}
+
+function renderAppts() {
+  var arr = PORTAL.appts();
+  var box = document.getElementById('appt-box');
+  if (!arr.length) {
+    box.innerHTML = '<div class="desk-card">' + UI.empty('暂无看房预约',
+      '在二手房或租房详情页点「预约看房」，预约会推送到房源委托机构并显示在这里。',
+      '<a class="btn btn-primary" href="../web/second-house.html" data-fp="wsmh-14-04">去二手房专区找房</a>')
+      + '</div>';
+    return;
+  }
+  box.innerHTML = '<div class="desk-card"><div class="card-head">'
+    + '<h3><i class="fa-regular fa-calendar-check text-primary"></i> 看房预约</h3>'
+    + '<span class="sub">共 ' + arr.length + ' 条</span></div>'
+    + '<div class="card-body np"><div class="table-wrap" style="border:0;border-radius:0">'
+    + '<table class="pub-table"><thead><tr>'
+    + '<th style="width:96px">预约编号</th><th>房源</th><th style="width:170px">委托机构</th>'
+    + '<th style="width:100px">预约日期</th><th style="width:124px">时段</th>'
+    + '<th style="width:78px">状态</th><th style="width:108px">联系电话</th><th style="width:120px">操作</th>'
+    + '</tr></thead><tbody>'
+    + arr.map(function (a) {
+      var can = a.zt !== '已取消';
+      return '<tr><td class="strong">' + a.id + '</td>'
+        + '<td><a href="' + (PORTAL.house(a.hid) ? detailUrl(PORTAL.house(a.hid)) : '../web/second-house.html') + '" data-fp="wsmh-30-07">'
+        + UI.esc(a.hname) + '</a></td>'
+        + '<td>' + UI.esc(a.jg || '房源所属机构') + '</td>'
+        + '<td>' + a.d + '</td><td>' + UI.esc(a.sd) + '</td>'
+        + '<td>' + apptBadge(a.zt) + '</td>'
+        + '<td class="num">' + UI.esc(a.tel) + '</td>'
+        + '<td class="acts">' + (can
+          ? '<a href="javascript:;" data-ch="' + a.id + '" data-fp="wsmh-30-07">改约</a>'
+            + '<a href="javascript:;" data-cc="' + a.id + '" data-fp="wsmh-30-07">取消预约</a>'
+          : '<span class="text-3">已取消</span>') + '</td></tr>';
+    }).join('')
+    + '</tbody></table>'
+    + '<div class="table-note">联系电话按规定脱敏展示；预约信息仅向房源委托机构开放，不对外公示。'
+    + '机构确认后您会收到站内消息与短信提醒。</div>'
+    + '</div></div></div>';
+
+  box.querySelectorAll('[data-ch]').forEach(function (a) {
+    a.onclick = function () { openChange(a.getAttribute('data-ch')); };
+  });
+  box.querySelectorAll('[data-cc]').forEach(function (a) {
+    a.onclick = function () {
+      var id = a.getAttribute('data-cc');
+      var ap = PORTAL.appts().filter(function (x) { return x.id === id; })[0];
+      UI.confirm('取消预约',
+        '将取消「<b>' + UI.esc(ap ? ap.hname : '') + '</b>」于 ' + (ap ? ap.d + ' ' + ap.sd : '') + ' 的看房预约，'
+        + '取消结果会同步推送给委托机构。确定取消吗？',
+        function () {
+          PORTAL.act('appt.cancel', { id: id });
+          UI.toast('预约已取消，已同步通知委托机构；房源恢复为可预约状态', 'success');
+        }, '确定取消');
+    };
+  });
+}
+
+function openChange(id) {
+  var a = PORTAL.appts().filter(function (x) { return x.id === id; })[0];
+  if (!a) return;
+  UI.drawer('<i class="fa-regular fa-calendar-plus text-primary"></i> 改约看房时间',
+    '<div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>'
+    + '<span>改约申请会推送至房源委托机构，机构确认后状态变为「已确认」。'
+    + '请尽量提前一天改约，避免经纪人空跑。</span></div>'
+    + '<div class="desc-list mb-16"><dl>'
+    + '<dt>预约编号</dt><dd>' + a.id + '</dd>'
+    + '<dt>房源</dt><dd>' + UI.esc(a.hname) + '</dd>'
+    + '<dt>委托机构</dt><dd>' + UI.esc(a.jg || '房源所属机构') + '</dd>'
+    + '<dt>原预约时间</dt><dd>' + a.d + '　' + UI.esc(a.sd) + '</dd>'
+    + '</dl></div>'
+    + '<div class="form-grid">'
+    + '<div class="form-item"><label><span class="req">*</span>新预约日期</label>'
+    + '<input class="input" type="date" id="ap-d" value="' + PDATA.ymd(PDATA.shift(2)) + '" min="' + UI.today() + '"></div>'
+    + '<div class="form-item"><label><span class="req">*</span>时段</label><select class="select" id="ap-s">'
+    + SLOTS.map(function (s) { return '<option' + (s === a.sd ? ' selected' : '') + '>' + s + '</option>'; }).join('')
+    + '</select></div>'
+    + '<div class="form-item full"><label>备注（选填）</label>'
+    + '<textarea class="textarea" id="ap-n" placeholder="可说明改约原因或到达方式"></textarea></div>'
+    + '</div>',
+    '<button class="btn" data-act="close-drawer">取消</button>'
+    + '<button class="btn btn-primary" id="ap-ok" data-fp="wsmh-30-07">提交改约</button>');
+  document.getElementById('ap-ok').onclick = function () {
+    var d = document.getElementById('ap-d').value;
+    if (!d) { UI.toast('请选择新的预约日期', 'warning'); return; }
+    if (d < UI.today()) { UI.toast('预约日期不能早于今天', 'warning'); return; }
+    PORTAL.act('appt.change', { id: id, d: d, sd: document.getElementById('ap-s').value });
+    UI.closeDrawer();
+    UI.toast('改约申请已推送至委托机构，状态回到「待确认」，机构确认后会通知您', 'success');
+  };
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>密钥与证书管理 · 统一应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../../assets/css/app.css">
+<link rel="stylesheet" href="../../../assets/css/wssvc.css">
+</head>
+<body data-role="admin" data-active="wssvc-59">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 统一应用服务平台
+        <span class="sep">/</span> 服务接入与治理 <span class="sep">/</span> <span class="cur">密钥与证书管理</span>
+      </div>
+      <div class="page-title">密钥与证书管理</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="app-access.html"><i class="fa-solid fa-cubes"></i> 接入应用</a>
+      <button class="btn" onclick="SVC.exportAsync('密钥与证书台账')"><i class="fa-solid fa-download"></i> 导出台账</button>
+      <button class="btn btn-danger" onclick="PMS.confirm({title:'批量轮换',message:'对 3 把超期未轮换的密钥统一轮换？',detail:'新旧密钥并行 24 小时，期间两把都能用。轮换通知会同时发给 3 个应用的技术对接人。',type:'danger',okText:'批量轮换',onOk:function(){PMS.toast('3 把密钥已轮换，通知已发出','success')}})"><i class="fa-solid fa-rotate"></i> 批量轮换 3</button>
+      <button class="btn btn-primary" onclick="PMS.openDrawer('keyDrawer')"><i class="fa-solid fa-plus"></i> 登记证书</button>
+    </div>
+  </div>
+
+  <div class="alert alert-danger">
+    <i class="fa-solid fa-key"></i>
+    <div><b>证书到期是这类平台最典型的「非故障式故障」</b>——系统没坏、网络没断、代码没改，
+      到点就全线调不通，而且往往在半夜或节假日发作。所以这张表的价值不在管理密钥本身，
+      在<b>提前量</b>：临期 90 天开始提醒，60 天进待办，30 天升级到科室负责人，
+      涉及银行与自治区平台的还要留出对方的换证流程时间。<b>当前 4 项临期，最近一项剩 27 天</b>。</div>
+  </div>
+
+  <div class="svc-health">
+    <div class="svc-hb bad">
+      <div class="hb-h"><i class="fa-solid fa-hourglass-end"></i> 90 天内到期</div>
+      <div class="hb-v text-danger">4</div>
+      <div class="hb-x">最近一项剩 27 天 · 建设银行接口证书</div>
+    </div>
+    <div class="svc-hb warn">
+      <div class="hb-h"><i class="fa-solid fa-rotate"></i> 超期未轮换密钥</div>
+      <div class="hb-v text-warning">3</div>
+      <div class="hb-x">安全基线要求 90 天一轮换，最久已 198 天</div>
+    </div>
+    <div class="svc-hb ok">
+      <div class="hb-h"><i class="fa-solid fa-shield-halved"></i> 国密占比</div>
+      <div class="hb-v text-success">86%</div>
+      <div class="hb-x">31 项中 26 项已用 SM2 / SM4</div>
+    </div>
+    <div class="svc-hb ok">
+      <div class="hb-h"><i class="fa-solid fa-certificate"></i> 在用凭证总数</div>
+      <div class="hb-v">31</div>
+      <div class="hb-x">接入密钥 23 · 通信证书 8</div>
+    </div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="cert">通信与签名证书</div>
+      <div class="tab" data-tab="key">接入密钥</div>
+      <div class="tab" data-tab="log">轮换与吊销记录</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="cert">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>关键词</label><input type="text" placeholder="证书名称 / 颁发对象 / 序列号"></div>
+          <div class="filter-item"><label>用途</label><select><option value="">全部</option><option>银行接口双向认证</option><option>签章平台调用</option><option>对象存储对接</option><option>平台对外 HTTPS</option></select></div>
+          <div class="filter-item"><label>算法</label><select><option value="">全部</option><option>SM2</option><option>RSA-2048</option><option>RSA-4096</option></select></div>
+          <div class="filter-item"><label>到期状态</label><select><option value="">全部</option><option>30 天内</option><option>90 天内</option><option>正常</option><option>已过期</option></select></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已检索证书台账','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="PMS.toast('已重置为默认条件')">重置</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>证书名称</th><th>用途</th><th>颁发对象</th><th>算法</th><th>生效日</th><th>到期日</th><th>剩余</th><th>持有方</th><th>状态</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr class="clickable" onclick="PMS.openDrawer('keyDrawer')">
+                <td class="cell-lg">建设银行接口通信证书</td><td>银行接口双向认证</td><td class="nowrap">建设银行柳州城中支行</td><td>RSA-2048</td>
+                <td class="nowrap">2024-08-28</td><td class="nowrap">2026-08-28</td><td><span class="badge red">27 天</span></td>
+                <td class="nowrap">对方颁发</td><td><span class="badge red">临期</span></td>
+                <td><span class="link danger" onclick="event.stopPropagation();PMS.toast('已发函建设银行科技部，要求 8 月 15 日前提供新证书','success')">催换证</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('keyDrawer')">
+                <td class="cell-lg">自治区签章平台调用证书</td><td>签章平台调用</td><td class="nowrap">广西自治区大数据中心</td><td>SM2</td>
+                <td class="nowrap">2025-09-20</td><td class="nowrap">2026-09-20</td><td><span class="badge orange">50 天</span></td>
+                <td class="nowrap">对方颁发</td><td><span class="badge orange">临期</span></td>
+                <td><span class="link" onclick="event.stopPropagation();PMS.toast('已提交自治区平台的换证申请','success')">申请换证</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('keyDrawer')">
+                <td class="cell-lg">政务云对象存储对接证书</td><td>对象存储对接</td><td class="nowrap">广西政务云</td><td>SM2</td>
+                <td class="nowrap">2025-10-12</td><td class="nowrap">2026-10-12</td><td><span class="badge orange">72 天</span></td>
+                <td class="nowrap">对方颁发</td><td><span class="badge orange">临期</span></td>
+                <td><span class="link" onclick="event.stopPropagation();PMS.toast('已提交换证申请','success')">申请换证</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('keyDrawer')">
+                <td class="cell-lg">平台对外服务 HTTPS 证书</td><td>平台对外 HTTPS</td><td class="nowrap">svc.lzfc.gov.cn</td><td>RSA-2048</td>
+                <td class="nowrap">2025-10-30</td><td class="nowrap">2026-10-30</td><td><span class="badge orange">90 天</span></td>
+                <td class="nowrap">本方持有</td><td><span class="badge orange">临期</span></td>
+                <td><span class="link" onclick="event.stopPropagation();PMS.toast('已向 CA 提交续期订单','success')">续期</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('keyDrawer')">
+                <td class="cell-lg">柳州银行接口通信证书</td><td>银行接口双向认证</td><td class="nowrap">柳州银行营业部</td><td>SM2</td>
+                <td class="nowrap">2026-01-06</td><td class="nowrap">2028-01-06</td><td>524 天</td>
+                <td class="nowrap">对方颁发</td><td><span class="badge green">正常</span></td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('keyDrawer')">
+                <td class="cell-lg">工商银行接口通信证书</td><td>银行接口双向认证</td><td class="nowrap">工商银行柳州分行</td><td>SM2</td>
+                <td class="nowrap">2026-02-18</td><td class="nowrap">2028-02-18</td><td>567 天</td>
+                <td class="nowrap">对方颁发</td><td><span class="badge green">正常</span></td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('keyDrawer')">
+                <td class="cell-lg">公积金中心接口证书</td><td>银行接口双向认证</td><td class="nowrap">XXXX市住房公积金中心</td><td>SM2</td>
+                <td class="nowrap">2026-03-01</td><td class="nowrap">2029-03-01</td><td>942 天</td>
+                <td class="nowrap">对方颁发</td><td><span class="badge green">正常</span></td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('keyDrawer')">
+                <td class="cell-lg">法大大签约调用证书</td><td>签章平台调用</td><td class="nowrap">法大大（深圳）</td><td>RSA-2048</td>
+                <td class="nowrap">2026-04-10</td><td class="nowrap">2027-04-10</td><td>252 天</td>
+                <td class="nowrap">对方颁发</td><td><span class="badge green">正常</span></td><td><span class="link">详情</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="key">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-rotate"></i>
+          <div>接入密钥的轮换<b>不需要停服</b>：新旧两把并行 24 小时，对接方在窗口期内换完即可，
+            过窗口旧密钥自动失效。真正卡壳的是对接方要排版本上线——所以轮换通知提前 7 天发，
+            <b>不是提前 1 天</b>。</div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>所属应用</th><th>AppID</th><th>算法</th><th>最近轮换</th><th>已用天数</th><th>轮换周期</th><th>技术对接人</th><th>状态</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="nowrap">房产档案管理系统</td><td class="nowrap">APP-DAGL-0007</td><td>RSA-2048</td><td class="nowrap">2026-01-15</td>
+                <td class="num">198</td><td>90 天</td><td class="nowrap">吴俊杰 13607****18</td><td><span class="badge red">超期 108 天</span></td>
+                <td><span class="link danger" onclick="PMS.confirm({title:'轮换密钥',message:'为房产档案管理系统轮换密钥？',detail:'新旧密钥并行 24 小时，通知会发给吴俊杰。',okText:'轮换',onOk:function(){PMS.toast('已轮换并通知对接人','success')}})">立即轮换</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">中介与经纪机构管理</td><td class="nowrap">APP-ZJJG-0008</td><td>SM2</td><td class="nowrap">2026-02-20</td>
+                <td class="num">162</td><td>90 天</td><td class="nowrap">李慧敏 13878****92</td><td><span class="badge red">超期 72 天</span></td>
+                <td><span class="link danger" onclick="PMS.toast('已提交轮换并通知对接人','success')">立即轮换</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">房屋租赁监管系统</td><td class="nowrap">APP-ZLJG-0009</td><td>SM2</td><td class="nowrap">2026-03-18</td>
+                <td class="num">136</td><td>90 天</td><td class="nowrap">梁文斌 13877****46</td><td><span class="badge orange">超期 46 天</span></td>
+                <td><span class="link" onclick="PMS.toast('已提交轮换并通知对接人','success')">立即轮换</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">存量房网签备案系统</td><td class="nowrap">APP-CLF-0001</td><td>SM2</td><td class="nowrap">2026-05-12</td>
+                <td class="num">81</td><td>90 天</td><td class="nowrap">梁文斌 13877****46</td><td><span class="badge orange">还剩 9 天</span></td>
+                <td><span class="link" onclick="PMS.toast('已提前发出轮换预告','success')">预约轮换</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">新建商品房交易系统</td><td class="nowrap">APP-XJF-0002</td><td>SM2</td><td class="nowrap">2026-06-08</td>
+                <td class="num">54</td><td>90 天</td><td class="nowrap">梁文斌 13877****46</td><td><span class="badge green">正常</span></td>
+                <td><span class="link">详情</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">预售资金监管系统</td><td class="nowrap">APP-YSZJ-0003</td><td>SM2</td><td class="nowrap">2026-06-20</td>
+                <td class="num">42</td><td>90 天</td><td class="nowrap">罗建国 13907****65</td><td><span class="badge green">正常</span></td>
+                <td><span class="link">详情</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">统一服务门户</td><td class="nowrap">APP-MH-0006</td><td>SM2</td><td class="nowrap">2026-07-02</td>
+                <td class="num">30</td><td>90 天</td><td class="nowrap">梁文斌 13877****46</td><td><span class="badge green">正常</span></td>
+                <td><span class="link">详情</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">AI 应用服务平台</td><td class="nowrap">APP-AI-0010</td><td>SM2</td><td class="nowrap">2026-07-14</td>
+                <td class="num">18</td><td>90 天</td><td class="nowrap">周雅琴 13977****30</td><td><span class="badge green">正常</span></td>
+                <td><span class="link">详情</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="log">
+      <div class="card-body">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>时间</th><th>操作</th><th>对象</th><th>原因</th><th>影响面</th><th>操作人</th><th>结果</th></tr></thead>
+            <tbody>
+              <tr><td class="nowrap">2026-07-14 10:24</td><td><span class="badge blue">密钥轮换</span></td><td class="nowrap">AI 应用服务平台</td><td class="cell-lg">到期轮换</td><td class="cell-lg">OCR 调用，窗口期内无中断</td><td class="nowrap">韦志明</td><td><span class="badge green">成功</span></td></tr>
+              <tr><td class="nowrap">2026-07-02 09:12</td><td><span class="badge blue">密钥轮换</span></td><td class="nowrap">统一服务门户</td><td class="cell-lg">到期轮换</td><td class="cell-lg">门户文件与短信调用，无中断</td><td class="nowrap">韦志明</td><td><span class="badge green">成功</span></td></tr>
+              <tr><td class="nowrap">2026-06-28 16:40</td><td><span class="badge red">证书吊销</span></td><td class="nowrap">旧版档案系统证书</td><td class="cell-lg">系统下线，凭证一并作废</td><td class="cell-lg">该系统全部调用已停</td><td class="nowrap">韦志明</td><td><span class="badge green">成功</span></td></tr>
+              <tr><td class="nowrap">2026-06-20 14:08</td><td><span class="badge blue">密钥轮换</span></td><td class="nowrap">预售资金监管系统</td><td class="cell-lg">到期轮换</td><td class="cell-lg">政银直连调用，无中断</td><td class="nowrap">罗建国</td><td><span class="badge green">成功</span></td></tr>
+              <tr><td class="nowrap">2026-05-12 11:30</td><td><span class="badge blue">密钥轮换</span></td><td class="nowrap">存量房网签备案系统</td><td class="cell-lg">安全检查整改</td><td class="cell-lg">全部四类服务调用，无中断</td><td class="nowrap">韦志明</td><td><span class="badge green">成功</span></td></tr>
+              <tr><td class="nowrap">2026-03-01 08:50</td><td><span class="badge green">证书更新</span></td><td class="nowrap">公积金中心接口证书</td><td class="cell-lg">对方三年期换证</td><td class="cell-lg">公积金 4 个接口，切换时中断 6 分钟</td><td class="nowrap">罗建国</td><td><span class="badge green">成功</span></td></tr>
+              <tr><td class="nowrap">2026-02-18 22:15</td><td><span class="badge green">证书更新</span></td><td class="nowrap">工商银行接口通信证书</td><td class="cell-lg">对方到期换证</td><td class="cell-lg">工行 7 个监管接口，夜间切换无影响</td><td class="nowrap">罗建国</td><td><span class="badge green">成功</span></td></tr>
+              <tr><td class="nowrap">2026-01-06 21:40</td><td><span class="badge green">证书更新</span></td><td class="nowrap">柳州银行接口通信证书</td><td class="cell-lg">升国密 SM2</td><td class="cell-lg">柳行 8 个接口，联调两轮后切换</td><td class="nowrap">罗建国</td><td><span class="badge green">成功</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="drawer-mask" onclick="PMS.closeDrawer('keyDrawer')"></div>
+  <div class="drawer" id="keyDrawer">
+    <div class="drawer-head">
+      <h3>证书详情 · 建设银行接口通信证书</h3>
+      <span class="close" onclick="PMS.closeDrawer('keyDrawer')"><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-danger">
+        <i class="fa-solid fa-clock"></i>
+        <div><b>剩 27 天到期</b>。建设银行的换证流程需要走对方科技部审批，一般 15 个工作日，
+          <b>现在发函已经接近下限，再拖就要压着到期日切换了</b>。</div>
+      </div>
+      <div class="form-grid">
+        <div class="form-item"><label>证书名称 <span class="req">*</span></label><input type="text" value="建设银行接口通信证书"></div>
+        <div class="form-item"><label>用途 <span class="req">*</span></label><select><option>银行接口双向认证</option><option>签章平台调用</option><option>对象存储对接</option><option>平台对外 HTTPS</option></select></div>
+        <div class="form-item"><label>颁发对象</label><input type="text" value="建设银行柳州城中支行"></div>
+        <div class="form-item"><label>算法</label><select><option>RSA-2048</option><option>SM2</option><option>RSA-4096</option></select></div>
+        <div class="form-item"><label>生效日期</label><input type="date" value="2024-08-28"></div>
+        <div class="form-item"><label>到期日期 <span class="req">*</span></label><input type="date" value="2026-08-28"></div>
+        <div class="form-item"><label>预警提前量</label><select><option>90 天</option><option>60 天</option><option>30 天</option></select></div>
+        <div class="form-item"><label>持有方</label><select><option>对方颁发</option><option>本方持有</option></select></div>
+        <div class="form-item col-full"><label>序列号</label><input type="text" value="4A:2F:88:D1:9C:60:B3:E7:15:44:A0:2B" readonly></div>
+        <div class="form-item col-full"><label>对方联系人</label><input type="text" value="建行柳州城中支行科技部 陈工 0772-28****61"></div>
+        <div class="form-item col-full"><label>影响的接口</label><textarea readonly>缴存信息查询、到账流水推送、账户余额查询、账户流水查询、日终对账、出账指令推送、账户查封解封推送、按揭放款流水备注（共 8 个，全部走双向认证）</textarea></div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn" onclick="PMS.closeDrawer('keyDrawer')">关闭</button>
+      <button class="btn" onclick="PMS.toast('已生成换证提醒函，待科室负责人签发','success')"><i class="fa-solid fa-envelope"></i> 生成换证函</button>
+      <button class="btn btn-primary" onclick="PMS.toast('证书信息已保存','success');PMS.closeDrawer('keyDrawer')"><i class="fa-solid fa-check"></i> 保存</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../../assets/js/app.js"></script>
+<script src="../../../assets/js/wssvc.js"></script>
+</body>
+</html>

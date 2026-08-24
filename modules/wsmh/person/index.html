@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>个人中心首页 · 个人中心</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  /* 个人中心首页专属布局 */
+  .pc-user { display: flex; align-items: center; gap: 18px; padding: 20px; }
+  .pc-ava {
+    width: 66px; height: 66px; border-radius: 50%; flex: none; color: #fff; font-size: 28px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-deep) 100%);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pc-uinfo { flex: 1; min-width: 0; }
+  .pc-uname { font-size: 19px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .pc-umeta { font-size: 13px; color: var(--text-3); margin-top: 7px; display: flex; gap: 22px; flex-wrap: wrap; }
+  .pc-umeta b { color: var(--text-2); font-weight: 500; }
+  .pc-uacts { display: flex; gap: 8px; flex: none; }
+  .td-card { cursor: pointer; transition: .16s; }
+  .td-card:hover { border-color: var(--primary); box-shadow: var(--shadow-sm); }
+  .td-card.zero { opacity: .55; }
+  .td-card.zero .s-value { color: var(--text-3); }
+  .draft-i {
+    border: 1px solid var(--border); border-radius: var(--radius-card); padding: 14px 16px; background: var(--bg-soft);
+  }
+  .draft-i.warn { border-color: #f5c2be; background: #fff8f7; }
+  .draft-t { font-size: 15px; font-weight: 700; }
+  .draft-m { font-size: 12.5px; color: var(--text-3); margin-top: 7px; line-height: 1.9; }
+  .draft-m b { color: var(--text-2); font-weight: 500; }
+  .case-i { border: 1px solid var(--border); border-radius: var(--radius-card); padding: 13px 15px; }
+  .prog-t { height: 7px; background: var(--bg-soft); border-radius: 4px; overflow: hidden; margin-top: 9px; }
+  .prog-f { height: 100%; background: linear-gradient(90deg, #6b95e8, var(--primary)); border-radius: 4px; }
+  .prog-f.green { background: linear-gradient(90deg, #62cb8f, var(--success)); }
+  .prog-f.orange { background: linear-gradient(90deg, #f0b26b, #ea580c); }
+  .msg-i { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px dashed var(--row-line); }
+  .msg-i:last-child { border-bottom: 0; }
+  .msg-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; margin-top: 8px; }
+  .msg-dot.read { background: var(--border-strong); }
+  .qk-sel-i {
+    display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--border);
+    border-radius: var(--radius); margin-bottom: 8px; background: #fff; font-size: 13.5px;
+  }
+  .qk-sel-i .qk-no {
+    width: 20px; height: 20px; border-radius: 4px; background: var(--primary-light); color: var(--primary);
+    text-align: center; line-height: 20px; font-size: 12px; flex: none;
+  }
+  .qk-all { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 14px; }
+  .qk-all label { display: flex; align-items: flex-start; gap: 7px; font-size: 13px; padding: 5px 0; cursor: pointer; }
+</style>
+</head>
+<body data-nav="home">
+
+<div class="wrap"><div class="crumb">
+  <a href="../web/home.html">首页</a><i class="fa-solid fa-angle-right"></i>
+  <a href="index.html">个人中心</a><i class="fa-solid fa-angle-right"></i>个人中心首页
+</div></div>
+
+<div class="wrap">
+  <div class="desk">
+    <aside class="side-menu" id="side"></aside>
+    <main class="desk-main" id="dmain">
+
+      <!-- 用户信息卡 -->
+      <div class="desk-card" id="user-card"></div>
+
+      <!-- 五类待办提醒（wsmh-02-06） -->
+      <div class="desk-card">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-bell text-accent"></i> 待办提醒</h3>
+          <span class="sub">数量随办件、缴款与评价状态实时变化，点击直达对应清单</span>
+        </div>
+        <div class="card-body"><div class="stat-grid c5" id="todo-box"></div></div>
+      </div>
+
+      <!-- 常用服务自定义（wsmh-02-05） -->
+      <div class="desk-card">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-thumbtack text-primary"></i> 常用服务</h3>
+          <span class="sub">自定义常用事项，排序即时生效</span>
+          <div class="ca">
+            <button class="btn btn-sm btn-ghost" id="btn-quick" data-fp="wsmh-02-05"><i class="fa-solid fa-sliders"></i> 管理常用服务</button>
+          </div>
+        </div>
+        <div class="card-body"><div id="quick-box"></div></div>
+      </div>
+
+      <!-- 最近访问（wsmh-02-05） -->
+      <div class="desk-card">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-clock-rotate-left text-primary"></i> 最近访问</h3>
+          <span class="sub">自动记录最近 8 条办事事项访问记录</span>
+        </div>
+        <div class="card-body" id="recent-box"></div>
+      </div>
+
+      <!-- 办件草稿与跨端续办（wsmh-02-07） -->
+      <div class="desk-card">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-file-pen text-primary"></i> 办件草稿与跨端续办</h3>
+          <span class="sub">门户与微信小程序实时同步</span>
+          <div class="ca"><a class="btn btn-sm" href="../web/service-hall.html" data-fp="wsmh-02-07">去办事大厅新建申报</a></div>
+        </div>
+        <div class="card-body" id="draft-box"></div>
+      </div>
+
+      <!-- 在办办件速览（wsmh-30-01） -->
+      <div class="desk-card">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-list-check text-primary"></i> 在办办件速览</h3>
+          <span class="sub">按申请时间倒序取最近 3 件</span>
+          <div class="ca"><a class="btn btn-sm" href="my-case.html" data-fp="wsmh-30-01">全部办件</a></div>
+        </div>
+        <div class="card-body" id="case-box"></div>
+      </div>
+
+      <!-- 我的房产速览 -->
+      <div class="desk-card">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-house-chimney-window text-primary"></i> 我的房产速览</h3>
+          <span class="sub">坐落房号按规定截断展示</span>
+          <div class="ca"><a class="btn btn-sm" href="../web/query-house.html" data-fp="wsmh-26-04">个人房产信息查询</a></div>
+        </div>
+        <div class="card-body np" id="house-box"></div>
+      </div>
+
+      <!-- 我的保障房 -->
+      <div class="desk-card">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-house-circle-check text-primary"></i> 我的保障房</h3>
+          <span class="sub">申请进度、轮候排序、合同租金与补贴一站查看</span>
+          <div class="ca"><a class="btn btn-sm" href="../web/baozhang-index.html">保障房专区</a></div>
+        </div>
+        <div class="card-body" id="bz-box"></div>
+      </div>
+
+      <!-- 最新消息（wsmh-30-09） -->
+      <div class="desk-card">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-envelope text-primary"></i> 最新消息</h3>
+          <span class="sub">办件、补正、缴款与订阅推送</span>
+          <div class="ca"><a class="btn btn-sm" href="my-cert.html?tab=mc-msg" data-fp="wsmh-30-09">全部消息</a></div>
+        </div>
+        <div class="card-body" id="msg-box"></div>
+      </div>
+
+      <div id="src-note"></div>
+    </main>
+  </div>
+</div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+/* 演示用完整证件号（虚构），默认脱敏展示，查看需二次核验 */
+var ID_NO = '450202198703152816';
+var QK = [];
+
+function pageInit() {
+  if (!deskGuard('idx')) return;
+  renderAll();
+  document.getElementById('btn-quick').onclick = openQuickDrawer;
+  document.getElementById('src-note').innerHTML = UI.sourceNote(
+    '个人中心展示的办件、合同、缴款与证照数据来源于业务系统实时接口，与窗口、微信小程序、自助终端同源同数据。');
+  PORTAL.on(function () { renderSide('idx'); renderAll(); });
+}
+
+function renderAll() {
+  renderUser(); renderTodo(); renderQuick(); renderRecent();
+  renderDrafts(); renderCases(); renderHouses(); renderBaozhang(); renderMsgs();
+}
+
+/* ============ 我的保障房 ============ */
+function renderBaozhang() {
+  var box = document.getElementById('bz-box');
+  if (!box) return;
+  box.innerHTML =
+    '<div class="stat-grid c4" style="margin-bottom:14px">'
+    + bzCard('fa-file-signature', 'blue', '1', '件', '在办申请', '../web/baozhang-apply.html?tab=progress')
+    + bzCard('fa-list-ol', 'orange', '126', '位', '轮候排序', '../web/baozhang-select.html?tab=wait')
+    + bzCard('fa-dice', 'cyan', '007', '号', '中签序号', '../web/baozhang-select.html?tab=result')
+    + bzCard('fa-hand-holding-dollar', 'green', '320', '元/月', '租赁补贴', '../web/baozhang-index.html')
+    + '</div>'
+    + '<div class="table-wrap" style="border:0;border-radius:0"><table class="pub-table">'
+    + '<thead><tr><th>事项</th><th style="width:150px">保障类型</th><th style="width:150px">状态</th><th style="width:120px">操作</th></tr></thead><tbody>'
+    + [['公租房资格申请（一件事）', '公租房', '<span class="badge blue">资格审定中</span>', '../web/baozhang-apply.html?tab=progress', '看进度'],
+       ['第 3 批配售型公开摇号', '配售型保障房', '<span class="badge green">已中签 007 号</span>', '../web/baozhang-select.html?tab=result', '看结果'],
+       ['和苑 3-2-0801 租赁合同', '公租房', '<span class="badge cyan">履约中 · 年度待复核</span>', '../web/baozhang-index.html', '查看']
+      ].map(function (r) {
+        return '<tr><td class="strong">' + r[0] + '</td><td>' + r[1] + '</td><td>' + r[2] + '</td>'
+          + '<td class="acts"><a href="' + r[3] + '">' + r[4] + '</a></td></tr>';
+      }).join('')
+    + '</tbody></table>'
+    + '<div class="table-note">保障房申请、轮候、合同与补贴数据来源于保障性住房综合管理系统，与窗口、移动端同源。</div></div>';
+}
+function bzCard(ico, color, v, unit, label, href) {
+  return '<a class="stat-card td-card" href="' + href + '" style="color:inherit">'
+    + '<span class="s-ico ' + color + '"><i class="fa-solid ' + ico + '"></i></span>'
+    + '<span><span class="s-value">' + v + '<em>' + unit + '</em></span>'
+    + '<span class="s-label" style="display:block">' + label + '</span></span></a>';
+}
+
+/* ============ 个人中心左侧菜单（各页统一） ============ */
+function renderSide(active) {
+  var u = UI.user(), login = UI.isLogin();
+  var c = PORTAL.todoCounts();
+  var M = [
+    ['idx', '个人中心首页', 'fa-gauge', 'index.html', 0, 'wsmh-02-06'],
+    ['case', '我的办件', 'fa-list-check', 'my-case.html', c.fix, 'wsmh-30-01'],
+    ['contract', '我的合同与交易', 'fa-file-contract', 'my-contract.html', 0, 'wsmh-30-02'],
+    ['pay', '我的缴款与贷款', 'fa-money-bill-transfer', 'my-payment.html', c.pay, 'wsmh-30-04'],
+    ['listing', '我的房源与预约', 'fa-house-circle-check', 'my-listing.html', 0, 'wsmh-30-06'],
+    ['cert', '我的证照与消息', 'fa-file-shield', 'my-cert.html', PORTAL.unread(), 'wsmh-30-08'],
+    ['rating', '我的评价与授权', 'fa-star', 'my-rating.html', c.rate, 'wsmh-30-10']
+  ];
+  document.getElementById('side').innerHTML =
+    '<div class="sm-head"><div class="sm-n"><i class="fa-solid fa-circle-user"></i> '
+    + UI.esc(login ? u.name : '未登录') + '</div>'
+    + '<div class="sm-r">' + (login ? '个人用户 · 已实名（等级 ' + u.realname + '）' : '登录后查看办件、合同与证照') + '</div></div>'
+    + '<div class="sm-g"><div class="sm-gt">我的服务</div>'
+    + M.map(function (m) {
+      return '<a href="' + m[3] + '" class="' + (m[0] === active ? 'on' : '') + '" data-fp="' + m[5] + '">'
+        + '<i class="fa-solid ' + m[2] + '"></i>' + m[1]
+        + (login && m[4] ? '<span class="sm-b">' + m[4] + '</span>' : '') + '</a>';
+    }).join('')
+    + '</div><div class="sm-g" style="border-top:1px solid var(--border)">'
+    + '<a href="../web/home.html" data-fp="wsmh-34-01"><i class="fa-solid fa-arrow-left"></i>返回门户首页</a>'
+    + '</div>';
+}
+
+/* 未登录拦截（wsmh-34-06） */
+function deskGuard(active) {
+  renderSide(active);
+  if (UI.isLogin()) return true;
+  document.getElementById('dmain').innerHTML =
+    '<div class="desk-card"><div class="empty"><i class="fa-solid fa-user-lock"></i>'
+    + '<div class="em-t">个人中心需要登录后访问</div>'
+    + '<div class="em-d">门户配置的未登录浏览范围为「房源列表与详情、信息公示、办事指南」，个人中心属于需登录实名的范围。</div>'
+    + '<div class="em-a"><a class="btn btn-primary" href="../web/login.html?from=person" data-fp="wsmh-34-06">立即登录</a>'
+    + '<button class="btn" style="margin-left:10px" onclick="demoLogin()" data-fp="wsmh-34-06">演示：一键登录个人用户</button>'
+    + '</div></div></div>';
+  UI.needLogin('个人中心');
+  return false;
+}
+
+/* 演示用：保留当前页参数并以个人用户身份登录 */
+function demoLogin() {
+  var parts = location.search.replace(/^\?/, '').split('&').filter(function (x) {
+    return x && x.indexOf('user=') !== 0;
+  });
+  parts.push('user=person');
+  location.href = location.pathname + '?' + parts.join('&');
+}
+
+/* ============ 用户信息卡 ============ */
+function renderUser() {
+  var u = UI.user();
+  document.getElementById('user-card').innerHTML =
+    '<div class="pc-user">'
+    + '<div class="pc-ava"><i class="fa-solid fa-user"></i></div>'
+    + '<div class="pc-uinfo">'
+    + '<div class="pc-uname">' + UI.esc(u.name)
+    + '<span class="badge green"><i class="fa-solid fa-shield-halved"></i> 已实名（等级 ' + u.realname + '）</span>'
+    + '<span class="badge blue">个人用户</span></div>'
+    + '<div class="pc-umeta">'
+    + '<span>证件号码：<b>' + PORTAL.mask('id', ID_NO) + '</b></span>'
+    + '<span>手机号码：<b>' + UI.esc(u.mobile) + '</b></span>'
+    + '<span>注册时间：<b>' + PDATA.ymd(PDATA.shift(-820)) + '</b></span>'
+    + '<span>最近登录：<b>' + UI.today() + '</b></span>'
+    + '</div></div>'
+    + '<div class="pc-uacts">'
+    + '<button class="btn btn-sm" id="btn-realname" data-fp="wsmh-34-06"><i class="fa-solid fa-id-card"></i> 实名信息</button>'
+    + '<button class="btn btn-sm" id="btn-safe" data-fp="wsmh-34-06"><i class="fa-solid fa-lock"></i> 安全设置</button>'
+    + '</div></div>';
+
+  document.getElementById('btn-realname').onclick = function () {
+    UI.modal('<i class="fa-solid fa-id-card text-primary"></i> 实名信息',
+      '<div class="alert alert-success"><i class="fa-solid fa-circle-check"></i>'
+      + '<span>您已完成 <b>等级 2</b> 实名认证（身份证 + 人脸核身），可办理全部个人自助情形事项。</span></div>'
+      + '<div class="desc-list"><dl>'
+      + '<dt>姓名</dt><dd>' + PORTAL.mask('name', UI.user().name) + '</dd>'
+      + '<dt>证件类型</dt><dd>居民身份证</dd>'
+      + '<dt>证件号码</dt><dd class="mask">' + PORTAL.mask('id', ID_NO)
+      + '<a class="unmask" id="rn-see" data-fp="wsmh-35-06">查看</a></dd>'
+      + '<dt>认证方式</dt><dd>广西数字政务一体化平台统一身份认证 · 人脸核身</dd>'
+      + '<dt>认证时间</dt><dd>' + PDATA.ymd(PDATA.shift(-820)) + '</dd>'
+      + '<dt>实名等级</dt><dd>等级 2（可办理需实名的全部个人事项）</dd>'
+      + '</dl></div>'
+      + '<div class="text-xs text-3 mt-12">实名信息由统一身份认证平台回传，本平台不单独维护；如需变更请到广西政务服务网账号中心修改。</div>');
+    document.getElementById('rn-see').onclick = function () {
+      UI.verifyIdentity('本人实名证件号码', function () {
+        var dd = document.getElementById('rn-see').parentNode;
+        dd.className = ''; dd.innerHTML = ID_NO + ' <span class="badge orange">已记入查询留痕</span>';
+      });
+    };
+  };
+  document.getElementById('btn-safe').onclick = function () {
+    UI.modal('<i class="fa-solid fa-lock text-primary"></i> 安全设置',
+      '<div class="desc-list"><dl>'
+      + '<dt>登录方式</dt><dd>账号密码 + 短信验证码；支持广西政务服务网账号互认登录</dd>'
+      + '<dt>会话超时</dt><dd>' + PORTAL.site().sessionTimeout + ' 分钟无操作自动退出（门户框架配置项）</dd>'
+      + '<dt>敏感字段查看</dt><dd>证件号、权利人姓名、完整房号默认遮蔽，查看需二次身份核验并全程留痕</dd>'
+      + '<dt>绑定手机</dt><dd>' + UI.esc(UI.user().mobile) + '</dd>'
+      + '</dl></div>',
+      '<button class="btn" data-act="close-modal">关闭</button>'
+      + '<a class="btn btn-primary" href="../web/query-auth.html" data-fp="wsmh-29-02">查看我的查询留痕</a>');
+  };
+}
+
+/* ============ 五类待办（wsmh-02-06） ============ */
+function renderTodo() {
+  var c = PORTAL.todoCounts();
+  var T = [
+    ['待办事项', c.todo, 'fa-list-check', 'blue', 'my-case.html', '已提交与已受理的在办件'],
+    ['待缴款', c.pay, 'fa-money-bill-wave', 'red', 'my-payment.html', '待缴存的购房款与资金'],
+    ['待补正', c.fix, 'fa-file-circle-exclamation', 'orange', 'my-case.html?zt=3', '需在线补交材料'],
+    ['待签约', c.sign, 'fa-file-signature', 'cyan', 'my-contract.html', '待网签与未提交草稿'],
+    ['待评价', c.rate, 'fa-star', 'green', 'my-rating.html', '办结后可评价']
+  ];
+  document.getElementById('todo-box').innerHTML = T.map(function (x) {
+    return '<div class="stat-card td-card' + (x[1] ? '' : ' zero') + '" data-go="' + x[4] + '" data-fp="wsmh-02-06" title="' + x[5] + '">'
+      + '<span class="s-ico ' + x[3] + '"><i class="fa-solid ' + x[2] + '"></i></span>'
+      + '<span><span class="s-value">' + x[1] + '<em>件</em></span>'
+      + '<span class="s-label" style="display:block">' + x[0] + '</span></span></div>';
+  }).join('');
+  document.getElementById('todo-box').querySelectorAll('[data-go]').forEach(function (el) {
+    el.onclick = function () { location.href = el.getAttribute('data-go'); };
+  });
+}
+
+/* ============ 常用服务（wsmh-02-05） ============ */
+function renderQuick() {
+  var list = PORTAL.prefs().quick || [];
+  var box = document.getElementById('quick-box');
+  if (!list.length) {
+    box.innerHTML = UI.empty('您还没有设置常用服务',
+      '把最常办理的事项固定在这里，下次一键直达。',
+      '<button class="btn btn-primary" onclick="openQuickDrawer()" data-fp="wsmh-02-05">去设置常用服务</button>');
+    return;
+  }
+  var n = list.length;
+  var cls = n <= 4 ? ' c4' : (n === 5 ? ' c5' : (n === 6 ? ' c6' : ''));
+  var COLORS = ['blue', 'red', 'green', 'orange', 'cyan', 'purple', 'gold'];
+  var ICOS = { new: 'fa-building', second: 'fa-house', rent: 'fa-key', fund: 'fa-shield-halved',
+    mortgage: 'fa-file-contract', policy: 'fa-hand-holding-heart', survey: 'fa-ruler-combined',
+    subject: 'fa-briefcase', query: 'fa-magnifying-glass' };
+  box.innerHTML = '<div class="scene-grid' + cls + '">' + list.map(function (code, i) {
+    var it = PORTAL.item(code);
+    if (!it) return '';
+    return '<a class="scene-i" href="javascript:;" data-code="' + code + '" data-fp="wsmh-02-05">'
+      + '<span class="si-ico ' + COLORS[i % COLORS.length] + '"><i class="fa-solid ' + (ICOS[it.theme] || 'fa-file-lines') + '"></i></span>'
+      + '<div class="si-t" style="font-size:14px">' + UI.esc(it.name) + '</div>'
+      + '<div class="si-d">' + it.dept + ' · 承诺 ' + it.nsrq + ' 个工作日</div></a>';
+  }).join('') + '</div>'
+    + '<div class="text-xs text-3 mt-12">共 ' + n + ' 个常用事项。点击卡片进入办事指南并自动记入「最近访问」。</div>';
+
+  box.querySelectorAll('[data-code]').forEach(function (a) {
+    a.onclick = function () { goItem(a.getAttribute('data-code')); };
+  });
+}
+
+function goItem(code) {
+  var it = PORTAL.item(code);
+  if (!it) { UI.toast('未找到该事项', 'warning'); return; }
+  PORTAL.act('prefs.recent', { code: code, name: it.name });
+  UI.go('../web/item-detail.html', { code: code });
+}
+
+function openQuickDrawer() {
+  QK = (PORTAL.prefs().quick || []).slice();
+  UI.drawer('<i class="fa-solid fa-sliders text-primary"></i> 管理常用服务',
+    '<div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>'
+    + '<span>勾选需要固定在个人中心首页的事项，最多 8 个；在已选列表中用上移下移调整展示顺序。保存后卡片即时刷新。</span></div>'
+    + '<div class="col-head" style="margin-bottom:12px"><h2 style="font-size:16px">已选常用服务</h2>'
+    + '<span class="ch-more" style="cursor:default">按顺序展示</span></div>'
+    + '<div id="qk-sel"></div>'
+    + '<div class="col-head mt-20" style="margin-bottom:12px"><h2 style="font-size:16px">全部可办事项</h2>'
+    + '<span class="ch-more" style="cursor:default">共 ' + PORTAL.items().length + ' 项</span></div>'
+    + '<div class="qk-all" id="qk-all"></div>',
+    '<button class="btn" data-act="close-drawer">取消</button>'
+    + '<button class="btn btn-primary" id="qk-save" data-fp="wsmh-02-05">保存设置</button>');
+  drawQk();
+  document.getElementById('qk-save').onclick = function () {
+    if (!QK.length) { UI.toast('请至少选择 1 个常用事项', 'warning'); return; }
+    PORTAL.act('prefs.quick', { list: QK });
+    UI.closeDrawer();
+    UI.toast('常用服务已保存，共 ' + QK.length + ' 项，首页卡片已刷新', 'success');
+  };
+}
+
+function drawQk() {
+  var sel = document.getElementById('qk-sel');
+  sel.innerHTML = QK.length ? QK.map(function (code, i) {
+    var it = PORTAL.item(code);
+    return '<div class="qk-sel-i"><span class="qk-no">' + (i + 1) + '</span>'
+      + '<span class="flex-1">' + UI.esc(it ? it.name : code) + '</span>'
+      + '<button class="btn btn-sm" data-mv="up" data-i="' + i + '"' + (i === 0 ? ' disabled' : '') + ' data-fp="wsmh-02-05"><i class="fa-solid fa-arrow-up"></i></button>'
+      + '<button class="btn btn-sm" data-mv="down" data-i="' + i + '"' + (i === QK.length - 1 ? ' disabled' : '') + ' data-fp="wsmh-02-05"><i class="fa-solid fa-arrow-down"></i></button>'
+      + '<button class="btn btn-sm" data-mv="del" data-i="' + i + '" data-fp="wsmh-02-05"><i class="fa-solid fa-xmark"></i> 移除</button>'
+      + '</div>';
+  }).join('') : '<div class="text-3 text-sm" style="padding:10px 0">还没有选择常用事项，请在下方勾选。</div>';
+
+  sel.querySelectorAll('[data-mv]').forEach(function (b) {
+    b.onclick = function () {
+      var i = Number(b.getAttribute('data-i')), t = b.getAttribute('data-mv');
+      if (t === 'up' && i > 0) { var a = QK[i - 1]; QK[i - 1] = QK[i]; QK[i] = a; }
+      if (t === 'down' && i < QK.length - 1) { var c = QK[i + 1]; QK[i + 1] = QK[i]; QK[i] = c; }
+      if (t === 'del') QK.splice(i, 1);
+      drawQk();
+    };
+  });
+
+  document.getElementById('qk-all').innerHTML = PORTAL.items().map(function (it) {
+    return '<label><input type="checkbox" data-c="' + it.code + '"' + (QK.indexOf(it.code) >= 0 ? ' checked' : '') + '>'
+      + '<span>' + UI.esc(it.name) + '<span class="text-3 text-xs" style="display:block">' + it.dept + '</span></span></label>';
+  }).join('');
+  document.getElementById('qk-all').querySelectorAll('input').forEach(function (ck) {
+    ck.onchange = function () {
+      var code = ck.getAttribute('data-c');
+      if (ck.checked) {
+        if (QK.length >= 8) { ck.checked = false; UI.toast('最多固定 8 个常用事项，请先移除部分', 'warning'); return; }
+        if (QK.indexOf(code) < 0) QK.push(code);
+      } else {
+        QK = QK.filter(function (x) { return x !== code; });
+      }
+      drawQk();
+    };
+  });
+}
+
+/* ============ 最近访问（wsmh-02-05） ============ */
+function renderRecent() {
+  var arr = PORTAL.prefs().recent || [];
+  var box = document.getElementById('recent-box');
+  if (!arr.length) {
+    box.innerHTML = UI.empty('暂无最近访问记录，去办事大厅逛逛',
+      '进入任一办事指南或点击上方常用服务卡片后，这里会自动记录最近 8 条访问。',
+      '<a class="btn btn-primary" href="../web/service-hall.html" data-fp="wsmh-02-05">进入网上办事大厅</a>');
+    return;
+  }
+  box.innerHTML = '<ul class="news-list">' + arr.map(function (r) {
+    return '<li><span class="nl-dot"></span>'
+      + '<span class="nl-t">' + UI.esc(r.name) + '</span>'
+      + '<span class="nl-d">' + r.d + '</span>'
+      + '<button class="btn btn-sm" data-again="' + r.code + '" data-fp="wsmh-02-05">再次办理</button></li>';
+  }).join('') + '</ul>';
+  box.querySelectorAll('[data-again]').forEach(function (b) {
+    b.onclick = function () { goItem(b.getAttribute('data-again')); };
+  });
+}
+
+/* ============ 办件草稿与跨端续办（wsmh-02-07） ============ */
+function dayLeft(s) {
+  if (!s) return 999;
+  var t = new Date(String(s).replace(/-/g, '/') + ' 23:59:59').getTime();
+  return Math.ceil((t - Date.now()) / 86400000);
+}
+function applyUrl(sxdm) {
+  if (sxdm === 'SX0201') return '../web/second-hand-apply.html';
+  if (sxdm === 'SX0301') return '../web/rent-sign.html';
+  return '../web/service-hall.html';
+}
+
+function renderDrafts() {
+  var arr = PORTAL.drafts();
+  var box = document.getElementById('draft-box');
+  var tip = '<div class="alert alert-info"><i class="fa-solid fa-mobile-screen-button"></i>'
+    + '<span>办件草稿、已填信息与已上传材料在<b>门户与微信小程序实时同步</b>，任一端未提交的都可换端接续办理，不重复录入。'
+    + '草稿有效期 30 天，到期未提交自动清理。</span></div>';
+  if (!arr.length) {
+    box.innerHTML = tip + UI.empty('暂无未提交的办件草稿',
+      '在办事大厅填报过程中随时保存，未提交的申报会出现在这里。',
+      '<a class="btn btn-primary" href="../web/service-hall.html" data-fp="wsmh-02-07">去办事大厅</a>');
+    return;
+  }
+  box.innerHTML = tip + '<div class="grid-2">' + arr.map(function (d) {
+    var left = dayLeft(d.yxq);
+    var warn = left <= 7;
+    var fields = 0;
+    for (var k in d.data) { if (d.data.hasOwnProperty(k)) fields++; }
+    return '<div class="draft-i' + (warn ? ' warn' : '') + '">'
+      + '<div class="flex items-center gap-8">'
+      + '<span class="draft-t flex-1">' + UI.esc(d.sxmc) + '</span>'
+      + (warn ? '<span class="badge red"><i class="fa-solid fa-triangle-exclamation"></i> 即将失效</span>'
+        : '<span class="badge blue">第 ' + d.step + ' 步</span>') + '</div>'
+      + '<div class="draft-m">'
+      + '当前步骤：<b>第 ' + d.step + ' 步</b>　已填字段 <b>' + fields + '</b> 项　已传材料 <b>' + d.files.length + '</b> 份<br>'
+      + '创建时间：<b>' + d.cjsj + '</b>　来源端：<b>' + UI.esc(d.from) + '</b><br>'
+      + '到期时间：<b>' + d.yxq + '</b>　剩余 <b class="' + (warn ? 'text-accent' : 'text-2') + '">' + (left < 0 ? 0 : left) + '</b> 天'
+      + (d.files.length ? '<br>已传材料：' + d.files.map(function (f) { return UI.esc(f); }).join('、') : '')
+      + '</div>'
+      + '<div class="flex gap-8 mt-12">'
+      + '<button class="btn btn-sm btn-primary" data-go="' + d.id + '" data-sx="' + d.sxdm + '" data-fp="wsmh-02-07"><i class="fa-solid fa-play"></i> 继续办理</button>'
+      + '<button class="btn btn-sm" data-del="' + d.id + '" data-fp="wsmh-02-07"><i class="fa-regular fa-trash-can"></i> 删除草稿</button>'
+      + '</div></div>';
+  }).join('') + '</div>';
+
+  box.querySelectorAll('[data-go]').forEach(function (b) {
+    b.onclick = function () {
+      UI.go(applyUrl(b.getAttribute('data-sx')), { draft: b.getAttribute('data-go') });
+    };
+  });
+  box.querySelectorAll('[data-del]').forEach(function (b) {
+    b.onclick = function () {
+      var id = b.getAttribute('data-del');
+      var d = PORTAL.draft(id);
+      UI.confirm('删除办件草稿',
+        '删除后「<b>' + UI.esc(d ? d.sxmc : '') + '</b>」草稿中已填写的信息与已上传材料将一并清除，且不可恢复。确定删除吗？',
+        function () {
+          PORTAL.act('draft.del', { id: id });
+          UI.toast('草稿已删除，微信小程序端同步移除', 'success');
+        }, '确定删除');
+    };
+  });
+}
+
+/* ============ 在办办件速览 ============ */
+function caseProg(c) {
+  var done = 0;
+  c.steps.forEach(function (s) { if (s.s === 1) done++; });
+  return Math.round(done / c.steps.length * 100);
+}
+
+function renderCases() {
+  var arr = PORTAL.cases().slice(0, 3);
+  var box = document.getElementById('case-box');
+  if (!arr.length) {
+    box.innerHTML = UI.empty('暂无办件记录', '在网上办事大厅提交申报后，办件会出现在这里。',
+      '<a class="btn btn-primary" href="../web/service-hall.html" data-fp="wsmh-30-01">去办事大厅</a>');
+    return;
+  }
+  box.innerHTML = '<div class="grid-3">' + arr.map(function (c) {
+    var p = caseProg(c);
+    var cls = c.zt === '4' ? ' green' : (c.zt === '3' || c.zt === '5' ? ' orange' : '');
+    return '<a class="case-i" href="my-case-detail.html?id=' + c.id + '" style="color:inherit" data-fp="wsmh-30-01">'
+      + '<div class="flex items-center gap-8"><span class="flex-1 bold">' + UI.esc(c.sxmc) + '</span>' + PORTAL.caseBadge(c) + '</div>'
+      + '<div class="text-xs text-3 mt-8">' + c.bh + '　' + UI.esc(c.fw) + '</div>'
+      + '<div class="text-xs text-3">' + c.dept + '　申请 ' + c.sqrq + '</div>'
+      + '<div class="prog-t"><span class="prog-f' + cls + '" style="display:block;width:' + p + '%"></span></div>'
+      + '<div class="text-xs text-3 mt-8">办理进度 ' + p + '%'
+      + (c.zt === '3' ? '　<span class="text-warning">待补正，剩余 ' + c.xqts + ' 天</span>' : '') + '</div>'
+      + '</a>';
+  }).join('') + '</div>';
+}
+
+/* ============ 我的房产速览 ============ */
+function renderHouses() {
+  var cts = PORTAL.contracts();
+  var mortgage = PORTAL.loans().filter(function (l) { return l.zt === '已放款'; })[0];
+  var box = document.getElementById('house-box');
+  if (!cts.length) {
+    box.innerHTML = UI.empty('暂无本人名下房产记录',
+      '完成网签备案与产权过户后，房产信息会同步到这里。',
+      '<a class="btn btn-primary" href="../web/query-house.html" data-fp="wsmh-26-04">去个人房产信息查询</a>');
+    return;
+  }
+  box.innerHTML = '<div class="table-wrap" style="border:0;border-radius:0"><table class="pub-table">'
+    + '<thead><tr><th>房屋坐落</th><th style="width:100px">建筑面积</th><th style="width:150px">权属状态</th>'
+    + '<th style="width:210px">抵押状态</th><th style="width:120px">操作</th></tr></thead><tbody>'
+    + cts.slice(0, 2).map(function (c, i) {
+      var dy = (i === 0 && mortgage)
+        ? '<span class="badge orange"><i class="fa-solid fa-building-columns"></i> 抵押中</span> ' + UI.esc(mortgage.yh)
+        : '<span class="badge green">无抵押登记</span>';
+      return '<tr><td class="strong">' + UI.esc(c.xmmc) + ' ' + UI.esc(PORTAL.mask('fh', c.fw)) + '</td>'
+        + '<td class="num">' + c.mj + ' ㎡</td>'
+        + '<td>' + (c.ba === '已备案'
+          ? '<span class="badge blue">已备案 · 待产权过户</span>'
+          : '<span class="badge cyan">' + UI.esc(c.ba) + '</span>') + '</td>'
+        + '<td>' + dy + '</td>'
+        + '<td class="acts"><a href="../web/query-house.html" data-fp="wsmh-26-04">查询详情</a></td></tr>';
+    }).join('')
+    + '</tbody></table>'
+    + '<div class="table-note">房屋坐落房号按规定截断展示；完整房号、权利人姓名与证件号需二次身份核验后查看，查看行为全程留痕。</div></div>';
+}
+
+/* ============ 最新消息 ============ */
+function renderMsgs() {
+  var arr = PORTAL.msgs().slice(0, 4);
+  var box = document.getElementById('msg-box');
+  if (!arr.length) { box.innerHTML = UI.empty('暂无消息'); return; }
+  box.innerHTML = arr.map(function (m) {
+    return '<div class="msg-i"><span class="msg-dot' + (m.r ? ' read' : '') + '"></span>'
+      + '<div class="flex-1">'
+      + '<div class="flex items-center gap-8">'
+      + '<span class="badge ' + msgColor(m.lx) + '">' + UI.esc(m.lx) + '</span>'
+      + '<span class="bold">' + UI.esc(m.bt) + '</span>'
+      + '<span class="ml-auto text-xs text-3">' + m.d + '</span></div>'
+      + '<div class="text-sm text-3 mt-8">' + UI.esc(m.c) + '</div></div></div>';
+  }).join('')
+    + '<div class="mt-12"><a class="btn btn-sm btn-ghost" href="my-cert.html?tab=mc-msg" data-fp="wsmh-30-09">'
+    + '查看全部消息（未读 ' + PORTAL.unread() + ' 条）</a></div>';
+}
+function msgColor(lx) {
+  var M = { '补正提醒': 'orange', '退件通知': 'red', '办结通知': 'green', '缴款到账': 'green',
+    '公示订阅': 'cyan', '授权申请': 'purple', '出证通知': 'blue' };
+  return M[lx] || 'blue';
+}
+</script>
+</body>
+</html>

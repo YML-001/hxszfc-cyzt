@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>华信数智房产交易一体化平台 · 原型导航</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="assets/css/app.css">
+<style>
+  /* 子系统入口宫格：一格一个子系统，图标居左、名称与规模居右；全部平铺，不分端不分角色 */
+  .sys-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 12px; }
+  .sys-tile {
+    display: flex; align-items: flex-start; gap: 12px; padding: 14px;
+    border: 1px solid var(--border); border-radius: var(--radius); background: #fff; transition: all .18s;
+  }
+  .sys-tile:hover { border-color: var(--primary); box-shadow: 0 4px 12px rgba(38, 86, 187, .12); transform: translateY(-2px); }
+  .sys-tile .t-body { min-width: 0; flex: 1; }
+  .sys-tile .t-name { font-size: 14px; font-weight: 600; color: var(--text-1); line-height: 1.4; }
+  .sys-tile .t-meta { font-size: 12.5px; color: var(--text-3); margin-top: 4px; }
+  .sys-tile .t-tag { font-size: 12.5px; color: var(--primary); margin-top: 3px; }
+</style>
+</head>
+<body>
+<main class="app-main" style="margin-left:0;margin-top:0">
+  <div class="home-hero">
+    <div class="hero-l">
+      <div class="hero-greet">华信数智房产交易一体化平台 · 原型导航</div>
+      <div class="hero-sub">选择任一子系统进入。进入后不分端、不分角色，侧栏一次性展示该子系统的全部菜单；顶栏可切换其他子系统。</div>
+      <div class="hero-date"><i class="fa-regular fa-calendar"></i> 菜单口径《菜单梳理 v1.0》 · 功能口径《功能板块梳理 v1.9》 · 样式基线《政务蓝基线 v1.0》</div>
+    </div>
+    <div class="hero-r" id="hero-stats"></div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>本页已扁平化：不再按业务办理端 / 单位机构端 / 统一服务门户 / 数据中心 / 数智大脑 / 移动端分组，
+      直接罗列全部子系统入口。点击任一子系统即以「全功能视图」进入，侧栏合并展示该子系统在各端的所有菜单，
+      不再按登录身份隐藏。统一服务门户、移动端仍进入各自的独立应用。</div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-layer-group"></i> 全部子系统入口</h3>
+      <span class="sub" id="sys-count"></span>
+    </div>
+    <div class="card-body">
+      <div class="sys-grid" id="sys-grid"></div>
+    </div>
+  </div>
+</main>
+
+<script src="assets/js/catalog.js"></script>
+<script>
+(function () {
+  'use strict';
+  var C = window.CATALOG;
+  var SUBS = C.subs, MENUS = C.menus || {};
+  var COLORS = ['blue', 'green', 'cyan', 'orange', 'purple', 'red'];
+  /* 保留各自独立应用的子系统入口 */
+  var OWN_APP = {
+    wsbiz: 'modules/wsbiz/biz/portal-home.html',
+    wsmh: 'modules/wsmh/index.html',
+    wsyd: 'mobile/index.html'
+  };
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+
+  function pointsOf(sub) {
+    var n = 0;
+    (sub.menus || []).forEach(function (mk) {
+      var m = MENUS[mk];
+      if (m && m.points) n += m.points.length;
+    });
+    return n;
+  }
+
+  function hrefOf(key) {
+    if (OWN_APP[key]) return OWN_APP[key];
+    return 'all/shell.html?e=all&sys=' + key + '&role=all';
+  }
+
+  function tag(key) {
+    if (key === 'wsbiz') return '统一工作门户 · 直接进入';
+    if (key === 'wsmh') return '独立门户应用 · 直接进入';
+    if (key === 'wsyd') return '独立移动端应用 · 直接进入';
+    return '全功能视图 · 不分端不分角色';
+  }
+
+  function render() {
+    var keys = Object.keys(SUBS);
+    var totalMenus = 0, totalPts = 0;
+    keys.forEach(function (k) {
+      totalMenus += (SUBS[k].menus || []).length;
+      totalPts += pointsOf(SUBS[k]);
+    });
+
+    document.getElementById('hero-stats').innerHTML =
+      [[keys.length, '业务子系统'], [totalMenus, '菜单页面'], [totalPts, '二级功能点']]
+        .map(function (x) { return '<div class="hs"><div class="hs-v">' + x[0] + '</div><div class="hs-l">' + x[1] + '</div></div>'; })
+        .join('<div class="hs-div"></div>');
+
+    document.getElementById('sys-count').textContent = '共 ' + keys.length + ' 个子系统 · 点击进入即展示全部菜单';
+
+    document.getElementById('sys-grid').innerHTML = keys.map(function (k, i) {
+      var sub = SUBS[k], pts = pointsOf(sub);
+      return '<a class="sys-tile" href="' + hrefOf(k) + '">'
+        + '<span class="q-ico ' + COLORS[i % COLORS.length] + '"><i class="fa-solid ' + sub.icon + '"></i></span>'
+        + '<span class="t-body"><span class="t-name">' + esc(sub.name) + '</span>'
+        + '<div class="t-meta">' + esc(sub.line) + ' · ' + (sub.menus || []).length + ' 个菜单 · ' + pts + ' 个功能点</div>'
+        + '<div class="t-tag"><i class="fa-solid fa-layer-group"></i> ' + tag(k) + '</div></span></a>';
+    }).join('');
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>档案备份与长期保管 · 房屋交易档案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  .no-code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; }
+  .hash { font-family: Consolas, "Courier New", monospace; font-size: 12px; color: var(--text-3); cursor: help; }
+  .s-unit { font-size: 12.5px; font-weight: 500; color: var(--text-3); margin-left: 3px; }
+  .fw-400 { font-weight: 400; }
+  .form-static { display: flex; align-items: center; gap: 8px; min-height: 34px; font-size: 13.5px; }
+  .form-static input[type="checkbox"] { width: auto; height: auto; }
+  .modal-head { display: flex; align-items: center; gap: 10px; }
+  .modal-head h3 { font-size: 16px; font-weight: 700; }
+  .modal-head .close { margin-left: auto; cursor: pointer; color: var(--text-3); font-size: 18px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: none; border: 0; }
+  .modal-head .close:hover { background: var(--bg-soft); color: var(--text-1); }
+  /* 本页特有：待验证 / 不可恢复行强提示 */
+  .data-table tbody tr.wv-row td:first-child { box-shadow: inset 3px 0 0 var(--warning); }
+  .data-table tbody tr.bad-row { background: #fff5f5; }
+  .data-table tbody tr.bad-row td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
+  /* 本页特有：恢复验证弹窗 */
+  .vf-info { background: var(--bg-soft); border-radius: 8px; padding: 12px 14px; font-size: 13px; line-height: 1.9; }
+  .vf-info b { font-weight: 700; }
+  .rt-line { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px dashed var(--border); font-size: 13px; }
+  .rt-line:last-child { border-bottom: 0; }
+  .rt-line .k { width: 120px; color: var(--text-3); }
+  .rt-line .v { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .run-bar { height: 8px; border-radius: 4px; background: var(--bg-soft); overflow: hidden; margin: 10px 0 6px; }
+  .run-bar i { display: block; height: 100%; width: 0; background: var(--primary); transition: width .25s linear; }
+  .cc-card { border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; font-size: 14px; font-weight: 600; }
+  .cc-card.ok { background: var(--success-light); color: var(--success); }
+  .cc-card.no { background: var(--danger-light); color: var(--danger); }
+  .cc-card i { font-size: 22px; }
+  /* 本页特有：介质容量条 */
+  .md-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .md-card { border: 1px solid var(--border); border-radius: 10px; padding: 13px 15px; }
+  .md-card .t { font-size: 13.5px; font-weight: 700; display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
+  .md-card .n { font-size: 12.5px; color: var(--text-3); }
+  .md-bar { height: 6px; border-radius: 3px; background: var(--bg-soft); overflow: hidden; margin: 9px 0 5px; }
+  .md-bar i { display: block; height: 100%; background: var(--primary); }
+  .md-bar i.warn { background: var(--warning); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdagl-14">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> <a class="link" href="index.html">房屋交易档案管理系统</a>
+        <span class="sep">/</span> 档案保管利用
+        <span class="sep">/</span> <span class="cur">档案备份与长期保管</span>
+      </div>
+      <div class="page-title">档案备份与长期保管</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" onclick="PMS.openModal('mdNew')"><i class="fa-solid fa-plus"></i> 新建备份任务</button>
+      <button type="button" class="btn" onclick="PMS.toast('已导出《备份台账》Excel','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-shield-halved"></i>
+    <div>
+      恢复验证是备份可用性的唯一凭据。<b>未通过恢复验证的备份，不能作为档案销毁的前置条件</b>，
+      鉴定销毁流程会在<a class="link" href="appraise-destroy.html">销毁前强制校验</a>中直接拦截。当前有 <b class="text-warning">3 批</b>待执行恢复验证。
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-database"></i></div>
+      <div><div class="s-label">有效备份</div><div class="s-value">42<span class="s-unit">批</span></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-hard-drive"></i></div>
+      <div><div class="s-label">备份总量</div><div class="s-value">2.86<span class="s-unit">TB</span></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-calendar-check"></i></div>
+      <div><div class="s-label">本月备份</div><div class="s-value">6<span class="s-unit">批</span></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-rotate"></i></div>
+      <div><div class="s-label">恢复验证待执行</div><div class="s-value text-warning">3<span class="s-unit">批</span></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-tower-broadcast"></i></div>
+      <div><div class="s-label">异地容灾备份</div><div class="s-value">8<span class="s-unit">批</span></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3><i class="fa-solid fa-compact-disc"></i> 备份介质使用情况</h3></div>
+    <div class="card-body">
+      <div class="md-grid">
+        <div class="md-card">
+          <div class="t"><i class="fa-solid fa-server text-primary"></i> 磁盘阵列 DA-01</div>
+          <div class="n">主备份介质 · 机房 A 区</div>
+          <div class="md-bar"><i style="width:68%"></i></div>
+          <div class="n">已用 13.6 TB / 20 TB（68%）</div>
+        </div>
+        <div class="md-card">
+          <div class="t"><i class="fa-solid fa-tape text-primary"></i> 磁带库 TP-02</div>
+          <div class="n">离线归档 · 机房 B 区</div>
+          <div class="md-bar"><i style="width:42%"></i></div>
+          <div class="n">已用 21 盘 / 50 盘（42%）</div>
+        </div>
+        <div class="md-card">
+          <div class="t"><i class="fa-solid fa-tower-broadcast text-primary"></i> 异地机房 YD-柳东</div>
+          <div class="n">异地容灾 · 柳东新区</div>
+          <div class="md-bar"><i class="warn" style="width:82%"></i></div>
+          <div class="n">已用 8.2 TB / 10 TB（82%，建议扩容）</div>
+        </div>
+        <div class="md-card">
+          <div class="t"><i class="fa-solid fa-cloud text-primary"></i> 政务云存储</div>
+          <div class="n">在线副本 · 广西数字政务一体化平台</div>
+          <div class="md-bar"><i style="width:34%"></i></div>
+          <div class="n">已用 3.4 TB / 10 TB（34%）</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3><i class="fa-solid fa-list"></i> 备份台账</h3></div>
+    <div class="card-body">
+      <div class="filter-bar" style="border-radius:8px;border:1px solid var(--border)">
+        <div class="filter-item"><label>备份编号</label><input type="text" placeholder="如 BF2026080101"></div>
+        <div class="filter-item">
+          <label>备份类型</label>
+          <select><option value="">全部</option><option>全量备份</option><option>增量备份</option><option>差异备份</option><option>异地容灾</option></select>
+        </div>
+        <div class="filter-item"><label>备份年度范围</label><input type="text" placeholder="如 2015 ~ 2016"></div>
+        <div class="filter-item">
+          <label>备份介质</label>
+          <select><option value="">全部</option><option>磁盘阵列</option><option>磁带</option><option>光盘</option><option>云存储</option><option>异地机房</option></select>
+        </div>
+        <div class="filter-item">
+          <label>备份结果</label>
+          <select><option value="">全部</option><option>成功</option><option>部分成功</option><option>失败</option></select>
+        </div>
+        <div class="filter-item">
+          <label>校验状态</label>
+          <select><option value="">全部</option><option>未校验</option><option>校验通过</option><option>校验失败</option></select>
+        </div>
+        <div class="filter-item">
+          <label>恢复验证结果</label>
+          <select><option value="">全部</option><option>未验证</option><option>可恢复</option><option>不可恢复</option></select>
+        </div>
+        <div class="filter-item"><label>备份开始时间</label><input type="date" value="2026-01-01"></div>
+        <div class="filter-item"><label>至</label><input type="date" value="2026-08-01"></div>
+        <div class="filter-item">
+          <label>备份状态</label>
+          <select><option value="">全部</option><option>有效</option><option>已过期</option><option>已销毁</option></select>
+        </div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件查询到 8 批备份记录')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn" onclick="PMS.toast('已重置筛选条件')">重置</button>
+        </div>
+      </div>
+
+      <div class="table-wrap mt-16">
+        <table class="data-table" id="tblBf">
+          <thead>
+            <tr>
+              <th>备份编号</th>
+              <th>备份类型</th>
+              <th>备份范围 / 年度</th>
+              <th class="num">案卷 / 文件 / 数据量</th>
+              <th>备份介质 / 介质编号</th>
+              <th>存放位置</th>
+              <th>备份起止 / 耗时</th>
+              <th>备份结果</th>
+              <th>校验值 / 校验状态</th>
+              <th>恢复验证</th>
+              <th>保存期限 / 到期</th>
+              <th>备份状态</th>
+              <th style="width:150px">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="nowrap fw-600 no-code">BF2026080101</td>
+              <td class="nowrap"><span class="badge blue">全量备份</span></td>
+              <td class="cell-lg">2016 年度定期 10 年到期档案（销毁前备份）<br><span class="text-3 text-sm">2016 ~ 2016</span></td>
+              <td class="num">486 / 12,846<br><span class="text-3 text-sm">86.42 GB</span></td>
+              <td class="nowrap">磁盘阵列 + 异地机房<br><span class="text-3 text-sm no-code">DA-01 / YD-柳东</span></td>
+              <td class="nowrap">机房 A 区<br><span class="text-3 text-sm">柳东新区容灾机房</span></td>
+              <td class="nowrap">07-29 22:00 → 07-30 01:26<br><span class="text-3 text-sm">3 小时 26 分</span></td>
+              <td class="nowrap"><span class="badge green">成功</span></td>
+              <td class="nowrap"><span class="hash" title="SHA-256: 8f3a2c91d47b6e05a8c2f19d3b74e6c08f3a2c91d47b6e05a8c2f19d3b74e6c0">8f3a2c91…e6c0</span><br><span class="badge green">校验通过</span></td>
+              <td class="nowrap">2026-07-30<br><span class="badge green">可恢复</span></td>
+              <td class="nowrap">30 年<br><span class="text-3 text-sm">2056-07-30</span></td>
+              <td class="nowrap"><span class="badge green">有效</span></td>
+              <td class="col-ops">
+                <a class="link" onclick="openVf('BF2026080101',1)">详情</a>
+                <a class="link" href="appraise-destroy.html">关联销毁</a>
+              </td>
+            </tr>
+            <tr class="wv-row">
+              <td class="nowrap fw-600 no-code">BF2026072801</td>
+              <td class="nowrap"><span class="badge cyan">增量备份</span></td>
+              <td class="cell-lg">2026 年 7 月新增归档电子档案<br><span class="text-3 text-sm">2026 ~ 2026</span></td>
+              <td class="num">1,286 / 28,642<br><span class="text-3 text-sm">186.24 GB</span></td>
+              <td class="nowrap">磁盘阵列<br><span class="text-3 text-sm no-code">DA-01</span></td>
+              <td class="nowrap">机房 A 区</td>
+              <td class="nowrap">07-28 23:00 → 07-29 02:12<br><span class="text-3 text-sm">3 小时 12 分</span></td>
+              <td class="nowrap"><span class="badge green">成功</span></td>
+              <td class="nowrap"><span class="hash" title="SHA-256: 2b7d94e6c08f3a2c91d47b6e05a8c2f19d3b74e6c02b7d94e6c08f3a2c91d47b">2b7d94e6…d47b</span><br><span class="badge green">校验通过</span></td>
+              <td class="nowrap"><span class="badge orange">未验证</span></td>
+              <td class="nowrap">30 年<br><span class="text-3 text-sm">2056-07-29</span></td>
+              <td class="nowrap"><span class="badge green">有效</span></td>
+              <td class="col-ops">
+                <a class="link fw-600" onclick="openVf('BF2026072801',0)">执行恢复验证</a>
+                <a class="link" onclick="openVf('BF2026072801',0)">详情</a>
+              </td>
+            </tr>
+            <tr class="bad-row">
+              <td class="nowrap fw-600 no-code">
+                <i class="fa-solid fa-triangle-exclamation text-danger" title="该备份不可恢复，关联的销毁计划将被拦截"></i>
+                BF2026061502
+              </td>
+              <td class="nowrap"><span class="badge purple">异地容灾</span></td>
+              <td class="cell-lg">2013 ~ 2014 年度存量房交易档案<br><span class="text-3 text-sm">2013 ~ 2014</span></td>
+              <td class="num">862 / 18,426<br><span class="text-3 text-sm">124.86 GB</span></td>
+              <td class="nowrap">异地机房<br><span class="text-3 text-sm no-code">YD-柳东</span></td>
+              <td class="nowrap">柳东新区容灾机房</td>
+              <td class="nowrap">06-15 22:00 → 06-16 03:48<br><span class="text-3 text-sm">5 小时 48 分</span></td>
+              <td class="nowrap"><span class="badge orange">部分成功</span></td>
+              <td class="nowrap"><span class="hash" title="SHA-256: c91d47b6e05a8c2f19d3b74e6c08f3a2c91d47b6e05a8c2f19d3b74e6c08f3a2">c91d47b6…f3a2</span><br><span class="badge red">校验失败</span></td>
+              <td class="nowrap">2026-06-18<br><span class="badge red">不可恢复</span></td>
+              <td class="nowrap">30 年<br><span class="text-3 text-sm">2056-06-16</span></td>
+              <td class="nowrap"><span class="badge red">有效（异常）</span></td>
+              <td class="col-ops">
+                <a class="link text-danger fw-600" onclick="PMS.toast('已创建重新备份任务 BF2026080102，计划今晚 22:00 执行','warning')">重新备份</a>
+                <a class="link" onclick="openVf('BF2026061502',2)">详情</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600 no-code">BF2026063001</td>
+              <td class="nowrap"><span class="badge blue">全量备份</span></td>
+              <td class="cell-lg">2026 年上半年全量档案影像<br><span class="text-3 text-sm">2026 ~ 2026</span></td>
+              <td class="num">8,624 / 186,428<br><span class="text-3 text-sm">1.24 TB</span></td>
+              <td class="nowrap">磁盘阵列 + 云存储<br><span class="text-3 text-sm no-code">DA-01 / CLOUD-GX</span></td>
+              <td class="nowrap">机房 A 区<br><span class="text-3 text-sm">广西政务云</span></td>
+              <td class="nowrap">06-30 20:00 → 07-01 08:42<br><span class="text-3 text-sm">12 小时 42 分</span></td>
+              <td class="nowrap"><span class="badge green">成功</span></td>
+              <td class="nowrap"><span class="hash" title="SHA-256: 5e6c08f3a2c91d47b6e05a8c2f19d3b74e6c08f3a2c91d47b6e05a8c2f19d3b7">5e6c08f3…d3b7</span><br><span class="badge green">校验通过</span></td>
+              <td class="nowrap">2026-07-02<br><span class="badge green">可恢复</span></td>
+              <td class="nowrap">30 年<br><span class="text-3 text-sm">2056-07-01</span></td>
+              <td class="nowrap"><span class="badge green">有效</span></td>
+              <td class="col-ops">
+                <a class="link" onclick="openVf('BF2026063001',1)">详情</a>
+              </td>
+            </tr>
+            <tr class="wv-row">
+              <td class="nowrap fw-600 no-code">BF2026072001</td>
+              <td class="nowrap"><span class="badge gray">差异备份</span></td>
+              <td class="cell-lg">2026 年 7 月上旬变更档案（含勘误）<br><span class="text-3 text-sm">2026 ~ 2026</span></td>
+              <td class="num">324 / 6,842<br><span class="text-3 text-sm">42.68 GB</span></td>
+              <td class="nowrap">磁盘阵列<br><span class="text-3 text-sm no-code">DA-01</span></td>
+              <td class="nowrap">机房 A 区</td>
+              <td class="nowrap">07-20 23:00 → 07-21 00:26<br><span class="text-3 text-sm">1 小时 26 分</span></td>
+              <td class="nowrap"><span class="badge green">成功</span></td>
+              <td class="nowrap"><span class="hash" title="SHA-256: a8c2f19d3b74e6c08f3a2c91d47b6e05a8c2f19d3b74e6c08f3a2c91d47b6e05">a8c2f19d…6e05</span><br><span class="badge green">校验通过</span></td>
+              <td class="nowrap"><span class="badge orange">未验证</span></td>
+              <td class="nowrap">30 年<br><span class="text-3 text-sm">2056-07-21</span></td>
+              <td class="nowrap"><span class="badge green">有效</span></td>
+              <td class="col-ops">
+                <a class="link fw-600" onclick="openVf('BF2026072001',0)">执行恢复验证</a>
+                <a class="link" onclick="openVf('BF2026072001',0)">详情</a>
+              </td>
+            </tr>
+            <tr class="wv-row">
+              <td class="nowrap fw-600 no-code">BF2026071001</td>
+              <td class="nowrap"><span class="badge purple">异地容灾</span></td>
+              <td class="cell-lg">2024 ~ 2025 年度商品房交易档案<br><span class="text-3 text-sm">2024 ~ 2025</span></td>
+              <td class="num">2,486 / 52,864<br><span class="text-3 text-sm">386.42 GB</span></td>
+              <td class="nowrap">异地机房<br><span class="text-3 text-sm no-code">YD-柳东</span></td>
+              <td class="nowrap">柳东新区容灾机房</td>
+              <td class="nowrap">07-10 21:00 → 07-11 04:26<br><span class="text-3 text-sm">7 小时 26 分</span></td>
+              <td class="nowrap"><span class="badge green">成功</span></td>
+              <td class="nowrap"><span class="hash" title="SHA-256: 74e6c08f3a2c91d47b6e05a8c2f19d3b74e6c08f3a2c91d47b6e05a8c2f19d3b">74e6c08f…9d3b</span><br><span class="badge green">校验通过</span></td>
+              <td class="nowrap"><span class="badge orange">未验证</span></td>
+              <td class="nowrap">30 年<br><span class="text-3 text-sm">2056-07-11</span></td>
+              <td class="nowrap"><span class="badge green">有效</span></td>
+              <td class="col-ops">
+                <a class="link fw-600" onclick="openVf('BF2026071001',0)">执行恢复验证</a>
+                <a class="link" onclick="openVf('BF2026071001',0)">详情</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600 no-code">BF2025123101</td>
+              <td class="nowrap"><span class="badge blue">全量备份</span></td>
+              <td class="cell-lg">2025 年度全量档案影像（年度归档备份）<br><span class="text-3 text-sm">2025 ~ 2025</span></td>
+              <td class="num">12,486 / 268,420<br><span class="text-3 text-sm">1.86 TB</span></td>
+              <td class="nowrap">磁带<br><span class="text-3 text-sm no-code">TP-02-018 ~ 024</span></td>
+              <td class="nowrap">机房 B 区磁带柜</td>
+              <td class="nowrap">12-31 18:00 → 01-01 09:24<br><span class="text-3 text-sm">15 小时 24 分</span></td>
+              <td class="nowrap"><span class="badge green">成功</span></td>
+              <td class="nowrap"><span class="hash" title="SHA-256: 19d3b74e6c08f3a2c91d47b6e05a8c2f19d3b74e6c08f3a2c91d47b6e05a8c2f">19d3b74e…8c2f</span><br><span class="badge green">校验通过</span></td>
+              <td class="nowrap">2026-01-06<br><span class="badge green">可恢复</span></td>
+              <td class="nowrap">30 年<br><span class="text-3 text-sm">2056-01-01</span></td>
+              <td class="nowrap"><span class="badge green">有效</span></td>
+              <td class="col-ops">
+                <a class="link" onclick="openVf('BF2025123101',1)">详情</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600 no-code">BF2019063001</td>
+              <td class="nowrap"><span class="badge gray">全量备份</span></td>
+              <td class="cell-lg">2018 年度光盘备份（介质已老化）<br><span class="text-3 text-sm">2018 ~ 2018</span></td>
+              <td class="num">6,428 / 138,264<br><span class="text-3 text-sm">862.4 GB</span></td>
+              <td class="nowrap">光盘<br><span class="text-3 text-sm no-code">CD-2019-001 ~ 186</span></td>
+              <td class="nowrap">机房 B 区光盘柜</td>
+              <td class="nowrap">2019-06-30 → 2019-07-02<br><span class="text-3 text-sm">42 小时</span></td>
+              <td class="nowrap"><span class="badge green">成功</span></td>
+              <td class="nowrap"><span class="hash" title="SHA-256: 3b74e6c08f3a2c91d47b6e05a8c2f19d3b74e6c08f3a2c91d47b6e05a8c2f19d">3b74e6c0…f19d</span><br><span class="badge green">校验通过</span></td>
+              <td class="nowrap">2024-06-28<br><span class="badge green">可恢复</span></td>
+              <td class="nowrap">7 年<br><span class="text-danger text-sm">2026-06-30 已到期</span></td>
+              <td class="nowrap"><span class="badge gray">已过期</span></td>
+              <td class="col-ops">
+                <a class="link" onclick="openVf('BF2019063001',1)">详情</a>
+                <a class="link" onclick="PMS.toast('已迁移至磁盘阵列，新备份编号 BF2026080103','success')">介质迁移</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="mdVf">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>恢复验证 <span class="badge blue no-code" id="vfNo">BF2026072801</span></h3>
+        <button type="button" class="close" onclick="PMS.closeModal('mdVf')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="vf-info">
+          <div>备份类型：<b id="vfType">增量备份</b>　备份范围：<b id="vfScope">2026 年 7 月新增归档电子档案</b></div>
+          <div>备份内容：<b id="vfCnt">1,286 卷 / 28,642 个文件 / 186.24 GB</b>　备份介质：<b id="vfMedia">磁盘阵列 DA-01（机房 A 区）</b></div>
+          <div>校验值：<span class="hash" id="vfHash">2b7d94e6c08f3a2c91d47b6e05a8c2f19d3b74e6c02b7d94e6c08f3a2c91d47b</span></div>
+        </div>
+
+        <div class="section-title mt-16">验证配置</div>
+        <div class="form-grid form-align">
+          <div class="form-item">
+            <label>抽验比例<span class="req">*</span></label>
+            <select id="vfRate" onchange="rate()">
+              <option value="1">1%（抽验 286 个文件）</option>
+              <option value="5">5%（抽验 1,432 个文件）</option>
+              <option value="10">10%（抽验 2,864 个文件）</option>
+              <option value="100">100% 全量恢复验证（耗时较长）</option>
+            </select>
+          </div>
+          <div class="form-item">
+            <label>恢复目标</label>
+            <select><option>临时验证区（不影响生产数据）</option><option>指定目录</option></select>
+          </div>
+          <div class="form-item col-full">
+            <label>验证说明</label>
+            <input type="text" value="按季度恢复验证计划执行，验证结果作为备份可用性依据">
+          </div>
+        </div>
+
+        <div id="vfRun" style="display:none">
+          <div class="section-title mt-16">验证执行</div>
+          <div class="run-bar"><i id="vfBar"></i></div>
+          <div class="text-3 text-sm" id="vfTip">正在从磁盘阵列 DA-01 抽取样本文件…</div>
+        </div>
+
+        <div id="vfRes" style="display:none">
+          <div class="section-title mt-16">验证结果</div>
+          <div class="cc-card ok" id="vfCard">
+            <i class="fa-solid fa-circle-check"></i>
+            <div>
+              <div>恢复验证通过，结论：可恢复</div>
+              <div class="text-sm fw-400" style="opacity:.85">该备份可作为档案销毁的前置条件</div>
+            </div>
+          </div>
+          <div class="mt-16">
+            <div class="rt-line"><span class="k">抽验文件数</span><span class="v" id="rt1">286</span><span class="text-3">个</span></div>
+            <div class="rt-line"><span class="k">成功恢复数</span><span class="v text-success" id="rt2">286</span><span class="text-3">个（100%）</span></div>
+            <div class="rt-line"><span class="k">恢复失败数</span><span class="v" id="rt3">0</span><span class="text-3">个</span></div>
+            <div class="rt-line"><span class="k">校验值比对</span><span class="v text-success" id="rt4">全部一致</span></div>
+            <div class="rt-line"><span class="k">恢复耗时</span><span class="v">2 分 18 秒</span></div>
+            <div class="rt-line"><span class="k">验证时间</span><span class="v">2026-08-01 19:26</span><span class="text-3">操作人 覃永明</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="PMS.closeModal('mdVf')">关闭</button>
+        <button type="button" class="btn btn-primary" id="vfBtn" onclick="runVf()"><i class="fa-solid fa-play"></i> 执行恢复验证</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="mdNew">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>新建备份任务</h3>
+        <button type="button" class="close" onclick="PMS.closeModal('mdNew')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid form-align">
+          <div class="form-item">
+            <label>备份类型<span class="req">*</span></label>
+            <select><option>全量备份</option><option selected>增量备份</option><option>差异备份</option><option>异地容灾</option></select>
+          </div>
+          <div class="form-item">
+            <label>备份介质<span class="req">*</span></label>
+            <select><option>磁盘阵列 DA-01</option><option>磁带库 TP-02</option><option>异地机房 YD-柳东</option><option>政务云存储</option></select>
+          </div>
+          <div class="form-item">
+            <label>备份年度范围<span class="req">*</span></label>
+            <input type="text" value="2026 ~ 2026">
+          </div>
+          <div class="form-item">
+            <label>保存期限<span class="req">*</span></label>
+            <select><option>30 年</option><option>10 年</option><option>7 年</option><option>永久</option></select>
+          </div>
+          <div class="form-item">
+            <label>执行时间<span class="req">*</span></label>
+            <input type="datetime-local" value="2026-08-01T22:00">
+          </div>
+          <div class="form-item">
+            <label>备份后自动恢复验证</label>
+            <div class="form-static">
+              <input type="checkbox" id="swAuto" checked>
+              <label for="swAuto">备份完成后自动按 1% 抽验</label>
+            </div>
+          </div>
+          <div class="form-item col-full">
+            <label>备份范围说明<span class="req">*</span></label>
+            <textarea rows="2" placeholder="说明本次备份覆盖的档案范围">2026 年 8 月新增归档电子档案及其著录数据。</textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="PMS.closeModal('mdNew')">取消</button>
+        <button type="button" class="btn btn-primary" onclick="PMS.closeModal('mdNew');PMS.toast('备份任务已创建，将于 2026-08-01 22:00 自动执行','success')">创建任务</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+var VF = {
+  BF2026080101: { t: '全量备份', s: '2016 年度定期 10 年到期档案（销毁前备份）', c: '486 卷 / 12,846 个文件 / 86.42 GB', m: '磁盘阵列 DA-01 + 异地机房 YD-柳东', h: '8f3a2c91d47b6e05a8c2f19d3b74e6c08f3a2c91d47b6e05a8c2f19d3b74e6c0', n: 128 },
+  BF2026072801: { t: '增量备份', s: '2026 年 7 月新增归档电子档案', c: '1,286 卷 / 28,642 个文件 / 186.24 GB', m: '磁盘阵列 DA-01（机房 A 区）', h: '2b7d94e6c08f3a2c91d47b6e05a8c2f19d3b74e6c02b7d94e6c08f3a2c91d47b', n: 286 },
+  BF2026061502: { t: '异地容灾', s: '2013 ~ 2014 年度存量房交易档案', c: '862 卷 / 18,426 个文件 / 124.86 GB', m: '异地机房 YD-柳东', h: 'c91d47b6e05a8c2f19d3b74e6c08f3a2c91d47b6e05a8c2f19d3b74e6c08f3a2', n: 184 },
+  BF2026063001: { t: '全量备份', s: '2026 年上半年全量档案影像', c: '8,624 卷 / 186,428 个文件 / 1.24 TB', m: '磁盘阵列 DA-01 + 政务云存储', h: '5e6c08f3a2c91d47b6e05a8c2f19d3b74e6c08f3a2c91d47b6e05a8c2f19d3b7', n: 1864 },
+  BF2026072001: { t: '差异备份', s: '2026 年 7 月上旬变更档案（含勘误）', c: '324 卷 / 6,842 个文件 / 42.68 GB', m: '磁盘阵列 DA-01（机房 A 区）', h: 'a8c2f19d3b74e6c08f3a2c91d47b6e05a8c2f19d3b74e6c08f3a2c91d47b6e05', n: 68 },
+  BF2026071001: { t: '异地容灾', s: '2024 ~ 2025 年度商品房交易档案', c: '2,486 卷 / 52,864 个文件 / 386.42 GB', m: '异地机房 YD-柳东', h: '74e6c08f3a2c91d47b6e05a8c2f19d3b74e6c08f3a2c91d47b6e05a8c2f19d3b', n: 528 },
+  BF2025123101: { t: '全量备份', s: '2025 年度全量档案影像（年度归档备份）', c: '12,486 卷 / 268,420 个文件 / 1.86 TB', m: '磁带库 TP-02（018 ~ 024 号带）', h: '19d3b74e6c08f3a2c91d47b6e05a8c2f19d3b74e6c08f3a2c91d47b6e05a8c2f', n: 2684 },
+  BF2019063001: { t: '全量备份', s: '2018 年度光盘备份（介质已老化）', c: '6,428 卷 / 138,264 个文件 / 862.4 GB', m: '光盘 CD-2019-001 ~ 186', h: '3b74e6c08f3a2c91d47b6e05a8c2f19d3b74e6c08f3a2c91d47b6e05a8c2f19d', n: 1382 }
+};
+var cur = 'BF2026072801', curSt = 0;
+
+PMS.renderPager(document.getElementById('tblBf'), {
+  pageNum: 1, pageSize: 10, total: 42,
+  onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+});
+
+function openVf(no, st) {
+  cur = no; curSt = st;
+  var d = VF[no];
+  document.getElementById('vfNo').textContent = no;
+  document.getElementById('vfType').textContent = d.t;
+  document.getElementById('vfScope').textContent = d.s;
+  document.getElementById('vfCnt').textContent = d.c;
+  document.getElementById('vfMedia').textContent = d.m;
+  document.getElementById('vfHash').textContent = d.h;
+  document.getElementById('vfRun').style.display = 'none';
+  document.getElementById('vfBar').style.width = '0';
+  document.getElementById('vfRes').style.display = st === 0 ? 'none' : '';
+  var btn = document.getElementById('vfBtn');
+  btn.style.display = st === 0 ? '' : 'none';
+  if (st !== 0) fill(st);
+  rate();
+  PMS.openModal('mdVf');
+}
+function rate() {
+  var r = parseInt(document.getElementById('vfRate').value, 10);
+  var n = Math.max(1, Math.round(VF[cur].n * r / 1));
+  var opts = document.getElementById('vfRate').options;
+  document.getElementById('rt1').textContent = n.toLocaleString();
+  if (curSt === 1) document.getElementById('rt2').textContent = n.toLocaleString();
+  return opts;
+}
+function fill(st) {
+  var n = parseInt(document.getElementById('rt1').textContent.replace(/,/g, ''), 10) || 286;
+  var card = document.getElementById('vfCard');
+  if (st === 1) {
+    card.className = 'cc-card ok';
+    card.innerHTML = '<i class="fa-solid fa-circle-check"></i><div><div>恢复验证通过，结论：可恢复</div>' +
+      '<div class="text-sm fw-400" style="opacity:.85">该备份可作为档案销毁的前置条件</div></div>';
+    document.getElementById('rt2').textContent = n.toLocaleString();
+    document.getElementById('rt2').className = 'v text-success';
+    document.getElementById('rt3').textContent = '0';
+    document.getElementById('rt4').textContent = '全部一致';
+    document.getElementById('rt4').className = 'v text-success';
+  } else {
+    card.className = 'cc-card no';
+    card.innerHTML = '<i class="fa-solid fa-circle-xmark"></i><div><div>恢复验证未通过，结论：不可恢复</div>' +
+      '<div class="text-sm fw-400" style="opacity:.85">该备份不能作为销毁前置条件，关联的销毁计划将被拦截，请重新备份</div></div>';
+    document.getElementById('rt2').textContent = Math.round(n * 0.86).toLocaleString();
+    document.getElementById('rt2').className = 'v text-danger';
+    document.getElementById('rt3').textContent = (n - Math.round(n * 0.86)).toLocaleString();
+    document.getElementById('rt4').textContent = '12 个文件校验值不一致';
+    document.getElementById('rt4').className = 'v text-danger';
+  }
+}
+function runVf() {
+  document.getElementById('vfRun').style.display = '';
+  document.getElementById('vfBtn').disabled = true;
+  var bar = document.getElementById('vfBar');
+  var tip = document.getElementById('vfTip');
+  var texts = ['正在从备份介质抽取样本文件…', '正在恢复至临时验证区…', '正在比对校验值…', '正在生成验证结论…'];
+  var p = 0;
+  var t = setInterval(function () {
+    p += 4;
+    bar.style.width = p + '%';
+    tip.textContent = texts[Math.min(3, Math.floor(p / 26))] + '（' + p + '%）';
+    if (p >= 100) {
+      clearInterval(t);
+      tip.textContent = '验证完成';
+      curSt = 1;
+      fill(1);
+      document.getElementById('vfRes').style.display = '';
+      document.getElementById('vfBtn').style.display = 'none';
+      document.getElementById('vfBtn').disabled = false;
+      PMS.toast('恢复验证通过：' + cur + ' 结论「可恢复」', 'success');
+    }
+  }, 60);
+}
+</script>
+</body>
+</html>

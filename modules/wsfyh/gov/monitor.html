@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>直联运行监控 · 政银直连服务</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../../assets/css/app.css">
+<style>
+  .tbl-static { overflow: auto; }
+  /* 接口健康度看板：四项指标一眼看完 */
+  .health { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media (max-width: 1100px) { .health { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 640px) { .health { grid-template-columns: 1fr; } }
+  .hbox { border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; background: #fff; }
+  .hbox.ok { border-color: #cfe9bd; background: var(--success-light); }
+  .hbox.warn { border-color: #fde2c0; background: var(--warning-light); }
+  .hbox.bad { border-color: #f7c6c6; background: var(--danger-light); }
+  .hbox .hb-h { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-2); }
+  .hbox .hb-v { font-size: 26px; font-weight: 700; margin: 7px 0 2px; font-variant-numeric: tabular-nums; }
+  .hbox .hb-x { font-size: 12.5px; color: var(--text-3); }
+  /* 银行 × 接口 健康度矩阵 */
+  .mx { border-collapse: separate; border-spacing: 4px; width: 100%; }
+  .mx th { font-size: 12px; color: var(--text-3); font-weight: 500; padding: 4px 6px; text-align: center; white-space: nowrap; }
+  .mx th.rowh { text-align: left; }
+  .mx td { text-align: center; padding: 0; }
+  .mx .cell { display: block; border-radius: 4px; padding: 7px 4px; font-size: 12px; font-weight: 600; color: #fff; cursor: pointer; }
+  .mx .c-ok { background: var(--lv-blue); }
+  .mx .c-good { background: #6fae4f; }
+  .mx .c-warn { background: var(--lv-yellow); color: #6b5300; }
+  .mx .c-bad { background: var(--lv-orange); }
+  .mx .c-err { background: var(--lv-red); }
+  .mx .c-na { background: var(--bg-soft); color: var(--text-3); }
+</style>
+</head>
+<body data-role="admin" data-active="wssvc-12">
+<main class="app-main" data-flow>
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 统一应用服务平台
+        <span class="sep">/</span> 政银直连 <span class="sep">/</span> <span class="cur">直联运行监控</span>
+      </div>
+      <div class="page-title">直联运行监控</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="assess.html"><i class="fa-solid fa-ranking-star"></i> 推送考核统计</a>
+      <a class="btn" href="api-jg.html"><i class="fa-solid fa-plug"></i> 接口目录</a>
+      <button class="btn" onclick="PMS.toast('监控报告已导出','success')"><i class="fa-solid fa-download"></i> 导出</button>
+      <button class="btn btn-danger" onclick="PMS.confirm({title:'告警通知',message:'确认向 2 家银行发送接口异常告警？',detail:'同时抄送该行科技部门与业务对接人，要求 4 小时内响应。',type:'danger',okText:'发送',onOk:function(){PMS.toast('告警已发送','success')}})"><i class="fa-solid fa-bell"></i> 发送告警 2</button>
+    </div>
+  </div>
+
+  <div class="alert alert-danger">
+    <i class="fa-solid fa-heart-pulse"></i>
+    <div><b>这套接口一停，三套资金监管业务同时瘫</b>。预售的缴存匹配、存量房的划付指令、
+      维修资金的拨付回执，全都走这里。所以监控盯的不只是「通不通」，
+      而是<b>调用量、成功率、时延、数据到达时效</b>四项一起看——
+      接口能通但延迟 10 分钟，对「30 分钟内必须回执」的业务来说和不通没区别。</div>
+  </div>
+
+  <div class="health">
+    <div class="hbox ok">
+      <div class="hb-h"><i class="fa-solid fa-chart-simple"></i> 今日调用量</div>
+      <div class="hb-v">42,864</div>
+      <div class="hb-x">较昨日 +6.2%　·　峰值 09:30 每分钟 186 次</div>
+    </div>
+    <div class="hbox warn">
+      <div class="hb-h"><i class="fa-solid fa-circle-check"></i> 平均成功率</div>
+      <div class="hb-v text-warning">98.42%</div>
+      <div class="hb-x">阈值 99%　·　<b>桂林银行拉低整体</b></div>
+    </div>
+    <div class="hbox ok">
+      <div class="hb-h"><i class="fa-solid fa-gauge-high"></i> 平均响应时延</div>
+      <div class="hb-v text-success">286 ms</div>
+      <div class="hb-x">阈值 1000 ms　·　P95 682 ms</div>
+    </div>
+    <div class="hbox bad">
+      <div class="hb-h"><i class="fa-solid fa-hourglass-end"></i> 数据到达超时</div>
+      <div class="hb-v text-danger">12 次</div>
+      <div class="hb-x">今日　·　集中在 2 家银行的流水推送</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-table-cells"></i> 银行 × 接口 健康度矩阵</h3>
+      <span class="sub">格子内为今日成功率，点击查看该接口的调用明细</span>
+    </div>
+    <div class="card-body">
+      <div class="tbl-static">
+        <table class="mx">
+          <thead>
+            <tr>
+              <th class="rowh">银行 / 接口</th>
+              <th>缴存查询</th><th>流水推送</th><th>余额查询</th><th>流水查询</th>
+              <th>日终对账</th><th>出账指令</th><th>查封解封</th><th>按揭放款</th><th>公积金</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th class="rowh">柳州银行营业部</th>
+              <td><span class="cell c-ok" onclick="PMS.toast('柳州银行 · 缴存查询：成功率 99.9%，时延 186ms')">99.9</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('柳州银行 · 流水推送：成功率 99.8%，时延 142ms')">99.8</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 100%')">100</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 99.9%')">99.9</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 100%')">100</span></td>
+              <td><span class="cell c-good" onclick="PMS.toast('柳州银行 · 出账指令：成功率 99.2%，7 月 31 日晚间批处理异常导致 3 笔积压')">99.2</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 100%')">100</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 99.8%')">99.8</span></td>
+              <td><span class="cell c-na">—</span></td>
+            </tr>
+            <tr>
+              <th class="rowh">建设银行柳州城中支行</th>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 99.8%')">99.8</span></td>
+              <td><span class="cell c-warn" onclick="PMS.toast('建设银行 · 流水推送：成功率 94.6%，推送延迟集中在 16:00 后，已发告警')">94.6</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 99.9%')">99.9</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 99.6%')">99.6</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 100%')">100</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 99.6%')">99.6</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 100%')">100</span></td>
+              <td><span class="cell c-good" onclick="PMS.toast('成功率 99.1%')">99.1</span></td>
+              <td><span class="cell c-na">—</span></td>
+            </tr>
+            <tr>
+              <th class="rowh">工商银行柳州分行</th>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 99.7%')">99.7</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 99.5%')">99.5</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 99.8%')">99.8</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 99.6%')">99.6</span></td>
+              <td><span class="cell c-good" onclick="PMS.toast('工商银行 · 日终对账：成功率 98.6%，7 月有 1 日对账文件格式异常')">98.6</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 99.9%')">99.9</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 100%')">100</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 99.4%')">99.4</span></td>
+              <td><span class="cell c-na">—</span></td>
+            </tr>
+            <tr>
+              <th class="rowh">中国银行柳州分行</th>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 99.9%')">99.9</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 99.7%')">99.7</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 100%')">100</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 99.8%')">99.8</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 100%')">100</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 99.8%')">99.8</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 100%')">100</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 99.6%')">99.6</span></td>
+              <td><span class="cell c-na">—</span></td>
+            </tr>
+            <tr>
+              <th class="rowh">桂林银行柳州分行</th>
+              <td><span class="cell c-good" onclick="PMS.toast('成功率 98.2%')">98.2</span></td>
+              <td><span class="cell c-err" onclick="PMS.toast('桂林银行 · 流水推送：成功率 88.6%，严重低于阈值，已发送告警并要求限期整改','error')">88.6</span></td>
+              <td><span class="cell c-warn" onclick="PMS.toast('成功率 96.4%')">96.4</span></td>
+              <td><span class="cell c-warn" onclick="PMS.toast('成功率 95.8%')">95.8</span></td>
+              <td><span class="cell c-good" onclick="PMS.toast('成功率 98.0%')">98.0</span></td>
+              <td><span class="cell c-bad" onclick="PMS.toast('桂林银行 · 出账指令：成功率 91.4%，回执经常超时','error')">91.4</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 100%')">100</span></td>
+              <td><span class="cell c-na">—</span></td>
+              <td><span class="cell c-na">—</span></td>
+            </tr>
+            <tr>
+              <th class="rowh">XXXX市住房公积金中心</th>
+              <td><span class="cell c-na">—</span></td>
+              <td><span class="cell c-na">—</span></td>
+              <td><span class="cell c-na">—</span></td>
+              <td><span class="cell c-na">—</span></td>
+              <td><span class="cell c-ok" onclick="PMS.toast('成功率 100%')">100</span></td>
+              <td><span class="cell c-na">—</span></td>
+              <td><span class="cell c-na">—</span></td>
+              <td><span class="cell c-na">—</span></td>
+              <td><span class="cell c-good" onclick="PMS.toast('公积金中心 · 贷款接口：成功率 98.8%，批次放款次日到达')">98.8</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="alert alert-danger mt-16">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div><b>桂林银行柳州分行两项接口告急</b>：流水推送成功率 <b>88.6%</b>、出账指令 <b>91.4%</b>，
+          均严重低于 95% 的协议下限。流水推不上来，业主缴了钱平台查不到；
+          出账指令回执超时，卖方的钱迟迟解付不了。
+          已发送告警并要求 <b>10 个工作日</b>内提交整改方案，
+          连续两个考核期不达标的<b>暂停其承接新的监管业务</b>。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-chart-column"></i> 近 7 日调用量</h3><span class="sub">单位：万次</span></div>
+      <div class="card-body">
+        <div class="bar-chart">
+          <div class="bar-col"><span class="bar-val">3.82</span><div class="bar" style="height:76%"></div><span class="bar-label">07-26</span></div>
+          <div class="bar-col"><span class="bar-val">2.14</span><div class="bar" style="height:43%"></div><span class="bar-label">07-27</span></div>
+          <div class="bar-col"><span class="bar-val">4.28</span><div class="bar" style="height:85%"></div><span class="bar-label">07-28</span></div>
+          <div class="bar-col"><span class="bar-val">4.16</span><div class="bar" style="height:83%"></div><span class="bar-label">07-29</span></div>
+          <div class="bar-col"><span class="bar-val">4.62</span><div class="bar" style="height:92%"></div><span class="bar-label">07-30</span></div>
+          <div class="bar-col"><span class="bar-val">5.02</span><div class="bar" style="height:100%"></div><span class="bar-label">07-31</span></div>
+          <div class="bar-col"><span class="bar-val">4.29</span><div class="bar" style="height:85%"></div><span class="bar-label">08-01</span></div>
+        </div>
+        <p class="hint mt-16"><i class="fa-solid fa-circle-info"></i>
+          7 月 27 日为周日，调用量明显下降；7 月 31 日为月末，缴存与对账集中，是全月峰值。
+          容量规划按<b>月末峰值的 1.5 倍</b>预留。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-triangle-exclamation"></i> 今日告警</h3><span class="badge red">4 条未处理</span></div>
+      <div class="card-body">
+        <div class="tbl-static">
+          <table class="data-table compact" data-static>
+            <thead><tr><th>时间</th><th>银行</th><th>接口</th><th>告警类型</th><th>处理</th></tr></thead>
+            <tbody>
+              <tr><td class="nowrap">10:42</td><td class="nowrap">桂林银行</td><td class="nowrap">流水推送</td><td><span class="badge red">成功率低于阈值</span></td><td><span class="link danger" onclick="PMS.toast('已通知该行科技部门','success')">通知</span></td></tr>
+              <tr><td class="nowrap">10:12</td><td class="nowrap">柳州银行</td><td class="nowrap">出账指令</td><td><span class="badge orange">回执超时</span></td><td><span class="link danger" onclick="PMS.toast('已催办','success')">催办</span></td></tr>
+              <tr><td class="nowrap">09:38</td><td class="nowrap">建设银行</td><td class="nowrap">流水推送</td><td><span class="badge orange">数据到达延迟</span></td><td><span class="link danger" onclick="PMS.toast('已通知','success')">通知</span></td></tr>
+              <tr><td class="nowrap">08:42</td><td class="nowrap">桂林银行</td><td class="nowrap">出账指令</td><td><span class="badge red">连续 3 次失败</span></td><td><span class="link danger" onclick="PMS.toast('已升级为督办件','success')">升级</span></td></tr>
+              <tr><td class="nowrap">08:30</td><td class="nowrap">工商银行</td><td class="nowrap">余额推送</td><td><span class="badge green">已恢复</span></td><td><span class="text-3">—</span></td></tr>
+              <tr><td class="nowrap">07-31 22:16</td><td class="nowrap">工商银行</td><td class="nowrap">日终对账</td><td><span class="badge green">已恢复</span></td><td><span class="text-3">—</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="alert alert-warning mt-16">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>告警分三级：<b>黄色</b>单次失败或延迟，自动重试；
+            <b>橙色</b>成功率跌破阈值或连续失败，通知银行对接人；
+            <b>红色</b>连续 3 次失败或成功率低于 90%，升级督办并抄送分管行长。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3><i class="fa-solid fa-list"></i> 接口调用明细</h3><span class="sub">近 100 次调用，实时滚动</span></div>
+    <div class="filter-bar">
+      <div class="filter-item"><label>银行</label><select data-dict="jgyhmc"></select></div>
+      <div class="filter-item"><label>接口</label><select><option value="">全部</option><option>资金缴存信息查询</option><option>到账流水推送</option><option>账户余额查询</option><option>账户流水查询</option><option>日终对账</option><option>出账指令推送</option><option>账户查封解封推送</option><option>按揭放款流水备注</option><option>公积金贷款</option></select></div>
+      <div class="filter-item"><label>调用结果</label><select><option value="">全部</option><option>成功</option><option>失败</option><option>超时</option></select></div>
+      <div class="filter-item"><label>来源业务</label><select><option value="">全部</option><option>预售资金监管</option><option>存量房交易资金</option><option>维修资金</option></select></div>
+      <div class="filter-item"><label>时间范围</label><input type="date" value="2026-08-01"></div>
+      <button class="btn btn-primary"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+      <button class="btn">重置</button>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>调用时间</th><th>银行</th><th>接口</th><th>来源业务</th><th>业务单号</th><th>请求方向</th><th class="num">时延(ms)</th><th>结果</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="nowrap">11:02:36</td><td class="nowrap">柳州银行营业部</td><td class="nowrap">出账指令推送</td><td class="nowrap">存量房交易资金</td><td class="nowrap">HFZL-2026-06284</td><td class="nowrap">平台 → 银行</td><td class="num">248</td><td><span class="badge green">成功</span></td><td><a class="link" href="api-detail.html">看报文</a></td></tr>
+          <tr><td class="nowrap">11:01:14</td><td class="nowrap">建设银行柳州城中支行</td><td class="nowrap">到账流水推送</td><td class="nowrap">维修资金</td><td class="nowrap">DSLS-2026-08662</td><td class="nowrap">银行 → 平台</td><td class="num">186</td><td><span class="badge green">成功</span></td><td><a class="link" href="api-detail.html">看报文</a></td></tr>
+          <tr><td class="nowrap">10:58:42</td><td class="nowrap">桂林银行柳州分行</td><td class="nowrap">到账流水推送</td><td class="nowrap">预售资金监管</td><td class="nowrap">JCLS-2026-42186</td><td class="nowrap">银行 → 平台</td><td class="num text-danger">超时</td><td><span class="badge red">失败</span></td><td><a class="link danger" href="api-detail.html">看报文</a></td></tr>
+          <tr><td class="nowrap">10:56:20</td><td class="nowrap">柳州银行营业部</td><td class="nowrap">出账指令推送</td><td class="nowrap">维修资金</td><td class="nowrap">WXBF-2026-01862</td><td class="nowrap">平台 → 银行</td><td class="num">312</td><td><span class="badge green">成功</span></td><td><a class="link" href="api-detail.html">看报文</a></td></tr>
+          <tr><td class="nowrap">10:54:06</td><td class="nowrap">工商银行柳州分行</td><td class="nowrap">账户余额查询</td><td class="nowrap">预售资金监管</td><td class="nowrap">YE-2026-186420</td><td class="nowrap">平台 → 银行</td><td class="num">168</td><td><span class="badge green">成功</span></td><td><a class="link" href="api-detail.html">看报文</a></td></tr>
+          <tr><td class="nowrap">10:52:48</td><td class="nowrap">建设银行柳州城中支行</td><td class="nowrap">按揭放款流水备注</td><td class="nowrap">存量房交易资金</td><td class="nowrap">AJ-2026-008642</td><td class="nowrap">银行 → 平台</td><td class="num">426</td><td><span class="badge green">成功</span></td><td><a class="link" href="api-detail.html">看报文</a></td></tr>
+          <tr><td class="nowrap">10:50:12</td><td class="nowrap">桂林银行柳州分行</td><td class="nowrap">出账指令推送</td><td class="nowrap">预售资金监管</td><td class="nowrap">YKZL-2026-02864</td><td class="nowrap">平台 → 银行</td><td class="num text-danger">超时</td><td><span class="badge red">失败</span></td><td><a class="link danger" href="api-detail.html">看报文</a></td></tr>
+          <tr><td class="nowrap">10:48:30</td><td class="nowrap">XXXX市住房公积金中心</td><td class="nowrap">公积金贷款</td><td class="nowrap">存量房交易资金</td><td class="nowrap">GJJ-2026-004286</td><td class="nowrap">平台 → 公积金</td><td class="num">682</td><td><span class="badge green">成功</span></td><td><a class="link" href="api-detail.html">看报文</a></td></tr>
+          <tr><td class="nowrap">10:46:18</td><td class="nowrap">中国银行柳州分行</td><td class="nowrap">账户流水查询</td><td class="nowrap">维修资金</td><td class="nowrap">LS-2026-128640</td><td class="nowrap">平台 → 银行</td><td class="num">204</td><td><span class="badge green">成功</span></td><td><a class="link" href="api-detail.html">看报文</a></td></tr>
+          <tr><td class="nowrap">10:44:02</td><td class="nowrap">柳州银行营业部</td><td class="nowrap">账户查封解封推送</td><td class="nowrap">存量房交易资金</td><td class="nowrap">SFZL-2026-00086</td><td class="nowrap">平台 → 银行</td><td class="num">296</td><td><span class="badge green">成功</span></td><td><a class="link" href="api-detail.html">看报文</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+<script src="../../../assets/js/app.js"></script>
+</body>
+</html>

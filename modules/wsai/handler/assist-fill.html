@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 辅助填报 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="jb" data-active="assist-fill" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>智能应用</span>
+      <span class="sep">/</span><span>智能办事助手</span>
+      <span class="sep">/</span><span class="cur">AI 辅助填报</span>
+    </div>
+    <div class="page-actions">
+      <span class="node-tag"><i class="fa-solid fa-user-shield"></i>业务经办人</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-wand-magic-sparkles"></i>智能办事助手 wsai-05</span>
+    <a class="active" href="assist-fill.html?role=jb">AI 辅助填报</a>
+    <a href="fill-validate.html?role=jb">智能填报校验</a>
+    <a href="../public/chat.html?role=jb">智能客服问答</a>
+    <a href="../public/guide-bot.html?role=jb">智能导办</a>
+    <a href="../public/voice-fill.html?role=jb">语音交互式填报</a>
+    <a href="../public/kiosk-avatar.html?role=jb">数字人导办</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-wand-magic-sparkles"></i>
+    <span>按申请人历史办件与已知信息自动预填表单。预填字段<b>紫色底标注来源与置信度</b>；
+      <b>无依据的字段一律留空不猜测</b>，避免把错误信息带进业务系统。每个预填字段都可单独采纳或修正。</span>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>发起 AI 预填</h3>
+      <span class="sub">选择办件后调用辅助填报智能体</span>
+      <div class="head-actions">
+        <select id="pickCase" style="width:330px"></select>
+        <button class="btn btn-primary btn-sm" onclick="run()"><i class="fa-solid fa-wand-magic-sparkles"></i> AI 预填表单</button>
+      </div>
+    </div>
+    <div class="card-body" id="formBox">
+      <div class="empty"><i class="fa-regular fa-rectangle-list"></i><div>选择办件后点「AI 预填表单」</div></div>
+    </div>
+  </div>
+
+  <div id="aiPushHint" class="mt-16"></div>
+
+  <div class="card mt-16">
+    <div class="card-head"><h3>预填记录</h3><span class="sub">全部辅助填报输出留痕</span></div>
+    <div class="table-wrap">
+      <table class="data-table" id="tFill" data-static>
+        <thead><tr>
+          <th>业务标识</th><th class="cell-lg">预填结论</th><th>模型 / 版本</th>
+          <th>置信度</th><th>溯源</th><th>确认状态</th><th>时间</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var last = null;
+
+  function fillPicker() {
+    var sel = document.getElementById('pickCase');
+    var keep = sel.value;
+    sel.innerHTML = AI.get('cases').map(function (c) {
+      return '<option value="' + c.id + '">' + AI.esc(c.sjbh) + ' · ' + AI.esc(c.sxmc) + ' · ' + AI.esc(c.sqr) + '</option>';
+    }).join('');
+    if (keep) sel.value = keep;
+  }
+
+  window.run = function () {
+    var r = AI.act.prefill(document.getElementById('pickCase').value);
+    if (!r) return;
+    last = r;
+    paintForm();
+  };
+
+  function paintForm() {
+    if (!last) return;
+    var o = AI.byId('outputs', last.output.id) || last.output;
+    var filled = last.fields.filter(function (f) { return f.conf > 0; });
+    document.getElementById('formBox').innerHTML =
+      '<div class="mb-16 flex items-center gap-12" style="flex-wrap:wrap">' +
+        AI.aiMark(o.qrzt) + AI.aiSource(o) +
+        '<span class="badge ai" style="margin-left:auto">已预填 ' + filled.length + ' / ' + last.fields.length + ' 个字段</span>' +
+      '</div>' +
+      '<div class="form-grid form-align">' +
+      last.fields.map(function (f) {
+        var pre = f.conf > 0;
+        return '<div class="form-item">' +
+          '<label>' + AI.esc(f.label) +
+            (pre ? ' <span class="prefill-tag"><i class="fa-solid fa-wand-magic-sparkles"></i>AI 预填</span>' : '') +
+          '</label>' +
+          '<input type="text" value="' + AI.esc(f.v) + '"' + (pre ? ' class="prefilled"' : '') + '>' +
+          (pre
+            ? '<div class="hint"><i class="fa-solid fa-link"></i> 来源：' + AI.esc(f.src) +
+              '　置信度 ' + f.conf + '%</div>'
+            : '<div class="fv-err"><i class="fa-solid fa-circle-info"></i>' + AI.esc(f.src) + '</div>') +
+          '</div>';
+      }).join('') +
+      '</div>' +
+      (o.qrzt === '0'
+        ? '<div class="alert alert-warning mt-16"><i class="fa-solid fa-triangle-exclamation"></i>' +
+          '<span>预填结果尚未人工确认，<b>不能提交到收件表单</b>。经办人核对无误后点「采纳」。</span></div>' +
+          '<div class="mt-16 btn-row">' + AI.actTriplet(o.id) + '</div>'
+        : '<div class="alert alert-success mt-16"><i class="fa-solid fa-circle-check"></i>' +
+          '<span>预填结果已' + AI.dict('qrzt', o.qrzt) + '，可提交到收件表单。</span></div>' +
+          '<div class="mt-16 btn-row">' +
+            '<button class="btn btn-primary" onclick="submitForm(\'' + o.id + '\')">' +
+            '<i class="fa-solid fa-paper-plane"></i> 提交到收件表单</button>' +
+            '<a class="btn" href="fill-validate.html?role=jb"><i class="fa-solid fa-spell-check"></i> 去智能填报校验</a>' +
+          '</div>');
+  }
+
+  window.submitForm = function (id) {
+    AI.act.submitToBiz([id], '统一工作门户 · 统一收件');
+  };
+
+  AI.table({
+    id: 'tFill', pageSize: 10,
+    rows: function () {
+      return AI.where('outputs', function (o) { return o.scene === '03'; });
+    },
+    cells: function (o) {
+      return [
+        '<td>' + AI.esc(o.bizId) + '</td>',
+        '<td class="cell-lg">' + AI.esc(o.text) +
+          (o.fixText ? '<div class="text-3 text-sm">修正：' + AI.esc(o.fixText) + '</div>' : '') + '</td>',
+        '<td>' + AI.esc(o.mxmc) + '<br><span class="text-3 text-sm">' + AI.esc(o.ver) + '</span></td>',
+        '<td>' + AI.confidence(o.conf) + '</td>',
+        '<td>' + AI.citeChips(o.cites) + '</td>',
+        '<td>' + AI.qrBadge(o.qrzt) + '</td>',
+        '<td>' + AI.fmt.time(o.at) + '</td>',
+        '<td class="col-ops">' + (o.qrzt === '0'
+          ? AI.actTriplet(o.id)
+          : '<button class="btn btn-sm" onclick="submitForm(\'' + o.id + '\')">' +
+            '<i class="fa-solid fa-paper-plane"></i> 提交</button>') + '</td>'
+      ];
+    },
+    empty: '暂无预填记录'
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () { fillPicker(); if (last) paintForm(); AI.repaintAll(); });
+  });
+})();
+</script>
+</body>
+</html>

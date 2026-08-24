@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>租房专区 · 统一服务门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  /* 租房专区专属布局 */
+  .rh-main { display: grid; grid-template-columns: 1fr 320px; gap: 20px; align-items: start; }
+  .hr-flag {
+    position: absolute; left: 8px; top: 8px; background: rgba(22, 163, 74, .94); color: #fff;
+    font-size: 12px; padding: 2px 9px; border-radius: 3px;
+  }
+  .hym-code { font-family: Menlo, Consolas, monospace; letter-spacing: .5px; }
+  .hr-src { font-size: 12px; color: var(--text-3); margin-top: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row-warn {
+    margin: 10px 0 0; padding: 8px 12px; border-radius: var(--radius); font-size: 12.5px; line-height: 1.7;
+    background: var(--warning-light); border: 1px solid #f5dab0; color: #b45309; display: flex; gap: 8px;
+  }
+  .rh-detail { border: 2px solid var(--primary-soft); }
+  .rh-gal { height: 260px; border-radius: var(--radius-card); overflow: hidden; background: var(--bg-soft); }
+  .rh-gal img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .rh-dgrid { display: grid; grid-template-columns: 380px 1fr; gap: 20px; align-items: start; }
+  .side-link { display: flex; align-items: center; gap: 9px; padding: 9px 0; border-bottom: 1px dashed var(--row-line); font-size: 13.5px; color: var(--text-2); }
+  .side-link:last-child { border-bottom: 0; }
+  .side-link i { width: 18px; text-align: center; color: var(--primary); }
+  .side-link:hover { color: var(--primary); }
+  .rent-v { font-size: 27px; font-weight: 700; color: var(--accent); font-family: "DIN Alternate", var(--font); }
+  .rent-v em { font-style: normal; font-size: 14px; font-weight: 400; }
+</style>
+</head>
+<body data-nav="house">
+
+<div class="wrap">
+  <div class="crumb">
+    <a href="home.html">首页</a><i class="fa-solid fa-angle-right"></i>
+    <a href="house-market.html">房源超市</a><i class="fa-solid fa-angle-right"></i>租房专区
+  </div>
+</div>
+
+<div class="wrap" style="padding-bottom:36px">
+
+  <div class="col-head">
+    <h2>租房专区</h2><span class="ch-en">Housing Rental</span>
+    <span class="ch-more" style="cursor:default">住房租赁核验房源 · 保障性租赁住房 · 区域租金参考价</span>
+  </div>
+
+  <!-- ?id= 命中时展示的房源详情区块 -->
+  <div id="rh-detail"></div>
+
+  <div class="alert alert-success">
+    <i class="fa-solid fa-shield-halved"></i>
+    <span>本专区房源均已完成<b>权属核验</b>，<b>未核验房源不得对外发布</b>。每套房源标注核验码、租赁类型与委托租赁企业；
+      租金明显偏离区域参考价的房源会作出醒目提示。参考价供议价参考，不限制成交价格。</span>
+  </div>
+
+  <div class="filter-panel" id="rh-filter"></div>
+  <div class="filter-chosen" id="filter-chosen"></div>
+
+  <div class="sort-bar">
+    <span class="text-3">排序：</span>
+    <a class="on" data-sort="default" data-fp="wsmh-10-01">默认</a>
+    <a data-sort="zj" data-fp="wsmh-10-01">租金由低到高</a>
+    <a data-sort="zjd" data-fp="wsmh-10-01">租金由高到低</a>
+    <a data-sort="mj" data-fp="wsmh-10-01">面积由大到小</a>
+    <a data-sort="gx" data-fp="wsmh-10-01">最近更新</a>
+    <span class="sb-r">共 <b id="rh-total">0</b> 套核验房源　保障性租赁住房 <b id="rh-bzx">0</b> 套</span>
+  </div>
+
+  <div class="rh-main">
+    <div>
+      <div id="rh-rows"></div>
+      <div id="rh-pager"></div>
+    </div>
+
+    <div>
+      <!-- 区域租金参考价（wsmh-10-03） -->
+      <div class="card mb-16">
+        <div class="card-head"><h3><i class="fa-solid fa-scale-balanced text-primary"></i> 区域租金参考价</h3>
+          <span class="sub">元/月</span>
+          <div class="ca"><button class="btn btn-sm" onclick="refNote()" data-fp="wsmh-10-03">口径说明</button></div></div>
+        <div class="card-body np">
+          <div class="table-wrap" style="border:0;border-radius:0">
+            <table class="pub-table" style="font-size:13px">
+              <thead><tr><th>区域</th><th class="num">一居</th><th class="num">二居</th><th class="num">三居</th><th class="num">环比</th></tr></thead>
+              <tbody id="ref-body"></tbody>
+            </table>
+          </div>
+          <div class="table-note">参考价由住房租赁管理部门按季度发布，供交易双方议价参考，<b>不是强制标准</b>，也不构成房价或房租指数。</div>
+        </div>
+      </div>
+
+      <div class="card mb-16">
+        <div class="card-head"><h3><i class="fa-solid fa-hand-holding-heart text-success"></i> 保障性租赁住房</h3></div>
+        <div class="card-body" style="padding:14px 16px">
+          <div class="text-sm" style="line-height:1.9">
+            保障性租赁住房面向新市民、青年人等群体，租金一般不高于同地段同品质市场租赁住房租金的 90%，
+            以建筑面积 70㎡ 以下的小户型为主。
+          </div>
+          <div class="mt-12">
+            <a class="btn btn-sm btn-primary" href="service-hall.html?kw=SX1101" data-fp="wsmh-10-01">保障性租赁住房承租申请</a>
+            <a class="btn btn-sm" style="margin-left:8px" href="rent-public.html" data-fp="wsmh-10-01">租房公共服务</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3><i class="fa-solid fa-link text-primary"></i> 相关服务</h3></div>
+        <div class="card-body" style="padding:6px 16px 12px">
+          <a class="side-link" href="rent-sign.html" data-fp="wsmh-10-01"><i class="fa-solid fa-file-signature"></i> 租房签约与备案</a>
+          <a class="side-link" href="rent-public.html" data-fp="wsmh-10-01"><i class="fa-solid fa-people-roof"></i> 租房公共服务与调解</a>
+          <a class="side-link" href="agency-list.html?lx=住房租赁企业" data-fp="wsmh-10-02"><i class="fa-solid fa-building-user"></i> 在册住房租赁企业名录</a>
+          <a class="side-link" href="listing-publish.html?tab=lp-demand" data-fp="wsmh-14-02"><i class="fa-solid fa-bullhorn"></i> 求租需求登记</a>
+          <a class="side-link" href="query-verify.html" data-fp="wsmh-10-02"><i class="fa-solid fa-qrcode"></i> 扫码验真与电子亮证</a>
+          <a class="side-link" href="complaint.html" data-fp="wsmh-10-02"><i class="fa-solid fa-comment-dots"></i> 租赁纠纷投诉</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="src-note"></div>
+</div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+var RH_PAGE = 1, RH_SIZE = 6, RH_SORT = 'default', RH_SCROLLED = 0;
+
+function pageInit() {
+  buildFilter();
+  UI.syncChosen();
+  bindSort();
+  renderRef();
+  renderList();
+  renderDetail();
+  document.getElementById('src-note').innerHTML = UI.sourceNote('租金参考价由住房租赁管理部门按季度发布，仅供议价参考。');
+  PORTAL.on(function () { renderList(); renderDetail(); });
+}
+
+/* ---------------- 工具 ---------------- */
+function refRange(h) {
+  if (h.ckj && h.ckj.length === 2) return h.ckj;
+  var r = PORTAL.market().rentRef.filter(function (x) { return x.qx === h.qx; })[0];
+  if (!r) return null;
+  var n = String(h.hx || '').charAt(0);
+  var base = n === '1' ? r.one : (n === '3' || n === '4' ? r.three : r.two);
+  return [Math.round(base * 0.85), Math.round(base * 1.15)];
+}
+function isDeviate(h) {
+  if (h.pianli === 1) return true;
+  var r = refRange(h);
+  return !!(r && (h.zj > r[1] || h.zj < r[0]));
+}
+function zjlxOf(h) { return h.zjlx || (String(h.bt || '').indexOf('合租') >= 0 ? '合租' : '整租'); }
+
+/* ---------------- 筛选 ---------------- */
+function buildFilter() {
+  var rows = [
+    ['rh-qx', '区域', [['不限', '']].concat(PDATA.QX.map(function (q) { return [q, q]; }))],
+    ['rh-zj', '月租金', [['不限', ''], ['1000 元以下', '0-1000'], ['1000-1500 元', '1000-1500'], ['1500-2200 元', '1500-2200'],
+      ['2200-3000 元', '2200-3000'], ['3000 元以上', '3000-']]],
+    ['rh-mj', '面积', [['不限', ''], ['40㎡ 以下', '0-40'], ['40-60㎡', '40-60'], ['60-80㎡', '60-80'], ['80㎡ 以上', '80-']]],
+    ['rh-lx', '租赁类型', [['不限', ''], ['整租', '整租'], ['合租', '合租']]],
+    ['rh-bzx', '房源性质', [['不限', ''], ['保障性租赁住房', '1'], ['市场化租赁住房', '0']]]
+  ];
+  document.getElementById('rh-filter').innerHTML = rows.map(function (r) {
+    return '<div class="filter-row" data-key="' + r[0] + '"><span class="fr-label">' + r[1] + '</span><span class="fr-opts">'
+      + r[2].map(function (o, i) {
+        return '<a class="' + (i === 0 ? 'on' : '') + '" data-v="' + o[1] + '" data-fp="wsmh-10-01">' + o[0] + '</a>';
+      }).join('') + '</span></div>';
+  }).join('');
+}
+window.onFilterChange = function () { RH_PAGE = 1; renderList(); };
+
+function bindSort() {
+  var bar = document.querySelector('.sort-bar');
+  bar.querySelectorAll('[data-sort]').forEach(function (a) {
+    a.onclick = function () {
+      bar.querySelectorAll('[data-sort]').forEach(function (x) { x.classList.remove('on'); });
+      a.classList.add('on'); RH_SORT = a.getAttribute('data-sort'); RH_PAGE = 1; renderList();
+    };
+  });
+}
+function rangeTo(f, v, kMin, kMax) {
+  if (!v) return;
+  var a = v.split('-');
+  if (a[0] !== '' && Number(a[0]) > 0) f[kMin] = Number(a[0]);
+  if (a[1] !== '' && a[1] !== undefined) f[kMax] = Number(a[1]);
+}
+
+function rhQuery() {
+  var f = { lx: '3' };
+  var qx = UI.filterVal('rh-qx'); if (qx) f.qx = qx;
+  rangeTo(f, UI.filterVal('rh-zj'), 'zjMin', 'zjMax');
+  rangeTo(f, UI.filterVal('rh-mj'), 'mjMin', 'mjMax');
+  var lx = UI.filterVal('rh-lx'); if (lx) f.zjlx = lx;
+  var bzx = UI.filterVal('rh-bzx');
+  if (bzx === '1') f.bzx = 1;
+  var arr = PORTAL.houses(f);
+  if (bzx === '0') arr = arr.filter(function (h) { return h.bzx !== 1; });
+  if (RH_SORT === 'zj') arr.sort(function (a, b) { return a.zj - b.zj; });
+  if (RH_SORT === 'zjd') arr.sort(function (a, b) { return b.zj - a.zj; });
+  if (RH_SORT === 'mj') arr.sort(function (a, b) { return b.mj - a.mj; });
+  if (RH_SORT === 'gx') arr.sort(function (a, b) { return a.gxsj < b.gxsj ? 1 : -1; });
+  return arr;
+}
+
+/* ---------------- 参考价表（wsmh-10-03） ---------------- */
+function renderRef() {
+  document.getElementById('ref-body').innerHTML = PORTAL.market().rentRef.map(function (r) {
+    var up = r.hb.charAt(0) === '+';
+    return '<tr><td class="strong">' + r.qx + '</td><td class="num">' + UI.money(r.one, 0) + '</td>'
+      + '<td class="num">' + UI.money(r.two, 0) + '</td><td class="num">' + UI.money(r.three, 0) + '</td>'
+      + '<td class="num ' + (up ? 'text-accent' : 'text-success') + '">' + r.hb + '</td></tr>';
+  }).join('');
+}
+
+function refNote() {
+  var dev = PORTAL.houses({ lx: '3' }).filter(isDeviate);
+  UI.modal('<i class="fa-solid fa-scale-balanced text-primary"></i> 租金参考价口径说明',
+    '<div class="text-sm" style="line-height:2">'
+    + '<div><b>一、来源与周期。</b>区域租金参考价由住房租赁管理部门按季度测算发布，'
+    + '按行政区与一居、二居、三居分档，数据来源为本市住房租赁合同网签备案的成交租金。</div>'
+    + '<div><b>二、参考属性。</b>参考价<b>不是强制标准</b>，供交易双方议价参考，平台不限制房源的实际挂牌与成交价格。</div>'
+    + '<div><b>三、偏离提示。</b>挂牌租金高于或低于所在区域同类户型参考价区间的，'
+    + '平台在房源行内展示醒目提示，提醒承租人核实房屋权属、出租人身份与房屋实际状况。'
+    + '当前专区共有 <b class="text-accent">' + dev.length + '</b> 套房源触发偏离提示。</div>'
+    + '<div><b>四、不发布指数。</b>本站只客观呈现参考价与挂牌情况，<b>不发布房价与房租指数</b>，'
+    + '不设付费排序与广告位。</div>'
+    + '</div>',
+    '<button class="btn" data-act="close-modal">关闭</button>'
+    + '<a class="btn btn-primary" href="rent-public.html" data-fp="wsmh-10-03">租房公共服务</a>', 1);
+}
+
+/* ---------------- 列表（wsmh-10-01） ---------------- */
+function renderList() {
+  var arr = rhQuery();
+  document.getElementById('rh-total').innerHTML = arr.length;
+  document.getElementById('rh-bzx').innerHTML = arr.filter(function (h) { return h.bzx === 1; }).length;
+
+  var box = document.getElementById('rh-rows');
+  if (!arr.length) {
+    box.innerHTML = UI.empty('没有符合条件的核验租赁房源', '可放宽筛选条件，或登记求租需求由在册租赁企业主动对接。',
+      '<a class="btn btn-primary" href="listing-publish.html?tab=lp-demand" data-fp="wsmh-14-02">去登记求租需求</a>');
+    document.getElementById('rh-pager').innerHTML = '';
+    return;
+  }
+  var s = (RH_PAGE - 1) * RH_SIZE;
+  box.innerHTML = arr.slice(s, s + RH_SIZE).map(rowHtml).join('');
+  UI.pager(document.getElementById('rh-pager'), arr.length, RH_PAGE, RH_SIZE, function (p) {
+    RH_PAGE = p; renderList(); window.scrollTo({ top: 300, behavior: 'smooth' });
+  });
+}
+
+function rowHtml(h) {
+  var ref = refRange(h);
+  var dev = isDeviate(h);
+  return '<div class="house-row">'
+    + '<div class="hr-img"><img src="' + h.img + '" alt="' + UI.esc(h.xqmc) + '租赁房源">'
+    + '<span class="hr-flag"><i class="fa-solid fa-shield-halved"></i> ' + PORTAL.HOUSE_ST[h.fyzt].n + '</span></div>'
+    + '<div class="hr-body">'
+    + '<a class="hr-t" href="rent-house.html?id=' + h.id + '" data-fp="wsmh-10-01">' + UI.esc(h.bt) + '</a>'
+    + '<div class="hr-meta"><span>' + h.mj + '㎡</span><span>' + h.hx + '</span><span>' + h.cx + '</span>'
+    + '<span>' + h.zx + '</span><span>楼层 ' + (h.lc || '—') + '</span></div>'
+    + '<div class="hr-addr"><i class="fa-solid fa-location-dot"></i> ' + h.qx + ' · ' + h.sq + ' · ' + UI.esc(h.xqmc) + ' · ' + h.fhMask + '</div>'
+    + '<div class="hr-tags">'
+    + '<span class="badge green"><i class="fa-solid fa-shield-halved"></i> 核验码 <b class="hym-code">' + h.hym + '</b></span>'
+    + '<span class="badge blue"><i class="fa-solid fa-key"></i> ' + zjlxOf(h) + '</span>'
+    + (h.bzx === 1 ? '<span class="badge green"><i class="fa-solid fa-hand-holding-heart"></i> 保障性租赁住房</span>' : '<span class="badge line">市场化租赁住房</span>')
+    + (h.wtjg ? '<span class="badge gray"><i class="fa-solid fa-building-user"></i> ' + UI.esc(h.wtjg) + '</span>' : '<span class="badge gray"><i class="fa-solid fa-user"></i> 权利人自主出租</span>')
+    + '<span class="badge line"><i class="fa-regular fa-clock"></i> 核验有效期 ' + (h.hyyxq || '—') + '</span>'
+    + '</div>'
+    + (dev ? '<div class="row-warn"><i class="fa-solid fa-triangle-exclamation" style="margin-top:3px"></i>'
+      + '<span><b>该房源租金明显偏离区域参考价，请谨慎核实。</b>'
+      + (ref ? '本区域同类户型参考价为 ' + UI.money(ref[0], 0) + '-' + UI.money(ref[1], 0) + ' 元/月，' : '')
+      + '签约前请核对房屋权属、出租人身份与房屋实际状况，并通过租赁合同网签备案固定权利义务。</span></div>' : '')
+    + '<div class="hr-src">数据来源：' + (h.sjly || '房屋租赁网签备案管理系统') + '　挂牌时间：' + h.gpsj + '　最近更新：' + h.gxsj + '</div>'
+    + '</div>'
+    + '<div class="hr-side">'
+    + '<div><div class="hr-price">' + UI.money(h.zj, 0) + '<em> 元/月</em></div>'
+    + '<div class="hr-unit">' + (ref ? '区域参考价 ' + UI.money(ref[0], 0) + '-' + UI.money(ref[1], 0) + ' 元/月' : '参考价以季度公布为准') + '</div>'
+    + (dev ? '<div class="text-xs text-warning bold" style="margin-top:4px">偏离参考价</div>'
+      : '<div class="text-xs text-3" style="margin-top:4px">在参考价区间内</div>') + '</div>'
+    + '<div class="hr-acts" style="flex-wrap:wrap">'
+    + '<button class="btn btn-sm" onclick="rhVerify(\'' + h.id + '\')" data-fp="wsmh-10-02"><i class="fa-solid fa-shield-halved"></i> 核验查询</button>'
+    + '<button class="btn btn-sm" onclick="rhFav(\'' + h.id + '\')" data-fp="wsmh-10-01"><i class="fa-solid fa-star"></i> 收藏</button>'
+    + '<button class="btn btn-sm" onclick="rhContact(\'' + h.id + '\')" data-fp="wsmh-10-01"><i class="fa-solid fa-building-user"></i> 联系租赁企业</button>'
+    + '<button class="btn btn-sm btn-primary" onclick="rhAppt(\'' + h.id + '\')" data-fp="wsmh-10-01"><i class="fa-solid fa-calendar-check"></i> 预约看房</button>'
+    + '</div></div></div>';
+}
+
+/* ---------------- ?id= 房源详情区块 ---------------- */
+function renderDetail() {
+  var id = UI.param('id');
+  var box = document.getElementById('rh-detail');
+  if (!id) { box.innerHTML = ''; return; }
+  var h = PORTAL.house(id);
+  if (!h) {
+    box.innerHTML = '<div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation"></i>'
+      + '<span>未找到编号为 ' + UI.esc(id) + ' 的租赁房源，可能已成交或已下架，请在下方列表中查看其他核验房源。</span></div>';
+    return;
+  }
+  var ref = refRange(h), dev = isDeviate(h);
+  box.innerHTML = '<div class="card rh-detail mb-16">'
+    + '<div class="card-head"><h3><i class="fa-solid fa-house-chimney text-primary"></i> ' + UI.esc(h.bt) + '</h3>'
+    + '<span class="sub">核验码 ' + h.hym + '</span>'
+    + '<div class="ca"><a class="btn btn-sm" href="rent-house.html" data-fp="wsmh-10-01">返回全部房源</a></div></div>'
+    + '<div class="card-body">'
+    + (PORTAL.HOUSE_ST[h.fyzt].pub ? '' : '<div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation"></i>'
+      + '<span>该房源当前状态为「' + PORTAL.HOUSE_ST[h.fyzt].n + '」，已停止对外展示。</span></div>')
+    + '<div class="rh-dgrid">'
+    + '<div><div class="rh-gal"><img src="' + h.img + '" alt="' + UI.esc(h.bt) + '"></div>'
+    + '<div class="flex gap-8 wrapf mt-12">'
+    + '<span class="badge green"><i class="fa-solid fa-shield-halved"></i> 已核验</span>'
+    + '<span class="badge blue">' + zjlxOf(h) + '</span>'
+    + (h.bzx === 1 ? '<span class="badge green">保障性租赁住房</span>' : '<span class="badge line">市场化租赁住房</span>')
+    + '</div></div>'
+    + '<div>'
+    + '<div class="rent-v">' + UI.money(h.zj, 0) + '<em> 元/月</em></div>'
+    + '<div class="text-sm text-3">区域参考价 ' + (ref ? UI.money(ref[0], 0) + '-' + UI.money(ref[1], 0) + ' 元/月' : '以季度公布为准') + '</div>'
+    + (dev ? '<div class="row-warn"><i class="fa-solid fa-triangle-exclamation" style="margin-top:3px"></i>'
+      + '<span><b>该房源租金明显偏离区域参考价，请谨慎核实。</b>建议实地看房并核对权属与出租人身份后再签约。</span></div>' : '')
+    + '<div class="desc-list mt-12"><dl>'
+    + '<dt>房源核验码</dt><dd><b class="hym-code">' + h.hym + '</b>　核验有效期 ' + (h.hyyxq || '—') + '</dd>'
+    + '<dt>坐落</dt><dd>' + h.qx + ' · ' + h.sq + ' · ' + UI.esc(h.xqmc) + ' · ' + h.fhMask + '</dd>'
+    + '<dt>面积 / 户型</dt><dd>' + h.mj + '㎡　' + h.hx + '　' + h.cx + '　' + h.zx + '</dd>'
+    + '<dt>权属核验结论</dt><dd>' + UI.esc(h.qsjl || '权属核验通过，出租人具备出租资格') + '</dd>'
+    + '<dt>委托租赁企业</dt><dd>' + (h.wtjg ? UI.esc(h.wtjg) : '权利人自主出租') + '</dd>'
+    + '<dt>数据来源</dt><dd>' + (h.sjly || '房屋租赁网签备案管理系统') + '　最近更新 ' + h.gxsj + '</dd>'
+    + '</dl></div>'
+    + '<div class="flex gap-8 wrapf mt-16">'
+    + '<button class="btn btn-accent" onclick="rhAppt(\'' + h.id + '\')" data-fp="wsmh-10-01"><i class="fa-solid fa-calendar-check"></i> 预约看房</button>'
+    + '<button class="btn btn-primary" onclick="rhContact(\'' + h.id + '\')" data-fp="wsmh-10-01"><i class="fa-solid fa-building-user"></i> 联系租赁企业</button>'
+    + '<button class="btn" onclick="rhVerify(\'' + h.id + '\')" data-fp="wsmh-10-02"><i class="fa-solid fa-shield-halved"></i> 核验查询</button>'
+    + '<button class="btn" onclick="rhFav(\'' + h.id + '\')" data-fp="wsmh-10-01"><i class="fa-solid fa-star"></i> 收藏</button>'
+    + '<a class="btn" href="rent-sign.html?hid=' + h.id + '" data-fp="wsmh-10-01"><i class="fa-solid fa-file-signature"></i> 去签约备案</a>'
+    + '</div></div></div></div></div>';
+  if (!RH_SCROLLED) {
+    RH_SCROLLED = 1;
+    var el = document.getElementById('rh-detail');
+    if (el.scrollIntoView) setTimeout(function () { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 260);
+  }
+}
+
+/* ---------------- 交互 ---------------- */
+function rhFav(id) {
+  if (!UI.needLogin('收藏房源')) return;
+  var r = PORTAL.act('house.fav', { hid: id });
+  UI.toast(r === 'exist' ? '该房源已在收藏夹中' : '已收藏，可在个人中心「我的收藏」查看', r === 'exist' ? 'info' : 'success');
+}
+
+/* 租赁房源核验查询（wsmh-10-02） */
+function rhVerify(id) {
+  var h = PORTAL.house(id); if (!h) return;
+  var st = PORTAL.HOUSE_ST[h.fyzt];
+  UI.modal('<i class="fa-solid fa-shield-halved text-primary"></i> 租赁房源核验查询',
+    '<div class="alert alert-success" style="margin-bottom:14px"><i class="fa-solid fa-circle-check"></i>'
+    + '<span>该房源已通过<b>权属核验</b>并在有效期内。<b>未核验房源不得对外发布</b>，也不会出现在本专区列表中。</span></div>'
+    + '<div class="desc-list"><dl>'
+    + '<dt>房源核验码</dt><dd><b class="hym-code">' + h.hym + '</b></dd>'
+    + '<dt>核验状态</dt><dd>' + PORTAL.badge('核验通过', 'green') + ' ' + PORTAL.badge(st.n, st.c)
+    + '　<span class="text-3 text-xs">核验有效期至 ' + (h.hyyxq || '—') + '</span></dd>'
+    + '<dt>权属核验结论</dt><dd>' + UI.esc(h.qsjl || '权属核验通过，房屋权利人与出租人一致') + '</dd>'
+    + '<dt>房屋坐落</dt><dd>' + h.qx + ' · ' + h.sq + ' · ' + UI.esc(h.xqmc) + ' · ' + h.fhMask
+    + ' <span class="text-3 text-xs">（房号按规定截断）</span></dd>'
+    + '<dt>租赁类型</dt><dd>' + zjlxOf(h) + (h.bzx === 1 ? '　' + PORTAL.badge('保障性租赁住房', 'green') : '') + '</dd>'
+    + '<dt>委托租赁企业</dt><dd>' + (h.wtjg ? UI.esc(h.wtjg) : '权利人自主出租，平台不介入居间服务') + '</dd>'
+    + '<dt>数据来源</dt><dd>' + (h.sjly || '房屋租赁网签备案管理系统') + '　最近更新 ' + h.gxsj + '</dd>'
+    + '</dl></div>'
+    + '<div class="alert alert-warning mt-16" style="margin-bottom:0"><i class="fa-solid fa-triangle-exclamation"></i>'
+    + '<span>签约前请核对核验码与出租人身份；本平台一律不展示权利人姓名、身份证号与联系方式，'
+    + '任何要求将租金押金转入个人账户的行为请提高警惕。</span></div>',
+    '<button class="btn" data-act="close-modal">关闭</button>'
+    + '<a class="btn btn-primary" href="rent-sign.html?hid=' + h.id + '" data-fp="wsmh-10-02">去签约备案</a>', 1);
+}
+
+/* 联系租赁企业 */
+function rhContact(id) {
+  if (!UI.needLogin('联系租赁企业')) return;
+  var h = PORTAL.house(id); if (!h) return;
+  if (!h.wtjg) {
+    UI.modal('<i class="fa-solid fa-circle-info text-primary"></i> 该房源为权利人自主出租',
+      '<div class="text-sm" style="line-height:1.9">该房源未委托租赁企业，平台不展示权利人联系方式。'
+      + '您可以通过<b>预约看房</b>由平台转达带看请求，或使用<b>在线咨询</b>由客服协助对接。</div>',
+      '<button class="btn" data-act="close-modal">关闭</button>'
+      + '<button class="btn btn-primary" onclick="UI.closeModal();rhAppt(\'' + h.id + '\')" data-fp="wsmh-10-01">去预约看房</button>');
+    return;
+  }
+  var ag = PORTAL.agencies().filter(function (a) { return a.mc === h.wtjg; })[0];
+  UI.modal('<i class="fa-solid fa-building-user text-primary"></i> 委托租赁企业信息',
+    '<div class="desc-list"><dl>'
+    + '<dt>企业名称</dt><dd><b>' + UI.esc(h.wtjg) + '</b>' + (ag ? '　' + PORTAL.agBadge(ag) : '') + '</dd>'
+    + (ag ? '<dt>统一社会信用代码</dt><dd>' + ag.tyshxydm + '</dd>'
+      + '<dt>经营地址</dt><dd>' + ag.qx + ' ' + UI.esc(ag.dz) + '</dd>'
+      + '<dt>企业公示电话</dt><dd><b>' + ag.tel + '</b> <span class="text-3 text-xs">（企业对外公示号码，非权利人联系方式）</span></dd>'
+      + '<dt>信用情况</dt><dd>信用分 ' + ag.score + ' 分 · ' + ag.dj + ' 级　评价 ' + ag.pjscore + ' 分（' + ag.pjnum + ' 条）</dd>'
+      + '<dt>备案门店</dt><dd>' + (ag.mendian && ag.mendian.length
+        ? ag.mendian.map(function (m) { return UI.esc(m.n) + '（' + UI.esc(m.dz) + '）'; }).join('<br>') : '—') + '</dd>' : '')
+    + '</dl></div>'
+    + '<div class="alert alert-info mt-16" style="margin-bottom:0"><i class="fa-solid fa-circle-info"></i>'
+    + '<span>请通过公示渠道联系企业，勿向个人账户转账。租赁合同应通过平台网签并申请备案，'
+    + '备案证明可用于落户、入学、公积金提取等事项。</span></div>',
+    '<button class="btn" data-act="close-modal">关闭</button>'
+    + (ag ? '<a class="btn" href="agency-detail.html?id=' + ag.id + '" data-fp="wsmh-10-01">查看企业公示</a>' : '')
+    + '<a class="btn btn-primary" href="chat.html?from=' + encodeURIComponent(h.bt) + '" data-fp="wsmh-10-01">在线咨询</a>', 1);
+}
+
+/* 预约看房 */
+function rhAppt(id) {
+  if (!UI.needLogin('预约看房')) return;
+  var h = PORTAL.house(id); if (!h) return;
+  var days = [];
+  for (var i = 1; i <= 7; i++) days.push(PDATA.ymd(PDATA.shift(i)));
+  UI.drawer('<i class="fa-solid fa-calendar-check text-primary"></i> 预约看房',
+    '<div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>'
+    + '<span>预约信息将推送至<b>' + UI.esc(h.wtjg || '平台带看服务') + '</b>，由工作人员与您联系确认。</span></div>'
+    + '<div class="desc-list mb-16"><dl>'
+    + '<dt>预约房源</dt><dd>' + UI.esc(h.bt) + '</dd>'
+    + '<dt>核验码</dt><dd><span class="hym-code">' + h.hym + '</span></dd>'
+    + '<dt>月租金</dt><dd><b class="text-accent">' + UI.money(h.zj, 0) + ' 元/月</b></dd>'
+    + '</dl></div>'
+    + '<div class="form-grid">'
+    + '<div class="form-item"><label><span class="req">*</span>看房日期</label><select class="select" id="ap-d">'
+    + days.map(function (d) { return '<option value="' + d + '">' + d + '</option>'; }).join('') + '</select></div>'
+    + '<div class="form-item"><label><span class="req">*</span>看房时段</label><select class="select" id="ap-sd">'
+    + ['上午 09:00-10:00', '上午 10:00-11:00', '下午 14:00-15:00', '下午 15:00-16:00', '下午 16:00-17:00', '晚上 18:00-19:00']
+      .map(function (s) { return '<option>' + s + '</option>'; }).join('') + '</select></div>'
+    + '<div class="form-item"><label><span class="req">*</span>联系电话</label>'
+    + '<input class="input" id="ap-tel" value="' + (UI.user().mobile || '') + '" placeholder="仅用于本次带看联络"></div>'
+    + '<div class="form-item"><label>意向入住时间</label><select class="select" id="ap-rz">'
+    + ['随时可入住', '一周内', '一个月内', '一个月以上'].map(function (s) { return '<option>' + s + '</option>'; }).join('') + '</select></div>'
+    + '<div class="form-item full"><label>备注</label>'
+    + '<textarea class="textarea" id="ap-note" placeholder="例如：需了解押付方式、是否可开具租金发票、能否办理租赁备案"></textarea></div>'
+    + '</div>',
+    '<button class="btn" data-act="close-drawer">取消</button>'
+    + '<button class="btn btn-primary" id="ap-ok" data-fp="wsmh-10-01">提交预约</button>');
+  document.getElementById('ap-ok').onclick = function () {
+    var tel = document.getElementById('ap-tel').value.trim();
+    if (!tel) { UI.toast('请填写联系电话', 'warning'); return; }
+    var a = PORTAL.act('house.appt', {
+      hid: h.id, d: document.getElementById('ap-d').value, sd: document.getElementById('ap-sd').value,
+      tel: tel, note: '意向入住：' + document.getElementById('ap-rz').value + '　' + document.getElementById('ap-note').value
+    });
+    UI.closeDrawer();
+    UI.toast('预约成功，编号 ' + a.id + '，已推送至' + (a.jg || '委托企业') + '，可在个人中心「我的预约」查看', 'success');
+  };
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>档案移交联动 · 房屋交易档案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  .no-code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; }
+  .modal-head { display: flex; align-items: center; gap: 10px; }
+  .modal-head h3 { font-size: 16px; font-weight: 700; }
+  .modal-head .close { margin-left: auto; cursor: pointer; color: var(--text-3); font-size: 18px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: none; border: 0; }
+  .modal-head .close:hover { background: var(--bg-soft); color: var(--text-1); }
+  .form-static { display: flex; align-items: center; gap: 8px; min-height: 34px; font-size: 13.5px; }
+  /* 本页特有：双方核对面板 */
+  .hd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 900px) { .hd-grid { grid-template-columns: 1fr; } }
+  .hd-col { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .hd-h { padding: 9px 14px; font-size: 13.5px; font-weight: 700; background: var(--bg-soft); display: flex; align-items: center; gap: 8px; }
+  .hd-col.recv .hd-h { background: var(--primary-light); color: var(--primary); }
+  .hd-b { padding: 14px; }
+  .hd-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 13px; }
+  .hd-row .k { width: 96px; flex-shrink: 0; color: var(--text-3); }
+  .hd-row .v { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .hd-row input { width: 140px; text-align: right; font-variant-numeric: tabular-nums; }
+  .df-bar {
+    display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 10px; font-size: 14px;
+    font-weight: 600; margin-top: 12px;
+  }
+  .df-bar.ok { background: var(--success-light); color: var(--success); }
+  .df-bar.no { background: var(--danger-light); color: var(--danger); }
+  .df-bar .n { font-size: 18px; font-variant-numeric: tabular-nums; }
+  /* 本页特有：A4 移交清单 */
+  .a4 {
+    background: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 32px 40px;
+    max-width: 780px; margin: 0 auto; box-shadow: var(--shadow-sm);
+  }
+  .a4 h2 { text-align: center; font-size: 20px; letter-spacing: 2px; margin: 0 0 4px; }
+  .a4 .sub { text-align: center; font-size: 12.5px; color: var(--text-3); margin-bottom: 16px; }
+  .a4 .mtb { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .a4 .mtb th, .a4 .mtb td { border: 1px solid #c9d3e0; padding: 6px 8px; }
+  .a4 .mtb th { background: #f4f7fb; font-weight: 600; }
+  .a4 .sign { display: flex; gap: 34px; margin-top: 24px; font-size: 13px; }
+  .a4 .sign .sg { flex: 1; }
+  .a4 .sign .sg .ln { border-bottom: 1px solid #96a5b8; height: 28px; margin-top: 4px; }
+  /* 本页特有：移交流程条 */
+  .yj-flow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12.5px; }
+  .yj-flow .s { display: inline-flex; align-items: center; gap: 5px; padding: 4px 11px; border-radius: 20px; background: var(--bg-soft); color: var(--text-3); }
+  .yj-flow .s.done { background: var(--success-light); color: var(--success); }
+  .yj-flow .s.now { background: var(--primary); color: #fff; font-weight: 600; }
+  .data-table tbody tr.df-row { background: #fff5f5; }
+  .data-table tbody tr.df-row td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdagl-13">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> <a class="link" href="index.html">房屋交易档案管理系统</a>
+        <span class="sep">/</span> 档案保管利用
+        <span class="sep">/</span> <span class="cur">档案移交联动</span>
+      </div>
+      <div class="page-title">档案移交联动</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" onclick="PMS.toast('已打开新建移交计划')"><i class="fa-solid fa-plus"></i> 新建移交计划</button>
+      <button type="button" class="btn" onclick="PMS.toast('已导出《移交台账》Excel','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      移交前生成移交清单并双方核对，<b>数量一致才能完成交接</b>；有差异的进入「有异议」状态，逐条核实后再交接。
+      移交完成后档案状态置为「已移交」，本系统保留目录与电子副本，实体不再管理。
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-truck-ramp-box"></i></div>
+      <div><div class="s-label">本年移交批次</div><div class="s-value">6</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-box-archive"></i></div>
+      <div><div class="s-label">累计移交案卷</div><div class="s-value">2,486</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-spinner"></i></div>
+      <div><div class="s-label">移交中</div><div class="s-value">1</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><div class="s-label">有异议</div><div class="s-value">1</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">已完成</div><div class="s-value">3</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-building-columns"></i></div>
+      <div><div class="s-label">接收进馆</div><div class="s-value">1</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3><i class="fa-solid fa-list"></i> 移交台账</h3></div>
+    <div class="card-body">
+      <div class="filter-bar" style="border-radius:8px;border:1px solid var(--border)">
+        <div class="filter-item"><label>移交编号</label><input type="text" placeholder="如 YJ2026003"></div>
+        <div class="filter-item">
+          <label>移交类型</label>
+          <select><option value="">全部</option><option>向档案馆移交</option><option>单位间移交</option><option>机构改革移交</option><option>接收进馆</option></select>
+        </div>
+        <div class="filter-item"><label>移交单位</label><input type="text" placeholder="单位名称"></div>
+        <div class="filter-item"><label>接收单位</label><input type="text" placeholder="单位名称"></div>
+        <div class="filter-item"><label>移交年度范围</label><input type="text" placeholder="如 2015 ~ 2016"></div>
+        <div class="filter-item"><label>移交日期</label><input type="date" value="2026-01-01"></div>
+        <div class="filter-item"><label>至</label><input type="date" value="2026-08-01"></div>
+        <div class="filter-item">
+          <label>移交状态</label>
+          <select><option value="">全部</option><option>计划中</option><option>移交中</option><option>已接收</option><option>有异议</option><option>已完成</option></select>
+        </div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件查询到 6 条移交记录')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn" onclick="PMS.toast('已重置筛选条件')">重置</button>
+        </div>
+      </div>
+
+      <div class="table-wrap mt-16">
+        <table class="data-table" data-static>
+          <thead>
+            <tr>
+              <th>移交编号</th>
+              <th>移交类型</th>
+              <th>移交单位 → 接收单位</th>
+              <th>移交年度范围</th>
+              <th class="num">案卷 / 件 / 页</th>
+              <th>电子文件 / 数据量</th>
+              <th>移交日期 / 经办人</th>
+              <th>接收日期 / 经办人</th>
+              <th>核对结果</th>
+              <th>移交状态</th>
+              <th style="width:150px">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="nowrap fw-600 no-code">YJ2026003</td>
+              <td class="nowrap"><span class="badge blue">向档案馆移交</span></td>
+              <td>XXXX市房产交易所<br><span class="text-3 text-sm">→ XXXX市档案馆</span></td>
+              <td class="nowrap">2015 ~ 2016</td>
+              <td class="num">486 / 12,846 / 68,420</td>
+              <td class="nowrap">12,846 个<br><span class="text-3 text-sm">86.42 GB</span></td>
+              <td class="nowrap">2026-07-28<br><span class="text-3 text-sm">覃永明</span></td>
+              <td class="nowrap text-3">待接收</td>
+              <td class="nowrap"><span class="badge gray">待核对</span></td>
+              <td class="nowrap"><span class="badge orange">移交中</span></td>
+              <td class="col-ops">
+                <a class="link" onclick="openHd('YJ2026003')">办理交接</a>
+                <a class="link" onclick="PMS.openModal('mdList')">查看清单</a>
+              </td>
+            </tr>
+            <tr class="df-row">
+              <td class="nowrap fw-600 no-code">YJ2026002</td>
+              <td class="nowrap"><span class="badge purple">单位间移交</span></td>
+              <td>XXXX市房产交易所<br><span class="text-3 text-sm">→ 柳江区住房和城乡建设局</span></td>
+              <td class="nowrap">2019 ~ 2021</td>
+              <td class="num">286 / 6,428 / 32,186</td>
+              <td class="nowrap">6,428 个<br><span class="text-3 text-sm">42.86 GB</span></td>
+              <td class="nowrap">2026-05-18<br><span class="text-3 text-sm">蒙丽华</span></td>
+              <td class="nowrap">2026-05-20<br><span class="text-3 text-sm">韦**</span></td>
+              <td class="nowrap"><span class="badge red">有差异</span><br><span class="text-danger text-sm">少 2 卷</span></td>
+              <td class="nowrap"><span class="badge red">有异议</span></td>
+              <td class="col-ops">
+                <a class="link text-danger fw-600" onclick="openHd('YJ2026002')">处理异议</a>
+                <a class="link" onclick="PMS.openModal('mdList')">查看清单</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600 no-code">YJ2026001</td>
+              <td class="nowrap"><span class="badge cyan">向档案馆移交</span></td>
+              <td>XXXX市房产交易所<br><span class="text-3 text-sm">→ XXXX市不动产登记中心</span></td>
+              <td class="nowrap">2023 ~ 2023</td>
+              <td class="num">862 / 18,624 / 92,486</td>
+              <td class="nowrap">18,624 个<br><span class="text-3 text-sm">126.84 GB</span></td>
+              <td class="nowrap">2026-03-12<br><span class="text-3 text-sm">覃永明</span></td>
+              <td class="nowrap">2026-03-14<br><span class="text-3 text-sm">李**</span></td>
+              <td class="nowrap"><span class="badge green">一致</span></td>
+              <td class="nowrap"><span class="badge green">已完成</span></td>
+              <td class="col-ops">
+                <a class="link" onclick="openHd('YJ2026001')">详情</a>
+                <a class="link" onclick="PMS.toast('已打印交接凭证','success')">打印凭证</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600 no-code">YJ2025008</td>
+              <td class="nowrap"><span class="badge gray">机构改革移交</span></td>
+              <td>XXXX市房改办（已撤销）<br><span class="text-3 text-sm">→ XXXX市房产交易所</span></td>
+              <td class="nowrap">1998 ~ 2008</td>
+              <td class="num">642 / 14,286 / 86,240</td>
+              <td class="nowrap text-3">未数字化</td>
+              <td class="nowrap">2025-11-20<br><span class="text-3 text-sm">黄**</span></td>
+              <td class="nowrap">2025-11-26<br><span class="text-3 text-sm">覃永明</span></td>
+              <td class="nowrap"><span class="badge green">一致</span></td>
+              <td class="nowrap"><span class="badge green">已完成</span></td>
+              <td class="col-ops">
+                <a class="link" onclick="openHd('YJ2025008')">详情</a>
+                <a class="link" href="digitize-batch.html">数字化计划</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600 no-code">YJ2025006</td>
+              <td class="nowrap"><span class="badge green">接收进馆</span></td>
+              <td>柳南区住房和城乡建设局<br><span class="text-3 text-sm">→ XXXX市房产交易所</span></td>
+              <td class="nowrap">2012 ~ 2014</td>
+              <td class="num">210 / 4,862 / 21,864</td>
+              <td class="nowrap">4,862 个<br><span class="text-3 text-sm">28.64 GB</span></td>
+              <td class="nowrap">2025-09-08<br><span class="text-3 text-sm">莫**</span></td>
+              <td class="nowrap">2025-09-10<br><span class="text-3 text-sm">蒙丽华</span></td>
+              <td class="nowrap"><span class="badge green">一致</span></td>
+              <td class="nowrap"><span class="badge green">已完成</span></td>
+              <td class="col-ops">
+                <a class="link" onclick="openHd('YJ2025006')">详情</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600 no-code">YJ2026004</td>
+              <td class="nowrap"><span class="badge blue">向档案馆移交</span></td>
+              <td>XXXX市房产交易所<br><span class="text-3 text-sm">→ XXXX市档案馆</span></td>
+              <td class="nowrap">2017 ~ 2017</td>
+              <td class="num">386 / 8,624 / 46,286</td>
+              <td class="nowrap">8,624 个<br><span class="text-3 text-sm">62.18 GB</span></td>
+              <td class="nowrap text-3">计划 2026-09-15</td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap"><span class="badge gray">计划中</span></td>
+              <td class="col-ops">
+                <a class="link" onclick="PMS.toast('已打开移交计划编辑')">编辑计划</a>
+                <a class="link" onclick="PMS.toast('已生成移交清单，共 386 卷','success')">生成清单</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="drawer-mask"></div>
+  <div class="drawer drawer-xl" id="drHd">
+    <div class="drawer-head">
+      <h3>交接办理</h3>
+      <span class="badge blue no-code" id="hdNo">YJ2026003</span>
+      <button type="button" class="close" onclick="PMS.closeDrawer('drHd')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="drawer-body">
+
+      <div class="yj-flow mb-16">
+        <span class="s done"><i class="fa-solid fa-check"></i> 制定移交计划</span>
+        <i class="fa-solid fa-angle-right text-3"></i>
+        <span class="s done"><i class="fa-solid fa-check"></i> 生成移交清单</span>
+        <i class="fa-solid fa-angle-right text-3"></i>
+        <span class="s now">双方核对</span>
+        <i class="fa-solid fa-angle-right text-3"></i>
+        <span class="s">签署交接凭证</span>
+        <i class="fa-solid fa-angle-right text-3"></i>
+        <span class="s">移交完成</span>
+      </div>
+
+      <div class="alert alert-info">
+        <i class="fa-solid fa-link"></i>
+        <div>本次移交与不动产登记业务关联，支撑<b>交房即交证</b>等联办场景下的档案衔接（移交类型为「向不动产登记机构移交」时展示）。</div>
+      </div>
+
+      <div class="section-title">移交基本信息</div>
+      <dl class="desc-list">
+        <div class="desc-item"><dt>移交编号</dt><dd class="no-code">YJ2026003</dd></div>
+        <div class="desc-item"><dt>移交类型</dt><dd><span class="badge blue">向档案馆移交</span></dd></div>
+        <div class="desc-item"><dt>移交单位</dt><dd>XXXX市房产交易所</dd></div>
+        <div class="desc-item"><dt>接收单位</dt><dd>XXXX市档案馆</dd></div>
+        <div class="desc-item"><dt>移交年度范围</dt><dd>2015 ~ 2016</dd></div>
+        <div class="desc-item"><dt>移交日期</dt><dd>2026-07-28　经办人 覃永明</dd></div>
+        <div class="desc-item span-2"><dt>移交范围说明</dt><dd>
+          2015 ~ 2016 年度保管期限为永久与长期的房屋交易档案，含商品房交易、存量房交易、抵押登记三类，
+          均已完成数字化，纸质实体连同电子副本一并移交市档案馆进馆保存。
+        </dd></div>
+        <div class="desc-item"><dt>移交清单文件</dt><dd><a class="link" onclick="PMS.openModal('mdList')">YJ2026003_移交清单.pdf</a></dd></div>
+        <div class="desc-item"><dt>移交状态</dt><dd><span class="badge orange">移交中</span></dd></div>
+      </dl>
+
+      <div class="section-title mt-16">双方核对</div>
+      <div class="hd-grid">
+        <div class="hd-col">
+          <div class="hd-h"><i class="fa-solid fa-arrow-up-from-bracket text-3"></i> 移交方登记（XXXX市房产交易所）</div>
+          <div class="hd-b">
+            <div class="hd-row"><span class="k">案卷数</span><span class="v">486</span><span class="text-3">卷</span></div>
+            <div class="hd-row"><span class="k">件数</span><span class="v">12,846</span><span class="text-3">件</span></div>
+            <div class="hd-row"><span class="k">页数</span><span class="v">68,420</span><span class="text-3">页</span></div>
+            <div class="hd-row"><span class="k">电子文件数</span><span class="v">12,846</span><span class="text-3">个</span></div>
+            <div class="hd-row"><span class="k">电子数据量</span><span class="v">86.42</span><span class="text-3">GB</span></div>
+          </div>
+        </div>
+        <div class="hd-col recv">
+          <div class="hd-h"><i class="fa-solid fa-inbox"></i> 接收方清点（XXXX市档案馆）</div>
+          <div class="hd-b">
+            <div class="hd-row"><span class="k">案卷数</span><input type="text" id="r1" value="486" oninput="calc()"><span class="text-3">卷</span></div>
+            <div class="hd-row"><span class="k">件数</span><input type="text" id="r2" value="12846" oninput="calc()"><span class="text-3">件</span></div>
+            <div class="hd-row"><span class="k">页数</span><input type="text" id="r3" value="68420" oninput="calc()"><span class="text-3">页</span></div>
+            <div class="hd-row"><span class="k">电子文件数</span><input type="text" id="r4" value="12846" oninput="calc()"><span class="text-3">个</span></div>
+            <div class="hd-row"><span class="k">电子数据量</span><input type="text" id="r5" value="86.42" oninput="calc()"><span class="text-3">GB</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="df-bar ok" id="dfBar">
+        <i class="fa-solid fa-circle-check"></i>
+        <span>核对一致，可完成交接</span>
+        <span style="margin-left:auto" class="text-sm">案卷、件、页与电子文件数量均与移交方登记相符</span>
+      </div>
+
+      <div id="dfBox" style="display:none">
+        <div class="section-title mt-16">差异登记</div>
+        <div class="form-item col-full mb-16">
+          <label>差异说明<span class="req">*</span></label>
+          <textarea rows="2" placeholder="填写差异总体情况与初步核实结论">接收方清点数量与移交方登记不符，须逐条核实后再交接。</textarea>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table compact" data-static>
+            <thead>
+              <tr><th>档案号</th><th>档案名称</th><th>差异类型</th><th>差异说明</th><th style="width:150px">核实结论</th><th style="width:90px">操作</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="nowrap no-code">DA450202201500426</td>
+                <td class="cell-lg">2015 年度商品房认购登记档案（第六卷）</td>
+                <td class="nowrap"><span class="badge red">清单有实物无</span></td>
+                <td><input type="text" value="装箱清点时未找到该卷，疑遗留在库房"></td>
+                <td><select><option>退回移交方补齐</option><option>确认遗失</option><option>已找到并补交</option></select></td>
+                <td class="col-ops"><a class="link" onclick="PMS.toast('已登记核实结论','success')">保存</a></td>
+              </tr>
+              <tr>
+                <td class="nowrap no-code">DA450202201600308</td>
+                <td class="cell-lg">2016 年度抵押备案档案（第二卷）</td>
+                <td class="nowrap"><span class="badge orange">件数不符</span></td>
+                <td><input type="text" value="清单登记 26 件，实点 24 件，缺第 18、19 件"></td>
+                <td><select><option>退回移交方补齐</option><option>更正清单</option><option>确认遗失</option></select></td>
+                <td class="col-ops"><a class="link" onclick="PMS.toast('已登记核实结论','success')">保存</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="btn-row mt-16">
+          <button type="button" class="btn" onclick="PMS.toast('已新增一条差异登记')"><i class="fa-solid fa-plus"></i> 新增差异条目</button>
+        </div>
+      </div>
+
+      <div class="section-title mt-16">交接凭证</div>
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>凭证编号</label>
+          <input type="text" class="no-code" value="JJPZ2026072800486" readonly>
+        </div>
+        <div class="form-item">
+          <label>接收日期<span class="req">*</span></label>
+          <input type="date" value="2026-08-01">
+        </div>
+        <div class="form-item">
+          <label>移交经办人<span class="req">*</span></label>
+          <input type="text" value="覃永明">
+        </div>
+        <div class="form-item">
+          <label>接收经办人<span class="req">*</span></label>
+          <input type="text" value="蓝**（XXXX市档案馆接收部）">
+        </div>
+        <div class="form-item col-full">
+          <label>凭证文件</label>
+          <div class="file-up">
+            <input type="hidden" class="file-up-val" value="YJ2026003_交接凭证（双方签字）.pdf">
+            <div class="file-up-grid">
+              <div class="file-up-tile file-up-add" title="添加文件">
+                <input type="file" multiple accept=".pdf,.jpg,.png">
+                <i class="fa-solid fa-plus"></i><span>上传</span>
+              </div>
+            </div>
+          </div>
+          <span class="hint">交接凭证须双方签字并留存，可先打印纸质件签字后回传扫描件</span>
+        </div>
+      </div>
+
+      <div class="alert alert-warning mt-16">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>
+          完成交接后，<b>486 卷档案状态将置为「已移交」</b>，本系统保留目录与电子副本，实体不再管理；
+          对应 486 处库位将释放；已移交档案不允许勘误。
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" onclick="PMS.closeDrawer('drHd')">取消</button>
+      <button type="button" class="btn" onclick="PMS.toast('已打印交接凭证（A4 纵向）','success')"><i class="fa-solid fa-print"></i> 打印交接凭证</button>
+      <button type="button" class="btn btn-primary" id="btnDone" onclick="doHd()"><i class="fa-solid fa-check"></i> 完成交接</button>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="mdList">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>移交清单 <span class="badge blue no-code">YJ2026003</span></h3>
+        <button type="button" class="close" onclick="PMS.closeModal('mdList')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" style="background:#eef2f7">
+        <div class="a4">
+          <h2>档案移交清单</h2>
+          <div class="sub">
+            移交单位：XXXX市房产交易所（全宗号 J028）　接收单位：XXXX市档案馆<br>
+            移交编号 YJ2026003　移交年度 2015 ~ 2016　共 486 卷 12,846 件 68,420 页
+          </div>
+          <table class="mtb">
+            <thead>
+              <tr>
+                <th style="width:42px">序号</th><th>档案号</th><th>档案名称</th><th style="width:90px">档案类型</th>
+                <th style="width:48px">年度</th><th style="width:44px">件数</th><th style="width:44px">页数</th>
+                <th style="width:56px">载体</th><th style="width:88px">备注</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>1</td><td class="no-code">DA450202201500426</td><td>2015 年度商品房认购登记档案（第六卷）</td><td>商品房交易</td><td>2015</td><td>28</td><td>92</td><td>双套</td><td>永久</td></tr>
+              <tr><td>2</td><td class="no-code">DA450202201500862</td><td>2015 年度商品房买卖合同备案档案（第十二卷）</td><td>商品房交易</td><td>2015</td><td>32</td><td>118</td><td>双套</td><td>永久</td></tr>
+              <tr><td>3</td><td class="no-code">DA450204201600186</td><td>2016 年度存量房买卖合同备案档案（第一卷）</td><td>存量房交易</td><td>2016</td><td>26</td><td>86</td><td>双套</td><td>永久</td></tr>
+              <tr><td>4</td><td class="no-code">DA450202201600308</td><td>2016 年度抵押备案档案（第二卷）</td><td>抵押登记</td><td>2016</td><td>26</td><td>74</td><td>双套</td><td>长期</td></tr>
+              <tr><td>5</td><td class="no-code">DA450205201600642</td><td>2016 年度公有住房出售档案（第四卷）</td><td>公有住房与房改</td><td>2016</td><td>34</td><td>126</td><td>双套</td><td>永久</td></tr>
+              <tr><td colspan="5" style="text-align:right"><b>合计（486 卷）</b></td><td><b>12,846</b></td><td><b>68,420</b></td><td>—</td><td>—</td></tr>
+            </tbody>
+          </table>
+          <p class="text-3 text-sm mt-8">注：清单完整版共 486 行，此处展示前 5 行样例；随卷移交电子副本 12,846 个，共 86.42 GB。</p>
+          <div class="sign">
+            <div class="sg">移交单位（盖章）<div class="ln"></div></div>
+            <div class="sg">接收单位（盖章）<div class="ln"></div></div>
+            <div class="sg">日期：2026 年 08 月 01 日<div class="ln"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="PMS.closeModal('mdList')">关闭</button>
+        <button type="button" class="btn" onclick="PMS.toast('已导出移交清单 Excel','success')"><i class="fa-solid fa-download"></i> 导出</button>
+        <button type="button" class="btn btn-primary" onclick="window.print()"><i class="fa-solid fa-print"></i> 打印（A4 纵向）</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+var base = { r1: 486, r2: 12846, r3: 68420, r4: 12846, r5: 86.42 };
+function calc() {
+  var diff = [];
+  var lab = { r1: '案卷数', r2: '件数', r3: '页数', r4: '电子文件数', r5: '电子数据量' };
+  Object.keys(base).forEach(function (k) {
+    var v = parseFloat(document.getElementById(k).value.replace(/,/g, '')) || 0;
+    if (Math.abs(v - base[k]) > 0.001) diff.push(lab[k] + ' 差 ' + (v - base[k] > 0 ? '+' : '') + (v - base[k]).toFixed(k === 'r5' ? 2 : 0));
+  });
+  var bar = document.getElementById('dfBar');
+  var box = document.getElementById('dfBox');
+  var btn = document.getElementById('btnDone');
+  if (diff.length === 0) {
+    bar.className = 'df-bar ok';
+    bar.innerHTML = '<i class="fa-solid fa-circle-check"></i><span>核对一致，可完成交接</span>' +
+      '<span style="margin-left:auto" class="text-sm">案卷、件、页与电子文件数量均与移交方登记相符</span>';
+    box.style.display = 'none';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-check"></i> 完成交接';
+  } else {
+    bar.className = 'df-bar no';
+    bar.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i><span>存在差异：' + diff.join('，') + '</span>' +
+      '<span style="margin-left:auto" class="text-sm">须逐条登记差异并核实后再交接</span>';
+    box.style.display = '';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-flag"></i> 提交异议';
+  }
+}
+function openHd(no) {
+  document.getElementById('hdNo').textContent = no;
+  if (no === 'YJ2026002') {
+    document.getElementById('r1').value = '284';
+    document.getElementById('r2').value = '12800';
+  }
+  calc();
+  PMS.openDrawer('drHd');
+}
+function doHd() {
+  var ok = document.getElementById('dfBar').classList.contains('ok');
+  if (!ok) {
+    PMS.confirm({
+      title: '提交移交异议',
+      type: 'warning',
+      message: '双方清点数量存在差异，提交后移交状态将置为「有异议」，须逐条核实后再交接。确认提交？',
+      detail: 'YJ2026003 · XXXX市房产交易所 → XXXX市档案馆',
+      okText: '确认提交异议',
+      onOk: function () { PMS.closeDrawer('drHd'); PMS.toast('已提交异议，移交状态置为「有异议」', 'warning'); }
+    });
+    return;
+  }
+  PMS.confirm({
+    title: '完成交接',
+    type: 'warning',
+    message: '完成交接后，486 卷档案状态将置为「已移交」，本系统保留目录与电子副本，实体不再管理，对应库位释放。确认完成？',
+    detail: 'YJ2026003 · 486 卷 / 12,846 件 / 68,420 页 · 核对一致',
+    okText: '确认完成交接',
+    onOk: function () {
+      PMS.closeDrawer('drHd');
+      PMS.toast('交接已完成：486 卷档案状态置为「已移交」，486 处库位已释放', 'success');
+    }
+  });
+}
+(function () {
+  var no = new URLSearchParams(location.search).get('no');
+  if (no) openHd(no);
+})();
+</script>
+</body>
+</html>

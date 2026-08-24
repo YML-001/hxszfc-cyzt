@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的证照与材料库 · 企业与机构工作台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  /* 本页专属布局 */
+  .corp-bar {
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card);
+    padding: 12px 16px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 18px;
+  }
+  .corp-bar .cb-t { font-size: 13.5px; font-weight: 700; color: var(--text-2); white-space: nowrap; }
+  .corp-bar .cb-d { font-size: 12.5px; color: var(--text-3); margin-left: auto; }
+
+  /* 证照卡片：左侧色条一眼看出「还能不能用」 */
+  .zz-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 14px; }
+  .zz-card {
+    border: 1px solid var(--border); border-left: 4px solid var(--success);
+    border-radius: var(--radius-card); background: #fff; padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 9px; cursor: pointer; transition: box-shadow .18s, transform .18s;
+  }
+  .zz-card:hover { box-shadow: 0 6px 18px rgba(20, 40, 90, .1); transform: translateY(-2px); }
+  .zz-card.soon { border-left-color: #f59e0b; }
+  .zz-card.expired { border-left-color: var(--danger); background: #fdefee; }
+  .zz-card.off { border-left-color: var(--border-strong); background: var(--bg-soft); }
+  .zz-card .zc-t { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; color: var(--text-1); }
+  .zz-card .zc-t i { color: var(--primary); }
+  .zz-card .zc-no { font-size: 12.5px; color: var(--text-3); }
+  .zz-card .zc-kv { display: flex; flex-direction: column; gap: 3px; font-size: 13px; color: var(--text-2); }
+  .zz-card .zc-kv b { color: var(--text-1); font-weight: 600; }
+  .zz-card .zc-f { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 4px; }
+
+  /* 版本链 */
+  .zz-ver { position: relative; padding-left: 24px; }
+  .zz-ver::before { content: ""; position: absolute; left: 7px; top: 6px; bottom: 6px; width: 2px; background: var(--border); }
+  .zz-ver .vr { position: relative; margin-bottom: 10px; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-card); }
+  .zz-ver .vr:last-child { margin-bottom: 0; }
+  .zz-ver .vr::before {
+    content: ""; position: absolute; left: -21px; top: 15px; width: 12px; height: 12px;
+    border-radius: 50%; background: #fff; border: 3px solid var(--border-strong);
+  }
+  .zz-ver .vr.cur { border-color: var(--success); background: var(--success-light); }
+  .zz-ver .vr.cur::before { border-color: var(--success); background: var(--success); }
+  .zz-ver .vr-h { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 14px; font-weight: 700; color: var(--text-1); }
+  .zz-ver .vr-h .vx { margin-left: auto; font-size: 12.5px; font-weight: 400; color: var(--text-3); }
+  .zz-ver .vr-m { display: flex; flex-wrap: wrap; gap: 3px 18px; margin-top: 6px; font-size: 12.5px; color: var(--text-3); }
+  .zz-ver .vr-m b { color: var(--text-2); font-weight: 600; }
+
+  /* 版本徽标 */
+  .vtag { display: inline-flex; align-items: center; padding: 0 8px; border-radius: 20px;
+    font-size: 12px; font-weight: 700; line-height: 20px; background: var(--primary-light); color: var(--primary); }
+  .vtag.cur { background: var(--success); color: #fff; }
+  .vtag.old { background: var(--bg-soft); color: var(--text-3); }
+
+  /* 分层标识 */
+  .tier { display: inline-flex; align-items: center; padding: 0 8px; border-radius: 3px;
+    font-size: 11.5px; font-weight: 600; line-height: 20px; white-space: nowrap; }
+  .tier.lic { background: var(--primary); color: #fff; }
+  .tier.mat { background: var(--bg-soft); color: var(--text-2); border: 1px solid var(--border-strong); }
+
+  /* 剩余天数条 */
+  .days { display: flex; align-items: center; gap: 8px; min-width: 130px; }
+  .days .dv { width: 58px; text-align: right; font-weight: 700; font-family: "DIN Alternate", var(--font); }
+  .days .db { flex: 1; height: 6px; min-width: 40px; border-radius: 4px; background: var(--bg-soft); overflow: hidden; }
+  .days .db > span { display: block; height: 100%; border-radius: 4px; background: var(--success); }
+  .days.warn .dv { color: #b45309; } .days.warn .db > span { background: #f59e0b; }
+  .days.bad .dv { color: var(--danger); } .days.bad .db > span { background: var(--danger); }
+
+  /* 授权开关 */
+  .sw { position: relative; display: inline-block; width: 40px; height: 21px; flex-shrink: 0;
+    border-radius: 20px; background: var(--border-strong); cursor: pointer; transition: background .18s; }
+  .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 17px; height: 17px;
+    border-radius: 50%; background: #fff; transition: transform .18s; box-shadow: 0 1px 3px rgba(0,21,41,.22); }
+  .sw.on { background: var(--success); }
+  .sw.on::after { transform: translateX(19px); }
+</style>
+</head>
+<body data-nav="home">
+
+<div class="wrap">
+  <div class="crumb">
+    <a href="../web/home.html" data-fp="wsmh-37-01">首页</a><i class="fa-solid fa-angle-right"></i>
+    <a href="index.html" data-fp="wsmh-37-01">企业与机构工作台</a><i class="fa-solid fa-angle-right"></i>我的证照与材料库
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="desk">
+    <aside class="side-menu" id="side"></aside>
+    <main class="desk-main">
+
+      <div class="corp-bar" id="corp-bar"></div>
+
+      <div class="alert alert-info">
+        <i class="fa-solid fa-circle-info"></i>
+        <span>本库是本企业与所属人员证照在<b>全平台的唯一存档</b>。您在各业务板块办理业务时上传的证照与材料，办结后<b>自动归集到这里</b>；
+          再次办理其他业务时由系统<b>直接调取，无需重复上传</b>。证照换发只新增版本，历史版本永久保留；<b>已办结的办件仍指向办理当时的版本</b>，材料内容不会因换发而改变。</span>
+      </div>
+
+      <div class="stat-grid c5" id="cl-kpi"></div>
+
+      <div class="tabs" data-tabs data-scope="cl-box">
+        <a class="on" data-tab="cl-lib" data-fp="wsmh-37-01"><i class="fa-solid fa-folder-tree"></i> 我的证照与材料库</a>
+        <a data-tab="cl-up" data-fp="wsmh-37-02"><i class="fa-solid fa-cloud-arrow-up"></i> 上传与换发登记</a>
+        <a data-tab="cl-exp" data-fp="wsmh-37-03"><i class="fa-solid fa-hourglass-half"></i> 到期提醒</a>
+        <a data-tab="cl-auth" data-fp="wsmh-37-04"><i class="fa-solid fa-shield-halved"></i> 授权与调用记录</a>
+      </div>
+
+      <div id="cl-box">
+
+        <!-- ========= Tab 1：我的证照与材料库（wsmh-37-01） ========= -->
+        <div class="tab-pane on" id="cl-lib">
+          <div class="desk-card">
+            <div class="card-head"><h3><i class="fa-solid fa-certificate text-primary"></i> 企业证照</h3>
+              <span class="sub">证照层 · 做版本管理、跨业务复用</span>
+              <div class="ca"><a class="btn btn-sm" href="javascript:;" id="lib-up" data-fp="wsmh-37-02"><i class="fa-solid fa-cloud-arrow-up"></i> 上传新证照</a></div>
+            </div>
+            <div class="card-body">
+              <div class="zz-grid" id="lib-qy"></div>
+            </div>
+          </div>
+
+          <div class="desk-card">
+            <div class="card-head"><h3><i class="fa-solid fa-id-card text-primary"></i> 所属人员证照</h3>
+              <span class="sub">在册从业人员的身份证件、执业资格证书与执业信息卡</span>
+              <div class="ca"><a class="btn btn-sm" href="staff-register.html" data-fp="wsmh-22-02">去人员实名登记</a></div>
+            </div>
+            <div class="card-body">
+              <div class="table-wrap">
+                <table class="pub-table">
+                  <thead><tr>
+                    <th>人员</th><th>证照类型</th><th>证照编号</th><th>有效期止</th>
+                    <th style="width:88px">版本</th><th style="width:110px">状态</th><th style="width:150px">操作</th>
+                  </tr></thead>
+                  <tbody id="lib-ry"></tbody>
+                </table>
+              </div>
+              <div class="table-note"><i class="fa-solid fa-circle-info"></i>
+                身份证件属敏感证照，对外一律脱敏展示；业务板块调取时需您单独授权。</div>
+            </div>
+          </div>
+
+          <div class="desk-card">
+            <div class="card-head"><h3><i class="fa-solid fa-box-archive text-primary"></i> 历次办件提交的材料</h3>
+              <span class="sub">材料层 · 按主体归档、可复用但不做版本管理</span>
+              <div class="ca">
+                <select class="select" id="lib-bk" style="width:auto;min-width:180px"></select>
+              </div>
+            </div>
+            <div class="card-body np">
+              <div class="table-wrap">
+                <table class="pub-table">
+                  <thead><tr>
+                    <th>材料名称</th><th style="width:96px">层级</th><th style="width:110px">材料类型</th>
+                    <th style="width:190px">来源业务</th><th style="width:150px">来源办件号</th>
+                    <th style="width:100px">提交时间</th><th style="width:96px">可复用</th>
+                    <th style="width:80px" class="num">被复用</th><th style="width:80px">操作</th>
+                  </tr></thead>
+                  <tbody id="lib-cl"></tbody>
+                </table>
+              </div>
+              <div class="table-note"><i class="fa-solid fa-circle-info"></i>
+                申请表、承诺书等一次性材料标记为「不可复用」，只归档不外供；与房屋、项目、合同绑定的材料归各自业务档案，不在本库。</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========= Tab 2：上传与换发登记（wsmh-37-02） ========= -->
+        <div class="tab-pane" id="cl-up">
+          <div class="alert alert-warning">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span>证照<b>换发不新建记录，只生成新版本</b>：新版本生效后原版本自动转「已换发」，历史版本永久保留可查。
+              提交后进入<b>核验</b>环节，核验通过前该证照不对外提供调取。资质等级、有效期等由证照派生的信息，会随核验通过<b>自动更新</b>您的备案档案与对外公示内容。</span>
+          </div>
+
+          <div class="desk-card">
+            <div class="card-head"><h3><i class="fa-solid fa-list-check text-primary"></i> 登记方式</h3>
+              <span class="sub">先选择本次是新增证照还是已有证照换发</span></div>
+            <div class="card-body">
+              <div class="radio-row" id="up-mode">
+                <label><input type="radio" name="upmode" value="new" checked> 上传新证照（本库尚无此类证照）</label>
+                <label><input type="radio" name="upmode" value="ver"> 已有证照换发 / 变更 / 补办（生成新版本）</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="desk-card" id="up-verbox" style="display:none">
+            <div class="card-head"><h3><i class="fa-solid fa-clock-rotate-left text-primary"></i> 选择要换发的证照</h3></div>
+            <div class="card-body">
+              <div class="form-grid c1">
+                <div class="form-item"><label><span class="req">*</span>待换发证照</label>
+                  <select class="select" id="up-target"></select>
+                  <div class="tip">选定后下方自动带出该证照的现有版本链，便于核对本次换发的变化内容。</div></div>
+              </div>
+              <div id="up-verchain" class="mt-16"></div>
+            </div>
+          </div>
+
+          <div class="desk-card">
+            <div class="card-head"><h3><i class="fa-solid fa-file-circle-plus text-primary"></i> 证照信息</h3>
+              <span class="sub">带 * 为必填；要素信息会经 OCR 识别后由业务人员核验确认</span></div>
+            <div class="card-body">
+              <div class="form-grid">
+                <div class="form-item"><label><span class="req">*</span>证照类型</label><select class="select" id="up-lx"></select></div>
+                <div class="form-item"><label><span class="req">*</span>证照编号</label><input class="input" id="up-bh" placeholder="与证照记载完全一致"></div>
+                <div class="form-item"><label><span class="req">*</span>发证机关</label><input class="input" id="up-jg" placeholder="如 广西壮族自治区住房和城乡建设厅"></div>
+                <div class="form-item"><label><span class="req">*</span>发证日期</label><input class="input" id="up-fzrq" type="date"></div>
+                <div class="form-item"><label><span class="req">*</span>有效期止</label><input class="input" id="up-yxq" type="date">
+                  <div class="tip">长期有效的证照可勾选下方「长期有效」。</div></div>
+                <div class="form-item"><label>资质等级</label><select class="select" id="up-dj">
+                  <option>—</option><option>特级</option><option>一级</option><option>二级</option><option>三级</option><option>暂定级</option></select></div>
+                <div class="form-item" id="up-reason-wrap" style="display:none"><label><span class="req">*</span>换发原因</label>
+                  <select class="select" id="up-reason">
+                    <option>资质延续</option><option>资质等级变更（升级）</option><option>资质等级变更（降级）</option>
+                    <option>证照换版</option><option>遗失补办</option><option>信息更正</option></select></div>
+                <div class="form-item"><label>长期有效</label>
+                  <div class="check-row"><label><input type="checkbox" id="up-forever"> 该证照无固定有效期</label></div></div>
+                <div class="form-item full"><label><span class="req">*</span>证照原件</label>
+                  <div id="up-file"></div>
+                  <div class="tip">彩色扫描件或原件照片，支持 JPG / PNG / PDF；系统自动识别要素信息，识别结果由业务人员核验确认。</div></div>
+                <div class="form-item full"><label>说明</label>
+                  <textarea class="textarea" id="up-note" placeholder="如本次换发的依据文书编号，便于业务人员核验"></textarea></div>
+              </div>
+              <div class="check-row mt-16">
+                <label><input type="checkbox" id="up-cn"> 本企业承诺所上传证照真实、合法、有效，并了解证照过期未换发将导致依赖该证照的业务办理被拦截</label>
+              </div>
+              <div class="wz-acts" style="display:flex;gap:10px;justify-content:flex-end;padding-top:16px;margin-top:18px;border-top:1px dashed var(--row-line)">
+                <button class="btn" id="up-demo" data-fp="wsmh-37-02"><i class="fa-solid fa-wand-magic-sparkles"></i> 填入演示数据</button>
+                <button class="btn btn-accent" id="up-submit" data-fp="wsmh-37-02"><i class="fa-solid fa-paper-plane"></i> 提交并送核验</button>
+              </div>
+              <div id="up-res" class="mt-16"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========= Tab 3：到期提醒（wsmh-37-03） ========= -->
+        <div class="tab-pane" id="cl-exp">
+          <div class="alert alert-danger" id="exp-alert" style="display:none"></div>
+
+          <div class="desk-card">
+            <div class="card-head"><h3><i class="fa-solid fa-hourglass-half text-primary"></i> 到期与预警清单</h3>
+              <span class="sub">到期前分级提醒经短信与站内信推送，过期后依赖该证照的业务办理会被拦截</span>
+              <div class="ca"><a class="btn btn-sm" href="javascript:;" id="exp-goup" data-fp="wsmh-37-02"><i class="fa-solid fa-cloud-arrow-up"></i> 去换发登记</a></div>
+            </div>
+            <div class="card-body np">
+              <div class="table-wrap">
+                <table class="pub-table">
+                  <thead><tr>
+                    <th>证照类型 / 编号</th><th style="width:110px">有效期止</th><th style="width:170px">剩余</th>
+                    <th style="width:120px">预警级别</th><th>影响的业务办理</th><th style="width:150px">操作</th>
+                  </tr></thead>
+                  <tbody id="exp-list"></tbody>
+                </table>
+              </div>
+              <div class="table-note"><i class="fa-solid fa-circle-info"></i>
+                证照过期未换发的，系统自动置为「已过期」，办理依赖该证照的业务时会被拦截并提示换发入口。换发核验通过后拦截即时解除。</div>
+            </div>
+          </div>
+
+          <div class="desk-card">
+            <div class="card-head"><h3><i class="fa-solid fa-bell text-primary"></i> 提醒接收设置</h3>
+              <span class="sub">提醒统一由统一消息服务平台推送，同一证照按级别控制频次，不会重复打扰</span></div>
+            <div class="card-body">
+              <div class="form-grid">
+                <div class="form-item"><label>接收人</label><input class="input" value="周**（经办人）、陆**（法定代表人）" readonly>
+                  <div class="tip">接收人取自「经办人账号管理」，如需调整请在工作台首页维护。</div></div>
+                <div class="form-item"><label>接收手机号</label><input class="input" value="139****2264" readonly></div>
+                <div class="form-item full"><label>接收渠道</label>
+                  <div class="check-row">
+                    <label><input type="checkbox" checked> 短信</label>
+                    <label><input type="checkbox" checked> 站内信</label>
+                    <label><input type="checkbox" checked> 企业端登录弹窗</label>
+                    <label><input type="checkbox"> 微信公众号</label>
+                  </div></div>
+              </div>
+              <div class="wz-acts" style="display:flex;gap:10px;justify-content:flex-end;padding-top:16px;margin-top:18px;border-top:1px dashed var(--row-line)">
+                <button class="btn btn-primary" id="exp-save" data-fp="wsmh-37-03"><i class="fa-solid fa-floppy-disk"></i> 保存设置</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========= Tab 4：授权与调用记录（wsmh-37-04） ========= -->
+        <div class="tab-pane" id="cl-auth">
+          <div class="alert alert-info">
+            <i class="fa-solid fa-circle-info"></i>
+            <span>营业执照、资质证书等<b>非敏感证照</b>，各业务板块在授权范围内可直接调取，用于免除您的重复上传；
+              法定代表人身份证明、授权委托书、身份证件等<b>敏感证照</b>，每次调取都<b>需要您授权</b>。您可以随时查看全部调用记录，也可撤回已给出的长期授权。</span>
+          </div>
+
+          <div class="desk-card">
+            <div class="card-head"><h3><i class="fa-solid fa-user-lock text-primary"></i> 待我授权</h3>
+              <span class="sub">业务板块申请调取敏感证照，需您确认后才能调取</span></div>
+            <div class="card-body np">
+              <div class="table-wrap">
+                <table class="pub-table">
+                  <thead><tr>
+                    <th>申请业务</th><th>调取证照</th><th>调取内容</th><th style="width:140px">授权方式</th>
+                    <th style="width:110px">申请时间</th><th style="width:180px">操作</th>
+                  </tr></thead>
+                  <tbody id="au-wait"></tbody>
+                </table>
+              </div>
+              <div class="table-note"><i class="fa-solid fa-circle-info"></i>
+                拒绝授权不影响业务受理，只是该材料需要您自行上传。超过 2 个工作日未确认的，办理页面会自动恢复上传入口。</div>
+            </div>
+          </div>
+
+          <div class="desk-card">
+            <div class="card-head"><h3><i class="fa-solid fa-shield-halved text-primary"></i> 长期授权管理</h3>
+              <span class="sub">关闭后该业务板块不再能调取本类证照，需要时会重新向您申请</span></div>
+            <div class="card-body np">
+              <div class="table-wrap">
+                <table class="pub-table">
+                  <thead><tr>
+                    <th>业务板块</th><th>证照类型</th><th>调取内容</th><th style="width:130px">授权至</th>
+                    <th style="width:96px" class="num">已调取</th><th style="width:110px">授权状态</th><th style="width:110px">操作</th>
+                  </tr></thead>
+                  <tbody id="au-long"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="desk-card">
+            <div class="card-head"><h3><i class="fa-solid fa-right-left text-primary"></i> 调用记录</h3>
+              <span class="sub">每次调取都留有记录，可按业务板块与时间追溯</span>
+              <div class="ca">
+                <select class="select" id="au-flt" style="width:auto;min-width:180px"></select>
+              </div>
+            </div>
+            <div class="card-body np">
+              <div class="table-wrap">
+                <table class="pub-table">
+                  <thead><tr>
+                    <th style="width:130px">调用时间</th><th>调用业务</th><th style="width:150px">办件号</th>
+                    <th style="width:160px">证照类型</th><th style="width:80px">版本</th>
+                    <th>调取内容</th><th style="width:130px">授权方式</th><th style="width:96px">结果</th>
+                  </tr></thead>
+                  <tbody id="au-log"></tbody>
+                </table>
+              </div>
+              <div class="table-note"><i class="fa-solid fa-circle-info"></i>
+                调取的是<b>当前有效版本</b>。已办结的办件保存的是办理当时的版本号，您后续换发证照不会改变那些办件的材料内容。</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div id="src-note"></div>
+    </main>
+  </div>
+</div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+/* ============ 公共骨架：主体角色 / 左侧菜单 / 登录拦截 ============ */
+var ROLES = [
+  { k: '开发企业', n: '开发企业', lx: '房地产开发企业', ico: 'fa-building-flag' },
+  { k: '经纪机构', n: '房地产经纪机构', lx: '房地产经纪机构', ico: 'fa-handshake' },
+  { k: '测绘机构', n: '房产测绘机构', lx: '房产测绘机构', ico: 'fa-ruler-combined' },
+  { k: '评估公证', n: '评估公证机构', lx: '评估公证机构', ico: 'fa-stamp' },
+  { k: '租赁企业', n: '住房租赁企业', lx: '住房租赁企业', ico: 'fa-key' }
+];
+function ssGet(k, d) { try { return sessionStorage.getItem(k) || d; } catch (e) { return d; } }
+function ssSet(k, v) { try { sessionStorage.setItem(k, v); } catch (e) { } }
+function roleName(k) { for (var i = 0; i < ROLES.length; i++) if (ROLES[i].k === k) return ROLES[i].n; return k; }
+
+var CORP = {
+  key: function () {
+    var q = UI.param('corp');
+    if (q) { for (var i = 0; i < ROLES.length; i++) { if (ROLES[i].k === q || ROLES[i].n === q) { ssSet('wsmh.corp', ROLES[i].k); break; } } }
+    return ssGet('wsmh.corp', '开发企业');
+  },
+  role: function () { var k = CORP.key(); for (var i = 0; i < ROLES.length; i++) if (ROLES[i].k === k) return ROLES[i]; return ROLES[0]; },
+  set: function (k) { ssSet('wsmh.corp', k); },
+  agency: function () {
+    var r = CORP.role(), list = PORTAL.agencies({ lx: r.lx });
+    var ok = list.filter(function (a) { return a.rwzt === '1'; })[0];
+    return ok || list[0] || null;
+  },
+  name: function () { var a = CORP.agency(); return a ? a.mc : UI.user().name; }
+};
+
+function renderSide(active) {
+  var r = CORP.role(), a = CORP.agency();
+  var nm = r.k === '开发企业' ? UI.user().name : (a ? a.mc : UI.user().name);
+  var G = [
+    ['', [['index.html', '工作台首页', 'fa-gauge', '']]],
+    ['主体管理', [
+      ['net-apply.html', '企业入网备案', 'fa-id-card-clip', ''],
+      ['staff-register.html', '从业人员实名登记', 'fa-user-check', ''],
+      ['cert-library.html', '我的证照与材料库', 'fa-folder-tree', '']]],
+    ['开发企业', [
+      ['dev-project.html', '项目预售与进度申报', 'fa-building-flag', '开发企业'],
+      ['dev-fund.html', '监管账户与资金申报', 'fa-shield-halved', '开发企业']]],
+    ['机构服务', [
+      ['agency-desk.html', '经纪机构端', 'fa-handshake', '经纪机构'],
+      ['org-desk.html', '测绘与评估公证端', 'fa-ruler-combined', '测绘机构,评估公证'],
+      ['rent-company.html', '租赁企业办事', 'fa-key', '租赁企业']]],
+    ['', [['../web/home.html', '返回门户首页', 'fa-arrow-left', '']]]
+  ];
+  var h = '<div class="sm-head"><div class="sm-n">' + UI.esc(nm.length > 13 ? nm.slice(0, 13) + '…' : nm) + '</div>'
+    + '<div class="sm-r"><i class="fa-solid ' + r.ico + '"></i> ' + r.n + '　'
+    + (a ? PORTAL.AG_ST[a.rwzt].n : '未入网') + '</div></div>';
+  G.forEach(function (g) {
+    h += '<div class="sm-g">' + (g[0] ? '<div class="sm-gt">' + g[0] + '</div>' : '');
+    g[1].forEach(function (x) {
+      var allow = x[3] ? x[3].split(',') : null;
+      var ok = !allow || allow.indexOf(r.k) >= 0;
+      if (ok) {
+        h += '<a class="' + (x[0] === active ? 'on' : '') + '" href="' + x[0] + '" data-fp="wsmh-23-01">'
+          + '<i class="fa-solid ' + x[2] + '"></i>' + x[1] + '</a>';
+      } else {
+        var ns = allow.map(roleName).join('、');
+        h += '<a href="javascript:;" style="opacity:.42" data-dis="' + ns + '" data-fp="wsmh-23-01">'
+          + '<i class="fa-solid ' + x[2] + '"></i>' + x[1]
+          + '<i class="fa-solid fa-lock" style="margin-left:auto;font-size:11px"></i></a>';
+      }
+    });
+    h += '</div>';
+  });
+  var el = document.getElementById('side');
+  el.innerHTML = h;
+  el.querySelectorAll('[data-dis]').forEach(function (x) {
+    x.onclick = function () { UI.toast('该功能仅' + x.getAttribute('data-dis') + '可用，请先在页面顶部切换主体角色', 'warning'); };
+  });
+}
+
+function renderCorpBar(id, fp) {
+  var cur = CORP.key(), box = document.getElementById(id);
+  box.innerHTML = '<span class="cb-t"><i class="fa-solid fa-user-gear text-primary"></i> 主体角色</span>'
+    + '<div class="pill-tabs">' + ROLES.map(function (r) {
+      return '<a class="' + (r.k === cur ? 'on' : '') + '" data-corp="' + r.k + '" data-fp="' + fp + '">'
+        + '<i class="fa-solid ' + r.ico + '"></i> ' + r.n + '</a>';
+    }).join('') + '</div>'
+    + '<span class="cb-d">同一门户账号可关联多类主体身份，切换后左侧菜单与页面内容按角色适配</span>';
+  box.querySelectorAll('[data-corp]').forEach(function (a) {
+    a.onclick = function () {
+      var k = a.getAttribute('data-corp');
+      if (k === CORP.key()) { UI.toast('当前已是「' + roleName(k) + '」角色', 'info'); return; }
+      CORP.set(k);
+      UI.toast('已切换为「' + roleName(k) + '」，页面即将按新角色刷新', 'success');
+      setTimeout(function () { location.href = location.pathname; }, 700);
+    };
+  });
+}
+
+function corpGuard(file) {
+  if (UI.isLogin()) return true;
+  UI.needLogin('企业与机构工作台');
+  var m = document.querySelector('.desk-main');
+  if (m) m.innerHTML = '<div class="desk-card"><div class="card-body">' + UI.empty(
+    '我的证照与材料库需要登录后使用',
+    '演示环境提供企业演示账号，可一键进入体验证照归集、换发登记、到期提醒与调用授权全流程。',
+    '<a class="btn btn-primary" href="' + file + '?user=company" data-fp="wsmh-37-01">使用企业演示账号进入</a>'
+    + '<a class="btn" style="margin-left:10px" href="../web/login.html" data-fp="wsmh-37-01">去登录页</a>')
+    + '</div></div>';
+  return false;
+}
+
+/* ============ 演示数据 ============ */
+/* 企业证照：st 为 ok / soon / expired / off，days 为剩余天数（负数表示已过期） */
+var ZZ = [
+  { lx: '营业执照', bh: '91450200MA5KX8Q71D', jg: '柳州市市场监督管理局', yxq: '长期', days: null, ver: 2, st: 'ok', src: '政务证照库同步', used: 216 },
+  { lx: '资质证书', bh: '桂建开甲 2019-0186', jg: '自治区住房和城乡建设厅', yxq: '2031-08-23', days: 1825, ver: 3, st: 'ok', src: '本次年审换发', used: 38, dj: '一级' },
+  { lx: '法定代表人身份证明', bh: '450203********1234', jg: '公安机关', yxq: '2032-05-18', days: 2094, ver: 1, st: 'ok', src: '入网时采集', used: 26, sens: 1 },
+  { lx: '法定代表人授权委托书', bh: 'SQ2025-0401', jg: '本企业出具', yxq: '2027-03-31', days: 219, ver: 1, st: 'ok', src: '入网时采集', used: 14, sens: 1 },
+  { lx: '开户许可证', bh: 'J2019-0186-0356', jg: '中国人民银行柳州市中心支行', yxq: '长期', days: null, ver: 1, st: 'ok', src: '监管账户备案回流', used: 12 },
+  { lx: '其他企业证照（安全生产许可证）', bh: '桂安许字 2023-0918', jg: '自治区住房和城乡建设厅', yxq: '2026-09-15', days: 22, ver: 1, st: 'soon', src: '企业端上传', used: 4 }
+];
+
+var RY = [
+  { nm: '陆**', lx: '身份证件', bh: '450203****1234', yxq: '2032-05-18', ver: 1, st: 'ok', sens: 1 },
+  { nm: '周**', lx: '身份证件', bh: '450204****2264', yxq: '2030-11-02', ver: 1, st: 'ok', sens: 1 },
+  { nm: '周**', lx: '执业资格证书', bh: 'LZJJ2023081', yxq: '2029-05-17', ver: 1, st: 'ok' },
+  { nm: '周**', lx: '执业信息卡', bh: 'LZKA2023081', yxq: '2026-11-02', ver: 1, st: 'soon' },
+  { nm: '韦**', lx: '执业资格证书', bh: 'LZJJ2020117', yxq: '2026-07-14', ver: 1, st: 'expired' }
+];
+
+var CL = [
+  { nm: '房地产开发企业资质证书', tier: 'lic', t: '证照类', bk: '企业年审（本平台）', bj: 'BJ2026-19-004512', d: '2026-08-24', re: 1, used: 38, v: 3 },
+  { nm: '营业执照', tier: 'lic', t: '证照类', bk: '政务证照库同步', bj: '—', d: '2026-08-01', re: 1, used: 216, v: 2 },
+  { nm: '法定代表人授权委托书', tier: 'lic', t: '证照类', bk: '企业入网备案', bj: 'BJ2025-19-002210', d: '2025-04-01', re: 1, used: 14, v: 1 },
+  { nm: '上年度经营情况说明', tier: 'mat', t: '证明类', bk: '企业年审（本平台）', bj: 'BJ2026-19-004512', d: '2026-08-24', re: 1, used: 1 },
+  { nm: '开发企业年审申请表', tier: 'mat', t: '申请表类', bk: '企业年审（本平台）', bj: 'BJ2026-19-004512', d: '2026-08-24', re: 0, used: 0 },
+  { nm: '诚信经营承诺书', tier: 'mat', t: '承诺书类', bk: '商品房预售许可', bj: 'BJ2026-08-005311', d: '2026-08-24', re: 0, used: 0 },
+  { nm: '监管账户开户资料', tier: 'mat', t: '证明类', bk: '监管账户备案', bj: 'BJ2026-12-001133', d: '2026-06-03', re: 1, used: 3 },
+  { nm: '预售方案', tier: 'mat', t: '决议 / 文书类', bk: '商品房预售许可', bj: 'BJ2026-08-005311', d: '2026-08-24', re: 1, used: 2 },
+  { nm: '股东会决议（增资）', tier: 'mat', t: '决议 / 文书类', bk: '企业信息变更', bj: 'BJ2024-19-001566', d: '2024-09-12', re: 1, used: 2 }
+];
+
+var AU_WAIT = [
+  { bk: '商品房交易管理', sx: '预售资格审核', zz: '法定代表人授权委托书', ct: '受托人姓名、授权期限、原件', fs: '一次性（仅本办件）', t: '2026-08-24 13:52' },
+  { bk: '预售资金监管', sx: '监管账户备案', zz: '法定代表人身份证明', ct: '姓名、证件号（脱敏）、原件', fs: '一次性（仅本办件）', t: '2026-08-24 10:18' }
+];
+
+var AU_LONG = [
+  { bk: '商品房交易管理', zz: '营业执照、资质证书', ct: '全部要素信息 + 原件', to: '长期有效', n: 386, on: 1 },
+  { bk: '存量房交易管理', zz: '资质证书', ct: '资质等级、有效期止', to: '长期有效', n: 128, on: 1 },
+  { bk: '预售资金监管', zz: '营业执照、开户许可证', ct: '账号、开户行、证照编号', to: '长期有效', n: 42, on: 1 },
+  { bk: '存量房交易管理', zz: '法定代表人身份证明', ct: '姓名、证件号（脱敏）', to: '2027-08-23', n: 6, on: 1 },
+  { bk: '房屋租赁管理', zz: '法定代表人授权委托书', ct: '受托人姓名、授权期限', to: '—', n: 0, on: 0 }
+];
+
+var AU_LOG = [
+  { t: '2026-08-24 14:06', bk: '商品房交易管理 · 商品房预售许可', bj: 'BJ2026-08-005311', zz: '资质证书', v: 3, ct: '全部要素信息 + 原件', fs: '长期授权', r: 'ok' },
+  { t: '2026-08-24 14:06', bk: '商品房交易管理 · 商品房预售许可', bj: 'BJ2026-08-005311', zz: '营业执照', v: 2, ct: '全部要素信息 + 原件', fs: '长期授权', r: 'ok' },
+  { t: '2026-08-24 10:12', bk: '企业年审（本平台）', bj: 'BJ2026-19-004512', zz: '营业执照', v: 2, ct: '全部要素信息 + 原件', fs: '长期授权', r: 'ok' },
+  { t: '2026-08-24 10:12', bk: '企业年审（本平台）', bj: 'BJ2026-19-004512', zz: '资质证书', v: 3, ct: '全部要素信息 + 原件', fs: '长期授权', r: 'ok' },
+  { t: '2026-08-20 09:32', bk: '项目库与全生命周期 · 资质核验', bj: '—', zz: '资质证书', v: 3, ct: '资质等级、有效期止', fs: '长期授权', r: 'ok' },
+  { t: '2026-07-11 16:18', bk: '政策性住房 · 安置房项目备案', bj: 'BJ2026-07-000844', zz: '资质证书', v: 2, ct: '全部要素信息 + 原件', fs: '长期授权', r: 'ok' },
+  { t: '2026-06-25 11:02', bk: '预售资金监管 · 监管账户备案', bj: 'BJ2026-12-001133', zz: '开户许可证', v: 1, ct: '账号、开户行、证照编号', fs: '长期授权', r: 'ok' },
+  { t: '2026-06-03 09:41', bk: '房屋租赁管理 · 租赁合同备案', bj: 'BJ2026-10-003188', zz: '法定代表人授权委托书', v: 0, ct: '受托人姓名、授权期限', fs: '未授权', r: 'no' }
+];
+
+/* ============ 渲染 ============ */
+function stBadge(st) {
+  var m = { ok: ['green', '有效'], soon: ['orange', '即将到期'], expired: ['red', '已过期'], off: ['gray', '已换发'] };
+  return '<span class="badge ' + m[st][0] + '">' + m[st][1] + '</span>';
+}
+function daysCell(d) {
+  if (d === null) return '<span class="text-3">长期有效</span>';
+  var cls = d < 0 ? 'bad' : d <= 30 ? 'warn' : '';
+  var txt = d < 0 ? ('已逾期 ' + (-d) + ' 天') : (d + ' 天');
+  var pct = d < 0 ? 100 : Math.max(4, Math.min(100, Math.round(d / 90 * 100)));
+  return '<div class="days ' + cls + '"><span class="dv">' + txt + '</span>'
+    + '<span class="db"><span style="width:' + pct + '%"></span></span></div>';
+}
+
+function renderKpi() {
+  var soon = ZZ.filter(function (z) { return z.st === 'soon'; }).length
+    + RY.filter(function (r) { return r.st === 'soon'; }).length;
+  var bad = ZZ.filter(function (z) { return z.st === 'expired'; }).length
+    + RY.filter(function (r) { return r.st === 'expired'; }).length;
+  var used = ZZ.reduce(function (s, z) { return s + z.used; }, 0);
+  var K = [
+    ['blue', 'fa-certificate', '企业证照', ZZ.length, '份'],
+    ['cyan', 'fa-id-card', '人员证照', RY.length, '份'],
+    ['orange', 'fa-hourglass-half', '即将到期', soon, '份'],
+    ['red', 'fa-triangle-exclamation', '已过期', bad, '份'],
+    ['green', 'fa-recycle', '累计免重复上传', used, '次']
+  ];
+  document.getElementById('cl-kpi').innerHTML = K.map(function (k) {
+    return '<div class="stat-card"><div class="s-ico si-ico ' + k[0] + '"><i class="fa-solid ' + k[1] + '"></i></div>'
+      + '<div><div class="s-label">' + k[2] + '</div>'
+      + '<div class="s-value">' + k[3] + '<em>' + k[4] + '</em></div></div></div>';
+  }).join('');
+}
+
+function renderLibQy() {
+  document.getElementById('lib-qy').innerHTML = ZZ.map(function (z, i) {
+    return '<div class="zz-card ' + (z.st === 'ok' ? '' : z.st) + '" data-zz="' + i + '">'
+      + '<div class="zc-t"><i class="fa-solid fa-certificate"></i>' + UI.esc(z.lx) + '</div>'
+      + '<div class="zc-no">' + UI.esc(z.bh) + '</div>'
+      + '<div class="zc-kv">'
+      + '<span>有效期止　<b>' + z.yxq + '</b></span>'
+      + '<span>发证机关　' + UI.esc(z.jg) + '</span>'
+      + (z.dj ? '<span>资质等级　<b>' + z.dj + '</b></span>' : '')
+      + '<span>已免除重复上传　<b>' + z.used + '</b> 次</span>'
+      + '</div>'
+      + '<div class="zc-f"><span class="tier lic">证照层</span>'
+      + '<span class="vtag cur">当前 V' + z.ver + '</span>'
+      + stBadge(z.st)
+      + (z.sens ? '<span class="badge purple">敏感证照</span>' : '')
+      + '</div></div>';
+  }).join('');
+  document.querySelectorAll('[data-zz]').forEach(function (c) {
+    c.onclick = function () { openZz(ZZ[+c.getAttribute('data-zz')]); };
+  });
+}
+
+function openZz(z) {
+  var vers = [];
+  for (var v = z.ver; v >= 1; v--) {
+    var cur = v === z.ver;
+    vers.push('<div class="vr' + (cur ? ' cur' : '') + '">'
+      + '<div class="vr-h"><span class="vtag ' + (cur ? 'cur' : 'old') + '">V' + v + '</span>'
+      + (cur ? '当前有效版本' : '已换发')
+      + '<span class="vx">' + (cur ? ('生效至 ' + z.yxq) : '历史版本永久保留') + '</span></div>'
+      + '<div class="vr-m"><span><b>变更原因</b> ' + (v === 1 ? '首次采集入库' : (cur ? '资质延续换发' : '资质等级变更')) + '</span>'
+      + '<span><b>来源</b> ' + UI.esc(v === z.ver ? z.src : '本平台办件采集') + '</span>'
+      + '<span><b>核验</b> 已核验一致</span></div></div>');
+  }
+  UI.modal('证照详情 · ' + UI.esc(z.lx),
+    '<div class="desc-list c2"><dl>'
+    + '<dt>证照类型</dt><dd><span class="tier lic">证照层</span> ' + UI.esc(z.lx) + '</dd>'
+    + '<dt>证照编号</dt><dd>' + UI.esc(z.bh) + '</dd>'
+    + '<dt>发证机关</dt><dd>' + UI.esc(z.jg) + '</dd>'
+    + '<dt>有效期止</dt><dd>' + z.yxq + '</dd>'
+    + '<dt>当前有效版本</dt><dd><span class="vtag cur">V' + z.ver + '</span>　共 ' + z.ver + ' 个版本</dd>'
+    + '<dt>证照状态</dt><dd>' + stBadge(z.st) + '</dd>'
+    + '<dt>归集来源</dt><dd>' + UI.esc(z.src) + '</dd>'
+    + '<dt>累计免重复上传</dt><dd><b>' + z.used + '</b> 次</dd>'
+    + '</dl></div>'
+    + '<div class="bold mt-20 mb-12"><i class="fa-solid fa-clock-rotate-left text-primary"></i> 版本链</div>'
+    + '<div class="zz-ver">' + vers.join('') + '</div>'
+    + '<div class="alert alert-info mt-16" style="margin-bottom:0"><i class="fa-solid fa-circle-info"></i>'
+    + '<span>换发只新增版本，<b>历史版本永久保留</b>。已办结的办件保存的是办理当时的版本号，材料内容不会因换发而改变。</span></div>',
+    '<button class="btn" data-act="close-modal">关闭</button>'
+    + '<button class="btn" onclick="UI.demo(\'已打开证照原件预览（演示环境）\')">预览原件</button>'
+    + '<button class="btn btn-primary" onclick="UI.closeModal();goUp(\'' + UI.esc(z.lx) + '\')">换发登记</button>', 1);
+}
+
+function renderLibRy() {
+  document.getElementById('lib-ry').innerHTML = RY.map(function (r) {
+    return '<tr' + (r.st === 'expired' ? ' style="background:#fdefee"' : '') + '>'
+      + '<td class="strong">' + UI.esc(r.nm) + '</td>'
+      + '<td>' + UI.esc(r.lx) + (r.sens ? ' <span class="badge purple">敏感</span>' : '') + '</td>'
+      + '<td>' + UI.esc(r.bh) + '</td>'
+      + '<td>' + r.yxq + '</td>'
+      + '<td><span class="vtag cur">V' + r.ver + '</span></td>'
+      + '<td>' + stBadge(r.st) + '</td>'
+      + '<td class="acts">'
+      + '<a href="javascript:;" onclick="UI.demo(\'已打开证照原件预览（演示环境）\')">预览</a>'
+      + (r.st === 'expired'
+        ? '<a href="staff-register.html">去办变更</a>'
+        : '<a href="javascript:;" onclick="UI.demo(\'该证照有效，到期前 90 日会自动提醒换发\')">提醒设置</a>')
+      + '</td></tr>';
+  }).join('');
+}
+
+function renderLibCl() {
+  var bks = ['全部来源业务'].concat(CL.map(function (c) { return c.bk; }).filter(function (v, i, a) { return a.indexOf(v) === i; }));
+  var sel = document.getElementById('lib-bk');
+  if (!sel.options.length) {
+    sel.innerHTML = bks.map(function (b) { return '<option>' + UI.esc(b) + '</option>'; }).join('');
+    sel.onchange = renderLibCl;
+  }
+  var f = sel.value;
+  var list = CL.filter(function (c) { return !f || f === '全部来源业务' || c.bk === f; });
+  document.getElementById('lib-cl').innerHTML = list.length ? list.map(function (c) {
+    return '<tr>'
+      + '<td class="strong">' + UI.esc(c.nm) + (c.v ? ' <span class="vtag cur">V' + c.v + '</span>' : '') + '</td>'
+      + '<td><span class="tier ' + c.tier + '">' + (c.tier === 'lic' ? '证照层' : '材料层') + '</span></td>'
+      + '<td>' + UI.esc(c.t) + '</td>'
+      + '<td>' + UI.esc(c.bk) + '</td>'
+      + '<td>' + UI.esc(c.bj) + '</td>'
+      + '<td>' + c.d + '</td>'
+      + '<td>' + (c.re ? '<span class="badge green">可复用</span>' : '<span class="badge gray">不可复用</span>') + '</td>'
+      + '<td class="num">' + c.used + '</td>'
+      + '<td class="acts"><a href="javascript:;" onclick="UI.demo(\'已打开材料预览（演示环境）\')">预览</a></td>'
+      + '</tr>';
+  }).join('') : '<tr><td colspan="9">' + UI.empty('该来源业务下暂无归集材料', '') + '</td></tr>';
+}
+
+/* ---- Tab 2 上传与换发 ---- */
+function renderUp() {
+  var lxs = ['营业执照', '资质证书', '法定代表人身份证明', '授权委托书', '开户许可证', '其他企业证照'];
+  var s = document.getElementById('up-lx');
+  if (!s.options.length) s.innerHTML = lxs.map(function (x) { return '<option>' + x + '</option>'; }).join('');
+  var t = document.getElementById('up-target');
+  if (!t.options.length) t.innerHTML = ZZ.map(function (z) { return '<option>' + UI.esc(z.lx) + '　' + UI.esc(z.bh) + '（当前 V' + z.ver + '）</option>'; }).join('');
+  document.getElementById('up-file').innerHTML =
+    '<div class="file-up" onclick="UI.demo(\'演示环境按模拟上传处理，已识别 9 项要素信息\')">'
+    + '<i class="fa-solid fa-cloud-arrow-up"></i><div>点击上传证照原件</div>'
+    + '<div class="text-sm text-3">支持 JPG / PNG / PDF，单个不超过 10 MB</div></div>';
+  renderVerChain();
+}
+
+function renderVerChain() {
+  var t = document.getElementById('up-target');
+  var i = t.selectedIndex < 0 ? 0 : t.selectedIndex;
+  var z = ZZ[i] || ZZ[0];
+  var vers = [];
+  for (var v = z.ver; v >= 1; v--) {
+    var cur = v === z.ver;
+    vers.push('<div class="vr' + (cur ? ' cur' : '') + '">'
+      + '<div class="vr-h"><span class="vtag ' + (cur ? 'cur' : 'old') + '">V' + v + '</span>'
+      + (cur ? '当前有效版本（本次换发后转「已换发」）' : '已换发')
+      + '<span class="vx">' + (cur ? ('有效期止 ' + z.yxq) : '历史版本永久保留') + '</span></div></div>');
+  }
+  vers.unshift('<div class="vr" style="border-style:dashed;border-color:var(--primary)">'
+    + '<div class="vr-h"><span class="vtag">V' + (z.ver + 1) + '</span>本次提交的新版本'
+    + '<span class="vx">提交后进入核验，核验通过即生效</span></div></div>');
+  document.getElementById('up-verchain').innerHTML =
+    '<div class="bold mb-12"><i class="fa-solid fa-clock-rotate-left text-primary"></i> 该证照的版本链</div>'
+    + '<div class="zz-ver">' + vers.join('') + '</div>';
+}
+
+function upMode() {
+  var v = document.querySelector('input[name=upmode]:checked').value;
+  document.getElementById('up-verbox').style.display = v === 'ver' ? '' : 'none';
+  document.getElementById('up-reason-wrap').style.display = v === 'ver' ? '' : 'none';
+}
+
+function goUp(lx) {
+  var tab = document.querySelector('[data-tab="cl-up"]');
+  if (tab) tab.click();
+  document.querySelector('input[name=upmode][value=ver]').checked = true;
+  upMode();
+  var t = document.getElementById('up-target');
+  for (var i = 0; i < t.options.length; i++) {
+    if (t.options[i].text.indexOf(lx) === 0) { t.selectedIndex = i; break; }
+  }
+  renderVerChain();
+  UI.toast('已切换到换发登记，并选中「' + lx + '」', 'success');
+}
+
+function submitUp() {
+  if (!document.getElementById('up-bh').value.trim()) { UI.toast('请填写证照编号', 'warning'); return; }
+  if (!document.getElementById('up-cn').checked) { UI.toast('请先勾选真实性承诺', 'warning'); return; }
+  var isVer = document.querySelector('input[name=upmode]:checked').value === 'ver';
+  var lx = isVer ? document.getElementById('up-target').value.split('　')[0] : document.getElementById('up-lx').value;
+  document.getElementById('up-res').innerHTML =
+    '<div class="alert alert-success" style="margin:0"><i class="fa-solid fa-circle-check"></i>'
+    + '<span>已提交<b>' + UI.esc(lx) + '</b>' + (isVer ? '的换发登记' : '') + '，系统识别 9 项要素信息，当前状态<b>「待核验」</b>。'
+    + '核验通过后' + (isVer ? '生成新版本并自动将原版本转「已换发」' : '正式入库') + '，'
+    + '由该证照派生的资质等级、有效期等信息会同步更新您的备案档案与对外公示内容。'
+    + '<b>核验通过前该证照不对外提供调取</b>，办理业务时仍需按原方式提交。</span></div>';
+  UI.toast('已提交并送核验，可在「我的证照与材料库」查看状态', 'success');
+}
+
+/* ---- Tab 3 到期提醒 ---- */
+function renderExp() {
+  var all = ZZ.map(function (z) { return { lx: z.lx, bh: z.bh, yxq: z.yxq, days: z.days, st: z.st, ry: '' }; })
+    .concat(RY.filter(function (r) { return r.st !== 'ok'; }).map(function (r) {
+      var d = r.st === 'expired' ? -41 : 70;
+      return { lx: r.lx, bh: r.bh, yxq: r.yxq, days: d, st: r.st, ry: r.nm };
+    }));
+  var risk = all.filter(function (x) { return x.st === 'soon' || x.st === 'expired'; });
+
+  var al = document.getElementById('exp-alert');
+  if (risk.length) {
+    al.style.display = '';
+    var bad = risk.filter(function (x) { return x.st === 'expired'; });
+    al.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i><span>'
+      + (bad.length ? '<b>' + bad.length + ' 份证照已过期</b>，依赖它的业务办理已被拦截，请尽快换发；' : '')
+      + '另有 <b>' + risk.filter(function (x) { return x.st === 'soon'; }).length + ' 份即将到期</b>，建议提前办理换发，避免影响业务办理。</span>';
+  } else { al.style.display = 'none'; }
+
+  var IMPACT = {
+    '资质证书': '商品房预售许可、项目备案、存量房网签、租赁备案',
+    '营业执照': '全部需要主体资格核验的业务',
+    '法定代表人授权委托书': '经办人代办的全部业务',
+    '法定代表人身份证明': '预售资格审核、监管账户备案',
+    '开户许可证': '监管账户备案、资金使用申报',
+    '其他企业证照（安全生产许可证）': '项目开工与形象进度申报',
+    '执业资格证书': '该人员的签约与房源录入',
+    '执业信息卡': '该人员的扫码核验与执业公示',
+    '身份证件': '该人员的实名核验'
+  };
+
+  document.getElementById('exp-list').innerHTML = all.map(function (x) {
+    var lvl = x.st === 'expired' ? '<span class="badge red">已过期</span>'
+      : x.days !== null && x.days <= 7 ? '<span class="badge red">红色（7 日内）</span>'
+        : x.days !== null && x.days <= 30 ? '<span class="badge orange">橙色（30 日内）</span>'
+          : x.days !== null && x.days <= 60 ? '<span class="badge orange">黄色（60 日内）</span>'
+            : x.days !== null && x.days <= 90 ? '<span class="badge blue">蓝色（90 日内）</span>'
+              : '<span class="badge gray">未进入预警</span>';
+    return '<tr' + (x.st === 'expired' ? ' style="background:#fdefee"' : '') + '>'
+      + '<td class="strong">' + (x.ry ? UI.esc(x.ry) + ' · ' : '') + UI.esc(x.lx)
+      + '<div class="text-sm text-3">' + UI.esc(x.bh) + '</div></td>'
+      + '<td>' + x.yxq + '</td>'
+      + '<td>' + daysCell(x.days) + '</td>'
+      + '<td>' + lvl + '</td>'
+      + '<td>' + UI.esc(IMPACT[x.lx] || '—')
+      + (x.st === 'expired' ? '<div class="text-sm" style="color:var(--danger)">上述业务办理已被拦截</div>' : '') + '</td>'
+      + '<td class="acts">'
+      + (x.st === 'ok' && x.days !== null && x.days > 90
+        ? '<a href="javascript:;" class="dis" onclick="UI.demo(\'该证照尚未进入预警区间，到期前 90 日会自动提醒\')">暂无需换发</a>'
+        : '<a href="javascript:;" onclick="goUp(\'' + UI.esc(x.lx) + '\')">去换发</a>')
+      + '</td></tr>';
+  }).join('');
+}
+
+/* ---- Tab 4 授权与调用 ---- */
+function renderAuth() {
+  document.getElementById('au-wait').innerHTML = AU_WAIT.length ? AU_WAIT.map(function (a, i) {
+    return '<tr>'
+      + '<td class="strong">' + UI.esc(a.bk) + '<div class="text-sm text-3">' + UI.esc(a.sx) + '</div></td>'
+      + '<td>' + UI.esc(a.zz) + ' <span class="badge purple">敏感</span></td>'
+      + '<td>' + UI.esc(a.ct) + '</td>'
+      + '<td>' + UI.esc(a.fs) + '</td>'
+      + '<td>' + a.t + '</td>'
+      + '<td class="acts">'
+      + '<a href="javascript:;" onclick="doAuth(' + i + ',1)">同意授权</a>'
+      + '<a href="javascript:;" onclick="doAuth(' + i + ',0)">拒绝</a>'
+      + '<a href="javascript:;" onclick="UI.demo(\'授权后该业务仅可调取上述内容，且仅对本办件有效；调取全过程留有记录\')">说明</a>'
+      + '</td></tr>';
+  }).join('') : '<tr><td colspan="6">' + UI.empty('暂无待授权申请', '业务板块申请调取敏感证照时会在这里提醒您。') + '</td></tr>';
+
+  document.getElementById('au-long').innerHTML = AU_LONG.map(function (a, i) {
+    return '<tr>'
+      + '<td class="strong">' + UI.esc(a.bk) + '</td>'
+      + '<td>' + UI.esc(a.zz) + '</td>'
+      + '<td>' + UI.esc(a.ct) + '</td>'
+      + '<td>' + a.to + '</td>'
+      + '<td class="num">' + a.n + '</td>'
+      + '<td>' + (a.on ? '<span class="badge green">已授权</span>' : '<span class="badge gray">未授权</span>') + '</td>'
+      + '<td><span class="sw' + (a.on ? ' on' : '') + '" data-au="' + i + '"></span></td>'
+      + '</tr>';
+  }).join('');
+  document.querySelectorAll('[data-au]').forEach(function (s) {
+    s.onclick = function () {
+      var a = AU_LONG[+s.getAttribute('data-au')];
+      a.on = a.on ? 0 : 1;
+      renderAuth();
+      UI.toast(a.on
+        ? '已授权「' + a.bk + '」调取' + a.zz + '，办理相关业务时可免于重复上传'
+        : '已撤回「' + a.bk + '」的调取授权，该业务需要时会重新向您申请', a.on ? 'success' : 'warning');
+    };
+  });
+
+  var bks = ['全部业务'].concat(AU_LOG.map(function (l) { return l.bk.split(' · ')[0]; }).filter(function (v, i, a) { return a.indexOf(v) === i; }));
+  var sel = document.getElementById('au-flt');
+  if (!sel.options.length) {
+    sel.innerHTML = bks.map(function (b) { return '<option>' + UI.esc(b) + '</option>'; }).join('');
+    sel.onchange = renderAuth;
+  }
+  var f = sel.value;
+  var logs = AU_LOG.filter(function (l) { return !f || f === '全部业务' || l.bk.indexOf(f) === 0; });
+  document.getElementById('au-log').innerHTML = logs.map(function (l) {
+    return '<tr' + (l.r === 'no' ? ' style="background:#fdefee"' : '') + '>'
+      + '<td>' + l.t + '</td>'
+      + '<td class="strong">' + UI.esc(l.bk) + '</td>'
+      + '<td>' + UI.esc(l.bj) + '</td>'
+      + '<td>' + UI.esc(l.zz) + '</td>'
+      + '<td>' + (l.v ? '<span class="vtag ' + (l.v >= 2 ? 'cur' : 'old') + '">V' + l.v + '</span>' : '—') + '</td>'
+      + '<td>' + UI.esc(l.ct) + '</td>'
+      + '<td>' + UI.esc(l.fs) + '</td>'
+      + '<td>' + (l.r === 'ok' ? '<span class="badge green">成功</span>' : '<span class="badge red">已拒绝</span>') + '</td>'
+      + '</tr>';
+  }).join('');
+}
+
+function doAuth(i, ok) {
+  var a = AU_WAIT[i];
+  UI.confirm(ok ? '同意授权调取' : '拒绝授权调取',
+    ok
+      ? '同意后「' + a.bk + '」办理「' + a.sx + '」时可调取您的' + a.zz + '（' + a.ct + '），'
+        + '本次授权仅对该办件有效，办件办结即失效。调取全过程留有记录，您可随时查看。'
+      : '拒绝后该业务不会调取您的' + a.zz + '。<b>不影响业务受理</b>，只是该材料需要您在办理页面自行上传。',
+    function () {
+      AU_WAIT.splice(i, 1);
+      AU_LOG.unshift({
+        t: UI.today() + ' 15:20', bk: a.bk + ' · ' + a.sx, bj: 'BJ2026-08-005311',
+        zz: a.zz, v: ok ? 1 : 0, ct: a.ct, fs: ok ? '一次性授权' : '未授权', r: ok ? 'ok' : 'no'
+      });
+      renderAuth();
+      UI.toast(ok ? '已同意授权，该业务可调取本次申请的内容' : '已拒绝授权，该材料请在办理页面自行上传',
+        ok ? 'success' : 'warning');
+    }, ok ? '同意授权' : '确认拒绝');
+}
+
+/* ============ 初始化 ============ */
+function pageInit() {
+  if (!corpGuard('cert-library.html')) return;
+  renderSide('cert-library.html');
+  renderCorpBar('corp-bar', 'wsmh-37-01');
+  renderKpi();
+  renderLibQy();
+  renderLibRy();
+  renderLibCl();
+  renderUp();
+  renderExp();
+  renderAuth();
+
+  document.querySelectorAll('input[name=upmode]').forEach(function (r) { r.onchange = upMode; });
+  document.getElementById('up-target').onchange = renderVerChain;
+  document.getElementById('up-submit').onclick = submitUp;
+  document.getElementById('lib-up').onclick = function () { document.querySelector('[data-tab="cl-up"]').click(); };
+  document.getElementById('exp-goup').onclick = function () { document.querySelector('[data-tab="cl-up"]').click(); };
+  document.getElementById('exp-save').onclick = function () { UI.toast('已保存提醒接收设置', 'success'); };
+  document.getElementById('up-demo').onclick = function () {
+    document.getElementById('up-bh').value = '桂建开甲 2019-0186';
+    document.getElementById('up-jg').value = '广西壮族自治区住房和城乡建设厅';
+    document.getElementById('up-fzrq').value = '2026-08-24';
+    document.getElementById('up-yxq').value = '2031-08-23';
+    document.getElementById('up-dj').value = '一级';
+    document.getElementById('up-note').value = '依据自治区住建厅资质延续批复（桂建资延〔2026〕186 号）办理换发。';
+    document.getElementById('up-cn').checked = true;
+    UI.toast('已填入演示数据', 'info');
+  };
+
+  var sn = document.getElementById('src-note');
+  if (sn) sn.innerHTML = UI.sourceNote('证照与材料由本平台各业务板块办结时自动归集，文件实体统一存于统一文件与影像服务平台');
+}
+</script>
+</body>
+</html>

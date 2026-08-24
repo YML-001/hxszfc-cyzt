@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>选房认购 · 新建商品房网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：剩余天数列的临期与超期着色 */
+  .days { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .days.warn { color: #b45309; }
+  .days.over { color: var(--danger); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsswb-11">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房网签备案管理系统
+        <span class="sep">/</span> 网签备案
+        <span class="sep">/</span> <span class="cur">选房认购</span>
+      </div>
+      <div class="page-title">选房认购</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" onclick="location.href='subscribe-create.html'"><i class="fa-solid fa-hand-pointer"></i> 发起认购</button>
+      <button type="button" class="btn" onclick="location.href='contract-create.html'"><i class="fa-solid fa-file-pen"></i> 转合同网签</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《选房认购台账》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出台账</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+      <div><div class="s-label">在途认购</div><div class="s-value">214</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-plus"></i></div>
+      <div><div class="s-label">本月新增</div><div class="s-value">386</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-file-signature"></i></div>
+      <div><div class="s-label">已转合同</div><div class="s-value">342</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-rotate-left"></i></div>
+      <div><div class="s-label">已退认购</div><div class="s-value">18</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-clock"></i></div>
+      <div><div class="s-label">超期未网签</div><div class="s-value">26</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-coins"></i></div>
+      <div><div class="s-label">定金合计</div><div class="s-value">4,286 万</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-lock"></i>
+    <div>认购即锁定房源，其他人不可再认购同一房源；超过约定网签日期未网签的自动进入<a class="link" href="overdue-urge.html">超期督促</a>队列，连续超期的企业纳入重点监控名单。</div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>认购编号</label>
+        <input type="text" placeholder="如 RG20260731086">
+      </div>
+      <div class="filter-item">
+        <label>项目</label>
+        <input type="text" placeholder="项目名称关键词">
+      </div>
+      <div class="filter-item">
+        <label>房号</label>
+        <input type="text" placeholder="如 11-1-2801">
+      </div>
+      <div class="filter-item">
+        <label>认购人</label>
+        <input type="text" placeholder="姓名 / 证件号">
+      </div>
+      <div class="filter-item">
+        <label>认购状态</label>
+        <select><option value="">全部</option><option>认购中</option><option>已转合同</option><option>已退认购</option><option>已失效</option></select>
+      </div>
+      <div class="filter-item">
+        <label>认购日期起</label>
+        <input type="date" value="2026-06-01">
+      </div>
+      <div class="filter-item">
+        <label>认购日期止</label>
+        <input type="date" value="2026-07-31">
+      </div>
+      <div class="filter-item">
+        <label>是否超期</label>
+        <select><option value="">全部</option><option>是</option><option>否</option></select>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 586 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="on">认购中 <span class="badge blue">214</span></div>
+      <div class="tab" data-tab="over">超期未网签 <span class="badge red">26</span></div>
+      <div class="tab" data-tab="done">已转合同</div>
+      <div class="tab" data-tab="back">已退认购</div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblRg" data-static>
+        <thead>
+          <tr>
+            <th>认购编号</th>
+            <th>项目</th>
+            <th>房号</th>
+            <th>认购人</th>
+            <th>联系电话</th>
+            <th>认购日期</th>
+            <th class="num">认购价格（万元）</th>
+            <th class="num">定金（万元）</th>
+            <th>约定网签日期</th>
+            <th>剩余天数</th>
+            <th>认购状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="on">
+            <td class="nowrap fw-600">RG20260731086</td>
+            <td class="nowrap">彰泰江湾城（三期）</td>
+            <td class="nowrap">11-1-2801</td>
+            <td class="nowrap">李婉婷</td>
+            <td class="nowrap">137****5566</td>
+            <td class="nowrap">2026-07-31</td>
+            <td class="num nowrap">156.33</td>
+            <td class="num nowrap">10.00</td>
+            <td class="nowrap">2026-08-30</td>
+            <td class="nowrap"><span class="days">30 天</span></td>
+            <td class="nowrap"><span class="badge blue">认购中</span></td>
+            <td class="col-ops">
+              <a class="link" href="contract-create.html">转合同</a>
+              <span class="link" onclick="openView('RG20260731086','彰泰江湾城（三期）','11-1-2801','李婉婷')">查看</span>
+              <span class="link danger" onclick="openBack(this,'RG20260731086')">退认购</span>
+            </td>
+          </tr>
+          <tr data-st="on">
+            <td class="nowrap fw-600">RG20260730082</td>
+            <td class="nowrap">华润置地柳州万象天地</td>
+            <td class="nowrap">2-1-1802</td>
+            <td class="nowrap">黄志文</td>
+            <td class="nowrap">135****9012</td>
+            <td class="nowrap">2026-07-30</td>
+            <td class="num nowrap">186.42</td>
+            <td class="num nowrap">15.00</td>
+            <td class="nowrap">2026-08-29</td>
+            <td class="nowrap"><span class="days">29 天</span></td>
+            <td class="nowrap"><span class="badge blue">认购中</span></td>
+            <td class="col-ops">
+              <a class="link" href="contract-create.html">转合同</a>
+              <span class="link" onclick="openView('RG20260730082','华润置地柳州万象天地','2-1-1802','黄志文')">查看</span>
+              <span class="link danger" onclick="openBack(this,'RG20260730082')">退认购</span>
+            </td>
+          </tr>
+          <tr data-st="on">
+            <td class="nowrap fw-600">RG20260726074</td>
+            <td class="nowrap">保利柳江府（二期）</td>
+            <td class="nowrap">5-2-1201</td>
+            <td class="nowrap">周雅琴</td>
+            <td class="nowrap">138****7700</td>
+            <td class="nowrap">2026-07-26</td>
+            <td class="num nowrap">128.60</td>
+            <td class="num nowrap">10.00</td>
+            <td class="nowrap text-warning">2026-08-02</td>
+            <td class="nowrap"><span class="days warn">2 天</span></td>
+            <td class="nowrap"><span class="badge orange">临期</span></td>
+            <td class="col-ops">
+              <a class="link" href="contract-create.html">转合同</a>
+              <span class="link" onclick="openView('RG20260726074','保利柳江府（二期）','5-2-1201','周雅琴')">查看</span>
+              <span class="link danger" onclick="openBack(this,'RG20260726074')">退认购</span>
+            </td>
+          </tr>
+          <tr data-st="over">
+            <td class="nowrap fw-600">RG20260618042</td>
+            <td class="nowrap">龙光玖誉城（四期）</td>
+            <td class="nowrap">12-1-0902</td>
+            <td class="nowrap">罗建军</td>
+            <td class="nowrap">159****1188</td>
+            <td class="nowrap">2026-06-18</td>
+            <td class="num nowrap">96.42</td>
+            <td class="num nowrap">8.00</td>
+            <td class="nowrap text-danger">2026-07-18</td>
+            <td class="nowrap"><span class="days over">超期 13 天</span></td>
+            <td class="nowrap"><span class="badge red">超期未网签</span></td>
+            <td class="col-ops">
+              <a class="link" href="contract-create.html">转合同</a>
+              <span class="link" onclick="PMS.toast('已向柳州龙光房地产开发有限公司发送督促通知','success')">发送督促</span>
+              <span class="link danger" onclick="openBack(this,'RG20260618042')">退认购</span>
+            </td>
+          </tr>
+          <tr data-st="over">
+            <td class="nowrap fw-600">RG20260612036</td>
+            <td class="nowrap">恒兴时代广场</td>
+            <td class="nowrap">A-1-1602</td>
+            <td class="nowrap">吴俊霖</td>
+            <td class="nowrap">139****2208</td>
+            <td class="nowrap">2026-06-12</td>
+            <td class="num nowrap">86.20</td>
+            <td class="num nowrap">5.00</td>
+            <td class="nowrap text-danger">2026-07-12</td>
+            <td class="nowrap"><span class="days over">超期 19 天</span></td>
+            <td class="nowrap"><span class="badge red">超期未网签</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.toast('项目处于暂停销售状态，暂不可转合同网签','error')">转合同</span>
+              <span class="link" onclick="PMS.toast('已向柳州恒兴房地产开发有限公司发送督促通知','success')">发送督促</span>
+              <span class="link danger" onclick="openBack(this,'RG20260612036')">退认购</span>
+            </td>
+          </tr>
+          <tr data-st="done">
+            <td class="nowrap fw-600">RG20260712086</td>
+            <td class="nowrap">彰泰江湾城（三期）</td>
+            <td class="nowrap">8-1-1802</td>
+            <td class="nowrap">陈美玲</td>
+            <td class="nowrap">136****3021</td>
+            <td class="nowrap">2026-07-12</td>
+            <td class="num nowrap">122.98</td>
+            <td class="num nowrap">10.00</td>
+            <td class="nowrap">2026-08-11</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap"><span class="badge green">已转合同</span></td>
+            <td class="col-ops">
+              <a class="link" href="contract-sign.html">查看合同</a>
+              <span class="link" onclick="openView('RG20260712086','彰泰江湾城（三期）','8-1-1802','陈美玲')">查看</span>
+            </td>
+          </tr>
+          <tr data-st="back">
+            <td class="nowrap fw-600">RG20260628058</td>
+            <td class="nowrap">阳光城翡丽湾</td>
+            <td class="nowrap">3-1-0601</td>
+            <td class="nowrap">覃海燕</td>
+            <td class="nowrap">137****4422</td>
+            <td class="nowrap">2026-06-28</td>
+            <td class="num nowrap">92.60</td>
+            <td class="num nowrap">6.00</td>
+            <td class="nowrap">2026-07-28</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap"><span class="badge gray">已退认购</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('RG20260628058','阳光城翡丽湾','3-1-0601','覃海燕')">查看</span>
+              <span class="link" onclick="PMS.toast('退认购原因：买受人贷款资格不足；定金全额退还，房源已释放')">退认购详情</span>
+            </td>
+          </tr>
+          <tr data-st="on">
+            <td class="nowrap fw-600">RG20260730079</td>
+            <td class="nowrap">柳州万科城（五期）</td>
+            <td class="nowrap">18-1-0902</td>
+            <td class="nowrap">吴俊霖</td>
+            <td class="nowrap">135****6108</td>
+            <td class="nowrap">2026-07-30</td>
+            <td class="num nowrap">108.26</td>
+            <td class="num nowrap">10.00</td>
+            <td class="nowrap">2026-08-29</td>
+            <td class="nowrap">29 天</td>
+            <td class="nowrap"><span class="badge blue">认购中</span></td>
+            <td class="col-ops">
+              <a class="link" href="contract-create.html">转合同</a>
+              <span class="link" onclick="openView('RG20260730079','柳州万科城（五期）','18-1-0902','吴俊霖')">查看</span>
+              <span class="link danger" onclick="openBack(this,'RG20260730079')">退认购</span>
+            </td>
+          </tr>
+          <tr data-st="on">
+            <td class="nowrap fw-600">RG20260729061</td>
+            <td class="nowrap">荣和公园里（一期）</td>
+            <td class="nowrap">6-2-1503</td>
+            <td class="nowrap">韦丽萍</td>
+            <td class="nowrap">138****2740</td>
+            <td class="nowrap">2026-07-29</td>
+            <td class="num nowrap">96.18</td>
+            <td class="num nowrap">8.00</td>
+            <td class="nowrap">2026-08-28</td>
+            <td class="nowrap">28 天</td>
+            <td class="nowrap"><span class="badge blue">认购中</span></td>
+            <td class="col-ops">
+              <a class="link" href="contract-create.html">转合同</a>
+              <span class="link" onclick="openView('RG20260729061','荣和公园里（一期）','6-2-1503','韦丽萍')">查看</span>
+              <span class="link danger" onclick="openBack(this,'RG20260729061')">退认购</span>
+            </td>
+          </tr>
+          <tr data-st="done">
+            <td class="nowrap fw-600">RG20260705023</td>
+            <td class="nowrap">中南春风南岸（二期）</td>
+            <td class="nowrap">9-1-2003</td>
+            <td class="nowrap">石文彬</td>
+            <td class="nowrap">139****8365</td>
+            <td class="nowrap">2026-07-05</td>
+            <td class="num nowrap">118.65</td>
+            <td class="num nowrap">10.00</td>
+            <td class="nowrap">2026-08-04</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap"><span class="badge green">已转合同</span></td>
+            <td class="col-ops">
+              <a class="link" href="contract-sign.html">查看合同</a>
+              <span class="link" onclick="openView('RG20260705023','中南春风南岸（二期）','9-1-2003','石文彬')">查看</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 认购详情 -->
+  <div class="drawer-mask"></div>
+  <div class="drawer drawer-lg" id="dwView">
+    <div class="drawer-head">
+      <h3>认购详情 · <span id="vNo">—</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <dl class="desc-list">
+        <div class="desc-item"><dt>认购编号</dt><dd id="vNo2">—</dd></div>
+        <div class="desc-item"><dt>项目</dt><dd id="vPj">—</dd></div>
+        <div class="desc-item"><dt>房号</dt><dd id="vRm">—</dd></div>
+        <div class="desc-item"><dt>认购人</dt><dd id="vBuyer">—</dd></div>
+        <div class="desc-item"><dt>证件号码</dt><dd>4502**********2246</dd></div>
+        <div class="desc-item"><dt>实名核验</dt><dd><span class="badge green">已核验</span> 人脸核验 · 2026-07-31 09:26</dd></div>
+        <div class="desc-item"><dt>建筑面积（㎡）</dt><dd>118.65</dd></div>
+        <div class="desc-item"><dt>备案单价（元/㎡）</dt><dd>13,176</dd></div>
+        <div class="desc-item"><dt>认购单价（元/㎡）</dt><dd>13,176 <span class="badge green">与备案价一致</span></dd></div>
+        <div class="desc-item"><dt>认购总价（万元）</dt><dd>156.33</dd></div>
+        <div class="desc-item"><dt>定金（万元）</dt><dd>10.00（银行转账）</dd></div>
+        <div class="desc-item"><dt>约定网签日期</dt><dd>2026-08-30</dd></div>
+        <div class="desc-item"><dt>所属预售许可证</dt><dd>柳房预售证第〔2026〕0087 号</dd></div>
+        <div class="desc-item"><dt>认购协议</dt><dd><span class="link" onclick="PMS.toast('打开认购协议 PDF 预览')">认购协议.pdf</span></dd></div>
+      </dl>
+
+      <div class="section-title mt-16">五项前置校验结论</div>
+      <table class="data-table compact">
+        <thead><tr><th>校验项</th><th>要求</th><th>实际</th><th>结论</th><th>数据来源</th></tr></thead>
+        <tbody>
+          <tr><td class="nowrap">房源在许可范围内</td><td class="nowrap">在有效许可房间清单内</td><td class="nowrap">命中 柳房预售证第〔2026〕0087 号</td><td class="nowrap"><span class="badge green">通过</span></td><td class="nowrap">本系统许可房间清单</td></tr>
+          <tr><td class="nowrap">销控状态为可售</td><td class="nowrap">可售</td><td class="nowrap">可售</td><td class="nowrap"><span class="badge green">通过</span></td><td class="nowrap">楼盘表销控</td></tr>
+          <tr><td class="nowrap">一房一价已备案</td><td class="nowrap">已备案且在公示期内</td><td class="nowrap">PF2026073101 · 13,176 元/㎡</td><td class="nowrap"><span class="badge green">通过</span></td><td class="nowrap">一房一价备案</td></tr>
+          <tr><td class="nowrap">未处于暂停销售</td><td class="nowrap">项目 / 楼栋 / 房间三级均无暂停</td><td class="nowrap">无暂停记录</td><td class="nowrap"><span class="badge green">通过</span></td><td class="nowrap">暂停销售管理</td></tr>
+          <tr><td class="nowrap">认购人实名核验</td><td class="nowrap">已完成实名核验</td><td class="nowrap">人脸核验 相似度 98.6%</td><td class="nowrap"><span class="badge green">通过</span></td><td class="nowrap">统一身份认证</td></tr>
+        </tbody>
+      </table>
+
+      <div class="section-title mt-16">办理轨迹</div>
+      <div class="timeline">
+        <div class="tl-item done"><div class="tl-dot"></div>
+          <div class="tl-title">销控图选房</div>
+          <div class="tl-meta">2026-07-31 09:22 · 11-1-2801 · 经办 韦国强</div>
+        </div>
+        <div class="tl-item done"><div class="tl-dot"></div>
+          <div class="tl-title">五项前置校验全部通过</div>
+          <div class="tl-meta">2026-07-31 09:26 · 耗时 1.6 秒</div>
+        </div>
+        <div class="tl-item done"><div class="tl-dot"></div>
+          <div class="tl-title">认购成功，房源锁定</div>
+          <div class="tl-meta">2026-07-31 09:28 · 销控状态置为已认购</div>
+        </div>
+        <div class="tl-item pending"><div class="tl-dot"></div>
+          <div class="tl-title">转合同网签</div>
+          <div class="tl-meta">约定 2026-08-30 前完成</div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+      <button type="button" class="btn" onclick="PMS.toast('《认购协议》已下载')"><i class="fa-solid fa-download"></i> 下载认购协议</button>
+      <button type="button" class="btn btn-primary" onclick="location.href='contract-create.html'"><i class="fa-solid fa-file-pen"></i> 转合同网签</button>
+    </div>
+  </div>
+
+  <!-- 退认购 -->
+  <div class="modal-mask" id="mdBack">
+    <div class="modal">
+      <div class="modal-head">退认购 · <span id="bNo">—</span></div>
+      <div class="modal-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>退认购后房源立即释放，销控状态回退为可售，其他买受人可重新认购；定金处理方式须与认购协议约定一致。</div>
+        </div>
+        <div class="form-grid form-align mt-16">
+          <div class="form-item">
+            <label>退认购原因<span class="req">*</span></label>
+            <select><option>买受人主动放弃</option><option>贷款资格不足</option><option>限购资格不符</option><option>企业原因</option><option>房源被限制销售</option><option>其他</option></select>
+          </div>
+          <div class="form-item">
+            <label>定金处理方式<span class="req">*</span></label>
+            <select><option>全额退还</option><option>部分扣除</option><option>不予退还</option></select>
+          </div>
+          <div class="form-item">
+            <label>退款金额（万元）</label>
+            <input type="text" value="10.00">
+          </div>
+          <div class="form-item">
+            <label>办理日期<span class="req">*</span></label>
+            <input type="date" value="2026-07-31">
+          </div>
+          <div class="form-item col-full">
+            <label>说明<span class="req">*</span></label>
+            <textarea placeholder="请说明退认购的具体事由与定金处理依据"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-close-modal>取消</button>
+        <button type="button" class="btn btn-danger-solid" onclick="submitBack()"><i class="fa-solid fa-rotate-left"></i> 确认退认购</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  var table = document.getElementById('tblRg');
+  document.getElementById('stTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var name = tab.getAttribute('data-tab');
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.style.display = (name === 'all' || tr.getAttribute('data-st') === name) ? '' : 'none';
+    });
+  });
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 586,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+
+function openView(no, pj, rm, buyer) {
+  document.getElementById('vNo').textContent = no;
+  document.getElementById('vNo2').textContent = no;
+  document.getElementById('vPj').textContent = pj;
+  document.getElementById('vRm').textContent = rm;
+  document.getElementById('vBuyer').textContent = buyer;
+  PMS.openDrawer('dwView');
+}
+
+var backRow = null;
+function openBack(el, no) {
+  backRow = el.closest('tr');
+  document.getElementById('bNo').textContent = no;
+  PMS.openModal('mdBack');
+}
+
+function submitBack() {
+  PMS.closeModal('mdBack');
+  if (backRow) {
+    backRow.setAttribute('data-st', 'back');
+    backRow.children[10].innerHTML = '<span class="badge gray">已退认购</span>';
+    backRow.children[9].innerHTML = '<span class="text-3">—</span>';
+  }
+  PMS.toast('房源已释放，销控状态回退为可售', 'success');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>审核结果复核回流 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="pt" data-active="review-feedback" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>智能应用</span>
+      <span class="sep">/</span><span class="cur">智能审核治理</span>
+    </div>
+    <div class="page-actions">
+      <span class="node-tag"><i class="fa-solid fa-user-shield"></i>AI 平台管理员</span>
+    </div>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-magnifying-glass-chart"></i>
+    <span>智能审核治理 wsai-08：对已确认的智能审核结果做<b>二次复核并标注对错</b>，据此统计误报率与漏报率，
+      标注为误报的样本回流到底座模型的待调优池。只有已人工确认过的输出才能复核。</span>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon ai"><i class="fa-solid fa-list-check"></i></div>
+      <div><div class="s-label">可复核输出</div><div class="s-value" id="kAll">—</div>
+        <div class="s-trend text-2">已人工确认的审核类输出</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-check-double"></i></div>
+      <div><div class="s-label">已复核</div><div class="s-value" id="kDone">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-bug"></i></div>
+      <div><div class="s-label">标注为误报</div><div class="s-value" id="kWrong">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-percent"></i></div>
+      <div><div class="s-label">复核误报率</div><div class="s-value" id="kRate">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-flask"></i></div>
+      <div><div class="s-label">回流待调优</div><div class="s-value" id="kSamp">—</div></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head"><h3>各审核模型误报漏报</h3><span class="sub">由复核标注累计</span></div>
+      <div class="card-body"><div id="modelList"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>疑点确认分布</h3><span class="sub">智能审核任务里的逐条疑点</span></div>
+      <div class="card-body"><div id="issueStat"></div></div>
+    </div>
+  </div>
+
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3>待复核与已复核清单</h3>
+      <span class="sub">复核标注会直接影响模型准确率与误报率</span>
+      <div class="head-actions">
+        <select id="fReviewed" style="width:170px" onchange="AI.paint('tRev')">
+          <option value="">全部</option>
+          <option value="0">未复核</option>
+          <option value="1">已复核</option>
+        </select>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tRev" data-static>
+        <thead><tr>
+          <th>应用场景</th><th>业务标识</th><th class="cell-lg">AI 结论</th>
+          <th>模型 / 版本</th><th>置信度</th><th>人工确认</th><th>复核结论</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  /* 审核与核验类场景：07 合同审核 08 证照识别 09 交叉校验 10 房源核验 11 品质核验 12 档案编目 */
+  var AUDIT_SCENES = ['07', '08', '09', '10', '11', '12'];
+
+  function pool() {
+    return AI.where('outputs', function (o) {
+      return AUDIT_SCENES.indexOf(o.scene) >= 0 && o.qrzt !== '0';
+    });
+  }
+
+  function paintKpi() {
+    var ps = pool();
+    var done = ps.filter(function (o) { return o.reviewed; });
+    var wrong = ps.filter(function (o) { return o.reviewed && !o.rightSample; });
+    document.getElementById('kAll').textContent = ps.length;
+    document.getElementById('kDone').textContent = done.length;
+    document.getElementById('kWrong').textContent = wrong.length;
+    document.getElementById('kRate').textContent = done.length
+      ? (Math.round(wrong.length / done.length * 1000) / 10) + '%' : '—';
+    document.getElementById('kSamp').textContent = AI.stat('samples');
+
+    /* 各审核模型的准确率与误报率 */
+    var byModel = {};
+    ps.forEach(function (o) {
+      if (!byModel[o.modelId]) byModel[o.modelId] = { mc: o.mxmc, n: 0, wrong: 0 };
+      byModel[o.modelId].n++;
+      if (o.reviewed && !o.rightSample) byModel[o.modelId].wrong++;
+    });
+    var keys = Object.keys(byModel);
+    document.getElementById('modelList').innerHTML = keys.length ? keys.map(function (k) {
+      var v = byModel[k];
+      var m = AI.byId('models', k);
+      return '<div class="factor-row">' +
+        '<span class="fr-n" title="' + AI.esc(v.mc) + '">' + AI.esc(v.mc.replace(/（.*?）/g, '').slice(0, 12)) + '</span>' +
+        '<span class="fr-bar"><span style="width:' + (m ? m.acc : 0) + '%"></span></span>' +
+        '<span class="fr-v text-success">' + (m ? m.acc : '—') + '%</span>' +
+        '<span class="fr-d text-danger">误 ' + (m ? m.fpr : '—') + '%</span></div>';
+    }).join('') : '<div class="empty"><i class="fa-regular fa-chart-bar"></i><div>暂无可复核的审核输出</div></div>';
+
+    /* 疑点确认分布 */
+    var st = { '0': 0, '1': 0, '2': 0, '3': 0 };
+    AI.get('reviewTasks').forEach(function (t) {
+      t.issues.forEach(function (i) { st[i.qrzt] = (st[i.qrzt] || 0) + 1; });
+    });
+    var total = st['0'] + st['1'] + st['2'] + st['3'];
+    document.getElementById('issueStat').innerHTML = total ? (
+      '<div class="grid-2">' +
+        AI.ring(Math.round(st['1'] / total * 1000) / 10, '疑点采纳率', st['1'] + ' / ' + total + ' 项', 'var(--success)') +
+        AI.ring(Math.round(st['0'] / total * 1000) / 10, '待确认占比', st['0'] + ' 项未确认', 'var(--warning)') +
+      '</div>' +
+      '<div class="home-todo mt-16">' +
+        ['1', '2', '3', '0'].map(function (k) {
+          var color = { '1': 'green', '2': 'blue', '3': 'red', '0': 'orange' }[k];
+          return '<div class="todo-row"><span class="badge ' + color + '">' + AI.dict('qrzt', k) + '</span>' +
+            '<span class="todo-text">' + AI.dict('qrzt', k) + '的疑点</span>' +
+            '<span class="todo-time">' + (st[k] || 0) + ' 项</span></div>';
+        }).join('') +
+      '</div>'
+    ) : '<div class="empty"><i class="fa-regular fa-chart-pie"></i><div>暂无智能审核疑点</div></div>';
+  }
+
+  AI.table({
+    id: 'tRev', pageSize: 10,
+    rows: function () {
+      var f = document.getElementById('fReviewed').value;
+      return pool().filter(function (o) {
+        if (f === '0' && o.reviewed) return false;
+        if (f === '1' && !o.reviewed) return false;
+        return true;
+      });
+    },
+    cells: function (o) {
+      return [
+        '<td>' + AI.dict('scene', o.scene) + '</td>',
+        '<td>' + AI.esc(o.bizId) + '</td>',
+        '<td class="cell-lg">' + AI.esc(o.text) + '</td>',
+        '<td>' + AI.esc(o.mxmc) + '<br><span class="text-3 text-sm">' + AI.esc(o.ver) + '</span></td>',
+        '<td>' + AI.confidence(o.conf) + '</td>',
+        '<td>' + AI.qrBadge(o.qrzt) + '<div class="text-3 text-sm">' + AI.esc(o.hrBy || '') + '</div></td>',
+        '<td>' + (o.reviewed
+          ? (o.rightSample ? '<span class="badge green">判断正确</span>' : '<span class="badge red">误报</span>')
+          : '<span class="badge orange">待复核</span>') + '</td>',
+        '<td class="col-ops">' + (o.reviewed
+          ? '<button class="btn btn-sm" onclick="AI.toast(\'该输出已复核标注，如需更正请联系模型管理员\',\'error\')">' +
+            '<i class="fa-solid fa-check"></i> 已复核</button>'
+          : '<button class="btn btn-adopt btn-sm" onclick="AI.act.markSample(\'' + o.id + '\',true)">' +
+            '<i class="fa-solid fa-thumbs-up"></i> 判断正确</button> ' +
+            '<button class="btn btn-reject btn-sm" onclick="AI.act.markSample(\'' + o.id + '\',false)">' +
+            '<i class="fa-solid fa-bug"></i> 标为误报</button>') + '</td>'
+      ];
+    },
+    empty: '暂无可复核的审核输出（需先在智能审核页对疑点做人工确认）',
+    icon: 'fa-clipboard-check'
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () { paintKpi(); AI.repaintAll(); });
+  });
+})();
+</script>
+</body>
+</html>

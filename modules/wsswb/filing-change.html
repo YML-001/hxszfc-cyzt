@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>合同变更备案 · 新建商品房网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：变更前后左右对照 */
+  .diff-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .diff-col { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: #fff; }
+  .diff-col .dc-head {
+    padding: 9px 14px; font-size: 13px; font-weight: 700;
+    background: var(--bg-soft); border-bottom: 1px solid var(--border);
+  }
+  .diff-col.after .dc-head { background: var(--primary-light); color: var(--primary); }
+  .diff-col .dc-body { padding: 10px 14px; }
+  .diff-col .dc-r { display: flex; font-size: 13px; padding: 4px 0; color: var(--text-2); }
+  .diff-col .dc-r span:first-child { width: 96px; color: var(--text-3); flex-shrink: 0; }
+  .diff-col .dc-r.chg span:last-child { color: var(--danger); font-weight: 600; }
+  @media (max-width: 1100px) { .diff-2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsswb-14">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房网签备案管理系统
+        <span class="sep">/</span> 网签备案
+        <span class="sep">/</span> <span class="cur">合同变更备案</span>
+      </div>
+      <div class="page-title">合同变更备案</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" data-open-drawer="dwNew"><i class="fa-solid fa-plus"></i> 新增变更申请</button>
+      <a class="btn" href="filing-cancel.html"><i class="fa-solid fa-file-circle-xmark"></i> 合同注销备案</a>
+      <a class="btn" href="filing-list.html">备案台账</a>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《合同变更备案台账》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">待审</div><div class="s-value">12</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-file-pen"></i></div>
+      <div><div class="s-label">本月变更</div><div class="s-value">38</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-ruler-combined"></i></div>
+      <div><div class="s-label">面积变更</div><div class="s-value">9</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-user-pen"></i></div>
+      <div><div class="s-label">买受人变更</div><div class="s-value">6</div></div>
+    </div>
+  </div>
+
+  <div class="alert">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>变更审核通过后生成新版本备案证明，原证明失效；变更前后左右对照留痕，历史版本不覆盖。涉及当事人或价格重大变更的须重新签署合同。</div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item"><label>关键词</label><input type="text" placeholder="变更编号 / 备案号 / 合同号"></div>
+      <div class="filter-item"><label>项目</label><input type="text" placeholder="项目名称关键词"></div>
+      <div class="filter-item">
+        <label>变更类型</label>
+        <select><option value="">全部</option><option>买受人变更</option><option>价格变更</option><option>面积变更</option><option>付款方式变更</option><option>交付日期变更</option></select>
+      </div>
+      <div class="filter-item">
+        <label>状态</label>
+        <select><option value="">全部</option><option>待审</option><option>已通过</option><option>已退回</option></select>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 86 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="wait">待审 <span class="badge orange">12</span></div>
+      <div class="tab" data-tab="ok">已通过</div>
+      <div class="tab" data-tab="back">已退回</div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblBg" data-static>
+        <thead>
+          <tr>
+            <th>变更编号</th><th>原备案号</th><th>合同编号</th><th>项目</th><th>房号</th>
+            <th>变更类型</th><th>申请日期</th><th>是否重签</th><th>状态</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">BG20260730009</td>
+            <td class="nowrap">柳房商备字〔2026〕第 001286 号</td>
+            <td class="nowrap">SF450200202601286</td>
+            <td class="nowrap">彰泰江湾城（三期）</td><td class="nowrap">8-1-1802</td>
+            <td class="nowrap"><span class="badge purple">买受人变更</span></td>
+            <td class="nowrap">2026-07-30</td>
+            <td class="nowrap"><span class="badge orange">需重签</span></td>
+            <td class="nowrap"><span class="badge orange">待审</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openAudit('BG20260730009','买受人变更',true)">审批</span>
+              <a class="link" href="filing-detail.html">原备案</a>
+            </td>
+          </tr>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">BG20260729018</td>
+            <td class="nowrap">柳房商备字〔2026〕第 001174 号</td>
+            <td class="nowrap">SF450200202601174</td>
+            <td class="nowrap">华润置地柳州万象天地</td><td class="nowrap">13-2-1801</td>
+            <td class="nowrap"><span class="badge cyan">面积变更</span></td>
+            <td class="nowrap">2026-07-29</td>
+            <td class="nowrap"><span class="badge gray">无需</span></td>
+            <td class="nowrap"><span class="badge orange">待审</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openAudit('BG20260729018','面积变更',false)">审批</span>
+              <a class="link" href="filing-detail.html">原备案</a>
+            </td>
+          </tr>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">BG20260728022</td>
+            <td class="nowrap">柳房商备字〔2026〕第 001158 号</td>
+            <td class="nowrap">SF450200202601158</td>
+            <td class="nowrap">保利柳江府（二期）</td><td class="nowrap">6-1-0902</td>
+            <td class="nowrap"><span class="badge blue">价格变更</span></td>
+            <td class="nowrap">2026-07-28</td>
+            <td class="nowrap"><span class="badge orange">需重签</span></td>
+            <td class="nowrap"><span class="badge orange">待审</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openAudit('BG20260728022','价格变更',true)">审批</span>
+              <a class="link" href="filing-detail.html">原备案</a>
+            </td>
+          </tr>
+          <tr data-st="ok">
+            <td class="nowrap fw-600">BG20260722011</td>
+            <td class="nowrap">柳房商备字〔2026〕第 001086 号</td>
+            <td class="nowrap">SF450200202601086</td>
+            <td class="nowrap">中南春风南岸（二期）</td><td class="nowrap">9-1-2003</td>
+            <td class="nowrap"><span class="badge orange">交付日期变更</span></td>
+            <td class="nowrap">2026-07-22</td>
+            <td class="nowrap"><span class="badge gray">无需</span></td>
+            <td class="nowrap"><span class="badge green">已通过</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openAudit('BG20260722011','交付日期变更',false)">查看</span>
+              <a class="link" href="filing-cert.html">新证明</a>
+            </td>
+          </tr>
+          <tr data-st="ok">
+            <td class="nowrap fw-600">BG20260718007</td>
+            <td class="nowrap">柳房商备字〔2026〕第 001112 号</td>
+            <td class="nowrap">SF450200202601112</td>
+            <td class="nowrap">荣和公园里（一期）</td><td class="nowrap">6-2-1503</td>
+            <td class="nowrap"><span class="badge purple">买受人变更</span></td>
+            <td class="nowrap">2026-07-18</td>
+            <td class="nowrap"><span class="badge orange">需重签</span></td>
+            <td class="nowrap"><span class="badge green">已通过</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openAudit('BG20260718007','买受人变更',true)">查看</span>
+              <a class="link" href="contract-list.html">合同</a>
+            </td>
+          </tr>
+          <tr data-st="ok">
+            <td class="nowrap fw-600">BG20260712014</td>
+            <td class="nowrap">柳房商备字〔2026〕第 001136 号</td>
+            <td class="nowrap">SF450200202601136</td>
+            <td class="nowrap">龙光玖誉城（四期）</td><td class="nowrap">12-1-0902</td>
+            <td class="nowrap"><span class="badge blue">付款方式变更</span></td>
+            <td class="nowrap">2026-07-12</td>
+            <td class="nowrap"><span class="badge gray">无需</span></td>
+            <td class="nowrap"><span class="badge green">已通过</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openAudit('BG20260712014','付款方式变更',false)">查看</span>
+              <a class="link" href="filing-detail.html">原备案</a>
+            </td>
+          </tr>
+          <tr data-st="back">
+            <td class="nowrap fw-600">BG20260708005</td>
+            <td class="nowrap">柳房商备字〔2026〕第 001068 号</td>
+            <td class="nowrap">SF450200202601068</td>
+            <td class="nowrap">阳光城柳州樾府</td><td class="nowrap">2-1-1201</td>
+            <td class="nowrap"><span class="badge blue">价格变更</span></td>
+            <td class="nowrap">2026-07-08</td>
+            <td class="nowrap"><span class="badge orange">需重签</span></td>
+            <td class="nowrap"><span class="badge red">已退回</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.toast('退回原因：成交价偏离备案价超出 ±3%，须先办理价格调整备案','error')">退回原因</span>
+            </td>
+          </tr>
+          <tr data-st="ok">
+            <td class="nowrap fw-600">BG20260702003</td>
+            <td class="nowrap">柳房商备字〔2026〕第 001042 号</td>
+            <td class="nowrap">SF450200202601042</td>
+            <td class="nowrap">柳州万科城（五期）</td><td class="nowrap">18-1-0902</td>
+            <td class="nowrap"><span class="badge cyan">面积变更</span></td>
+            <td class="nowrap">2026-07-02</td>
+            <td class="nowrap"><span class="badge gray">无需</span></td>
+            <td class="nowrap"><span class="badge green">已通过</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openAudit('BG20260702003','面积变更',false)">查看</span>
+              <a class="link" href="filing-cert.html">新证明</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 审批抽屉 -->
+  <div class="drawer-mask"></div>
+  <div class="drawer drawer-lg" id="dwAudit">
+    <div class="drawer-head">
+      <h3>变更审批 · <span id="aNo">—</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-info" id="aTip">
+        <i class="fa-solid fa-circle-info"></i>
+        <div id="aTipTxt">变更前后左右对照，红色字段为变更项；通过后原备案证明失效并出具新证明。</div>
+      </div>
+      <div class="diff-2 mt-16">
+        <div class="diff-col">
+          <div class="dc-head">变更前</div>
+          <div class="dc-body" id="aBefore"></div>
+        </div>
+        <div class="diff-col after">
+          <div class="dc-head">变更后</div>
+          <div class="dc-body" id="aAfter"></div>
+        </div>
+      </div>
+      <div class="section-title mt-16">审批意见</div>
+      <div class="form-grid form-align">
+        <div class="form-item col-full">
+          <label>审批结论<span class="req">*</span></label>
+          <div class="radio-line">
+            <label><input type="radio" name="ar" value="ok" checked> 通过</label>
+            <label><input type="radio" name="ar" value="back"> 退回补正</label>
+          </div>
+        </div>
+        <div class="form-item"><label>审批人<span class="req">*</span></label><input type="text" value="韦国强"></div>
+        <div class="form-item"><label>审批日期<span class="req">*</span></label><input type="date" value="2026-07-31"></div>
+        <div class="form-item col-full"><label>审批意见</label><textarea id="aOpt">变更材料齐全，前后对照一致，同意变更备案。</textarea></div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="submitAudit()"><i class="fa-solid fa-paper-plane"></i> 提交结论</button>
+    </div>
+  </div>
+
+  <!-- 新增申请 -->
+  <div class="drawer drawer-lg" id="dwNew">
+    <div class="drawer-head">
+      <h3>新增变更申请</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>原备案编号<span class="req">*</span></label>
+          <select><option>柳房商备字〔2026〕第 001286 号 · 彰泰江湾城 8-1-1802</option><option>柳房商备字〔2026〕第 001174 号 · 万象天地 13-2-1801</option></select>
+        </div>
+        <div class="form-item">
+          <label>变更类型<span class="req">*</span></label>
+          <select><option>买受人变更</option><option>价格变更</option><option>面积变更</option><option>付款方式变更</option><option>交付日期变更</option></select>
+        </div>
+        <div class="form-item col-full"><label>变更说明<span class="req">*</span></label><textarea placeholder="说明变更原因与依据"></textarea></div>
+        <div class="form-item col-full">
+          <label>佐证材料<span class="req">*</span></label>
+          <div class="file-up">
+            <input type="hidden" class="file-up-val" value="变更申请书.pdf">
+            <div class="file-up-grid"><div class="file-up-tile file-up-add"><input type="file"><i class="fa-solid fa-plus"></i><span>上传</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer('dwNew');PMS.toast('变更申请已提交，编号 BG20260731028','success')"><i class="fa-solid fa-paper-plane"></i> 提交申请</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+var DIFF = {
+  '买受人变更': {
+    before: [['买受人','陈美玲'],['证件号','4502**********3021'],['联系电话','136****3021'],['成交总价','122.98 万元'],['建筑面积','96.42 ㎡']],
+    after: [['买受人','陈美玲、周建华'],['证件号','4502**********3021 / 4502**********8842'],['联系电话','136****3021'],['成交总价','122.98 万元'],['建筑面积','96.42 ㎡']],
+    chg: [0, 1]
+  },
+  '面积变更': {
+    before: [['建筑面积','118.65 ㎡'],['套内面积','92.55 ㎡'],['成交单价','15,686 元/㎡'],['成交总价','186.42 万元']],
+    after: [['建筑面积','119.20 ㎡'],['套内面积','93.02 ㎡'],['成交单价','15,642 元/㎡'],['成交总价','186.42 万元']],
+    chg: [0, 1, 2]
+  },
+  '价格变更': {
+    before: [['成交单价','10,860 元/㎡'],['成交总价','96.18 万元'],['付款方式','商业贷款']],
+    after: [['成交单价','10,640 元/㎡'],['成交总价','94.22 万元'],['付款方式','商业贷款']],
+    chg: [0, 1]
+  },
+  '交付日期变更': {
+    before: [['约定交付','2027-06-30'],['逾期违约金','日万分之三']],
+    after: [['约定交付','2027-09-30'],['逾期违约金','日万分之三']],
+    chg: [0]
+  },
+  '付款方式变更': {
+    before: [['付款方式','商业贷款'],['首付比例','30%'],['贷款金额','67.49 万元']],
+    after: [['付款方式','公积金+商贷组合'],['首付比例','30%'],['贷款金额','公积金 40 + 商贷 27.49 万元']],
+    chg: [0, 2]
+  }
+};
+
+(function () {
+  var table = document.getElementById('tblBg');
+  document.getElementById('stTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var name = tab.getAttribute('data-tab');
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.style.display = (name === 'all' || tr.getAttribute('data-st') === name) ? '' : 'none';
+    });
+  });
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 86,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+
+function renderDiff(el, rows, chg) {
+  el.innerHTML = rows.map(function (r, i) {
+    return '<div class="dc-r' + (chg.indexOf(i) >= 0 ? ' chg' : '') + '"><span>' + r[0] + '</span><span>' + r[1] + '</span></div>';
+  }).join('');
+}
+
+function openAudit(no, type, resign) {
+  document.getElementById('aNo').textContent = no;
+  var tip = '变更类型：' + type + '。通过后原备案证明失效并出具新证明，历史版本留存。';
+  if (resign) tip += ' 本件须重新签署合同后再生效。';
+  document.getElementById('aTipTxt').textContent = tip;
+  var d = DIFF[type] || DIFF['交付日期变更'];
+  renderDiff(document.getElementById('aBefore'), d.before, []);
+  renderDiff(document.getElementById('aAfter'), d.after, d.chg);
+  PMS.openDrawer('dwAudit');
+}
+
+function submitAudit() {
+  var ok = document.querySelector('input[name="ar"]:checked').value === 'ok';
+  PMS.confirm({
+    title: ok ? '通过变更备案' : '退回补正',
+    message: ok ? '确认通过本变更申请？' : '确认退回补正？',
+    type: ok ? 'info' : 'warning',
+    detail: ok ? '将生成新版本备案证明，原证明失效；需重签的将推送签署任务。' : '退回后申请人可修改后重新提交。',
+    okText: ok ? '确认通过' : '确认退回',
+    onOk: function () {
+      PMS.closeDrawer('dwAudit');
+      PMS.toast(ok ? '变更备案通过，已出具新证明并留存历史版本' : '已退回补正', ok ? 'success' : 'error');
+    }
+  });
+}
+</script>
+</body>
+</html>

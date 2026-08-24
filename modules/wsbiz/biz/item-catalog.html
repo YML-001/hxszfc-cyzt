@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>事项目录 · 统一工作门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="biz" data-active="item-catalog">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 收件受理
+        <span class="sep">/</span> <span class="cur">事项目录</span>
+      </div>
+      <div class="page-title">事项目录</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-primary" onclick="openEdit()"><i class="fa-solid fa-plus"></i> 新增事项</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-book"></i></div><div>
+      <div class="s-label">可办事项</div><div class="s-value" id="kAll">—</div></div></div>
+    <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-fire"></i></div><div>
+      <div class="s-label">热门服务</div><div class="s-value" id="kHot">—</div><div class="s-trend text-success">门户首页展示</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-sitemap"></i></div><div>
+      <div class="s-label">配置属地差异</div><div class="s-value" id="kDiff">—</div></div></div>
+    <div class="stat-card"><div class="s-icon orange"><i class="fa-solid fa-clock"></i></div><div>
+      <div class="s-label">平均承诺时限</div><div class="s-value" id="kSx" style="font-size:16px">—</div></div></div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <span>事项目录是受理与统计的<b>基准目录</b>：承诺时限不得大于法定时限；办事指南（申请条件、材料清单、办理流程）由前台门户与窗口<b>共用一套</b>；县区未配置属地差异的，自动<b>继承市级口径</b>。</span>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item"><label>事项名称 / 代码</label><input type="text" id="fKw" placeholder="名称或事项代码" oninput="repaint()"></div>
+      <div class="filter-item"><label>业务大类</label><select id="fYwdlm" data-dict="ywdlm" onchange="repaint()"></select></div>
+      <div class="filter-item"><label>办理层级</label><select id="fBllj" data-dict="bllj" onchange="repaint()"></select></div>
+      <div class="filter-item"><label>收费类型</label><select id="fSflx" data-dict="sflx" onchange="repaint()"></select></div>
+      <button class="btn btn-primary" onclick="repaint()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+      <button class="btn" onclick="resetFilter()">重置</button>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tbItem" data-static>
+        <thead>
+          <tr><th>事项代码</th><th>事项名称</th><th>业务大类</th><th>办理层级</th><th>承办科室</th>
+              <th class="num">法定时限</th><th class="num">承诺时限</th><th>收费</th><th>属地差异</th><th>操作</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- 事项配置 + 办事指南 + 属地差异 -->
+<div class="drawer-mask"></div>
+<div class="drawer drawer-lg" id="editDrawer">
+  <div class="drawer-head">
+    <h3 id="edTitle">事项配置</h3>
+    <span class="badge blue" id="edCode">—</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div>
+  </div>
+  <div class="drawer-body" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="base">基本信息</div>
+      <div class="tab" data-tab="guide">办事指南</div>
+      <div class="tab" data-tab="local">县区属地差异</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="base">
+      <div class="alert alert-info"><i class="fa-solid fa-circle-info"></i><span>保存后，「统一收件」的事项下拉与门户首页的事项清单即时同步。</span></div>
+      <div class="form-grid">
+        <div class="form-item"><label>事项代码<span class="req">*</span></label><input type="text" id="eSxdm" placeholder="如 SX0101"></div>
+        <div class="form-item"><label>事项名称<span class="req">*</span></label><input type="text" id="eSxmc"></div>
+        <div class="form-item"><label>业务大类<span class="req">*</span></label><select id="eYwdlm" data-dict="ywdlm"></select></div>
+        <div class="form-item"><label>办理层级<span class="req">*</span></label><select id="eBllj" data-dict="bllj"></select></div>
+        <div class="form-item"><label>承办科室<span class="req">*</span></label><input type="text" id="eDept"></div>
+        <div class="form-item"><label>收费类型</label><select id="eSflx" data-dict="sflx"></select></div>
+        <div class="form-item"><label>法定时限（工作日）<span class="req">*</span></label><input type="number" id="eFdsx" min="1"></div>
+        <div class="form-item"><label>承诺时限（工作日）<span class="req">*</span></label><input type="number" id="eCnsx" min="1">
+          <span class="hint">不得大于法定时限</span></div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="guide">
+      <div class="alert alert-info"><i class="fa-solid fa-circle-info"></i><span>材料清单勾选「免提交」后，收件时会一次性告知申请人并自动走电子证照或数据共享。</span></div>
+      <div class="form-grid">
+        <div class="form-item col-full"><label>申请条件</label><textarea id="eCond" rows="3"></textarea></div>
+      </div>
+      <div class="section-title mt-16">材料清单</div>
+      <div class="table-wrap">
+        <table class="data-table" data-static id="tbClist">
+          <thead><tr><th>材料名称</th><th>是否必要</th><th>免提交</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="section-title mt-16">办理流程</div>
+      <div class="timeline" id="eFlow"></div>
+    </div>
+
+    <div class="tab-panel" data-panel="local">
+      <div class="alert alert-warning"><i class="fa-solid fa-sitemap"></i><span>属地承诺时限不得大于市级法定时限；<b>未配置的县区继承市级口径</b>，无需逐个配置。</span></div>
+      <div class="form-grid">
+        <div class="form-item"><label>县区<span class="req">*</span></label><select id="lSaid" data-dict="said"></select></div>
+        <div class="form-item"><label>属地承办科室</label><input type="text" id="lDept" placeholder="如 新城区房产交易所"></div>
+        <div class="form-item"><label>属地承诺时限（工作日）</label><input type="number" id="lCnsx" min="1"></div>
+        <div class="form-item col-full"><label>差异说明</label><input type="text" id="lNote" placeholder="如：减免无房证明，由数据共享代替"></div>
+      </div>
+      <div class="btn-row mt-16">
+        <button class="btn btn-primary" onclick="saveLocal()"><i class="fa-solid fa-check"></i> 保存属地差异</button>
+      </div>
+      <div class="section-title mt-16">已配置的属地差异</div>
+      <div class="table-wrap">
+        <table class="data-table" data-static id="tbLocal">
+          <thead><tr><th>县区</th><th>承办科室</th><th class="num">承诺时限</th><th>差异说明</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="saveItem()"><i class="fa-solid fa-check"></i> 保存事项与指南</button>
+  </div>
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/flow-data.js"></script>
+<script src="../assets/js/flow.js"></script>
+<script>
+(function () {
+  var editing = null;
+
+  function val(id) { return (document.getElementById(id).value || '').trim(); }
+  window.resetFilter = function () {
+    ['fKw', 'fYwdlm', 'fBllj', 'fSflx'].forEach(function (id) { document.getElementById(id).value = ''; });
+    repaint(); PMS.toast('已重置查询条件');
+  };
+
+  function rows() {
+    var kw = val('fKw'), y = val('fYwdlm'), b = val('fBllj'), s = val('fSflx');
+    return FLOW.where('items', function (it) {
+      if (kw && it.sxmc.indexOf(kw) < 0 && it.sxdm.indexOf(kw) < 0) return false;
+      if (y && it.ywdlm !== y) return false;
+      if (b && it.bllj !== b) return false;
+      if (s && it.sflx !== s) return false;
+      return true;
+    });
+  }
+
+  window.repaint = function () { FLOW.paint('tbItem'); syncKpi(); };
+  function syncKpi() {
+    var all = FLOW.get('items');
+    document.getElementById('kAll').textContent = all.length;
+    document.getElementById('kHot').textContent = all.filter(function (it) { return it.hot; }).length;
+    document.getElementById('kDiff').textContent = all.filter(function (it) { return it.localDiff.length; }).length;
+    var sum = 0;
+    all.forEach(function (it) { sum += it.cnsx; });
+    document.getElementById('kSx').textContent = (Math.round(sum / all.length * 10) / 10) + ' 工作日';
+  }
+
+  /* ---- 功能点 15/16/17 ---- */
+  window.openEdit = function (sxdm) {
+    editing = null;
+    if (sxdm) {
+      FLOW.get('items').some(function (x) { if (x.sxdm === sxdm) { editing = x; return true; } return false; });
+    }
+    var it = editing || {
+      sxdm: '', sxmc: '', ywdlm: '01', bllj: '3', dept: '综合受理科', sflx: '4',
+      fdsx: 10, cnsx: 5, cond: '申请人为合同当事人或其合法授权代理人；房屋权属清晰，无交易限制。',
+      clist: [], flow: ['一窗受理', '材料初审', '业务复核', '科长审批'], localDiff: []
+    };
+    document.getElementById('edTitle').textContent = editing ? '编辑事项' : '新增事项';
+    document.getElementById('edCode').textContent = editing ? it.sxdm : '新建';
+    document.getElementById('eSxdm').value = it.sxdm;
+    document.getElementById('eSxdm').disabled = !!editing;
+    document.getElementById('eSxmc').value = it.sxmc;
+    document.getElementById('eYwdlm').value = it.ywdlm;
+    document.getElementById('eBllj').value = it.bllj;
+    document.getElementById('eDept').value = it.dept;
+    document.getElementById('eSflx').value = it.sflx;
+    document.getElementById('eFdsx').value = it.fdsx;
+    document.getElementById('eCnsx').value = it.cnsx;
+    document.getElementById('eCond').value = it.cond;
+
+    /* 材料清单：可勾选必要与免提交 */
+    var defs = FLOW.get('materialDefs');
+    document.querySelector('#tbClist tbody').innerHTML = defs.map(function (d) {
+      var hit = null;
+      it.clist.some(function (m) { if (m.cldm === d.cldm) { hit = m; return true; } return false; });
+      return '<tr><td>' + FLOW.esc(d.clmc) + '<span class="text-3 text-sm">　' + d.cllx + ' · ' + d.gs + '</span></td>' +
+        '<td><input type="checkbox" data-must="' + d.cldm + '"' + (hit && hit.must ? ' checked' : '') + '></td>' +
+        '<td><input type="checkbox" data-exempt="' + d.cldm + '"' + (hit && hit.exempt ? ' checked' : '') + '>' +
+        (d.reuse ? ' <span class="badge green">可复用</span>' : '') + '</td></tr>';
+    }).join('');
+
+    document.getElementById('eFlow').innerHTML = (it.flow || []).map(function (n, i) {
+      return '<div class="tl-item ' + (i === 0 ? 'done' : '') + '"><div class="tl-dot"></div>' +
+        '<div class="tl-title">' + FLOW.esc(n) + '</div>' +
+        '<div class="tl-meta">第 ' + (i + 1) + ' 环节</div></div>';
+    }).join('');
+
+    renderLocal(it);
+    PMS.populateDicts(document.getElementById('editDrawer'));
+    PMS.openDrawer('editDrawer');
+  };
+
+  function renderLocal(it) {
+    document.querySelector('#tbLocal tbody').innerHTML = (it.localDiff || []).length
+      ? it.localDiff.map(function (d) {
+          return '<tr><td>' + FLOW.esc(FLOW.dict('said', d.said)) + '</td>' +
+            '<td>' + FLOW.esc(d.dept) + '</td>' +
+            '<td class="num">' + d.cnsx + ' 工作日</td>' +
+            '<td class="cell-lg">' + FLOW.esc(d.note) + '</td></tr>';
+        }).join('')
+      : '<tr><td colspan="4"><div class="empty" style="padding:24px"><i class="fa-regular fa-sitemap"></i>' +
+        '<div>尚未配置属地差异，各县区继承市级口径</div></div></td></tr>';
+  }
+
+  window.saveItem = function () {
+    var ok = FLOW.act.saveItem({
+      sxdm: val('eSxdm'), sxmc: val('eSxmc'), ywdlm: val('eYwdlm'), bllj: val('eBllj'),
+      dept: val('eDept'), sflx: val('eSflx'), fdsx: val('eFdsx'), cnsx: val('eCnsx'), cond: val('eCond')
+    });
+    if (!ok) return;
+    /* 同步办事指南的材料清单 */
+    var clist = [];
+    document.querySelectorAll('#tbClist [data-must]').forEach(function (box) {
+      var code = box.getAttribute('data-must');
+      var ex = document.querySelector('#tbClist [data-exempt="' + code + '"]');
+      if (!box.checked && !(ex && ex.checked)) return;
+      var def = null;
+      FLOW.get('materialDefs').some(function (d) { if (d.cldm === code) { def = d; return true; } return false; });
+      clist.push({ cldm: code, clmc: def ? def.clmc : code, must: box.checked ? 1 : 0, exempt: (ex && ex.checked) ? 1 : 0 });
+    });
+    if (clist.length) FLOW.act.saveGuide(val('eSxdm'), { cond: val('eCond'), clist: clist });
+    PMS.closeDrawer('editDrawer');
+  };
+
+  window.saveLocal = function () {
+    var sxdm = val('eSxdm');
+    if (!sxdm) { PMS.toast('请先保存事项基本信息', 'error'); return; }
+    var ok = FLOW.act.saveLocalDiff(sxdm, val('lSaid'), {
+      dept: val('lDept') || (FLOW.dict('said', val('lSaid')) + '房产交易所'),
+      cnsx: val('lCnsx') || 5, note: val('lNote') || '按属地口径执行'
+    });
+    if (ok) {
+      var it = null;
+      FLOW.get('items').some(function (x) { if (x.sxdm === sxdm) { it = x; return true; } return false; });
+      if (it) renderLocal(it);
+    }
+  };
+
+  window.toggleHot = function (sxdm) {
+    var it = null;
+    FLOW.get('items').some(function (x) { if (x.sxdm === sxdm) { it = x; return true; } return false; });
+    if (!it) return;
+    it.hot = it.hot ? 0 : 1;
+    FLOW.commit();
+    PMS.toast(it.hot ? '已加入门户首页热门服务' : '已从热门服务移除', 'success');
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    FLOW.table({
+      id: 'tbItem', pageSize: 10, empty: '没有匹配的事项', icon: 'fa-book',
+      rows: rows,
+      cells: function (it) {
+        return [
+          '<td>' + FLOW.esc(it.sxdm) + '</td>',
+          '<td class="cell-lg">' + FLOW.esc(it.sxmc) + (it.hot ? ' ' + FLOW.badge('热门', 'orange') : '') + '</td>',
+          '<td>' + FLOW.esc(FLOW.dict('ywdlm', it.ywdlm)) + '</td>',
+          '<td>' + FLOW.esc(FLOW.dict('bllj', it.bllj)) + '</td>',
+          '<td>' + FLOW.esc(it.dept) + '</td>',
+          '<td class="num">' + it.fdsx + '</td>',
+          '<td class="num">' + it.cnsx + '</td>',
+          '<td>' + FLOW.esc(FLOW.dict('sflx', it.sflx)) + '</td>',
+          '<td>' + (it.localDiff.length ? FLOW.badge(it.localDiff.length + ' 个县区', 'purple') : '<span class="text-3">继承市级</span>') + '</td>',
+          '<td><span class="link" onclick="event.stopPropagation();openEdit(\'' + it.sxdm + '\')">配置</span> ' +
+            '<span class="link" onclick="event.stopPropagation();toggleHot(\'' + it.sxdm + '\')">' + (it.hot ? '取消热门' : '设为热门') + '</span></td>'
+        ];
+      },
+      attrs: function (it) { return ' class="clickable" onclick="openEdit(\'' + it.sxdm + '\')"'; },
+      after: syncKpi
+    });
+    FLOW.on(function () { FLOW.paint('tbItem'); syncKpi(); });
+  });
+})();
+</script>
+</body>
+</html>

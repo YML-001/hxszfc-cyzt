@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能填报校验 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="jb" data-active="assist-fill" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>智能应用</span>
+      <span class="sep">/</span><span>智能办事助手</span>
+      <span class="sep">/</span><span class="cur">智能填报校验</span>
+    </div>
+    <div class="page-actions">
+      <span class="node-tag"><i class="fa-solid fa-user-shield"></i>业务经办人</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-wand-magic-sparkles"></i>智能办事助手 wsai-05</span>
+    <a href="assist-fill.html?role=jb">AI 辅助填报</a>
+    <a class="active" href="fill-validate.html?role=jb">智能填报校验</a>
+    <a href="../public/chat.html?role=jb">智能客服问答</a>
+    <a href="../public/guide-bot.html?role=jb">智能导办</a>
+    <a href="../public/voice-fill.html?role=jb">语音交互式填报</a>
+    <a href="../public/kiosk-avatar.html?role=jb">数字人导办</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-spell-check"></i>
+    <span>填报过程中<b>实时校验并给出修改建议</b>：空值、格式错误、数量级异常、逻辑矛盾都会即时提示。
+      <b>校验未通过不允许提交</b>；提交前还会再过一遍合规过滤，防止敏感信息进入业务系统。</span>
+  </div>
+
+  <div class="grid-2">
+    <!-- 填报表单 -->
+    <div class="card">
+      <div class="card-head">
+        <h3>申报表单</h3>
+        <span class="sub">边填边校验</span>
+        <div class="head-actions">
+          <button class="btn btn-sm" onclick="fillBad()"><i class="fa-solid fa-bug"></i> 填入含错样例</button>
+          <button class="btn btn-sm" onclick="fillGood()"><i class="fa-solid fa-check"></i> 填入正确样例</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="form-grid form-align">
+          <div class="form-item">
+            <label>申请人姓名 <span class="req">*</span></label>
+            <input type="text" id="f_sqr" oninput="check()">
+            <div id="e_sqr"></div>
+          </div>
+          <div class="form-item">
+            <label>联系电话 <span class="req">*</span></label>
+            <input type="text" id="f_lxdh" oninput="check()" placeholder="11 位手机号">
+            <div id="e_lxdh"></div>
+          </div>
+          <div class="form-item col-full">
+            <label>房屋坐落 <span class="req">*</span></label>
+            <input type="text" id="f_fw" oninput="check()">
+            <div id="e_fw"></div>
+          </div>
+          <div class="form-item">
+            <label>合同金额（万元） <span class="req">*</span></label>
+            <input type="text" id="f_htje" oninput="check()">
+            <div id="e_htje"></div>
+          </div>
+          <div class="form-item">
+            <label>建筑面积（㎡）</label>
+            <input type="text" id="f_mj" oninput="check()">
+            <div id="e_mj"></div>
+          </div>
+        </div>
+        <div class="btn-row mt-16">
+          <button class="btn btn-primary" onclick="submit()"><i class="fa-solid fa-paper-plane"></i> 提交申报</button>
+          <button class="btn" onclick="clearAll()"><i class="fa-solid fa-eraser"></i> 清空</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 校验面板 -->
+    <div class="card">
+      <div class="card-head">
+        <h3>实时校验结果</h3>
+        <span class="sub" id="chkSub">—</span>
+      </div>
+      <div class="card-body" id="chkBox">
+        <div class="empty"><i class="fa-regular fa-keyboard"></i><div>开始填写后这里会实时提示</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="aiPushHint" class="mt-16"></div>
+
+  <div class="card mt-16">
+    <div class="card-head"><h3>校验规则清单</h3><span class="sub">对应智能填报校验的判定逻辑</span></div>
+    <div class="table-wrap">
+      <table class="data-table" data-static data-fill="0">
+        <thead><tr><th>字段</th><th>校验类型</th><th class="cell-lg">判定规则</th><th>提示文案</th></tr></thead>
+        <tbody>
+          <tr><td>申请人姓名</td><td><span class="badge red">必填</span></td>
+            <td class="cell-lg">不能为空</td><td>申请人姓名不能为空</td></tr>
+          <tr><td>联系电话</td><td><span class="badge orange">格式</span></td>
+            <td class="cell-lg">必须匹配 1[3-9] 开头的 11 位手机号</td><td>联系电话格式不正确</td></tr>
+          <tr><td>房屋坐落</td><td><span class="badge red">必填</span></td>
+            <td class="cell-lg">不能为空</td><td>房屋坐落不能为空</td></tr>
+          <tr><td>合同金额</td><td><span class="badge orange">数值范围</span></td>
+            <td class="cell-lg">必须大于 0；超过 5000 万元判为疑似多填一位</td><td>合同金额疑似多填一位</td></tr>
+          <tr><td>建筑面积</td><td><span class="badge cyan">数量级</span></td>
+            <td class="cell-lg">填写时必须在 0~1000 ㎡ 之间</td><td>建筑面积疑似位序错填</td></tr>
+          <tr><td>整表</td><td><span class="badge purple">合规过滤</span></td>
+            <td class="cell-lg">提交前过一遍敏感信息与违规内容规则</td><td>命中合规规则时按拦截或脱敏处置</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var KEYS = ['sqr', 'lxdh', 'fw', 'htje', 'mj'];
+  var LABEL = { sqr: '申请人姓名', lxdh: '联系电话', fw: '房屋坐落', htje: '合同金额', mj: '建筑面积' };
+
+  function form() {
+    var f = {};
+    KEYS.forEach(function (k) {
+      var el = document.getElementById('f_' + k);
+      f[k] = el ? el.value : '';
+    });
+    return f;
+  }
+
+  window.check = function () {
+    var f = form();
+    var errs = AI.act.validateFill(f);
+    var map = {};
+    errs.forEach(function (e) { map[e.k] = e.msg; });
+
+    /* 字段级提示 + 输入框描边 */
+    KEYS.forEach(function (k) {
+      var box = document.getElementById('e_' + k);
+      var inp = document.getElementById('f_' + k);
+      if (map[k]) {
+        box.innerHTML = '<div class="fv-err"><i class="fa-solid fa-circle-exclamation"></i>' + AI.esc(map[k]) + '</div>';
+        inp.style.borderColor = 'var(--danger)';
+      } else if (String(f[k] || '').trim()) {
+        box.innerHTML = '<div class="fv-ok"><i class="fa-solid fa-circle-check"></i>校验通过</div>';
+        inp.style.borderColor = 'var(--success)';
+      } else {
+        box.innerHTML = '';
+        inp.style.borderColor = '';
+      }
+    });
+
+    document.getElementById('chkSub').textContent = errs.length
+      ? (errs.length + ' 项未通过，修正后才能提交')
+      : '全部校验通过';
+    document.getElementById('chkBox').innerHTML = errs.length
+      ? errs.map(function (e) {
+          return '<div class="issue reject">' +
+            '<div class="is-h"><span class="is-f">' + AI.esc(LABEL[e.k] || e.k) + '</span>' +
+              '<span class="badge red">未通过</span></div>' +
+            '<div class="is-note"><i class="fa-solid fa-circle-exclamation text-danger"></i> ' + AI.esc(e.msg) + '</div>' +
+            '<div class="is-note text-primary mt-8"><b>AI 建议：</b>' + AI.esc(advice(e.k)) + '</div>' +
+            '</div>';
+        }).join('')
+      : '<div class="alert alert-success"><i class="fa-solid fa-circle-check"></i>' +
+        '<span>全部字段校验通过，可以提交申报。</span></div>' +
+        '<div class="home-todo">' + KEYS.map(function (k) {
+          return '<div class="todo-row"><span class="badge green">通过</span>' +
+            '<span class="todo-text">' + LABEL[k] + '</span>' +
+            '<span class="todo-time">' + AI.esc(String(f[k] || '（未填，非必填）')) + '</span></div>';
+        }).join('') + '</div>';
+  };
+
+  function advice(k) {
+    return {
+      sqr: '按身份证上的姓名填写，与提交的身份证明保持一致。',
+      lxdh: '填写申请人本人的 11 位手机号，用于接收办件进度短信。',
+      fw: '按不动产权证书上的坐落填写，精确到房号。',
+      htje: '按合同文本上的总价填写，单位为万元，注意小数点位置。',
+      mj: '按测绘报告上的建筑面积填写，一般在 30~300 ㎡ 之间。'
+    }[k] || '请按材料原件核对后填写。';
+  }
+
+  window.fillBad = function () {
+    var v = { sqr: '', lxdh: '1381234', fw: '锦绣家园 12 栋 1 单元 1802', htje: '12860', mj: '9642' };
+    KEYS.forEach(function (k) { document.getElementById('f_' + k).value = v[k]; });
+    check();
+  };
+  window.fillGood = function () {
+    var v = { sqr: '韦志强', lxdh: '13812345678', fw: '锦绣家园 12 栋 1 单元 1802', htje: '128.6', mj: '96.42' };
+    KEYS.forEach(function (k) { document.getElementById('f_' + k).value = v[k]; });
+    check();
+  };
+  window.clearAll = function () {
+    KEYS.forEach(function (k) { document.getElementById('f_' + k).value = ''; });
+    check();
+  };
+
+  window.submit = function () {
+    AI.act.submitFill(form());
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () {});
+  });
+})();
+</script>
+</body>
+</html>

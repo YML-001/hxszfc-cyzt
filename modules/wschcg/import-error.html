@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>接入异常与重传 · 房屋交易面积信息管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：重传超限行强提示、异常描述折行、异常类型色标 */
+  .amt { font-variant-numeric: tabular-nums; }
+  tr.limit > td { background: #fff7ed; }
+  tr.limit:hover > td { background: #ffedd5; }
+  .rt-n { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .rt-n.hot { color: var(--danger); }
+  .data-table tbody td.msg { max-width: 400px; white-space: normal; line-height: 1.55; color: var(--text-2); font-size: 12.5px; }
+  .msg code { background: var(--bg-soft); padding: 0 4px; border-radius: 3px; font-size: 11.5px; color: #b45309; }
+  .tp { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; font-size: 12.5px; }
+  .tp .ic { width: 16px; height: 16px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; color: #fff; }
+  .tp.t1 .ic { background: #dc2626; } .tp.t2 .ic { background: #f59e0b; } .tp.t3 .ic { background: #7c3aed; }
+  .tp.t4 .ic { background: #0891b2; } .tp.t5 .ic { background: #2563eb; } .tp.t6 .ic { background: #64748b; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wschcg-10">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易面积信息管理系统
+        <span class="sep">/</span> 测绘成果接入
+        <span class="sep">/</span> <span class="cur">接入异常与重传</span>
+      </div>
+      <div class="page-title">接入异常与重传</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="location.href='result-import.html'"><i class="fa-solid fa-file-import"></i> 成果接入</button>
+      <button type="button" class="btn" onclick="PMS.toast('《接入异常台账》Excel 已生成，正在下载','success')"><i class="fa-solid fa-download"></i> 导出台账</button>
+      <button type="button" class="btn btn-primary" onclick="batchNotify()"><i class="fa-solid fa-bell"></i> 批量通知重传</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><div class="s-label">本月接入异常</div><div class="s-value">28 次</div><div class="s-trend text-3">环比减少 6 次</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">已处理</div><div class="s-value">22 次</div><div class="s-trend text-success">处理率 78.6%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-clock"></i></div>
+      <div><div class="s-label">待处理</div><div class="s-value">6 次</div><div class="s-trend text-danger">2 次超 3 个工作日</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-rotate-right"></i></div>
+      <div><div class="s-label">重传超 3 次</div><div class="s-value">2 条</div><div class="s-trend text-warning">建议转人工介入</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-building-columns"></i></div>
+      <div><div class="s-label">异常集中机构</div><div class="s-value">广西华测</div><div class="s-trend text-3">本月 9 次，占 32.1%</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>接入异常按 6 类自动识别：接入失败、文件缺失、图数不一致、数据解析失败、字段量纲异常、重复报送。异常记录自动通知报送机构重传；<b>重传次数达 3 次仍未成功的转人工介入</b>，由业务岗指派专人跟进并留痕。</div>
+  </div>
+
+  <div class="card list-card">
+    <div class="filter-bar">
+      <div class="filter-item"><label>异常编号</label><input type="text" placeholder="如 YC450200202600186"></div>
+      <div class="filter-item"><label>成果编号</label><input type="text" placeholder="如 CG450200202600186"></div>
+      <div class="filter-item"><label>项目 / 幢号</label><input type="text" placeholder="如 荣和公园大道二期 8 栋"></div>
+      <div class="filter-item">
+        <label>测绘机构</label>
+        <select><option value="">全部</option><option>XXXX市测绘院</option><option>广西华测</option><option>柳州建元</option><option>南宁精测</option><option>柳州恒信</option></select>
+      </div>
+      <div class="filter-item">
+        <label>异常类型</label>
+        <select id="fType" onchange="applyFilter()">
+          <option value="">全部</option>
+          <option value="1">接入失败</option><option value="2">文件缺失</option><option value="3">图数不一致</option>
+          <option value="4">数据解析失败</option><option value="5">字段量纲异常</option><option value="6">重复报送</option>
+        </select>
+      </div>
+      <div class="filter-item"><label>发生时间起</label><input type="date" value="2026-07-01"></div>
+      <div class="filter-item"><label>发生时间止</label><input type="date" value="2026-08-01"></div>
+      <div class="filter-item">
+        <label>处理状态</label>
+        <select id="fSt" onchange="applyFilter()"><option value="">全部</option><option value="0">待处理</option><option value="1">处理中</option><option value="2">已处理</option><option value="3">已忽略</option></select>
+      </div>
+      <div class="filter-item">
+        <label>仅看重传超限</label>
+        <select id="fLimit" onchange="applyFilter()"><option value="0">否</option><option value="1">是</option></select>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="applyFilter()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn" onclick="resetFilter()"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tbYc" data-static>
+        <thead>
+          <tr>
+            <th>异常编号</th><th>成果编号</th><th>项目 / 幢号</th><th>测绘机构</th>
+            <th>异常类型</th><th>异常描述</th><th>发生时间</th><th>报送方式</th>
+            <th class="text-center">重传次数</th><th>处理状态</th><th>处理人</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="limit" data-type="2" data-st="0" data-limit="1">
+            <td class="nowrap fw-600">YC450200202600186</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600186</span></td>
+            <td class="nowrap">荣和公园大道二期 / 8 栋</td>
+            <td class="nowrap">XXXX市测绘院</td>
+            <td><span class="tp t2"><span class="ic"><i class="fa-solid fa-file"></i></span> 文件缺失</span></td>
+            <td class="msg">户表 96 行，实际上传分户图 94 个，缺失 <code>8-2-1806</code>、<code>8-3-902</code> 两户分户图，图数不一致不允许进入质检</td>
+            <td class="nowrap">2026-07-30 09:26</td>
+            <td class="nowrap"><span class="badge blue">接口报送</span></td>
+            <td class="text-center"><span class="rt-n hot">3</span></td>
+            <td class="nowrap"><span class="badge red">待处理</span></td>
+            <td class="text-3">—</td>
+            <td class="col-ops">
+              <span class="link danger fw-600" onclick="toManual('YC450200202600186')">转人工介入</span>
+              <span class="link" onclick="reSend('YC450200202600186')">通知重传</span>
+              <span class="link" onclick="location.href='drawing-match.html'">人工补传</span>
+            </td>
+          </tr>
+          <tr class="limit" data-type="1" data-st="0" data-limit="1">
+            <td class="nowrap fw-600">YC450200202600184</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600184</span></td>
+            <td class="nowrap">碧桂园柳江府 / 15 栋</td>
+            <td class="nowrap">广西华测</td>
+            <td><span class="tp t1"><span class="ic"><i class="fa-solid fa-plug-circle-xmark"></i></span> 接入失败</span></td>
+            <td class="msg">接口报送超时，网关返回 <code>504</code>，报文大小 86.4 MB 超出单次报送限制（50 MB），建议拆分报送或改用系统上传</td>
+            <td class="nowrap">2026-07-29 16:42</td>
+            <td class="nowrap"><span class="badge blue">接口报送</span></td>
+            <td class="text-center"><span class="rt-n hot">4</span></td>
+            <td class="nowrap"><span class="badge red">待处理</span></td>
+            <td class="text-3">—</td>
+            <td class="col-ops">
+              <span class="link danger fw-600" onclick="toManual('YC450200202600184')">转人工介入</span>
+              <span class="link" onclick="reSend('YC450200202600184')">通知重传</span>
+              <span class="link" onclick="doVoid('YC450200202600184')">作废</span>
+            </td>
+          </tr>
+          <tr data-type="3" data-st="0" data-limit="0">
+            <td class="nowrap fw-600">YC450200202600182</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600182</span></td>
+            <td class="nowrap">万科城 / 5 栋</td>
+            <td class="nowrap">柳州建元</td>
+            <td><span class="tp t3"><span class="ic"><i class="fa-solid fa-image"></i></span> 图数不一致</span></td>
+            <td class="msg">分层图 7 个，幢总层数 26 层（含地下 1 层），缺少<b>地下一层平面图</b>与 3 张标准层分层图</td>
+            <td class="nowrap">2026-07-29 11:08</td>
+            <td class="nowrap"><span class="badge">系统上传</span></td>
+            <td class="text-center"><span class="rt-n">1</span></td>
+            <td class="nowrap"><span class="badge red">待处理</span></td>
+            <td class="text-3">—</td>
+            <td class="col-ops">
+              <span class="link" onclick="reSend('YC450200202600182')">通知重传</span>
+              <span class="link" onclick="location.href='drawing-match.html'">人工补传</span>
+              <span class="link" onclick="doIgnore('YC450200202600182')">忽略</span>
+            </td>
+          </tr>
+          <tr data-type="4" data-st="1" data-limit="0">
+            <td class="nowrap fw-600">YC450200202600179</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600179</span></td>
+            <td class="nowrap">恒大城 / 5 栋</td>
+            <td class="nowrap">柳州恒信</td>
+            <td><span class="tp t4"><span class="ic"><i class="fa-solid fa-code"></i></span> 数据解析失败</span></td>
+            <td class="msg">户表第 47 行「建筑面积」列存在非数值字符 <code>100.15㎡</code>，字段应为纯数值（保留 2 位小数），单位在表头说明</td>
+            <td class="nowrap">2026-07-28 15:20</td>
+            <td class="nowrap"><span class="badge">系统上传</span></td>
+            <td class="text-center"><span class="rt-n">2</span></td>
+            <td class="nowrap"><span class="badge orange">处理中</span></td>
+            <td>韦国强</td>
+            <td class="col-ops">
+              <span class="link" onclick="reSend('YC450200202600179')">通知重传</span>
+              <span class="link" onclick="location.href='result-import.html'">人工补传</span>
+              <span class="link" onclick="doIgnore('YC450200202600179')">忽略</span>
+            </td>
+          </tr>
+          <tr data-type="5" data-st="0" data-limit="0">
+            <td class="nowrap fw-600">YC450200202600176</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600176</span></td>
+            <td class="nowrap">彰泰春天 / 12 栋</td>
+            <td class="nowrap">广西华测</td>
+            <td><span class="tp t5"><span class="ic"><i class="fa-solid fa-ruler"></i></span> 字段量纲异常</span></td>
+            <td class="msg">幢总建筑面积填报 <code>2.86</code>，疑似单位填成「万㎡」，按层户面积合计推算应为 <code>28,600.00</code> ㎡，请核实后重传</td>
+            <td class="nowrap">2026-07-27 10:36</td>
+            <td class="nowrap"><span class="badge blue">接口报送</span></td>
+            <td class="text-center"><span class="rt-n">1</span></td>
+            <td class="nowrap"><span class="badge red">待处理</span></td>
+            <td class="text-3">—</td>
+            <td class="col-ops">
+              <span class="link" onclick="reSend('YC450200202600176')">通知重传</span>
+              <span class="link" onclick="location.href='result-import.html'">人工补传</span>
+              <span class="link" onclick="doIgnore('YC450200202600176')">忽略</span>
+            </td>
+          </tr>
+          <tr data-type="6" data-st="2" data-limit="0">
+            <td class="nowrap fw-600">YC450200202600172</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600172</span></td>
+            <td class="nowrap">龙湖春江天玺 / 7 栋</td>
+            <td class="nowrap">南宁精测</td>
+            <td><span class="tp t6"><span class="ic"><i class="fa-solid fa-copy"></i></span> 重复报送</span></td>
+            <td class="msg">该成果文件 MD5 与 2026-07-20 已报送成果 <code>CG450200202600168</code> 一致，疑似重复提交，已拦截入暂存区</td>
+            <td class="nowrap">2026-07-26 09:14</td>
+            <td class="nowrap"><span class="badge blue">接口报送</span></td>
+            <td class="text-center"><span class="rt-n">0</span></td>
+            <td class="nowrap"><span class="badge green">已处理</span></td>
+            <td>韦国强</td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.toast('处理说明：经与南宁精测核实系接口重试导致的重复报送，已作废本次报送记录')">处理详情</span>
+            </td>
+          </tr>
+          <tr data-type="2" data-st="2" data-limit="0">
+            <td class="nowrap fw-600">YC450200202600168</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600168</span></td>
+            <td class="nowrap">保利大都会 / 3 栋</td>
+            <td class="nowrap">XXXX市测绘院</td>
+            <td><span class="tp t2"><span class="ic"><i class="fa-solid fa-file"></i></span> 文件缺失</span></td>
+            <td class="msg">缺少测绘技术报告与面积计算表各 1 份，机构已于 2026-07-25 补传完成，图数校验通过</td>
+            <td class="nowrap">2026-07-24 14:52</td>
+            <td class="nowrap"><span class="badge">系统上传</span></td>
+            <td class="text-center"><span class="rt-n">1</span></td>
+            <td class="nowrap"><span class="badge green">已处理</span></td>
+            <td>韦国强</td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.toast('处理说明：机构补传完成，成果已进入质检环节')">处理详情</span>
+            </td>
+          </tr>
+          <tr data-type="4" data-st="3" data-limit="0">
+            <td class="nowrap fw-600">YC450200202600164</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600164</span></td>
+            <td class="nowrap">融创九棠府 / 2 栋</td>
+            <td class="nowrap">柳州建元</td>
+            <td><span class="tp t4"><span class="ic"><i class="fa-solid fa-code"></i></span> 数据解析失败</span></td>
+            <td class="msg">层表「层高」列 3 行为空，经核实系设备层无层高填报要求，已按忽略处理</td>
+            <td class="nowrap">2026-07-22 16:08</td>
+            <td class="nowrap"><span class="badge">系统上传</span></td>
+            <td class="text-center"><span class="rt-n">0</span></td>
+            <td class="nowrap"><span class="badge">已忽略</span></td>
+            <td>韦国强</td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.toast('忽略理由：设备层无层高填报要求，不影响面积计算，已留痕')">忽略理由</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- 转人工介入弹窗 -->
+<div class="modal-mask" id="mdManual">
+  <div class="modal">
+    <div class="modal-head">转人工介入</div>
+    <div class="modal-body">
+      <div class="alert alert-warning">
+        <i class="fa-solid fa-user-gear"></i>
+        <div>异常 <b id="mNo">YC450200202600186</b> 重传次数已达 <b>3 次</b>仍未成功，转人工介入后由指派人线下对接测绘机构核实并补传，处理过程留痕。</div>
+      </div>
+      <div class="form-grid form-align mt-16">
+        <div class="form-item">
+          <label>指派处理人<span class="req">*</span></label>
+          <select><option>韦国强（综合业务岗）</option><option>李建华（成果质检岗）</option><option>覃丽（测绘对接岗）</option></select>
+        </div>
+        <div class="form-item"><label>要求完成时间</label><input type="date" value="2026-08-05"></div>
+        <div class="form-item col-full">
+          <label>介入说明<span class="req">*</span></label>
+          <textarea rows="3">该成果缺失 8-2-1806、8-3-902 两户分户图，机构 3 次重传均未包含。请电话联系XXXX市测绘院项目负责人核实是否为实际未测，如系漏测须安排补测；如系传输遗漏，指导其通过系统上传方式单独补传。</textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" data-close-modal>取消</button>
+      <button type="button" class="btn btn-primary" onclick="okManual()"><i class="fa-solid fa-check"></i> 确认转人工</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+function applyFilter() {
+  var t = document.getElementById('fType').value,
+      s = document.getElementById('fSt').value,
+      l = document.getElementById('fLimit').value, n = 0;
+  document.querySelectorAll('#tbYc tbody tr').forEach(function (tr) {
+    var ok = (!t || tr.dataset.type === t) && (!s || tr.dataset.st === s) && (l !== '1' || tr.dataset.limit === '1');
+    tr.style.display = ok ? '' : 'none';
+    if (ok) n++;
+  });
+  PMS.toast('已按条件筛选：' + n + ' 条异常记录');
+}
+
+function resetFilter() {
+  document.getElementById('fType').value = '';
+  document.getElementById('fSt').value = '';
+  document.getElementById('fLimit').value = '0';
+  document.querySelectorAll('#tbYc tbody tr').forEach(function (tr) { tr.style.display = ''; });
+  PMS.toast('筛选条件已重置');
+}
+
+function reSend(no) {
+  PMS.confirm({
+    title: '通知重传',
+    message: '向报送机构发送重传通知？',
+    detail: '通知含异常编号 ' + no + '、异常类型与具体描述、补正要求与截止时间，通过接口回执 + 短信双通道送达，重传次数 +1。',
+    type: 'info', okText: '发送通知',
+    onOk: function () { PMS.toast('重传通知已发送，重传次数 +1，等待机构重新报送', 'success'); }
+  });
+}
+
+function batchNotify() {
+  PMS.confirm({
+    title: '批量通知重传',
+    message: '向 6 条待处理异常的报送机构批量发送重传通知？',
+    detail: '其中 2 条重传次数已达 3 次，建议改为转人工介入；批量通知不含已处理与已忽略记录。',
+    type: 'info', okText: '批量通知',
+    onOk: function () { PMS.toast('已向 4 家测绘机构发送 6 条重传通知', 'success'); }
+  });
+}
+
+function toManual(no) {
+  document.getElementById('mNo').textContent = no;
+  PMS.openModal('mdManual');
+}
+
+function okManual() {
+  PMS.closeModal('mdManual');
+  PMS.toast('已转人工介入并指派韦国强跟进，要求 2026-08-05 前完成', 'success');
+}
+
+function doIgnore(no) {
+  PMS.confirm({
+    title: '忽略异常',
+    message: '将 ' + no + ' 标记为已忽略？',
+    detail: '忽略须填写理由并留痕；被忽略的异常不影响成果继续质检，但会在成果详情的接入记录中保留。',
+    type: 'warning', okText: '确认忽略',
+    onOk: function () { PMS.toast('已标记为已忽略并留痕（操作人 韦国强）', 'success'); }
+  });
+}
+
+function doVoid(no) {
+  PMS.confirm({
+    title: '作废报送',
+    message: '确认作废 ' + no + ' 对应的本次报送？',
+    detail: '作废后本次报送数据从暂存区清除，机构需重新发起报送；已入库成果不受影响。该操作不可撤销。',
+    type: 'danger', okText: '确认作废',
+    onOk: function () { PMS.toast('本次报送已作废，暂存区数据已清除', 'success'); }
+  });
+}
+</script>
+</body>
+</html>

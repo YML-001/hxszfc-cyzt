@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>借阅申请台账 · 房屋交易档案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  .no-code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; }
+  /* 本页特有：逾期行强提示 */
+  .data-table tbody tr.od-row { background: #fff5f5; }
+  .data-table tbody tr.od-row:hover { background: #ffecec; }
+  .data-table tbody tr.od-row td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
+  .od-txt { color: var(--danger); font-weight: 700; }
+  /* 本页特有：密级锁标 */
+  .lock-ml {
+    display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px;
+    border-radius: 5px; background: #fff4e6; color: #c2410c; font-size: 10.5px; cursor: help; margin-left: 4px;
+    vertical-align: middle;
+  }
+  .adv-wrap { display: none; }
+  .adv-wrap.on { display: contents; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdagl-03">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> <a class="link" href="index.html">房屋交易档案管理系统</a>
+        <span class="sep">/</span> 档案保管利用
+        <span class="sep">/</span> <span class="cur">借阅申请台账</span>
+      </div>
+      <div class="page-title">借阅申请台账</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn btn-primary" href="borrow-apply.html"><i class="fa-solid fa-plus"></i> 新增借阅申请</a>
+      <a class="btn" href="borrow-return.html"><i class="fa-solid fa-rotate-left"></i> 借出归还与催办</a>
+      <a class="btn" href="copy-cert.html"><i class="fa-solid fa-stamp"></i> 档案复制出证</a>
+      <button type="button" class="btn" onclick="PMS.toast('已导出《借阅申请台账》Excel','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-file-signature"></i></div>
+      <div><div class="s-label">本月借阅申请</div><div class="s-value">148</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">待审批（含专项 2）</div><div class="s-value">9</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-hand-holding-hand"></i></div>
+      <div><div class="s-label">在借档案</div><div class="s-value">186</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-regular fa-clock"></i></div>
+      <div><div class="s-label">即将到期</div><div class="s-value">12</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><div class="s-label">逾期未还</div><div class="s-value">8</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-chart-line"></i></div>
+      <div><div class="s-label">逾期未还率（目标 ≤ 2%）</div><div class="s-value">1.6%</div></div>
+    </div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="all">全部 <span class="badge gray">148</span></div>
+      <div class="tab" data-tab="wsp">待审批 <span class="badge blue">9</span></div>
+      <div class="tab" data-tab="wjc">已批准待借出 <span class="badge cyan">6</span></div>
+      <div class="tab" data-tab="zj">在借 <span class="badge orange">186</span></div>
+      <div class="tab" data-tab="yq">逾期未还 <span class="badge red">8</span></div>
+      <div class="tab" data-tab="ygh">已归还 <span class="badge gray">1,286</span></div>
+      <div class="tab" data-tab="ybh">已驳回 <span class="badge gray">14</span></div>
+    </div>
+
+    <div class="card-body">
+      <div class="filter-bar" style="border-radius:8px;border:1px solid var(--border)">
+        <div class="filter-item"><label>借阅申请编号</label><input type="text" placeholder="如 JY20260801016"></div>
+        <div class="filter-item"><label>借阅人 / 单位</label><input type="text" placeholder="姓名或单位名称"></div>
+        <div class="filter-item">
+          <label>借阅人类型</label>
+          <select>
+            <option value="">全部</option><option>本单位人员</option><option>权利人本人</option>
+            <option>委托代理人</option><option>律师</option><option>公检法</option><option>其他部门</option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <label>借阅类型</label>
+          <select>
+            <option value="">全部</option><option>内部借阅</option><option>外部查阅</option>
+            <option>调卷办案</option><option>复制出证</option><option>线上调阅</option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <label>借阅方式</label>
+          <select><option value="">全部</option><option>现场查阅</option><option>借出</option><option>电子调阅</option><option>复制件</option></select>
+        </div>
+        <div class="filter-item">
+          <label>申请状态</label>
+          <select><option value="">全部</option><option>待审批</option><option>已批准</option><option>已借出</option><option>已归还</option><option>已驳回</option><option>已撤销</option></select>
+        </div>
+
+        <div class="adv-wrap" id="advWrap">
+          <div class="filter-item">
+            <label>借阅用途</label>
+            <select><option value="">全部</option><option>业务办理</option><option>诉讼举证</option><option>公证</option><option>继承</option><option>历史查询</option><option>研究</option></select>
+          </div>
+          <div class="filter-item">
+            <label>申请渠道</label>
+            <select><option value="">全部</option><option>窗口</option><option>内部系统</option><option>门户</option><option>小程序</option></select>
+          </div>
+          <div class="filter-item"><label>借阅档案号</label><input type="text" placeholder="如 DA450204202600862"></div>
+          <div class="filter-item"><label>申请时间</label><input type="date" value="2026-07-01"></div>
+          <div class="filter-item"><label>至</label><input type="date" value="2026-08-01"></div>
+          <div class="filter-item">
+            <label>仅看逾期</label>
+            <select><option value="">否</option><option>是</option></select>
+          </div>
+        </div>
+
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件查询到 148 条借阅申请')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn" onclick="PMS.toast('已重置筛选条件')">重置</button>
+          <a class="link" id="advBtn" onclick="toggleAdv()">展开更多 <i class="fa-solid fa-chevron-down"></i></a>
+        </div>
+      </div>
+
+      <div class="table-wrap mt-16">
+        <table class="data-table" id="tblJy" data-static>
+          <thead>
+            <tr>
+              <th>借阅申请编号</th>
+              <th>借阅人 / 单位</th>
+              <th>借阅人类型</th>
+              <th>借阅类型</th>
+              <th>借阅用途</th>
+              <th>借阅档案</th>
+              <th class="num">卷数</th>
+              <th>借阅方式</th>
+              <th>申请借阅期限</th>
+              <th>申请渠道</th>
+              <th>申请时间</th>
+              <th>审批结果</th>
+              <th>申请状态</th>
+              <th style="width:150px">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="clickable" onclick="if(!event.target.closest('a,input,select'))location.href='borrow-apply.html?no=JY20260801016'">
+              <td class="nowrap fw-600 no-code">JY20260801016</td>
+              <td class="nowrap">韦**<br><span class="text-3 text-sm">广西同望律师事务所</span></td>
+              <td class="nowrap"><span class="badge purple">律师</span></td>
+              <td class="nowrap"><span class="badge orange">调卷办案</span></td>
+              <td class="nowrap">诉讼举证</td>
+              <td class="nowrap no-code">
+                DA450202202100862
+                <span class="lock-ml" title="本次借阅涉及秘密级档案，需专项审批"><i class="fa-solid fa-lock"></i></span>
+                <br><span class="text-3 text-sm">等 2 卷</span>
+              </td>
+              <td class="num">2</td>
+              <td class="nowrap">现场查阅</td>
+              <td class="nowrap">08-05 至 08-05</td>
+              <td class="nowrap">窗口</td>
+              <td class="nowrap">08-01 09:26</td>
+              <td class="nowrap"><span class="badge gray">待审</span></td>
+              <td class="nowrap"><span class="badge blue">待审批</span><br><span class="text-warning text-sm">需专项审批</span></td>
+              <td class="col-ops">
+                <a class="link" href="borrow-apply.html?no=JY20260801016&step=3">审批</a>
+                <a class="link" href="borrow-apply.html?no=JY20260801016">详情</a>
+              </td>
+            </tr>
+            <tr class="od-row clickable" onclick="if(!event.target.closest('a,input,select'))location.href='borrow-return.html?no=JC20260620008'">
+              <td class="nowrap fw-600 no-code">JY20260618022</td>
+              <td class="nowrap">莫**<br><span class="text-3 text-sm">XXXX市中级人民法院</span></td>
+              <td class="nowrap"><span class="badge red">公检法</span></td>
+              <td class="nowrap"><span class="badge orange">调卷办案</span></td>
+              <td class="nowrap">诉讼举证</td>
+              <td class="nowrap no-code">
+                DA450202201900642
+                <br><span class="text-3 text-sm">等 3 卷</span>
+              </td>
+              <td class="num">3</td>
+              <td class="nowrap">借出</td>
+              <td class="nowrap">06-20 至 07-06</td>
+              <td class="nowrap">窗口</td>
+              <td class="nowrap">06-18 14:08</td>
+              <td class="nowrap"><span class="badge green">同意</span></td>
+              <td class="nowrap"><span class="badge red">已借出</span><br><span class="od-txt text-sm">逾期 26 天</span></td>
+              <td class="col-ops">
+                <a class="link text-danger fw-600" onclick="PMS.toast('已发起第 5 次催办（短信 + 公函）','warning')">催办</a>
+                <a class="link" href="borrow-return.html?no=JC20260620008">办理归还</a>
+              </td>
+            </tr>
+            <tr class="clickable" onclick="if(!event.target.closest('a,input,select'))location.href='borrow-apply.html?no=JY20260731008'">
+              <td class="nowrap fw-600 no-code">JY20260731008</td>
+              <td class="nowrap">周**<br><span class="text-3 text-sm">权利人本人</span></td>
+              <td class="nowrap"><span class="badge green">权利人本人</span></td>
+              <td class="nowrap"><span class="badge cyan">外部查阅</span></td>
+              <td class="nowrap">历史查询</td>
+              <td class="nowrap no-code">DA450204202600862<br><span class="text-3 text-sm">1 卷</span></td>
+              <td class="num">1</td>
+              <td class="nowrap">电子调阅</td>
+              <td class="nowrap">08-01 至 08-08</td>
+              <td class="nowrap">小程序</td>
+              <td class="nowrap">07-31 16:42</td>
+              <td class="nowrap"><span class="badge green">同意</span></td>
+              <td class="nowrap"><span class="badge cyan">已批准</span></td>
+              <td class="col-ops">
+                <a class="link" href="archive-viewer.html?da=DA450204202600862">在线阅览</a>
+                <a class="link" href="borrow-apply.html?no=JY20260731008">详情</a>
+              </td>
+            </tr>
+            <tr class="clickable" onclick="if(!event.target.closest('a,input,select'))location.href='borrow-apply.html?no=JY20260730012'">
+              <td class="nowrap fw-600 no-code">JY20260730012</td>
+              <td class="nowrap">覃**<br><span class="text-3 text-sm">XXXX市房产交易所 · 存量房科</span></td>
+              <td class="nowrap"><span class="badge blue">本单位人员</span></td>
+              <td class="nowrap"><span class="badge blue">内部借阅</span></td>
+              <td class="nowrap">业务办理</td>
+              <td class="nowrap no-code">DA450202202300186<br><span class="text-3 text-sm">1 卷</span></td>
+              <td class="num">1</td>
+              <td class="nowrap">现场查阅</td>
+              <td class="nowrap">07-31 至 07-31</td>
+              <td class="nowrap">内部系统</td>
+              <td class="nowrap">07-30 10:18</td>
+              <td class="nowrap"><span class="badge green">同意</span></td>
+              <td class="nowrap"><span class="badge gray">已归还</span></td>
+              <td class="col-ops">
+                <a class="link" href="borrow-apply.html?no=JY20260730012">详情</a>
+              </td>
+            </tr>
+            <tr class="clickable" onclick="if(!event.target.closest('a,input,select'))location.href='borrow-apply.html?no=JY20260728026'">
+              <td class="nowrap fw-600 no-code">JY20260728026</td>
+              <td class="nowrap">陈**<br><span class="text-3 text-sm">广西公证处 · 柳州分部</span></td>
+              <td class="nowrap"><span class="badge cyan">其他部门</span></td>
+              <td class="nowrap"><span class="badge cyan">外部查阅</span></td>
+              <td class="nowrap">公证</td>
+              <td class="nowrap no-code">DA450202202100486<br><span class="text-3 text-sm">等 4 卷</span></td>
+              <td class="num">4</td>
+              <td class="nowrap">复制件</td>
+              <td class="nowrap">07-29 至 08-05</td>
+              <td class="nowrap">窗口</td>
+              <td class="nowrap">07-28 11:04</td>
+              <td class="nowrap"><span class="badge orange">部分同意</span><br><span class="text-3 text-sm">批准 3 卷</span></td>
+              <td class="nowrap"><span class="badge cyan">已批准</span></td>
+              <td class="col-ops">
+                <a class="link" href="copy-cert.html?from=JY20260728026">转复制出证</a>
+                <a class="link" href="borrow-apply.html?no=JY20260728026">详情</a>
+              </td>
+            </tr>
+            <tr class="clickable" onclick="if(!event.target.closest('a,input,select'))location.href='borrow-apply.html?no=JY20260726014'">
+              <td class="nowrap fw-600 no-code">JY20260726014</td>
+              <td class="nowrap">蒙**<br><span class="text-3 text-sm">受周** 委托</span></td>
+              <td class="nowrap"><span class="badge purple">委托代理人</span></td>
+              <td class="nowrap"><span class="badge cyan">外部查阅</span></td>
+              <td class="nowrap">继承</td>
+              <td class="nowrap no-code">DA450205201800386<br><span class="text-3 text-sm">1 卷</span></td>
+              <td class="num">1</td>
+              <td class="nowrap">现场查阅</td>
+              <td class="nowrap">07-28 至 07-28</td>
+              <td class="nowrap">窗口</td>
+              <td class="nowrap">07-26 15:30</td>
+              <td class="nowrap"><span class="badge red">不同意</span></td>
+              <td class="nowrap"><span class="badge gray">已驳回</span><br><span class="text-3 text-sm">委托期限已过期</span></td>
+              <td class="col-ops">
+                <a class="link" href="borrow-apply.html?no=JY20260726014">详情</a>
+              </td>
+            </tr>
+            <tr class="clickable" onclick="if(!event.target.closest('a,input,select'))location.href='borrow-apply.html?no=JY20260724006'">
+              <td class="nowrap fw-600 no-code">JY20260724006</td>
+              <td class="nowrap">韦**<br><span class="text-3 text-sm">XXXX市房产交易所 · 综合业务岗</span></td>
+              <td class="nowrap"><span class="badge blue">本单位人员</span></td>
+              <td class="nowrap"><span class="badge gray">线上调阅</span></td>
+              <td class="nowrap">业务办理</td>
+              <td class="nowrap no-code">DAFY450202001286<br><span class="text-3 text-sm">一房一档总卷</span></td>
+              <td class="num">1</td>
+              <td class="nowrap">电子调阅</td>
+              <td class="nowrap">07-24 至 07-31</td>
+              <td class="nowrap">内部系统</td>
+              <td class="nowrap">07-24 09:12</td>
+              <td class="nowrap"><span class="badge green">同意</span></td>
+              <td class="nowrap"><span class="badge gray">已归还</span></td>
+              <td class="col-ops">
+                <a class="link" href="house-archive.html">查看房屋档案</a>
+                <a class="link" href="borrow-apply.html?no=JY20260724006">详情</a>
+              </td>
+            </tr>
+            <tr class="od-row clickable" onclick="if(!event.target.closest('a,input,select'))location.href='borrow-return.html?no=JC20260710004'">
+              <td class="nowrap fw-600 no-code">JY20260708018</td>
+              <td class="nowrap">韦**<br><span class="text-3 text-sm">广西同望律师事务所</span></td>
+              <td class="nowrap"><span class="badge purple">律师</span></td>
+              <td class="nowrap"><span class="badge orange">调卷办案</span></td>
+              <td class="nowrap">诉讼举证</td>
+              <td class="nowrap no-code">DA450202202200518<br><span class="text-3 text-sm">1 卷</span></td>
+              <td class="num">1</td>
+              <td class="nowrap">借出</td>
+              <td class="nowrap">07-10 至 07-25</td>
+              <td class="nowrap">窗口</td>
+              <td class="nowrap">07-08 14:52</td>
+              <td class="nowrap"><span class="badge green">同意</span></td>
+              <td class="nowrap"><span class="badge red">已借出</span><br><span class="od-txt text-sm">逾期 7 天</span></td>
+              <td class="col-ops">
+                <a class="link text-danger fw-600" onclick="PMS.toast('已发起第 3 次催办（短信）','warning')">催办</a>
+                <a class="link" href="borrow-return.html?no=JC20260710004">办理归还</a>
+              </td>
+            </tr>
+            <tr class="clickable" onclick="if(!event.target.closest('a,input,select'))location.href='borrow-apply.html?no=JY20260720010'">
+              <td class="nowrap fw-600 no-code">JY20260720010</td>
+              <td class="nowrap">李**<br><span class="text-3 text-sm">XXXX市不动产登记中心</span></td>
+              <td class="nowrap"><span class="badge cyan">其他部门</span></td>
+              <td class="nowrap"><span class="badge blue">内部借阅</span></td>
+              <td class="nowrap">业务办理</td>
+              <td class="nowrap no-code">DA450204202600908<br><span class="text-3 text-sm">等 2 卷</span></td>
+              <td class="num">2</td>
+              <td class="nowrap">电子调阅</td>
+              <td class="nowrap">07-21 至 07-28</td>
+              <td class="nowrap">门户</td>
+              <td class="nowrap">07-20 08:46</td>
+              <td class="nowrap"><span class="badge green">同意</span></td>
+              <td class="nowrap"><span class="badge gray">已归还</span></td>
+              <td class="col-ops">
+                <a class="link" href="borrow-apply.html?no=JY20260720010">详情</a>
+              </td>
+            </tr>
+            <tr class="clickable" onclick="if(!event.target.closest('a,input,select'))location.href='borrow-apply.html?no=JY20260716002'">
+              <td class="nowrap fw-600 no-code">JY20260716002</td>
+              <td class="nowrap">黄**<br><span class="text-3 text-sm">XXXX市公安局柳南分局</span></td>
+              <td class="nowrap"><span class="badge red">公检法</span></td>
+              <td class="nowrap"><span class="badge orange">调卷办案</span></td>
+              <td class="nowrap">诉讼举证</td>
+              <td class="nowrap no-code">
+                DA450205202300386
+                <span class="lock-ml" title="本次借阅涉及机密级档案，需专项审批"><i class="fa-solid fa-lock"></i></span>
+                <br><span class="text-3 text-sm">1 卷</span>
+              </td>
+              <td class="num">1</td>
+              <td class="nowrap">现场查阅</td>
+              <td class="nowrap">07-18 至 07-18</td>
+              <td class="nowrap">窗口</td>
+              <td class="nowrap">07-16 10:32</td>
+              <td class="nowrap"><span class="badge green">同意</span><br><span class="text-3 text-sm">专项审批通过</span></td>
+              <td class="nowrap"><span class="badge gray">已归还</span></td>
+              <td class="col-ops">
+                <a class="link" href="borrow-apply.html?no=JY20260716002">详情</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="text-3 text-sm mt-8">
+        <i class="fa-solid fa-circle-info"></i>
+        借阅档案含秘密及以上密级的，档案号后显示橙色锁形标记，须走专项审批；存在逾期未还记录的借阅人不得再次借阅。
+      </p>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function toggleAdv() {
+  var w = document.getElementById('advWrap');
+  var b = document.getElementById('advBtn');
+  var on = w.classList.toggle('on');
+  b.innerHTML = on ? '收起 <i class="fa-solid fa-chevron-up"></i>' : '展开更多 <i class="fa-solid fa-chevron-down"></i>';
+}
+(function () {
+  PMS.renderPager(document.getElementById('tblJy'), {
+    pageNum: 1, pageSize: 10, total: 148,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+  var tab = new URLSearchParams(location.search).get('tab');
+  if (tab) {
+    var el = document.querySelector('.tabs .tab[data-tab="' + tab + '"]');
+    if (el) el.click();
+  }
+})();
+</script>
+</body>
+</html>

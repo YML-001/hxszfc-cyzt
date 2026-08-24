@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>资金对账管理 · 新建商品房预售资金监管系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../../assets/css/app.css">
+<style>
+  .tbl-static { overflow: auto; }
+  /* 三方对账：监管部门 / 银行 / 开发企业三列并排比对 */
+  .tri { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 1000px) { .tri { grid-template-columns: 1fr; } }
+  .tri-col { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .tri-col .tc-h { padding: 9px 14px; font-size: 13px; font-weight: 700; background: var(--primary-light); color: var(--primary); }
+  .tri-col.diff .tc-h { background: var(--danger-light); color: #b91c1c; }
+  .tri-col .tc-b { padding: 12px 14px; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsszjjg-12">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房预售资金监管系统
+        <span class="sep">/</span> 对账解监 <span class="sep">/</span> <span class="cur">资金对账管理</span>
+      </div>
+      <div class="page-title">资金对账管理</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="reconcile-diff.html"><i class="fa-solid fa-code-compare"></i> 差异处理 5</a>
+      <button class="btn" onclick="PMS.toast('对账结果已导出','success')"><i class="fa-solid fa-download"></i> 导出</button>
+      <button class="btn btn-primary" onclick="PMS.confirm({title:'发起对账',message:'确认发起本日日终对账？',detail:'将与 6 家监管银行核对 156 个账户的余额与流水。',type:'success',okText:'发起',onOk:function(){PMS.toast('日终对账已发起，预计 5 分钟完成','success')}})"><i class="fa-solid fa-scale-balanced"></i> 发起对账</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-scale-balanced"></i>
+    <div><b>两套对账口径</b>：<b>日终对账</b>每日与银行核对账户余额与流水，看的是「平台记的账和银行记的账一不一样」；
+      <b>多方对账</b>按月组织监管部门、银行、开发企业三方比对缴存、使用、余额，看的是「三本账能不能对上」。
+      差异必须<b>逐项登记原因、处理过程与结果，形成闭环台账</b>，不允许挂账过月。</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-building-columns"></i></div>
+      <div><div class="s-label">对账账户</div><div class="s-value">156</div><div class="s-trend">6 家监管银行</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">已平账户</div><div class="s-value">151</div><div class="s-trend text-success">平账率 96.8%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-code-compare"></i></div>
+      <div><div class="s-label">存在差异</div><div class="s-value">5</div><div class="s-trend text-danger">涉及 42.86 万元</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">未回盘账户</div><div class="s-value">12</div><div class="s-trend text-danger">桂林银行数据中断</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-clock-rotate-left"></i></div>
+      <div><div class="s-label">差异平均处理</div><div class="s-value" style="font-size:16px">1.8 天</div><div class="s-trend text-success">要求 3 日内闭环</div></div>
+    </div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="daily">日终对账</div>
+      <div class="tab" data-tab="tri">多方对账</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="daily">
+      <div class="card-body">
+        <p class="hint mb-16"><i class="fa-solid fa-circle-info"></i>
+          每日 22:00 自动发起，与银行核对<b>账户余额</b>与<b>当日流水笔数、金额</b>三项。任一项不符即生成差异清单。</p>
+        <div class="tbl-static">
+          <table class="data-table" data-static>
+            <thead>
+              <tr><th>对账日期</th><th>监管专户</th><th>所属项目</th><th>开户银行</th><th class="num">平台余额(元)</th><th class="num">银行余额(元)</th><th class="num">差额(元)</th><th class="num">流水笔数</th><th>结果</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="nowrap">2026-07-30</td><td class="nowrap">6216****4087</td><td class="nowrap">荣和·公园大道 三期</td><td class="nowrap">柳州银行营业部</td>
+                <td class="num">74,200,000.00</td><td class="num">74,200,000.00</td><td class="num">0.00</td><td class="num">6 / 6</td>
+                <td><span class="badge green">已平</span></td><td><span class="link" onclick="PMS.toast('对账明细已展开')">明细</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">2026-07-30</td><td class="nowrap">6216****7412</td><td class="nowrap">彰泰·山水间 二期</td><td class="nowrap">柳州银行营业部</td>
+                <td class="num">51,800,000.00</td><td class="num">51,800,000.00</td><td class="num">0.00</td><td class="num">4 / 4</td>
+                <td><span class="badge green">已平</span></td><td><span class="link" onclick="PMS.toast('对账明细已展开')">明细</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">2026-07-30</td><td class="nowrap">6227****3120</td><td class="nowrap">保利·柳江天悦</td><td class="nowrap">建设银行柳州城中支行</td>
+                <td class="num">39,600,000.00</td><td class="num">39,612,000.00</td><td class="num text-danger">-12,000.00</td><td class="num">8 / 9</td>
+                <td><span class="badge red">不平</span></td><td><a class="link danger" href="reconcile-diff.html">处理差异</a></td>
+              </tr>
+              <tr>
+                <td class="nowrap">2026-07-30</td><td class="nowrap">6215****2208</td><td class="nowrap">华润·置地中心</td><td class="nowrap">中国银行柳州分行</td>
+                <td class="num">92,600,000.00</td><td class="num">92,600,000.00</td><td class="num">0.00</td><td class="num">12 / 12</td>
+                <td><span class="badge green">已平</span></td><td><span class="link" onclick="PMS.toast('对账明细已展开')">明细</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">2026-07-30</td><td class="nowrap">6222****1174</td><td class="nowrap">恒祥·江湾一号</td><td class="nowrap">工商银行柳州分行</td>
+                <td class="num">68,500,000.00</td><td class="num">68,236,000.00</td><td class="num text-danger">264,000.00</td><td class="num">5 / 4</td>
+                <td><span class="badge red">不平</span></td><td><a class="link danger" href="reconcile-diff.html">处理差异</a></td>
+              </tr>
+              <tr>
+                <td class="nowrap">2026-07-30</td><td class="nowrap">6218****5530</td><td class="nowrap">柳南·锦绣华府</td><td class="nowrap">桂林银行柳州分行</td>
+                <td class="num">34,200,000.00</td><td class="num text-3">—</td><td class="num text-3">—</td><td class="num text-3">— / —</td>
+                <td><span class="badge orange">未回盘</span></td><td><span class="link danger" onclick="PMS.toast('已向桂林银行柳州分行发送回盘催办','error')">催办</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">2026-07-30</td><td class="nowrap">6227****8866</td><td class="nowrap">万科·柳东新城 二期</td><td class="nowrap">建设银行柳州城中支行</td>
+                <td class="num">12,080,000.00</td><td class="num">12,080,000.00</td><td class="num">0.00</td><td class="num">3 / 3</td>
+                <td><span class="badge green">已平</span></td><td><span class="link" onclick="PMS.toast('对账明细已展开')">明细</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">2026-07-30</td><td class="nowrap">6216****9903</td><td class="nowrap">龙光·玖誉城 一期</td><td class="nowrap">柳州银行营业部</td>
+                <td class="num">27,400,000.00</td><td class="num">27,400,000.00</td><td class="num">0.00</td><td class="num">0 / 0</td>
+                <td><span class="badge green">已平</span></td><td><span class="link" onclick="PMS.toast('账户冻结中，无交易发生')">明细</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="tri">
+      <div class="card-body">
+        <p class="hint mb-16"><i class="fa-solid fa-circle-info"></i>
+          按月组织三方对账，确认缴存、使用、余额三项一致。以荣和·公园大道 三期 2026 年 7 月为例：</p>
+        <div class="tri">
+          <div class="tri-col">
+            <div class="tc-h"><i class="fa-solid fa-building-shield"></i> 监管部门（平台台账）</div>
+            <div class="tc-b">
+              <dl class="desc-list">
+                <div class="desc-item"><dt>期初余额</dt><dd>6,994.00 万元</dd></div>
+                <div class="desc-item"><dt>本月缴存</dt><dd>1,286.40 万元</dd></div>
+                <div class="desc-item"><dt>本月拨付</dt><dd>860.00 万元</dd></div>
+                <div class="desc-item"><dt>本月核退</dt><dd>0.40 万元</dd></div>
+                <div class="desc-item"><dt>期末余额</dt><dd class="fw-600">7,420.00 万元</dd></div>
+              </dl>
+            </div>
+          </div>
+          <div class="tri-col">
+            <div class="tc-h"><i class="fa-solid fa-building-columns"></i> 监管银行（账户流水）</div>
+            <div class="tc-b">
+              <dl class="desc-list">
+                <div class="desc-item"><dt>期初余额</dt><dd>6,994.00 万元</dd></div>
+                <div class="desc-item"><dt>本月贷方</dt><dd>1,286.40 万元</dd></div>
+                <div class="desc-item"><dt>本月借方</dt><dd>860.00 万元</dd></div>
+                <div class="desc-item"><dt>本月退款</dt><dd>0.40 万元</dd></div>
+                <div class="desc-item"><dt>期末余额</dt><dd class="fw-600">7,420.00 万元</dd></div>
+              </dl>
+            </div>
+          </div>
+          <div class="tri-col">
+            <div class="tc-h"><i class="fa-solid fa-building"></i> 开发企业（财务账）</div>
+            <div class="tc-b">
+              <dl class="desc-list">
+                <div class="desc-item"><dt>期初余额</dt><dd>6,994.00 万元</dd></div>
+                <div class="desc-item"><dt>本月收款</dt><dd>1,286.40 万元</dd></div>
+                <div class="desc-item"><dt>本月用款</dt><dd>860.00 万元</dd></div>
+                <div class="desc-item"><dt>本月退款</dt><dd>0.40 万元</dd></div>
+                <div class="desc-item"><dt>期末余额</dt><dd class="fw-600">7,420.00 万元</dd></div>
+              </dl>
+            </div>
+          </div>
+        </div>
+        <div class="alert alert-success mt-16">
+          <i class="fa-solid fa-circle-check"></i>
+          <div>三方账目完全一致，期末余额均为 <b>7,420.00 万元</b>。
+            对账结论由三方经办人电子签章确认：监管部门 韦国强、柳州银行 梁美玲、荣和地产 周建国，确认日期 2026-07-31。</div>
+        </div>
+        <div class="tbl-static mt-16">
+          <table class="data-table" data-static>
+            <thead>
+              <tr><th>对账月份</th><th>项目</th><th class="num">平台期末(万元)</th><th class="num">银行期末(万元)</th><th class="num">企业期末(万元)</th><th>三方一致</th><th>确认状态</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="nowrap">2026-07</td><td class="nowrap">荣和·公园大道 三期</td><td class="num">7,420.00</td><td class="num">7,420.00</td><td class="num">7,420.00</td><td><span class="badge green">一致</span></td><td><span class="badge green">三方已签章</span></td><td><span class="link" onclick="PMS.toast('对账单已下载','success')">对账单</span></td></tr>
+              <tr><td class="nowrap">2026-07</td><td class="nowrap">彰泰·山水间 二期</td><td class="num">5,180.00</td><td class="num">5,180.00</td><td class="num">5,180.00</td><td><span class="badge green">一致</span></td><td><span class="badge green">三方已签章</span></td><td><span class="link" onclick="PMS.toast('对账单已下载','success')">对账单</span></td></tr>
+              <tr><td class="nowrap">2026-07</td><td class="nowrap">保利·柳江天悦</td><td class="num">3,960.00</td><td class="num">3,961.20</td><td class="num">3,960.00</td><td><span class="badge red">银行方不一致</span></td><td><span class="badge orange">待确认</span></td><td><a class="link danger" href="reconcile-diff.html">处理差异</a></td></tr>
+              <tr><td class="nowrap">2026-07</td><td class="nowrap">恒祥·江湾一号</td><td class="num">6,850.00</td><td class="num">6,823.60</td><td class="num">6,850.00</td><td><span class="badge red">银行方不一致</span></td><td><span class="badge orange">待确认</span></td><td><a class="link danger" href="reconcile-diff.html">处理差异</a></td></tr>
+              <tr><td class="nowrap">2026-07</td><td class="nowrap">华润·置地中心</td><td class="num">9,260.00</td><td class="num">9,260.00</td><td class="num">9,260.00</td><td><span class="badge green">一致</span></td><td><span class="badge green">三方已签章</span></td><td><span class="link" onclick="PMS.toast('对账单已下载','success')">对账单</span></td></tr>
+              <tr><td class="nowrap">2026-07</td><td class="nowrap">万科·柳东新城 二期</td><td class="num">1,208.00</td><td class="num">1,208.00</td><td class="num text-danger">1,486.00</td><td><span class="badge red">企业方不一致</span></td><td><span class="badge orange">待确认</span></td><td><a class="link danger" href="reconcile-diff.html">处理差异</a></td></tr>
+              <tr><td class="nowrap">2026-06</td><td class="nowrap">荣和·公园大道 三期</td><td class="num">6,994.00</td><td class="num">6,994.00</td><td class="num">6,994.00</td><td><span class="badge green">一致</span></td><td><span class="badge green">三方已签章</span></td><td><span class="link" onclick="PMS.toast('对账单已下载','success')">对账单</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="alert alert-danger mt-16">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>万科·柳东新城 二期<b>企业账比平台账多 278.00 万元</b>。
+            初步判断为企业收取了未进监管账户的购房款（体外循环），已转监督检查立案，
+            该项目全部资金拨付即日起暂停，直至差异查清。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../../assets/js/app.js"></script>
+</body>
+</html>

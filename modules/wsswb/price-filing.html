@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>一房一价备案 · 新建商品房网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：导入校验汇总卡与明细异常行标色 */
+  .vchk { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+  .vchk .vc {
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; background: #fff;
+    display: flex; align-items: center; gap: 10px; font-size: 13px;
+  }
+  .vchk .vc.ok { border-left: 3px solid var(--success); }
+  .vchk .vc.bad { border-left: 3px solid var(--danger); }
+  .vchk .vc .vn { margin-left: auto; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .vchk .vc.ok .vn { color: var(--success); }
+  .vchk .vc.bad .vn { color: var(--danger); }
+  tr.row-bad td { background: var(--danger-light); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsswb-10">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房网签备案管理系统
+        <span class="sep">/</span> 预售管理
+        <span class="sep">/</span> <span class="cur">一房一价备案</span>
+      </div>
+      <div class="page-title">一房一价备案</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" data-open-drawer="dwNew"><i class="fa-solid fa-plus"></i> 新增备案批次</button>
+      <button type="button" class="btn" onclick="location.href='price-adjust.html'">价格调整备案</button>
+      <button type="button" class="btn" onclick="location.href='price-publish.html'">一房一价公示</button>
+      <button type="button" class="btn" onclick="PMS.toast('《一房一价备案导入模板》已下载')"><i class="fa-solid fa-download"></i> 下载导入模板</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-layer-group"></i></div>
+      <div><div class="s-label">备案批次</div><div class="s-value">186</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-tags"></i></div>
+      <div><div class="s-label">备案套数</div><div class="s-value">24,318</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-circle-exclamation"></i></div>
+      <div><div class="s-label">未备案价房源</div><div class="s-value">142</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-plus"></i></div>
+      <div><div class="s-label">本月新增备案</div><div class="s-value">9 批</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-tower-broadcast"></i></div>
+      <div><div class="s-label">公示中</div><div class="s-value">178</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-yen-sign"></i></div>
+      <div><div class="s-label">平均备案单价</div><div class="s-value">8,642</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-danger">
+    <i class="fa-solid fa-ban"></i>
+    <div><b>未备案价格不得销售</b>：未备案房号在销控图上标「价」角标且不允许发起认购；备案完成后自动公示每套房的备案价格，成交价须在备案价允许浮动范围内。</div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>备案批次号</label>
+        <input type="text" placeholder="如 PF2026061801">
+      </div>
+      <div class="filter-item">
+        <label>项目</label>
+        <input type="text" placeholder="项目名称关键词">
+      </div>
+      <div class="filter-item">
+        <label>预售许可证号</label>
+        <input type="text" placeholder="如 柳房预售证第〔2026〕0087 号">
+      </div>
+      <div class="filter-item">
+        <label>备案日期起</label>
+        <input type="date" value="2026-01-01">
+      </div>
+      <div class="filter-item">
+        <label>备案日期止</label>
+        <input type="date" value="2026-07-31">
+      </div>
+      <div class="filter-item">
+        <label>公示状态</label>
+        <select><option value="">全部</option><option>公示中</option><option>公示结束</option><option>待公示</option></select>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 186 个批次')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        <button type="button" class="btn" onclick="PMS.toast('已生成《一房一价备案台账》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblPf" data-static>
+        <thead>
+          <tr>
+            <th>备案批次号</th>
+            <th>项目</th>
+            <th>预售许可证号</th>
+            <th class="num">备案套数</th>
+            <th class="num">均价（元/㎡）</th>
+            <th class="num">最高价</th>
+            <th class="num">最低价</th>
+            <th>备案日期</th>
+            <th>公示起止</th>
+            <th>状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="nowrap fw-600">PF2026073101</td>
+            <td class="nowrap">彰泰江湾城（三期）</td>
+            <td class="nowrap">柳房预售证第〔2026〕0087 号</td>
+            <td class="num nowrap">418</td>
+            <td class="num nowrap">12,986</td>
+            <td class="num nowrap">14,286</td>
+            <td class="num nowrap">11,860</td>
+            <td class="nowrap">2026-07-31</td>
+            <td class="nowrap">2026-07-31 至 2026-08-06</td>
+            <td class="nowrap"><span class="badge orange">待公示</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openDetail('PF2026073101','彰泰江湾城（三期）')">查看明细</span>
+              <a class="link" href="price-publish.html">公示预览</a>
+              <a class="link" href="price-adjust.html">调价</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">PF2026072201</td>
+            <td class="nowrap">华润置地柳州万象天地</td>
+            <td class="nowrap">柳房预售证第〔2026〕0086 号</td>
+            <td class="num nowrap">492</td>
+            <td class="num nowrap">14,286</td>
+            <td class="num nowrap">16,820</td>
+            <td class="num nowrap">12,640</td>
+            <td class="nowrap">2026-07-22</td>
+            <td class="nowrap">2026-07-22 至 2026-07-28</td>
+            <td class="nowrap"><span class="badge green">公示中</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openDetail('PF2026072201','华润置地柳州万象天地')">查看明细</span>
+              <a class="link" href="price-publish.html">公示预览</a>
+              <a class="link" href="price-adjust.html">调价</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">PF2026070601</td>
+            <td class="nowrap">保利柳江府（二期）</td>
+            <td class="nowrap">柳房预售证第〔2026〕0082 号</td>
+            <td class="num nowrap">368</td>
+            <td class="num nowrap">10,860</td>
+            <td class="num nowrap">12,420</td>
+            <td class="num nowrap">9,860</td>
+            <td class="nowrap">2026-07-06</td>
+            <td class="nowrap">2026-07-06 至 2026-07-12</td>
+            <td class="nowrap"><span class="badge green">公示中</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openDetail('PF2026070601','保利柳江府（二期）')">查看明细</span>
+              <a class="link" href="price-publish.html">公示预览</a>
+              <a class="link" href="price-adjust.html">调价</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">PF2026061801</td>
+            <td class="nowrap">彰泰江湾城（三期）</td>
+            <td class="nowrap">柳房预售证第〔2026〕0087 号</td>
+            <td class="num nowrap">246</td>
+            <td class="num nowrap">12,860</td>
+            <td class="num nowrap">14,092</td>
+            <td class="num nowrap">11,760</td>
+            <td class="nowrap">2026-06-20</td>
+            <td class="nowrap">2026-06-20 至 2026-06-26</td>
+            <td class="nowrap"><span class="badge cyan">公示结束</span> <span class="badge gray">已调价 1 次</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openDetail('PF2026061801','彰泰江湾城（三期）')">查看明细</span>
+              <a class="link" href="price-publish.html">公示预览</a>
+              <a class="link" href="price-adjust.html">调价</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">PF2026041801</td>
+            <td class="nowrap">彰泰江湾城（三期）</td>
+            <td class="nowrap">柳房预售证第〔2026〕0072 号</td>
+            <td class="num nowrap">232</td>
+            <td class="num nowrap">12,420</td>
+            <td class="num nowrap">13,680</td>
+            <td class="num nowrap">11,420</td>
+            <td class="nowrap">2026-04-20</td>
+            <td class="nowrap">2026-04-20 至 2026-04-26</td>
+            <td class="nowrap"><span class="badge cyan">公示结束</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openDetail('PF2026041801','彰泰江湾城（三期）')">查看明细</span>
+              <a class="link" href="price-publish.html">公示预览</a>
+              <a class="link" href="price-adjust.html">调价</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">PF2026032601</td>
+            <td class="nowrap">龙光玖誉城（四期）</td>
+            <td class="nowrap">柳房预售证第〔2025〕0186 号</td>
+            <td class="num nowrap">486</td>
+            <td class="num nowrap">9,420</td>
+            <td class="num nowrap">10,860</td>
+            <td class="num nowrap">8,620</td>
+            <td class="nowrap">2026-03-26</td>
+            <td class="nowrap">2026-03-26 至 2026-04-01</td>
+            <td class="nowrap"><span class="badge cyan">公示结束</span> <span class="badge gray">已调价 2 次</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openDetail('PF2026032601','龙光玖誉城（四期）')">查看明细</span>
+              <a class="link" href="price-publish.html">公示预览</a>
+              <span class="link" onclick="PMS.toast('本项目年度累计调幅已达 14.2%，接近 ±15% 上限','error')">调价</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">PF2026031201</td>
+            <td class="nowrap">柳州万科城（五期）</td>
+            <td class="nowrap">柳房预售证第〔2026〕0068 号</td>
+            <td class="num nowrap">1,486</td>
+            <td class="num nowrap">11,286</td>
+            <td class="num nowrap">13,420</td>
+            <td class="num nowrap">9,860</td>
+            <td class="nowrap">2026-03-12</td>
+            <td class="nowrap">2026-03-12 至 2026-03-18</td>
+            <td class="nowrap"><span class="badge cyan">公示结束</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openDetail('PF2026031201','柳州万科城（五期）')">查看明细</span>
+              <a class="link" href="price-publish.html">公示预览</a>
+              <a class="link" href="price-adjust.html">调价</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">PF2026022601</td>
+            <td class="nowrap">荣和公园里（一期）</td>
+            <td class="nowrap">柳房预售证第〔2026〕0061 号</td>
+            <td class="num nowrap">386</td>
+            <td class="num nowrap">10,420</td>
+            <td class="num nowrap">11,860</td>
+            <td class="num nowrap">9,260</td>
+            <td class="nowrap">2026-02-26</td>
+            <td class="nowrap">2026-02-26 至 2026-03-04</td>
+            <td class="nowrap"><span class="badge cyan">公示结束</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openDetail('PF2026022601','荣和公园里（一期）')">查看明细</span>
+              <a class="link" href="price-publish.html">公示预览</a>
+              <a class="link" href="price-adjust.html">调价</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">PF2026021001</td>
+            <td class="nowrap">中南春风南岸（二期）</td>
+            <td class="nowrap">柳房预售证第〔2026〕0056 号</td>
+            <td class="num nowrap">324</td>
+            <td class="num nowrap">11,860</td>
+            <td class="num nowrap">13,286</td>
+            <td class="num nowrap">10,420</td>
+            <td class="nowrap">2026-02-10</td>
+            <td class="nowrap">2026-02-10 至 2026-02-16</td>
+            <td class="nowrap"><span class="badge cyan">公示结束</span> <span class="badge gray">已调价 1 次</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openDetail('PF2026021001','中南春风南岸（二期）')">查看明细</span>
+              <a class="link" href="price-publish.html">公示预览</a>
+              <a class="link" href="price-adjust.html">调价</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="nowrap fw-600">PF2026012201</td>
+            <td class="nowrap">阳光城柳州樾府</td>
+            <td class="nowrap">柳房预售证第〔2026〕0048 号</td>
+            <td class="num nowrap">268</td>
+            <td class="num nowrap">12,086</td>
+            <td class="num nowrap">13,860</td>
+            <td class="num nowrap">10,860</td>
+            <td class="nowrap">2026-01-22</td>
+            <td class="nowrap">2026-01-22 至 2026-01-28</td>
+            <td class="nowrap"><span class="badge cyan">公示结束</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openDetail('PF2026012201','阳光城柳州樾府')">查看明细</span>
+              <a class="link" href="price-publish.html">公示预览</a>
+              <a class="link" href="price-adjust.html">调价</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 批次明细 -->
+  <div class="drawer-mask"></div>
+  <div class="drawer drawer-lg" id="dwDetail">
+    <div class="drawer-head">
+      <h3>备案明细 · <span id="dtNo">—</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <dl class="desc-list">
+        <div class="desc-item"><dt>备案批次号</dt><dd id="dtNo2">—</dd></div>
+        <div class="desc-item"><dt>项目</dt><dd id="dtPj">—</dd></div>
+        <div class="desc-item"><dt>预售许可证号</dt><dd>柳房预售证第〔2026〕0087 号</dd></div>
+        <div class="desc-item"><dt>备案套数</dt><dd>418 套</dd></div>
+        <div class="desc-item"><dt>备案日期</dt><dd>2026-07-31</dd></div>
+        <div class="desc-item"><dt>公示起止</dt><dd>2026-07-31 至 2026-08-06</dd></div>
+      </dl>
+
+      <div class="section-title mt-16">逐套备案价（节选）</div>
+      <table class="data-table compact">
+        <thead>
+          <tr>
+            <th>房号</th><th class="num">建筑面积（㎡）</th><th class="num">套内面积（㎡）</th>
+            <th class="num">备案单价（元/㎡）</th><th class="num">备案总价（万元）</th>
+            <th class="num">装修价格（元/㎡）</th><th>车位捆绑</th><th>当前销控</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="nowrap">11-1-2801</td><td class="num">118.65</td><td class="num">92.55</td><td class="num">13,176</td><td class="num">156.33</td><td class="num">1,800</td><td class="nowrap text-3">无</td><td class="nowrap"><span class="badge green">可售</span></td></tr>
+          <tr><td class="nowrap">11-1-2802</td><td class="num">96.42</td><td class="num">75.21</td><td class="num">13,176</td><td class="num">127.04</td><td class="num">1,800</td><td class="nowrap text-3">无</td><td class="nowrap"><span class="badge green">可售</span></td></tr>
+          <tr><td class="nowrap">11-2-2601</td><td class="num">118.65</td><td class="num">92.55</td><td class="num">13,092</td><td class="num">155.34</td><td class="num">1,800</td><td class="nowrap text-3">无</td><td class="nowrap"><span class="badge green">可售</span></td></tr>
+          <tr><td class="nowrap">12-1-2601</td><td class="num">142.80</td><td class="num">111.38</td><td class="num">13,092</td><td class="num">186.95</td><td class="num">1,800</td><td class="nowrap text-3">无</td><td class="nowrap"><span class="badge green">可售</span></td></tr>
+          <tr><td class="nowrap">12-1-0201</td><td class="num">142.80</td><td class="num">111.38</td><td class="num">11,860</td><td class="num">169.36</td><td class="num">1,800</td><td class="nowrap">建议配套 1 个产权车位</td><td class="nowrap"><span class="badge green">可售</span></td></tr>
+        </tbody>
+      </table>
+
+      <div class="alert alert-info mt-16">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>车位捆绑说明仅作提示，<b>不得以购买住宅须搭售车位为条件</b>；系统在搭售监测中对同一买受人短时间内同时签约住宅与车位的情形做疑似搭售判定。</div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+      <button type="button" class="btn" onclick="PMS.toast('《一房一价备案明细》Excel 已生成，正在下载','success')"><i class="fa-solid fa-download"></i> 导出明细</button>
+      <button type="button" class="btn" onclick="location.href='price-publish.html'"><i class="fa-solid fa-tower-broadcast"></i> 公示预览</button>
+    </div>
+  </div>
+
+  <!-- 新增备案批次 -->
+  <div class="drawer drawer-lg" id="dwNew">
+    <div class="drawer-head">
+      <h3>新增一房一价备案批次</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="section-title">批次信息</div>
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>项目<span class="req">*</span></label>
+          <select><option>彰泰江湾城（三期）</option><option>华润置地柳州万象天地</option><option>保利柳江府（二期）</option><option>龙光玖誉城（四期）</option></select>
+        </div>
+        <div class="form-item">
+          <label>预售许可证号<span class="req">*</span></label>
+          <select><option>柳房预售证第〔2026〕0087 号（418 套）</option><option>柳房预售证第〔2026〕0072 号（232 套）</option></select>
+        </div>
+        <div class="form-item">
+          <label>备案批次号</label>
+          <input type="text" value="PF2026073102" readonly>
+        </div>
+        <div class="form-item">
+          <label>备案日期<span class="req">*</span></label>
+          <input type="date" value="2026-07-31">
+        </div>
+        <div class="form-item">
+          <label>公示起始<span class="req">*</span></label>
+          <input type="date" value="2026-07-31">
+        </div>
+        <div class="form-item">
+          <label>公示终止<span class="req">*</span></label>
+          <input type="date" value="2026-08-06">
+        </div>
+      </div>
+
+      <div class="section-title mt-16">明细导入</div>
+      <div class="form-item">
+        <label>一房一价明细表<span class="req">*</span></label>
+        <div class="file-up">
+          <input type="hidden" class="file-up-val" value="彰泰江湾城三期-11#12#-一房一价.xlsx">
+          <div class="file-up-grid">
+            <div class="file-up-tile file-up-add"><input type="file" accept=".xlsx,.xls"><i class="fa-solid fa-plus"></i><span>上传</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="btn-row mt-16">
+        <button type="button" class="btn btn-primary" onclick="parseFile()"><i class="fa-solid fa-gears"></i> 解析并校验</button>
+        <button type="button" class="btn" onclick="PMS.toast('《一房一价备案导入模板》已下载')"><i class="fa-solid fa-download"></i> 下载模板</button>
+      </div>
+
+      <div id="vBox" class="hidden">
+        <div class="section-title mt-16">校验汇总</div>
+        <div class="vchk">
+          <div class="vc ok"><i class="fa-solid fa-house text-success"></i> 房号存在性<span class="vn">418</span></div>
+          <div class="vc bad"><i class="fa-solid fa-certificate text-danger"></i> 是否在许可范围内<span class="vn">2</span></div>
+          <div class="vc bad"><i class="fa-solid fa-ruler text-danger"></i> 面积一致性<span class="vn">1</span></div>
+          <div class="vc ok"><i class="fa-solid fa-yen-sign text-success"></i> 价格为空或为负<span class="vn">0</span></div>
+        </div>
+
+        <div class="section-title mt-16">明细核对（可直接编辑）</div>
+        <table class="data-table compact">
+          <thead>
+            <tr>
+              <th>行号</th><th>房号</th><th class="num">建筑面积（㎡）</th><th class="num">套内面积（㎡）</th>
+              <th class="num">备案单价（元/㎡）</th><th class="num">备案总价（万元）</th>
+              <th class="num">装修价格（元/㎡）</th><th>车位捆绑说明</th><th>校验结论</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="num">1</td><td class="nowrap">11-1-2801</td><td class="num">118.65</td><td class="num">92.55</td><td class="num">13,176</td><td class="num">156.33</td><td class="num">1,800</td><td class="nowrap text-3">无</td><td class="nowrap"><span class="badge green">通过</span></td></tr>
+            <tr><td class="num">2</td><td class="nowrap">11-1-2802</td><td class="num">96.42</td><td class="num">75.21</td><td class="num">13,176</td><td class="num">127.04</td><td class="num">1,800</td><td class="nowrap text-3">无</td><td class="nowrap"><span class="badge green">通过</span></td></tr>
+            <tr class="row-bad"><td class="num">3</td><td class="nowrap">13-1-2601</td><td class="num">118.65</td><td class="num">92.55</td><td class="num">13,092</td><td class="num">155.34</td><td class="num">1,800</td><td class="nowrap text-3">无</td><td class="nowrap"><span class="badge red">不在许可范围</span></td></tr>
+            <tr class="row-bad"><td class="num">4</td><td class="nowrap">13-1-2602</td><td class="num">96.42</td><td class="num">75.21</td><td class="num">13,092</td><td class="num">126.23</td><td class="num">1,800</td><td class="nowrap text-3">无</td><td class="nowrap"><span class="badge red">不在许可范围</span></td></tr>
+            <tr class="row-bad"><td class="num">5</td><td class="nowrap">12-1-2601</td><td class="num">140.20</td><td class="num">111.38</td><td class="num">13,092</td><td class="num">183.55</td><td class="num">1,800</td><td class="nowrap text-3">无</td><td class="nowrap"><span class="badge red">面积与楼盘表不一致（楼盘表 142.80）</span></td></tr>
+            <tr><td class="num">6</td><td class="nowrap">12-1-0201</td><td class="num">142.80</td><td class="num">111.38</td><td class="num">11,860</td><td class="num">169.36</td><td class="num">1,800</td><td class="nowrap">建议配套 1 个产权车位</td><td class="nowrap"><span class="badge green">通过</span></td></tr>
+          </tbody>
+        </table>
+
+        <div class="alert alert-danger mt-16">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>3 行校验不通过：2 行房号不在许可范围内（13# 幢尚未取得预售许可），1 行面积与楼盘表不一致。请先剔除或按楼盘表值修正后再提交备案。</div>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn" onclick="PMS.toast('已按楼盘表值修正 1 行面积','success')"><i class="fa-solid fa-wand-magic-sparkles"></i> 一键按楼盘表修正</button>
+          <button type="button" class="btn" onclick="PMS.toast('已剔除 2 行不在许可范围的房号','success')"><i class="fa-solid fa-eraser"></i> 剔除异常行</button>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn" onclick="PMS.toast('备案批次草稿已保存','success')"><i class="fa-regular fa-floppy-disk"></i> 保存草稿</button>
+      <button type="button" class="btn btn-primary" onclick="submitPf()"><i class="fa-solid fa-paper-plane"></i> 提交备案</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+PMS.renderPager(document.getElementById('tblPf'), {
+  pageNum: 1, pageSize: 20, total: 186,
+  onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+});
+
+function openDetail(no, pj) {
+  document.getElementById('dtNo').textContent = no;
+  document.getElementById('dtNo2').textContent = no;
+  document.getElementById('dtPj').textContent = pj;
+  PMS.openDrawer('dwDetail');
+}
+
+function parseFile() {
+  document.getElementById('vBox').classList.remove('hidden');
+  PMS.toast('已解析 418 行，其中 3 行校验不通过', 'error');
+}
+
+function submitPf() {
+  PMS.confirm({
+    title: '提交一房一价备案',
+    message: '确认提交本批次 415 套房源的备案价格？',
+    detail: '提交后逐房写入备案价并自动公示；未备案房号在销控图上标「价」角标，不允许发起认购。',
+    okText: '确认提交',
+    onOk: function () {
+      PMS.closeDrawer('dwNew');
+      PMS.toast('已逐房写入备案价，未备案房号在销控图上标记为不可认购', 'success');
+    }
+  });
+}
+</script>
+</body>
+</html>

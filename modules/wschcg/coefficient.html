@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>分摊系数管理 · 房屋交易面积信息管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：分摊层次色标、系数强调、计算公式代码块 */
+  .amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .xs { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--primary); font-size: 15px; }
+  .xs.hi { color: #b45309; }
+  .lv { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .lv .dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+  .lv.l1 .dot { background: var(--primary); } .lv.l2 .dot { background: #7c3aed; }
+  .lv.l3 .dot { background: var(--info); } .lv.l4 .dot { background: var(--success); }
+
+  /* 计算公式代码块 */
+  .formula {
+    font-family: "Consolas", "Courier New", monospace; font-size: 13.5px; line-height: 2;
+    background: #0f172a; color: #e2e8f0; border-radius: var(--radius); padding: 14px 18px; white-space: pre;
+    overflow-x: auto;
+  }
+  .formula .op { color: #7dd3fc; }
+  .formula .num { color: #fcd34d; }
+  .formula .res { color: #86efac; font-weight: 700; }
+
+  .basis { border-left: 3px solid var(--primary); background: var(--primary-light); border-radius: 0 var(--radius) var(--radius) 0; padding: 10px 14px; font-size: 13px; line-height: 1.7; color: var(--text-2); }
+  .basis b { color: var(--text-1); }
+  .no-share td { color: var(--text-3); background: #fafbfd; }
+  /* 列数较多，收窄内边距让核心的分摊系数列进入首屏 */
+  #tblFt thead th, #tblFt tbody td { padding-left: 8px; padding-right: 8px; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wschcg-22">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易面积信息管理系统
+        <span class="sep">/</span> 面积核验管理
+        <span class="sep">/</span> <span class="cur">分摊系数管理</span>
+      </div>
+      <div class="page-title">分摊系数管理</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="location.href='area-exception.html'"><i class="fa-solid fa-triangle-exclamation"></i> 面积异常核查</button>
+      <button type="button" class="btn" onclick="PMS.toast('《分摊系数台账》Excel 已生成，正在下载','success')"><i class="fa-solid fa-file-excel"></i> 导出台账</button>
+      <button type="button" class="btn btn-primary" onclick="edit('新增分摊记录')"><i class="fa-solid fa-plus"></i> 新增分摊记录</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-percent"></i></div>
+      <div><div class="s-label">分摊记录</div><div class="s-value">86 条</div><div class="s-trend text-3">覆盖 24 幢</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-building"></i></div>
+      <div><div class="s-label">幢分摊平均系数</div><div class="s-value">0.2205</div><div class="s-trend text-3">住宅合理区间 0.10 ~ 0.25</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-clock"></i></div>
+      <div><div class="s-label">待审核</div><div class="s-value">4 条</div><div class="s-trend text-warning">含 1 条约定分摊</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">已审核生效</div><div class="s-value">82 条</div><div class="s-trend text-3">系数已下发质检规则 04</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>分摊系数是<b>共有部位面积在各户之间的分配依据</b>，直接决定每户的分摊面积与建筑面积。系数审核生效后作为质检项 04「分摊系数校验」的参照值；系数明显偏离本幢平均值的房源，会在<b>面积异常核查</b>中自动标记待核实。</div>
+  </div>
+
+  <div class="card list-card">
+    <div class="filter-bar">
+      <div class="filter-item"><label>分摊记录编号</label><input type="text" placeholder="如 FT450200202600186"></div>
+      <div class="filter-item"><label>成果编号</label><input type="text" placeholder="如 CG450200202600186"></div>
+      <div class="filter-item"><label>项目 / 幢号</label><input type="text" id="fKw" placeholder="如 荣和公园大道二期 8 栋"></div>
+      <div class="filter-item">
+        <label>分摊层次</label>
+        <select id="fLv" onchange="applyFilter()">
+          <option value="">全部</option><option value="1">幢分摊</option><option value="2">功能区分摊</option><option value="3">单元分摊</option><option value="4">层分摊</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>分摊方式</label>
+        <select id="fWay" onchange="applyFilter()">
+          <option value="">全部</option><option value="a">按套内面积比例</option><option value="b">按功能区二次分摊</option><option value="c">约定分摊</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>审核状态</label>
+        <select id="fSt" onchange="applyFilter()"><option value="">全部</option><option value="0">待审核</option><option value="2">已审核</option></select>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="applyFilter()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn" onclick="resetFilter()"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblFt" data-static>
+        <thead>
+          <tr>
+            <th>分摊记录编号</th><th>成果编号</th><th>项目 / 幢号</th><th>分摊层次</th><th>分摊范围名称</th>
+            <th class="text-right">共有部位面积</th><th class="text-right">不分摊面积</th><th class="text-right">参与分摊套内</th>
+            <th class="text-right">分摊系数</th><th>分摊方式</th><th class="text-right">适用户数</th>
+            <th>审核人 / 时间</th><th>审核状态</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-lv="1" data-way="a" data-st="2">
+            <td class="nowrap fw-600">FT450200202600186</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600186</span></td>
+            <td class="nowrap">荣和公园大道二期 8 栋</td>
+            <td><span class="lv l1"><span class="dot"></span>幢分摊</span></td>
+            <td class="nowrap">全幢共有部位</td>
+            <td class="text-right amt">6,356.18</td><td class="text-right amt">548.60</td><td class="text-right amt">22,486.42</td>
+            <td class="text-right"><span class="xs">0.2827</span></td>
+            <td class="nowrap">按套内面积比例</td><td class="text-right amt">96</td>
+            <td class="nowrap">李建华 · 08-01 10:12</td>
+            <td class="nowrap"><span class="badge green">已审核</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="detail('FT450200202600186')">详情</span>
+              <span class="link" onclick="edit('FT450200202600186')">编辑</span>
+              <span class="link" onclick="PMS.toast('该记录已于 2026-08-01 10:12 由李建华审核通过')">审核</span>
+            </td>
+          </tr>
+          <tr data-lv="3" data-way="a" data-st="2">
+            <td class="nowrap fw-600">FT450200202600187</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600186</span></td>
+            <td class="nowrap">荣和公园大道二期 8 栋 1 单元</td>
+            <td><span class="lv l3"><span class="dot"></span>单元分摊</span></td>
+            <td class="nowrap">1 单元电梯厅走廊</td>
+            <td class="text-right amt">1,286.40</td><td class="text-right amt">0.00</td><td class="text-right amt">11,206.86</td>
+            <td class="text-right"><span class="xs">0.1148</span></td>
+            <td class="nowrap">按套内面积比例</td><td class="text-right amt">48</td>
+            <td class="nowrap">李建华 · 08-01 10:12</td>
+            <td class="nowrap"><span class="badge green">已审核</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="detail('FT450200202600187')">详情</span>
+              <span class="link" onclick="edit('FT450200202600187')">编辑</span>
+              <span class="link" onclick="PMS.toast('该记录已于 2026-08-01 10:12 由李建华审核通过')">审核</span>
+            </td>
+          </tr>
+          <tr data-lv="3" data-way="a" data-st="2">
+            <td class="nowrap fw-600">FT450200202600188</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600186</span></td>
+            <td class="nowrap">荣和公园大道二期 8 栋 2 单元</td>
+            <td><span class="lv l3"><span class="dot"></span>单元分摊</span></td>
+            <td class="nowrap">2 单元电梯厅走廊</td>
+            <td class="text-right amt">1,242.80</td><td class="text-right amt">0.00</td><td class="text-right amt">11,279.56</td>
+            <td class="text-right"><span class="xs">0.1102</span></td>
+            <td class="nowrap">按套内面积比例</td><td class="text-right amt">48</td>
+            <td class="nowrap">李建华 · 08-01 10:12</td>
+            <td class="nowrap"><span class="badge green">已审核</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="detail('FT450200202600188')">详情</span>
+              <span class="link" onclick="edit('FT450200202600188')">编辑</span>
+              <span class="link" onclick="PMS.toast('该记录已于 2026-08-01 10:12 由李建华审核通过')">审核</span>
+            </td>
+          </tr>
+          <tr data-lv="4" data-way="a" data-st="2">
+            <td class="nowrap fw-600">FT450200202600189</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600186</span></td>
+            <td class="nowrap">荣和公园大道二期 8 栋 26 层</td>
+            <td><span class="lv l4"><span class="dot"></span>层分摊</span></td>
+            <td class="nowrap">顶层设备平台机房</td>
+            <td class="text-right amt">186.42</td><td class="text-right amt">0.00</td><td class="text-right amt">662.36</td>
+            <td class="text-right"><span class="xs hi">0.2814</span></td>
+            <td class="nowrap">按套内面积比例</td><td class="text-right amt">4</td>
+            <td class="nowrap">李建华 · 08-01 10:12</td>
+            <td class="nowrap"><span class="badge green">已审核</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="detail('FT450200202600189')">详情</span>
+              <span class="link" onclick="edit('FT450200202600189')">编辑</span>
+              <span class="link" onclick="PMS.toast('该记录已于 2026-08-01 10:12 由李建华审核通过')">审核</span>
+            </td>
+          </tr>
+          <tr data-lv="2" data-way="b" data-st="0">
+            <td class="nowrap fw-600">FT450200202600166</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600168</span></td>
+            <td class="nowrap">广场商业中心 2 栋</td>
+            <td><span class="lv l2"><span class="dot"></span>功能区分摊</span></td>
+            <td class="nowrap">商业裙楼（1~4 层）</td>
+            <td class="text-right amt">2,486.60</td><td class="text-right amt">862.40</td><td class="text-right amt">8,642.20</td>
+            <td class="text-right"><span class="xs hi">0.2877</span></td>
+            <td class="nowrap">按功能区二次分摊</td><td class="text-right amt">42</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap"><span class="badge orange">待审核</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="detail('FT450200202600166')">详情</span>
+              <span class="link" onclick="edit('FT450200202600166')">编辑</span>
+              <span class="link danger" onclick="audit('FT450200202600166')">审核</span>
+            </td>
+          </tr>
+          <tr data-lv="2" data-way="b" data-st="0">
+            <td class="nowrap fw-600">FT450200202600167</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600168</span></td>
+            <td class="nowrap">广场商业中心 2 栋</td>
+            <td><span class="lv l2"><span class="dot"></span>功能区分摊</span></td>
+            <td class="nowrap">办公塔楼（5~22 层）</td>
+            <td class="text-right amt">3,862.40</td><td class="text-right amt">486.20</td><td class="text-right amt">18,246.80</td>
+            <td class="text-right"><span class="xs">0.2117</span></td>
+            <td class="nowrap">按功能区二次分摊</td><td class="text-right amt">126</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap"><span class="badge orange">待审核</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="detail('FT450200202600167')">详情</span>
+              <span class="link" onclick="edit('FT450200202600167')">编辑</span>
+              <span class="link danger" onclick="audit('FT450200202600167')">审核</span>
+            </td>
+          </tr>
+          <tr data-lv="1" data-way="c" data-st="0">
+            <td class="nowrap fw-600">FT450200202600180</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600180</span></td>
+            <td class="nowrap">万科城 5 栋</td>
+            <td><span class="lv l1"><span class="dot"></span>幢分摊</span></td>
+            <td class="nowrap">全幢共有部位（含约定不分摊）</td>
+            <td class="text-right amt">4,286.20</td><td class="text-right amt">386.40</td><td class="text-right amt">19,862.40</td>
+            <td class="text-right"><span class="xs">0.2158</span></td>
+            <td class="nowrap"><span class="badge purple">约定分摊</span></td><td class="text-right amt">88</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap"><span class="badge orange">待审核</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="detail('FT450200202600180')">详情</span>
+              <span class="link" onclick="edit('FT450200202600180')">编辑</span>
+              <span class="link danger" onclick="audit('FT450200202600180')">审核</span>
+            </td>
+          </tr>
+          <tr data-lv="1" data-way="a" data-st="2">
+            <td class="nowrap fw-600">FT450200202600174</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600174</span></td>
+            <td class="nowrap">保利天悦 3 栋</td>
+            <td><span class="lv l1"><span class="dot"></span>幢分摊</span></td>
+            <td class="nowrap">全幢共有部位</td>
+            <td class="text-right amt">5,486.80</td><td class="text-right amt">642.20</td><td class="text-right amt">24,362.60</td>
+            <td class="text-right"><span class="xs">0.2252</span></td>
+            <td class="nowrap">按套内面积比例</td><td class="text-right amt">108</td>
+            <td class="nowrap">韦国强 · 07-24 11:06</td>
+            <td class="nowrap"><span class="badge green">已审核</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="detail('FT450200202600174')">详情</span>
+              <span class="link" onclick="edit('FT450200202600174')">编辑</span>
+              <span class="link" onclick="PMS.toast('该记录已于 2026-07-24 11:06 由韦国强审核通过')">审核</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- 分摊系数详情弹窗 -->
+<div class="modal-mask" id="mdFt">
+  <div class="modal">
+    <div class="modal-head" id="ftTitle">分摊系数详情 · FT450200202600186</div>
+    <div class="modal-body">
+      <div class="section-title">基本信息</div>
+      <dl class="desc-list">
+        <div class="desc-item"><dt>分摊记录编号</dt><dd class="fw-700">FT450200202600186</dd></div>
+        <div class="desc-item"><dt>成果编号 / 版本</dt><dd>CG450200202600186 · V2.0 实测成果</dd></div>
+        <div class="desc-item"><dt>项目 / 幢号</dt><dd>荣和公园大道二期 / 8 栋</dd></div>
+        <div class="desc-item"><dt>分摊层次</dt><dd><span class="lv l1"><span class="dot"></span>幢分摊</span></dd></div>
+        <div class="desc-item"><dt>分摊范围名称</dt><dd>8 栋全幢共有部位</dd></div>
+        <div class="desc-item"><dt>分摊方式</dt><dd>按套内面积比例</dd></div>
+        <div class="desc-item"><dt>适用户数</dt><dd>96 户（1 单元 48 户 / 2 单元 48 户）</dd></div>
+        <div class="desc-item"><dt>分摊系数</dt><dd><span class="xs">0.2827</span></dd></div>
+        <div class="desc-item full"><dt>分摊范围说明</dt><dd>本幢为剪力墙结构住宅，地上 26 层、地下 1 层。全幢共有部位按套内建筑面积比例在 96 户之间分摊；变配电室与人防地下室按规定不参与分摊；顶层设备平台另按层分摊计入 26 层 4 户。</dd></div>
+      </dl>
+
+      <div class="section-title" style="margin-top:20px">共有部位清单</div>
+      <div class="table-wrap">
+        <table class="data-table compact" data-static>
+          <thead><tr><th>部位名称</th><th>位置</th><th class="text-right">面积（㎡）</th><th>是否参与分摊</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td class="fw-600">楼梯间</td><td>1 ~ 26 层 各单元</td><td class="text-right amt">186.42</td><td><span class="badge green">参与分摊</span></td><td>疏散楼梯间及前室</td></tr>
+            <tr><td class="fw-600">电梯井</td><td>1 ~ 26 层 各单元</td><td class="text-right amt">96.80</td><td><span class="badge green">参与分摊</span></td><td>两梯四户，共 4 部电梯</td></tr>
+            <tr><td class="fw-600">电梯厅</td><td>1 ~ 26 层 各单元</td><td class="text-right amt">142.60</td><td><span class="badge green">参与分摊</span></td><td>候梯厅</td></tr>
+            <tr><td class="fw-600">管道井</td><td>1 ~ 26 层 各单元</td><td class="text-right amt">32.40</td><td><span class="badge green">参与分摊</span></td><td>强弱电井、水暖井</td></tr>
+            <tr><td class="fw-600">公共走廊</td><td>1 ~ 26 层 各单元</td><td class="text-right amt">286.20</td><td><span class="badge green">参与分摊</span></td><td>入户走廊</td></tr>
+            <tr><td class="fw-600">值班室</td><td>1 层 1 单元</td><td class="text-right amt">48.60</td><td><span class="badge green">参与分摊</span></td><td>门厅值班兼快递收发</td></tr>
+            <tr class="no-share"><td class="fw-600">变配电室</td><td>地下 1 层</td><td class="text-right amt">62.40</td><td><span class="badge">不分摊</span></td><td>市政设备用房，按规定不计入分摊</td></tr>
+            <tr class="no-share"><td class="fw-600">人防地下室</td><td>地下 1 层</td><td class="text-right amt">486.20</td><td><span class="badge">不分摊</span></td><td>人防工程，产权归国家，不参与分摊</td></tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="3" class="text-right fw-700">参与分摊合计 6,356.18 ㎡　不分摊合计 548.60 ㎡</td>
+              <td colspan="2" class="text-right fw-700">共有部位总计 6,904.78 ㎡</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div class="text-sm text-3 mt-8">上表为主要共有部位示例，实际清单共 18 项，与《分摊面积计算表》一致。</div>
+
+      <div class="section-title" style="margin-top:20px">计算公式</div>
+      <div class="formula">分摊系数 <span class="op">=</span> 参与分摊的共有部位面积 <span class="op">÷</span> 参与分摊的套内面积合计
+         <span class="op">=</span> <span class="num">6,356.18 ㎡</span> <span class="op">÷</span> <span class="num">22,486.42 ㎡</span>
+         <span class="op">=</span> <span class="res">0.2827</span>
+
+单户分摊面积 <span class="op">=</span> 该户套内建筑面积 <span class="op">×</span> 分摊系数
+以 8-1-1502 为例：<span class="num">107.86 ㎡</span> <span class="op">×</span> <span class="num">0.2827</span> <span class="op">≈</span> <span class="res">24.12 ㎡</span>
+该户建筑面积 <span class="op">=</span> <span class="num">107.86</span> <span class="op">+</span> <span class="num">24.12</span> <span class="op">=</span> <span class="res">131.98 ㎡</span></div>
+
+      <div class="section-title" style="margin-top:20px">制定依据</div>
+      <div class="basis">
+        <b>《房产测量规范 第1单元：房产测量规定》GB/T 17986.1-2000 第 8.2 条</b>：共有建筑面积按各户套内建筑面积比例进行分摊。<br>
+        <b>《商品房销售面积计算及公用建筑面积分摊规则》（建房〔1995〕517 号）第 8 条</b>：为整幢服务的共有部位由整幢各户分摊，专为某一功能区服务的由该功能区各户分摊。<br>
+        <b>《广西壮族自治区房产测绘管理办法》第 14 条</b>：人防工程、市政设备用房等不计入分摊范围。
+      </div>
+
+      <div class="section-title" style="margin-top:20px">审核信息</div>
+      <dl class="desc-list">
+        <div class="desc-item"><dt>审核人</dt><dd>李建华 · 成果质检岗</dd></div>
+        <div class="desc-item"><dt>审核时间</dt><dd>2026-08-01 10:12</dd></div>
+        <div class="desc-item"><dt>审核结果</dt><dd><span class="badge green">审核通过</span></dd></div>
+        <div class="desc-item full"><dt>审核意见</dt><dd>共有部位清单与分层图、分户图一致；变配电室与人防地下室按规定未计入分摊；分摊系数 0.2827 计算无误，与质检项 04 校验结果吻合，同意生效。</dd></div>
+      </dl>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" data-close-modal>关闭</button>
+      <button type="button" class="btn" onclick="PMS.toast('《分摊面积计算表》PDF 已生成，正在下载','success')"><i class="fa-solid fa-file-pdf"></i> 下载分摊计算表</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeModal('mdFt');edit('FT450200202600186')"><i class="fa-solid fa-pen"></i> 编辑分摊记录</button>
+    </div>
+  </div>
+</div>
+
+<!-- 编辑分摊记录弹窗 -->
+<div class="modal-mask" id="mdEdit">
+  <div class="modal modal-sm">
+    <div class="modal-head" id="edTitle">编辑分摊记录 · FT450200202600186</div>
+    <div class="modal-body">
+      <div class="alert alert-warning">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>修改分摊系数会<b>重算该范围内所有户的分摊面积与建筑面积</b>，涉及已签约房屋的还需走面积变更与合同处理流程。修改后须重新审核方可生效。</div>
+      </div>
+      <div class="form-grid form-align mt-16">
+        <div class="form-item">
+          <label>分摊层次<span class="req">*</span></label>
+          <select><option>幢分摊</option><option>功能区分摊</option><option>单元分摊</option><option>层分摊</option></select>
+        </div>
+        <div class="form-item"><label>分摊范围名称<span class="req">*</span></label><input type="text" value="8 栋全幢共有部位"></div>
+        <div class="form-item"><label>参与分摊共有面积（㎡）<span class="req">*</span></label><input type="text" id="eA" value="6356.18" oninput="calc()"></div>
+        <div class="form-item"><label>不分摊面积（㎡）</label><input type="text" value="548.60"></div>
+        <div class="form-item"><label>参与分摊套内合计（㎡）<span class="req">*</span></label><input type="text" id="eB" value="22486.42" oninput="calc()"></div>
+        <div class="form-item">
+          <label>分摊系数</label>
+          <input type="text" id="eX" value="0.2827" readonly>
+          <div class="hint">由共有面积 ÷ 套内合计自动计算，保留 4 位小数</div>
+        </div>
+        <div class="form-item">
+          <label>分摊方式<span class="req">*</span></label>
+          <select><option>按套内面积比例</option><option>按功能区二次分摊</option><option>约定分摊</option></select>
+        </div>
+        <div class="form-item"><label>适用户数</label><input type="text" value="96" readonly></div>
+        <div class="form-item col-full">
+          <label>制定依据<span class="req">*</span></label>
+          <textarea rows="2">《房产测量规范》GB/T 17986.1-2000 第 8.2 条；《商品房销售面积计算及公用建筑面积分摊规则》（建房〔1995〕517 号）第 8 条。</textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" data-close-modal>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeModal('mdEdit');PMS.toast('分摊记录已保存，状态置为待审核','success')"><i class="fa-solid fa-check"></i> 保存并提交审核</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+function applyFilter() {
+  var kw = document.getElementById('fKw').value.trim(),
+      lv = document.getElementById('fLv').value,
+      way = document.getElementById('fWay').value,
+      st = document.getElementById('fSt').value, n = 0;
+  document.querySelectorAll('#tblFt tbody tr').forEach(function (tr) {
+    var ok = (!lv || tr.dataset.lv === lv) && (!way || tr.dataset.way === way) && (!st || tr.dataset.st === st)
+      && (!kw || tr.textContent.indexOf(kw) > -1);
+    tr.style.display = ok ? '' : 'none';
+    if (ok) n++;
+  });
+  PMS.toast('已按条件筛选：' + n + ' 条分摊记录');
+}
+
+function resetFilter() {
+  document.getElementById('fKw').value = '';
+  ['fLv', 'fWay', 'fSt'].forEach(function (id) { document.getElementById(id).value = ''; });
+  document.querySelectorAll('#tblFt tbody tr').forEach(function (tr) { tr.style.display = ''; });
+  PMS.toast('筛选条件已重置');
+}
+
+function detail(no) {
+  document.getElementById('ftTitle').textContent = '分摊系数详情 · ' + no;
+  PMS.openModal('mdFt');
+}
+
+function edit(no) {
+  document.getElementById('edTitle').textContent = no === '新增分摊记录' ? '新增分摊记录' : '编辑分摊记录 · ' + no;
+  PMS.openModal('mdEdit');
+}
+
+function calc() {
+  var a = parseFloat(document.getElementById('eA').value.replace(/,/g, '')),
+      b = parseFloat(document.getElementById('eB').value.replace(/,/g, ''));
+  document.getElementById('eX').value = (a > 0 && b > 0) ? (a / b).toFixed(4) : '—';
+}
+
+function audit(no) {
+  PMS.confirm({
+    title: '审核分摊记录',
+    message: '确认审核通过 ' + no + '？',
+    detail: '审核通过后该分摊系数即时生效，作为质检项 04「分摊系数校验」的参照值，并用于计算该范围内各户的分摊面积。审核人与审核时间将记录留痕。',
+    type: 'info', okText: '审核通过',
+    onOk: function () { PMS.toast(no + ' 审核通过，分摊系数已生效', 'success'); }
+  });
+}
+</script>
+</body>
+</html>

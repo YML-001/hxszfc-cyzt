@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>司法查封登记台账 · 房屋交易备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：轮候顺位链路展开行与剩余天数着色 */
+  .day { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .day.far { color: var(--success); }
+  .day.mid { color: var(--primary); }
+  .day.near { color: #b45309; }
+  .day.over { color: var(--danger); }
+  .day i { margin-right: 4px; }
+  .exp { cursor: pointer; color: var(--primary); user-select: none; margin-right: 5px; display: inline-block; width: 12px; }
+  .exp i { transition: transform .18s; }
+  .exp.open i { transform: rotate(90deg); }
+  tr.chain-row > td { background: #f8fafc; padding: 0 !important; }
+  .chain { padding: 10px 14px 10px 46px; display: flex; flex-direction: column; gap: 8px; }
+  .chain .cn {
+    display: flex; align-items: center; gap: 10px; font-size: 12.5px;
+    border-radius: 6px; padding: 7px 12px; border: 1px solid var(--border); background: #fff;
+  }
+  .chain .cn.live { background: #f0fdf4; border-color: #bbf7d0; }
+  .chain .cn.wait { background: #f4f6fa; }
+  .chain .cn .cn-no {
+    width: 62px; flex-shrink: 0; font-weight: 700; text-align: center;
+    border-radius: 4px; padding: 2px 0; background: var(--primary-light); color: var(--primary);
+  }
+  .chain .cn.live .cn-no { background: var(--success); color: #fff; }
+  .chain .cn .cn-arrow { color: var(--text-3); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdwb-11">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易备案管理系统
+        <span class="sep">/</span> 交易限制管理
+        <span class="sep">/</span> <span class="cur">司法查封登记台账</span>
+      </div>
+      <div class="page-title">司法查封登记台账</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" onclick="location.href='seal-create.html'"><i class="fa-solid fa-gavel"></i> 办理查封登记</button>
+      <button type="button" class="btn" onclick="location.href='seal-release.html'">办理解封登记</button>
+      <button type="button" class="btn" onclick="PMS.toast('已向 6 个查封机关推送查封期限届满续封提醒','success')"><i class="fa-solid fa-bell"></i> 届满提醒</button>
+      <button type="button" class="btn" onclick="PMS.toast('《司法查封台账》Excel 已生成，正在下载','success')"><i class="fa-solid fa-download"></i> 导出台账</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-gavel"></i></div>
+      <div><div class="s-label">有效查封</div><div class="s-value">326</div><div class="s-trend text-3">涉及房屋 279 套</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-file-shield"></i></div>
+      <div><div class="s-label">其中预查封</div><div class="s-value">58</div><div class="s-trend text-3">未办证的预售商品房</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-layer-group"></i></div>
+      <div><div class="s-label">轮候查封</div><div class="s-value">47</div><div class="s-trend text-3">最长轮候 4 顺位</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-arrow-trend-up"></i></div>
+      <div><div class="s-label">本月新增</div><div class="s-value">23</div><div class="s-trend text-3">法院直连推送 19 件</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-regular fa-clock"></i></div>
+      <div><div class="s-label">即将届满</div><div class="s-value">6</div><div class="s-trend text-danger">剩余 ≤ 30 天</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-unlock"></i></div>
+      <div><div class="s-label">本月解封</div><div class="s-value">14</div><div class="s-trend text-3">其中轮候接续 5 件</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>房屋处于查封（含预查封）状态时<b>一律不可交易</b>：不得网签、不得新增抵押、不得办理转移登记。同一房屋存在多笔查封的，点击行首箭头展开<b>轮候顺位链路</b>；前序解封后下一顺位自动生效，解封不等于放行。</div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>查封编号</label>
+        <input type="text" placeholder="如 CF45020420260126">
+      </div>
+      <div class="filter-item">
+        <label>房屋坐落 / 单元号</label>
+        <input type="text" placeholder="小区 / 房号 / 不动产单元号">
+      </div>
+      <div class="filter-item">
+        <label>被执行人</label>
+        <input type="text" placeholder="姓名或名称">
+      </div>
+      <div class="filter-item">
+        <label>查封机关</label>
+        <select><option value="">全部</option><option>XXXX市柳南区人民法院</option><option>XXXX市城中区人民法院</option><option>XXXX市鱼峰区人民法院</option><option>XXXX市中级人民法院</option></select>
+      </div>
+      <div class="filter-item">
+        <label>案件编号</label>
+        <input type="text" placeholder="如 (2026)桂0204执1276号">
+      </div>
+      <div class="filter-item">
+        <label>查封类型</label>
+        <select><option value="">全部</option><option>查封</option><option>预查封</option><option>轮候查封</option><option>续封</option></select>
+      </div>
+      <div class="filter-item">
+        <label>查封状态</label>
+        <select><option value="">全部</option><option>有效</option><option>已解封</option><option>已过期</option><option>已续封</option><option>已转正式</option></select>
+      </div>
+      <div class="filter-item">
+        <label>仅看即将届满</label>
+        <select id="onlyNear" onchange="filterNear()"><option value="0">否</option><option value="1">是（剩余 ≤ 30 天）</option></select>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 326 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="live">有效 <span class="badge red">326</span></div>
+      <div class="tab" data-tab="lh">轮候中 <span class="badge orange">47</span></div>
+      <div class="tab" data-tab="free">已解封</div>
+      <div class="tab" data-tab="old">已过期</div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblCf" data-static>
+        <thead>
+          <tr>
+            <th>查封编号</th>
+            <th>查封类型</th>
+            <th>房屋坐落</th>
+            <th>产权人</th>
+            <th>被执行人</th>
+            <th>查封机关</th>
+            <th>案件编号</th>
+            <th>标的金额（元）</th>
+            <th>查封期限</th>
+            <th>剩余天数</th>
+            <th>轮候序号</th>
+            <th>查封状态</th>
+            <th>信息来源</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="live" data-near="0" data-chain="c1">
+            <td class="nowrap fw-600"><span class="exp" onclick="toggleChain(this,'c1')"><i class="fa-solid fa-angle-right"></i></span>CF45020420260126</td>
+            <td class="nowrap"><span class="badge red">查封</span></td>
+            <td>万科城 5-2-803</td>
+            <td class="nowrap">黄**</td>
+            <td class="nowrap">黄**</td>
+            <td class="nowrap">XXXX市柳南区人民法院</td>
+            <td class="nowrap">(2026)桂0204执1276号</td>
+            <td class="num nowrap">860,000.00</td>
+            <td class="nowrap">2026-07-28 ~ 2029-07-27</td>
+            <td class="nowrap"><span class="day far">剩 1,091 天</span></td>
+            <td class="nowrap"><span class="badge green">第 1 顺位</span></td>
+            <td class="nowrap"><span class="badge red">有效</span></td>
+            <td class="nowrap"><span class="badge blue">法院推送</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.openDrawer('drCf')">详情</span>
+              <a class="link" href="seal-release.html">办理解封</a>
+              <span class="link" onclick="doRenew('CF45020420260126')">续封</span>
+            </td>
+          </tr>
+          <tr class="chain-row hidden" data-chain-of="c1">
+            <td colspan="14">
+              <div class="chain">
+                <div class="cn live">
+                  <span class="cn-no">第 1 顺位</span>
+                  <b>CF45020420260126</b>
+                  <span>XXXX市柳南区人民法院</span>
+                  <span class="text-3">(2026)桂0204执1276号 · 2026-07-28 登记</span>
+                  <span class="badge green" style="margin-left:auto">生效中</span>
+                </div>
+                <div class="cn wait">
+                  <span class="cn-no">第 2 顺位</span>
+                  <b>CF45020420260188</b>
+                  <span>XXXX市城中区人民法院</span>
+                  <span class="text-3">(2026)桂0202执0918号 · 2026-07-30 登记 · 前序 CF45020420260126</span>
+                  <span class="badge gray" style="margin-left:auto">轮候中</span>
+                </div>
+                <div class="text-3 text-sm">
+                  <i class="fa-solid fa-circle-info"></i>
+                  第 1 顺位解封后，第 2 顺位查封自动生效，房屋仍为不可交易状态，交易状态解锁状态置「2 仍受限」。
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr data-st="lh" data-near="0">
+            <td class="nowrap fw-600">CF45020420260188</td>
+            <td class="nowrap"><span class="badge orange">轮候查封</span></td>
+            <td>万科城 5-2-803</td>
+            <td class="nowrap">黄**</td>
+            <td class="nowrap">黄**</td>
+            <td class="nowrap">XXXX市城中区人民法院</td>
+            <td class="nowrap">(2026)桂0202执0918号</td>
+            <td class="num nowrap">426,000.00</td>
+            <td class="nowrap">2026-07-30 ~ 2029-07-29</td>
+            <td class="nowrap"><span class="day far">剩 1,093 天</span></td>
+            <td class="nowrap"><span class="badge orange">第 2 顺位</span></td>
+            <td class="nowrap"><span class="badge red">有效</span></td>
+            <td class="nowrap"><span class="badge blue">法院推送</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.openDrawer('drCf')">详情</span>
+              <span class="link" onclick="PMS.toast('该笔为轮候查封，需前序查封 CF45020420260126 解除后方可生效，暂不支持解封','error')">办理解封</span>
+              <span class="link" onclick="doRenew('CF45020420260188')">续封</span>
+            </td>
+          </tr>
+          <tr data-st="live" data-near="1">
+            <td class="nowrap fw-600">CF45020420250088</td>
+            <td class="nowrap"><span class="badge red">查封</span></td>
+            <td>阳光100城市广场 3-1-1602</td>
+            <td class="nowrap">莫**</td>
+            <td class="nowrap">莫**</td>
+            <td class="nowrap">XXXX市柳南区人民法院</td>
+            <td class="nowrap">(2023)桂0204执0862号</td>
+            <td class="num nowrap">1,260,000.00</td>
+            <td class="nowrap">2023-08-20 ~ 2026-08-20</td>
+            <td class="nowrap"><span class="day near"><i class="fa-regular fa-clock"></i>剩 19 天</span></td>
+            <td class="nowrap"><span class="badge green">第 1 顺位</span></td>
+            <td class="nowrap"><span class="badge red">有效</span></td>
+            <td class="nowrap"><span class="badge cyan">窗口录入</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.openDrawer('drCf')">详情</span>
+              <a class="link" href="seal-release.html">办理解封</a>
+              <span class="link" onclick="doRenew('CF45020420250088')">续封</span>
+            </td>
+          </tr>
+          <tr data-st="live" data-near="0">
+            <td class="nowrap fw-600">CF45020220260092</td>
+            <td class="nowrap"><span class="badge orange">预查封</span></td>
+            <td>荣和公园大道 12-1-703（未办证）</td>
+            <td class="nowrap text-3">覃**（预售）</td>
+            <td class="nowrap">覃**</td>
+            <td class="nowrap">XXXX市城中区人民法院</td>
+            <td class="nowrap">(2026)桂0202执0918号</td>
+            <td class="num nowrap">520,000.00</td>
+            <td class="nowrap">2026-06-12 ~ 2029-06-11</td>
+            <td class="nowrap"><span class="day far">剩 1,045 天</span></td>
+            <td class="nowrap"><span class="badge green">第 1 顺位</span></td>
+            <td class="nowrap"><span class="badge red">有效</span></td>
+            <td class="nowrap"><span class="badge blue">法院推送</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.openDrawer('drCf')">详情</span>
+              <a class="link" href="seal-release.html">办理解封</a>
+              <span class="link" onclick="PMS.toast('该房办理产权登记后系统自动将预查封转为正式查封，查封状态置「4 已转正式」')">转正说明</span>
+            </td>
+          </tr>
+          <tr data-st="live" data-near="1">
+            <td class="nowrap fw-600">CF45020320250142</td>
+            <td class="nowrap"><span class="badge red">查封</span></td>
+            <td>恒大城 8-1-2201</td>
+            <td class="nowrap">吴**</td>
+            <td class="nowrap">吴**</td>
+            <td class="nowrap">XXXX市鱼峰区人民法院</td>
+            <td class="nowrap">(2023)桂0203执1108号</td>
+            <td class="num nowrap">686,000.00</td>
+            <td class="nowrap">2023-08-28 ~ 2026-08-27</td>
+            <td class="nowrap"><span class="day near"><i class="fa-regular fa-clock"></i>剩 26 天</span></td>
+            <td class="nowrap"><span class="badge green">第 1 顺位</span></td>
+            <td class="nowrap"><span class="badge red">有效</span></td>
+            <td class="nowrap"><span class="badge purple">登记同步</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.openDrawer('drCf')">详情</span>
+              <a class="link" href="seal-release.html">办理解封</a>
+              <span class="link" onclick="doRenew('CF45020320250142')">续封</span>
+            </td>
+          </tr>
+          <tr data-st="live" data-near="0" data-chain="c2">
+            <td class="nowrap fw-600"><span class="exp" onclick="toggleChain(this,'c2')"><i class="fa-solid fa-angle-right"></i></span>CF45020520260064</td>
+            <td class="nowrap"><span class="badge red">查封</span></td>
+            <td>彰泰江湾城 11-1-2801</td>
+            <td class="nowrap">李**</td>
+            <td class="nowrap">李**</td>
+            <td class="nowrap">XXXX市中级人民法院</td>
+            <td class="nowrap">(2026)桂02执186号</td>
+            <td class="num nowrap">2,860,000.00</td>
+            <td class="nowrap">2026-05-16 ~ 2029-05-15</td>
+            <td class="nowrap"><span class="day far">剩 1,018 天</span></td>
+            <td class="nowrap"><span class="badge green">第 1 顺位</span></td>
+            <td class="nowrap"><span class="badge red">有效</span></td>
+            <td class="nowrap"><span class="badge blue">法院推送</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.openDrawer('drCf')">详情</span>
+              <a class="link" href="seal-release.html">办理解封</a>
+              <span class="link" onclick="doRenew('CF45020520260064')">续封</span>
+            </td>
+          </tr>
+          <tr class="chain-row hidden" data-chain-of="c2">
+            <td colspan="14">
+              <div class="chain">
+                <div class="cn live">
+                  <span class="cn-no">第 1 顺位</span><b>CF45020520260064</b>
+                  <span>XXXX市中级人民法院</span>
+                  <span class="text-3">(2026)桂02执186号 · 2026-05-16 登记</span>
+                  <span class="badge green" style="margin-left:auto">生效中</span>
+                </div>
+                <div class="cn wait">
+                  <span class="cn-no">第 2 顺位</span><b>CF45020520260078</b>
+                  <span>XXXX市鱼峰区人民法院</span>
+                  <span class="text-3">(2026)桂0203执0642号 · 2026-06-08 登记</span>
+                  <span class="badge gray" style="margin-left:auto">轮候中</span>
+                </div>
+                <div class="cn wait">
+                  <span class="cn-no">第 3 顺位</span><b>CF45020520260096</b>
+                  <span>XXXX市柳北区人民法院</span>
+                  <span class="text-3">(2026)桂0205执0318号 · 2026-07-02 登记</span>
+                  <span class="badge gray" style="margin-left:auto">轮候中</span>
+                </div>
+                <div class="text-3 text-sm">
+                  <i class="fa-solid fa-circle-info"></i>
+                  该房共 3 笔查封，前序解封后按顺序自动接续生效；三笔全部解除前房屋始终不可交易。
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr data-st="free" data-near="0">
+            <td class="nowrap fw-600">CF45020220240216</td>
+            <td class="nowrap"><span class="badge red">查封</span></td>
+            <td>华润万象天地 2-1-1802</td>
+            <td class="nowrap">黄**</td>
+            <td class="nowrap">黄**</td>
+            <td class="nowrap">XXXX市城中区人民法院</td>
+            <td class="nowrap">(2024)桂0202执0426号</td>
+            <td class="num nowrap">386,000.00</td>
+            <td class="nowrap">2024-06-18 ~ 2027-06-17</td>
+            <td class="nowrap text-3">已解封</td>
+            <td class="nowrap"><span class="badge green">第 1 顺位</span></td>
+            <td class="nowrap"><span class="badge gray">已解封</span></td>
+            <td class="nowrap"><span class="badge blue">法院推送</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.openDrawer('drCf')">详情</span>
+              <a class="link" href="seal-release.html">解封单据</a>
+              <a class="link" href="archive-book.html">备案簿</a>
+            </td>
+          </tr>
+          <tr data-st="old" data-near="0">
+            <td class="nowrap fw-600">CF45020420220038</td>
+            <td class="nowrap"><span class="badge red">查封</span></td>
+            <td>阳光100城市广场 5-2-2101</td>
+            <td class="nowrap">莫**</td>
+            <td class="nowrap">莫**</td>
+            <td class="nowrap">XXXX市柳南区人民法院</td>
+            <td class="nowrap">(2022)桂0204执0186号</td>
+            <td class="num nowrap">248,000.00</td>
+            <td class="nowrap">2022-03-06 ~ 2025-03-05</td>
+            <td class="nowrap"><span class="day over">已过期 514 天</span></td>
+            <td class="nowrap"><span class="badge green">第 1 顺位</span></td>
+            <td class="nowrap"><span class="badge gray">已过期</span></td>
+            <td class="nowrap"><span class="badge cyan">窗口录入</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.openDrawer('drCf')">详情</span>
+              <a class="link" href="seal-release.html">办理解除</a>
+              <span class="link" onclick="PMS.toast('届满前 30 天已向柳南区人民法院推送续封提醒，未收到续封文书，系统已置为「已过期」并触发解除判定')">届满说明</span>
+            </td>
+          </tr>
+          <tr data-st="live" data-near="0">
+            <td class="nowrap fw-600">CF45020620260108</td>
+            <td class="nowrap"><span class="badge cyan">续封</span></td>
+            <td>保利柳江府 5-2-1201</td>
+            <td class="nowrap">周**</td>
+            <td class="nowrap">周**</td>
+            <td class="nowrap">XXXX市中级人民法院</td>
+            <td class="nowrap">(2023)桂02执0862号</td>
+            <td class="num nowrap">1,486,000.00</td>
+            <td class="nowrap">2026-06-28 ~ 2029-06-27</td>
+            <td class="nowrap"><span class="day far">剩 1,061 天</span></td>
+            <td class="nowrap"><span class="badge green">第 1 顺位</span></td>
+            <td class="nowrap"><span class="badge red">有效</span></td>
+            <td class="nowrap"><span class="badge blue">法院推送</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.openDrawer('drCf')">详情</span>
+              <a class="link" href="seal-release.html">办理解封</a>
+              <span class="link" onclick="PMS.toast('本笔为续封记录，原查封编号 CF45020620230042，续封后查封期限顺延 3 年')">续封说明</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- 查封详情抽屉 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="drCf">
+  <div class="drawer-head">
+    <h3 style="margin:0;font-size:16px">查封登记详情 · CF45020420260126</h3>
+    <span class="badge red">有效</span>
+    <button type="button" class="btn btn-ghost" style="margin-left:auto" data-close-drawer><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="drawer-body">
+    <div class="alert alert-danger">
+      <i class="fa-solid fa-ban"></i>
+      <div>该房屋处于查封状态，<b>不可交易</b>：不得网签、不得新增抵押、不得办理转移登记。当前限制状态
+        <a class="link" href="restriction-status.html?code=B">不可交易（红灯）</a>。</div>
+    </div>
+    <div class="section-title mt-16">查封信息</div>
+    <dl class="desc-list">
+      <div class="desc-item"><dt>查封编号</dt><dd>CF45020420260126</dd></div>
+      <div class="desc-item"><dt>查封类型</dt><dd><span class="badge red">0 查封</span></dd></div>
+      <div class="desc-item"><dt>信息来源</dt><dd><span class="badge blue">0 法院推送</span></dd></div>
+      <div class="desc-item"><dt>房屋坐落</dt><dd>柳州市柳南区航生路 26 号万科城 5 栋 2 单元 803</dd></div>
+      <div class="desc-item"><dt>不动产单元号</dt><dd>450204001008GB00256F00020009</dd></div>
+      <div class="desc-item"><dt>产权证号</dt><dd>桂(2022)柳州市不动产权第 0043158 号</dd></div>
+      <div class="desc-item"><dt>产权人</dt><dd>黄**</dd></div>
+      <div class="desc-item"><dt>被执行人</dt><dd>黄**（450***********1537）</dd></div>
+      <div class="desc-item"><dt>查封机关</dt><dd>XXXX市柳南区人民法院</dd></div>
+      <div class="desc-item"><dt>查封机关代码</dt><dd>FY450204001</dd></div>
+      <div class="desc-item"><dt>查封文书编号</dt><dd>(2026)桂0204执1276号</dd></div>
+      <div class="desc-item"><dt>协助执行通知书编号</dt><dd>(2026)桂0204执1276号之一</dd></div>
+      <div class="desc-item"><dt>案件编号</dt><dd>(2026)桂0204执1276号</dd></div>
+      <div class="desc-item"><dt>查封标的金额</dt><dd class="fw-700">860,000.00 元</dd></div>
+      <div class="desc-item"><dt>查封期限起</dt><dd>2026-07-28</dd></div>
+      <div class="desc-item"><dt>查封期限止</dt><dd>2029-07-27（剩 1,091 天）</dd></div>
+      <div class="desc-item"><dt>查封登记时间</dt><dd>2026-07-28 15:06:12</dd></div>
+      <div class="desc-item"><dt>轮候序号</dt><dd>1</dd></div>
+      <div class="desc-item"><dt>前序查封编号</dt><dd class="muted">—</dd></div>
+      <div class="desc-item"><dt>登记人</dt><dd>韦国强</dd></div>
+      <div class="desc-item"><dt>查封状态</dt><dd><span class="badge red">0 有效</span></dd></div>
+      <div class="desc-item full"><dt>查封原因</dt><dd>民间借贷纠纷执行案件，申请执行人梁**申请查封被执行人黄**名下不动产。</dd></div>
+      <div class="desc-item full"><dt>文书附件</dt><dd>
+        <span class="link" onclick="PMS.toast('预览：协助执行通知书.pdf')"><i class="fa-solid fa-file-pdf"></i> 协助执行通知书.pdf</span>　
+        <span class="link" onclick="PMS.toast('预览：查封裁定书.pdf')"><i class="fa-solid fa-file-pdf"></i> 查封裁定书.pdf</span>
+      </dd></div>
+    </dl>
+
+    <div class="section-title mt-16" style="margin-top:18px">轮候顺位链路</div>
+    <div class="chain" style="padding-left:0">
+      <div class="cn live">
+        <span class="cn-no">第 1 顺位</span><b>CF45020420260126</b>
+        <span>XXXX市柳南区人民法院</span><span class="text-3">2026-07-28 登记</span>
+        <span class="badge green" style="margin-left:auto">生效中</span>
+      </div>
+      <div class="cn wait">
+        <span class="cn-no">第 2 顺位</span><b>CF45020420260188</b>
+        <span>XXXX市城中区人民法院</span><span class="text-3">2026-07-30 登记</span>
+        <span class="badge gray" style="margin-left:auto">轮候中</span>
+      </div>
+    </div>
+
+    <div class="section-title mt-16" style="margin-top:18px">联动效果</div>
+    <div class="timeline">
+      <div class="tl-item done"><span class="tl-dot"></span><div class="tl-title">拦截在途业务 1 笔</div><div class="tl-meta">2026-07-28 15:06:36</div><div class="tl-desc">存量房网签备案 CFBA450200202600512 提交时被限制校验拦截，已通知经办机构。</div></div>
+      <div class="tl-item done"><span class="tl-dot"></span><div class="tl-title">房源销控联动</div><div class="tl-meta">2026-07-28 15:06:20</div><div class="tl-desc">wsshare 楼盘表该房源置为「限制交易」，各交易系统网签提交时即时拦截。</div></div>
+      <div class="tl-item done"><span class="tl-dot"></span><div class="tl-title">刷新交易限制状态</div><div class="tl-meta">2026-07-28 15:06:12</div><div class="tl-desc">sfcf 置 1，查封笔数 +1，可交易标识由「有条件可交易」置为<b>「不可交易」</b>。</div></div>
+      <div class="tl-item done"><span class="tl-dot"></span><div class="tl-title">法院文书直连接收并解析</div><div class="tl-meta">2026-07-28 14:58:04</div><div class="tl-desc">自动解析查封机关、文书编号、被执行人、查封期限等 12 项要素，人工确认后生效，全程 8 分钟。</div></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button type="button" class="btn" data-close-drawer>关闭</button>
+    <button type="button" class="btn" onclick="location.href='seal-release.html'">办理解封</button>
+    <button type="button" class="btn btn-primary" onclick="PMS.toast('查封登记回执打印预览已打开（A4 纵向）')"><i class="fa-solid fa-print"></i> 打印回执</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  var table = document.getElementById('tblCf');
+  document.getElementById('stTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var name = tab.getAttribute('data-tab');
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      if (tr.classList.contains('chain-row')) { tr.classList.add('hidden'); return; }
+      tr.style.display = (name === 'all' || tr.getAttribute('data-st') === name) ? '' : 'none';
+    });
+    table.querySelectorAll('.exp').forEach(function (e2) { e2.classList.remove('open'); });
+    document.getElementById('onlyNear').value = '0';
+  });
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 326,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+
+function toggleChain(el, key) {
+  el.classList.toggle('open');
+  var row = document.querySelector('[data-chain-of="' + key + '"]');
+  if (row) row.classList.toggle('hidden');
+}
+
+function filterNear() {
+  var on = document.getElementById('onlyNear').value === '1';
+  document.querySelectorAll('#tblCf tbody tr').forEach(function (tr) {
+    if (tr.classList.contains('chain-row')) { tr.classList.add('hidden'); return; }
+    tr.style.display = (!on || tr.getAttribute('data-near') === '1') ? '' : 'none';
+  });
+  if (on) PMS.toast('已筛选即将届满的查封记录，共 6 条');
+}
+
+function doRenew(no) {
+  PMS.confirm({
+    title: '办理续封',
+    message: '确认为查封 ' + no + ' 办理续封登记？',
+    detail: '续封须提供法院续封裁定书与协助执行通知书，续封后新增一条查封类型为「3 续封」的记录，原记录状态置为「3 已续封」，查封期限顺延。',
+    type: 'info',
+    okText: '确认登记',
+    onOk: function () { PMS.toast('续封登记成功，查封期限已顺延 3 年', 'success'); }
+  });
+}
+</script>
+</body>
+</html>

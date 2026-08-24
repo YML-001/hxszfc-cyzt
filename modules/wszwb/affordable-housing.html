@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>保障性租赁住房专题 · 房屋租赁网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：筹集方式条形图、租金对标双色条 */
+  .bar-list { display: flex; flex-direction: column; gap: 9px; }
+  .bar-row { display: grid; grid-template-columns: 168px 1fr 118px; align-items: center; gap: 10px; }
+  .bar-row .bl { font-size: 13px; color: var(--text-2); }
+  .bar-row .bt { height: 14px; border-radius: 7px; background: var(--bg-soft); overflow: hidden; }
+  .bar-row .bf { height: 100%; border-radius: 7px; background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+  .bar-row .bv { font-size: 12.5px; color: var(--text-3); text-align: right; }
+  .bar-row .bv b { color: var(--text-1); font-size: 13.5px; }
+
+  .cmp-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; background: #fff; }
+  .cmp-card .cc-t { font-size: 13px; color: var(--text-3); }
+  .cmp-card .cc-v { font-size: 26px; font-weight: 700; color: var(--text-1); margin: 6px 0 2px; letter-spacing: -.5px; }
+  .cmp-card .cc-v small { font-size: 13px; font-weight: 500; color: var(--text-3); margin-left: 4px; }
+  .cmp-card .cc-bar { height: 10px; border-radius: 5px; background: var(--bg-soft); overflow: hidden; margin-top: 10px; }
+  .cmp-card .cc-bar i { display: block; height: 100%; border-radius: 5px; }
+  .cmp-card .cc-d { font-size: 12.5px; color: var(--text-3); margin-top: 8px; line-height: 1.6; }
+  .cmp-card.is-primary { border-color: #bfdbfe; background: #f5f9ff; }
+
+  .rate-cell { font-weight: 600; color: var(--success); }
+  .rate-cell.high { color: var(--warning); }
+
+  .doc-list { list-style: none; margin: 0; padding: 0; }
+  .doc-list li {
+    display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2);
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  .doc-list li + li { margin-top: 6px; }
+  .doc-list li i { color: var(--primary); }
+
+  .data-table tbody tr.is-warn > td { background: #fff8ed; }
+  .data-table tbody tr.is-warn:hover > td { background: #fdf0d9; }
+
+  .card.list-card > .tab-panel.active > .section-title,
+  .card.list-card > .tab-panel.active > .bar-list,
+  .card.list-card > .tab-panel.active > .grid-3 { flex-shrink: 0; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wszwb-12">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋租赁网签备案管理系统
+        <span class="sep">/</span> 租赁房源管理
+        <span class="sep">/</span> <span class="cur">保障性租赁住房专题</span>
+      </div>
+      <div class="page-title">保障性租赁住房房源专题</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" onclick="PMS.openDrawer('drAdd')"><i class="fa-solid fa-plus"></i> 新增保租房房源</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《2026 年 7 月保障性租赁住房月报》','success')"><i class="fa-solid fa-file-lines"></i> 生成保租房月报</button>
+      <button type="button" class="btn" onclick="PMS.toast('已导出保租房底账 Excel','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-building-shield"></i></div>
+      <div><div class="s-label">保租房房源</div><div class="s-value">7,986 <small>套</small></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-house-circle-check"></i></div>
+      <div><div class="s-label">已配租</div><div class="s-value">6,412 <small>套 · 80.3%</small></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-house-circle-exclamation"></i></div>
+      <div><div class="s-label">待配租</div><div class="s-value">1,438 <small>套</small></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-percent"></i></div>
+      <div><div class="s-label">平均租金折扣率</div><div class="s-value">78.6<small>%</small></div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      保障性租赁住房不单独建立合同体系，仍使用统一的房屋租赁合同与备案流程，通过「租赁房屋类型」区分；租金不得高于同地段同品质市场租赁住房租金。
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="tabs" data-tabs-scope>
+      <div class="tab active" data-tab="list">保租房底账</div>
+      <div class="tab" data-tab="src">筹集方式结构</div>
+      <div class="tab" data-tab="cmp">租金对标</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="list">
+      <div class="filter-bar">
+        <div class="filter-item">
+          <label>关键词</label>
+          <input type="text" placeholder="房源编号 / 项目名称 / 坐落 / 认定书编号">
+        </div>
+        <div class="filter-item">
+          <label>行政区划</label>
+          <select><option value="">全部</option><option>城中区</option><option>鱼峰区</option><option>柳南区</option><option>柳北区</option><option>柳江区</option></select>
+        </div>
+        <div class="filter-item">
+          <label>筹集方式</label>
+          <select>
+            <option value="">全部</option>
+            <option>新建</option><option>改建</option><option>改造</option><option>收购存量房</option>
+            <option>盘活闲置住房</option><option>企事业单位自有土地建设</option><option>产业园区配套建设</option><option>市场化租赁房源纳管</option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <label>配租状态</label>
+          <select><option value="">全部</option><option>待配租</option><option>已配租</option><option>已退出</option></select>
+        </div>
+        <div class="filter-item">
+          <label>认定时间起</label>
+          <input type="date" value="2026-01-01">
+        </div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 7,986 套')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table" id="tblBzf" data-static>
+          <thead>
+            <tr>
+              <th>保租房房源编号</th>
+              <th>项目名称</th>
+              <th>坐落</th>
+              <th>认定书编号</th>
+              <th>认定时间</th>
+              <th>认定机构</th>
+              <th>筹集方式</th>
+              <th class="num">出租面积(㎡)</th>
+              <th class="num">指导租金(元/㎡·月)</th>
+              <th class="num">市场租金(元/㎡·月)</th>
+              <th class="num">折扣率</th>
+              <th class="num">最长租期</th>
+              <th>政策有效期止</th>
+              <th>配租状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="nowrap fw-600">BZF450200202600214</td>
+              <td class="cell-lg">天湖国际人才公寓</td>
+              <td class="cell-lg">城中区解放北路 41 号天湖国际 2-1-1508</td>
+              <td class="nowrap">柳保租认字〔2025〕第 0126 号</td>
+              <td class="nowrap">2025-11-18</td>
+              <td class="nowrap">XXXX市住房和城乡建设局</td>
+              <td class="nowrap">改建</td>
+              <td class="num">56.20</td>
+              <td class="num">19.93</td>
+              <td class="num">25.60</td>
+              <td class="num rate-cell">77.9%</td>
+              <td class="num">36 个月</td>
+              <td class="nowrap">2035-11-17</td>
+              <td class="nowrap"><span class="badge orange">待配租</span></td>
+              <td class="col-ops">
+                <a class="link" href="listing-detail.html">查看房源</a>
+                <span class="link" onclick="openAdmit('天湖国际人才公寓')">准入条件</span>
+                <span class="link" onclick="openAdjust('BZF450200202600214','19.93')">调整指导租金</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">BZF450200202600186</td>
+              <td class="cell-lg">阳光 100 城市广场 保租房单元</td>
+              <td class="cell-lg">城中区文昌路 66 号阳光 100 城市广场 5-1-806</td>
+              <td class="nowrap">柳保租认字〔2025〕第 0098 号</td>
+              <td class="nowrap">2025-09-26</td>
+              <td class="nowrap">XXXX市住房和城乡建设局</td>
+              <td class="nowrap">市场化租赁房源纳管</td>
+              <td class="num">62.80</td>
+              <td class="num">21.20</td>
+              <td class="num">26.80</td>
+              <td class="num rate-cell">79.1%</td>
+              <td class="num">36 个月</td>
+              <td class="nowrap">2035-09-25</td>
+              <td class="nowrap"><span class="badge green">已配租</span></td>
+              <td class="col-ops">
+                <a class="link" href="listing-detail.html">查看房源</a>
+                <span class="link" onclick="openAdmit('阳光 100 城市广场 保租房单元')">准入条件</span>
+                <span class="link" onclick="openAdjust('BZF450200202600186','21.20')">调整指导租金</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">BZF450200202600152</td>
+              <td class="cell-lg">柳东新区产业园人才驿站</td>
+              <td class="cell-lg">柳东新区花岭路 8 号人才驿站 A 座 1206</td>
+              <td class="nowrap">柳保租认字〔2025〕第 0071 号</td>
+              <td class="nowrap">2025-07-08</td>
+              <td class="nowrap">柳东新区管委会</td>
+              <td class="nowrap">产业园区配套建设</td>
+              <td class="num">38.60</td>
+              <td class="num">17.80</td>
+              <td class="num">23.40</td>
+              <td class="num rate-cell">76.1%</td>
+              <td class="num">36 个月</td>
+              <td class="nowrap">2035-07-07</td>
+              <td class="nowrap"><span class="badge green">已配租</span></td>
+              <td class="col-ops">
+                <a class="link" href="listing-detail.html">查看房源</a>
+                <span class="link" onclick="openAdmit('柳东新区产业园人才驿站')">准入条件</span>
+                <span class="link" onclick="openAdjust('BZF450200202600152','17.80')">调整指导租金</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">BZF450200202600128</td>
+              <td class="cell-lg">柳钢生活区改造保租房</td>
+              <td class="cell-lg">柳北区雀山路 12 号柳钢生活区 9-3-402</td>
+              <td class="nowrap">柳保租认字〔2025〕第 0055 号</td>
+              <td class="nowrap">2025-05-22</td>
+              <td class="nowrap">XXXX市住房和城乡建设局</td>
+              <td class="nowrap">改造</td>
+              <td class="num">44.50</td>
+              <td class="num">15.60</td>
+              <td class="num">21.20</td>
+              <td class="num rate-cell">73.6%</td>
+              <td class="num">36 个月</td>
+              <td class="nowrap">2035-05-21</td>
+              <td class="nowrap"><span class="badge green">已配租</span></td>
+              <td class="col-ops">
+                <a class="link" href="listing-detail.html">查看房源</a>
+                <span class="link" onclick="openAdmit('柳钢生活区改造保租房')">准入条件</span>
+                <span class="link" onclick="openAdjust('BZF450200202600128','15.60')">调整指导租金</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">BZF450200202600097</td>
+              <td class="cell-lg">彰泰滨江学府 宿舍型租赁住房</td>
+              <td class="cell-lg">城中区中山东路 15 号彰泰滨江学府 8-1-501</td>
+              <td class="nowrap">柳保租认字〔2025〕第 0042 号</td>
+              <td class="nowrap">2025-04-16</td>
+              <td class="nowrap">XXXX市住房和城乡建设局</td>
+              <td class="nowrap">收购存量房</td>
+              <td class="num">22.40</td>
+              <td class="num">24.60</td>
+              <td class="num">28.20</td>
+              <td class="num rate-cell high">87.2%</td>
+              <td class="num">24 个月</td>
+              <td class="nowrap">2035-04-15</td>
+              <td class="nowrap"><span class="badge orange">待配租</span></td>
+              <td class="col-ops">
+                <a class="link" href="listing-detail.html">查看房源</a>
+                <span class="link" onclick="openAdmit('彰泰滨江学府 宿舍型租赁住房')">准入条件</span>
+                <span class="link" onclick="openAdjust('BZF450200202600097','24.60')">调整指导租金</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">BZF450200202600063</td>
+              <td class="cell-lg">河东新区安置小区盘活房源</td>
+              <td class="cell-lg">鱼峰区静兰路 199 号河东新区安置小区 4-2-703</td>
+              <td class="nowrap">柳保租认字〔2025〕第 0028 号</td>
+              <td class="nowrap">2025-03-04</td>
+              <td class="nowrap">XXXX市住房和城乡建设局</td>
+              <td class="nowrap">盘活闲置住房</td>
+              <td class="num">68.20</td>
+              <td class="num">18.40</td>
+              <td class="num">24.10</td>
+              <td class="num rate-cell">76.3%</td>
+              <td class="num">36 个月</td>
+              <td class="nowrap">2035-03-03</td>
+              <td class="nowrap"><span class="badge green">已配租</span></td>
+              <td class="col-ops">
+                <a class="link" href="listing-detail.html">查看房源</a>
+                <span class="link" onclick="openAdmit('河东新区安置小区盘活房源')">准入条件</span>
+                <span class="link" onclick="openAdjust('BZF450200202600063','18.40')">调整指导租金</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">BZF450200202600021</td>
+              <td class="cell-lg">柳江新城新建保租房项目</td>
+              <td class="cell-lg">柳江区拉堡镇进德路 6 号 3-1-1102</td>
+              <td class="nowrap">柳保租认字〔2025〕第 0009 号</td>
+              <td class="nowrap">2025-01-20</td>
+              <td class="nowrap">柳江区住房和城乡建设局</td>
+              <td class="nowrap">新建</td>
+              <td class="num">52.30</td>
+              <td class="num">14.80</td>
+              <td class="num">19.60</td>
+              <td class="num rate-cell">75.5%</td>
+              <td class="num">36 个月</td>
+              <td class="nowrap">2035-01-19</td>
+              <td class="nowrap"><span class="badge gray">已退出</span></td>
+              <td class="col-ops">
+                <a class="link" href="listing-detail.html">查看房源</a>
+                <span class="link" onclick="openAdmit('柳江新城新建保租房项目')">准入条件</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="src">
+      <div class="section-title">筹集方式结构（2026 年累计 7,986 套）</div>
+      <div class="bar-list mt-16">
+        <div class="bar-row"><div class="bl">新建</div><div class="bt"><i class="bf" style="width:100%"></i></div><div class="bv"><b>3,120</b> 套 · 39.1%</div></div>
+        <div class="bar-row"><div class="bl">改建</div><div class="bt"><i class="bf" style="width:47.6%"></i></div><div class="bv"><b>1,486</b> 套 · 18.6%</div></div>
+        <div class="bar-row"><div class="bl">收购存量房</div><div class="bt"><i class="bf" style="width:31.6%"></i></div><div class="bv"><b>986</b> 套 · 12.3%</div></div>
+        <div class="bar-row"><div class="bl">企事业单位自有土地建设</div><div class="bt"><i class="bf" style="width:23.8%"></i></div><div class="bv"><b>742</b> 套 · 9.3%</div></div>
+        <div class="bar-row"><div class="bl">改造</div><div class="bt"><i class="bf" style="width:20.6%"></i></div><div class="bv"><b>642</b> 套 · 8.0%</div></div>
+        <div class="bar-row"><div class="bl">盘活闲置住房</div><div class="bt"><i class="bf" style="width:16.9%"></i></div><div class="bv"><b>528</b> 套 · 6.6%</div></div>
+        <div class="bar-row"><div class="bl">产业园区配套建设</div><div class="bt"><i class="bf" style="width:12.4%"></i></div><div class="bv"><b>386</b> 套 · 4.8%</div></div>
+        <div class="bar-row"><div class="bl">市场化租赁房源纳管</div><div class="bt"><i class="bf" style="width:3.1%"></i></div><div class="bv"><b>96</b> 套 · 1.2%</div></div>
+      </div>
+      <div class="alert alert-info mt-16">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>筹集方式来源于保障性租赁住房认定书，认定后写入房源档案，与租赁房源基本信息表的「租赁房屋类型」联动。</div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="cmp">
+      <div class="section-title">租金对标（保租房 vs 同地段市场租赁住房）</div>
+      <div class="grid-3 mt-16">
+        <div class="cmp-card is-primary">
+          <div class="cc-t">指导租金标准均值</div>
+          <div class="cc-v">20.8 <small>元/㎡·月</small></div>
+          <div class="cc-bar"><i style="width:78.6%;background:linear-gradient(90deg,#2563eb,#60a5fa)"></i></div>
+          <div class="cc-d">依据分区域分户型市场租金水平核定，每年复核一次，本期覆盖 7,986 套保租房。</div>
+        </div>
+        <div class="cmp-card">
+          <div class="cc-t">同地段市场租金均值</div>
+          <div class="cc-v">26.5 <small>元/㎡·月</small></div>
+          <div class="cc-bar"><i style="width:100%;background:linear-gradient(90deg,#f59e0b,#fbbf24)"></i></div>
+          <div class="cc-d">取自「租金水平信息发布」同期同片区同户型的平均租金单价，样本量 3,286 条。</div>
+        </div>
+        <div class="cmp-card">
+          <div class="cc-t">平均折扣率</div>
+          <div class="cc-v">78.6 <small>%</small></div>
+          <div class="cc-bar"><i style="width:78.6%;background:linear-gradient(90deg,#16a34a,#4ade80)"></i></div>
+          <div class="cc-d">折扣率＝指导租金 ÷ 同地段市场租金。政策要求不高于 100%，本市控制目标为不高于 90%。</div>
+        </div>
+      </div>
+
+      <div class="section-title mt-16">分区折扣率对标</div>
+      <div class="table-wrap">
+        <table class="data-table" data-static>
+          <thead>
+            <tr>
+              <th>行政区划</th>
+              <th class="num">保租房套数</th>
+              <th class="num">指导租金均值(元/㎡·月)</th>
+              <th class="num">市场租金均值(元/㎡·月)</th>
+              <th class="num">折扣率</th>
+              <th class="num">已配租</th>
+              <th class="num">配租率</th>
+              <th>是否达标</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>城中区</td><td class="num">2,186</td><td class="num">22.4</td><td class="num">28.6</td><td class="num rate-cell">78.3%</td><td class="num">1,842</td><td class="num">84.3%</td><td><span class="badge green">达标</span></td></tr>
+            <tr><td>鱼峰区</td><td class="num">1,842</td><td class="num">21.2</td><td class="num">26.8</td><td class="num rate-cell">79.1%</td><td class="num">1,468</td><td class="num">79.7%</td><td><span class="badge green">达标</span></td></tr>
+            <tr><td>柳北区</td><td class="num">1,428</td><td class="num">18.6</td><td class="num">24.2</td><td class="num rate-cell">76.9%</td><td class="num">1,186</td><td class="num">83.1%</td><td><span class="badge green">达标</span></td></tr>
+            <tr><td>柳南区</td><td class="num">1,286</td><td class="num">19.4</td><td class="num">25.1</td><td class="num rate-cell">77.3%</td><td class="num">986</td><td class="num">76.7%</td><td><span class="badge green">达标</span></td></tr>
+            <tr class="is-warn"><td>柳东新区</td><td class="num">742</td><td class="num">24.6</td><td class="num">27.2</td><td class="num rate-cell high">90.4%</td><td class="num">586</td><td class="num">79.0%</td><td><span class="badge orange">超控制目标</span></td></tr>
+            <tr><td>柳江区</td><td class="num">502</td><td class="num">14.8</td><td class="num">19.6</td><td class="num rate-cell">75.5%</td><td class="num">344</td><td class="num">68.5%</td><td><span class="badge green">达标</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="alert alert-warning mt-16">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>柳东新区宿舍型租赁住房折扣率 90.4%，已超过本市 90% 控制目标，建议在年度复核中下调指导租金标准。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 准入条件抽屉 -->
+  <div class="drawer-mask" data-close-drawer></div>
+  <div class="drawer" id="drAdmit">
+    <div class="drawer-head"><span>准入条件 · <span id="adTitle">天湖国际人才公寓</span></span><i class="fa-solid fa-xmark" data-close-drawer></i></div>
+    <div class="drawer-body">
+      <div class="section-title">保障对象范围</div>
+      <dl class="desc-list" style="grid-template-columns:1fr">
+        <div class="desc-item full"><dt>保障对象</dt><dd>新市民、青年人以及在本市稳定就业的无房职工，不设收入线门槛。</dd></div>
+        <div class="desc-item full"><dt>户籍要求</dt><dd>不限户籍，非本市户籍需提供本市连续缴纳社保或个税满 6 个月的证明。</dd></div>
+        <div class="desc-item full"><dt>住房要求</dt><dd>申请人及共同居住人在本市市区范围内无自有住房、且未租住其他保障性住房。</dd></div>
+        <div class="desc-item full"><dt>年龄要求</dt><dd>18 周岁以上，人才公寓类房源优先保障 35 周岁以下青年人才。</dd></div>
+        <div class="desc-item full"><dt>最长租赁期限</dt><dd>36 个月，期满可申请续租一次，续租期限不超过 36 个月。</dd></div>
+        <div class="desc-item full"><dt>退出情形</dt><dd>购置自有住房、不再在本市就业、转租转借、连续拖欠租金 3 个月的，应当退出。</dd></div>
+      </dl>
+      <div class="section-title mt-16">申请材料清单</div>
+      <ul class="doc-list">
+        <li><i class="fa-regular fa-file-lines"></i> 保障性租赁住房申请表</li>
+        <li><i class="fa-regular fa-file-lines"></i> 申请人及共同居住人身份证明</li>
+        <li><i class="fa-regular fa-file-lines"></i> 本市就业证明（劳动合同 / 社保缴纳记录 / 营业执照）</li>
+        <li><i class="fa-regular fa-file-lines"></i> 无房承诺书与住房情况查询授权书</li>
+        <li><i class="fa-regular fa-file-lines"></i> 人才类别认定证明（人才公寓类房源适用）</li>
+      </ul>
+      <div class="alert alert-info mt-16">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>准入资格由配租部门审核，本系统仅在签约时校验「租赁房屋类型＝保障性租赁住房」的合同是否关联有效的配租资格编号。</div>
+      </div>
+    </div>
+    <div class="drawer-foot"><button type="button" class="btn" data-close-drawer>关闭</button></div>
+  </div>
+
+  <!-- 调整指导租金抽屉 -->
+  <div class="drawer" id="drAdjust">
+    <div class="drawer-head"><span>调整指导租金标准</span><i class="fa-solid fa-xmark" data-close-drawer></i></div>
+    <div class="drawer-body">
+      <div class="form-grid form-align">
+        <div class="form-item col-full"><label>保租房房源编号</label><input type="text" id="ajNo" readonly value="BZF450200202600214"></div>
+        <div class="form-item"><label>现指导租金(元/㎡·月)</label><input type="text" id="ajOld" readonly value="19.93"></div>
+        <div class="form-item"><label>调整后指导租金(元/㎡·月)<span class="req">*</span></label><input type="number" id="ajNew" step="0.01" value="19.20" oninput="calcRate()"></div>
+        <div class="form-item"><label>同地段市场租金(元/㎡·月)</label><input type="text" readonly value="25.60"></div>
+        <div class="form-item"><label>调整后折扣率</label><input type="text" id="ajRate" readonly value="75.0%"></div>
+        <div class="form-item col-full">
+          <label>调整依据<span class="req">*</span></label>
+          <select>
+            <option>年度复核，同地段市场租金下行</option>
+            <option>项目认定文件调整</option>
+            <option>折扣率超过控制目标，按政策下调</option>
+            <option>其他（在说明中填写）</option>
+          </select>
+        </div>
+        <div class="form-item col-full"><label>调整说明</label><textarea rows="3">依据 2026 年 7 月发布的租金水平信息，城中区一居室平均单价 25.60 元/㎡·月，按 75% 折扣核定本项目指导租金。</textarea></div>
+        <div class="form-item col-full"><label>生效日期</label><input type="date" value="2026-09-01"></div>
+      </div>
+      <div class="alert alert-warning mt-16">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>指导租金调整仅对生效日期之后新签订的合同生效，已备案的在租合同按原约定履行至期满。</div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="saveAdjust()">提交调整</button>
+    </div>
+  </div>
+
+  <!-- 新增保租房房源抽屉 -->
+  <div class="drawer" id="drAdd">
+    <div class="drawer-head"><span>新增保障性租赁住房房源</span><i class="fa-solid fa-xmark" data-close-drawer></i></div>
+    <div class="drawer-body">
+      <div class="form-grid form-align">
+        <div class="form-item col-full"><label>项目名称<span class="req">*</span></label><input type="text" placeholder="如：天湖国际人才公寓"></div>
+        <div class="form-item col-full"><label>房屋坐落<span class="req">*</span></label><input type="text" placeholder="如：城中区解放北路 41 号天湖国际 2-1-1508"></div>
+        <div class="form-item"><label>认定书编号<span class="req">*</span></label><input type="text" placeholder="柳保租认字〔2026〕第 ____ 号"></div>
+        <div class="form-item"><label>认定时间<span class="req">*</span></label><input type="date"></div>
+        <div class="form-item"><label>认定机构<span class="req">*</span></label><select><option>XXXX市住房和城乡建设局</option><option>柳东新区管委会</option><option>柳江区住房和城乡建设局</option></select></div>
+        <div class="form-item">
+          <label>筹集方式<span class="req">*</span></label>
+          <select>
+            <option>新建</option><option>改建</option><option>改造</option><option>收购存量房</option>
+            <option>盘活闲置住房</option><option>企事业单位自有土地建设</option><option>产业园区配套建设</option><option>市场化租赁房源纳管</option>
+          </select>
+        </div>
+        <div class="form-item"><label>出租面积(㎡)<span class="req">*</span></label><input type="number" step="0.01" placeholder="56.20"></div>
+        <div class="form-item"><label>指导租金(元/㎡·月)<span class="req">*</span></label><input type="number" step="0.01" placeholder="19.93"></div>
+        <div class="form-item"><label>同地段市场租金(元/㎡·月)</label><input type="number" step="0.01" placeholder="25.60"></div>
+        <div class="form-item"><label>最长租赁期限(月)</label><input type="number" value="36"></div>
+        <div class="form-item"><label>政策有效期止</label><input type="date" value="2036-07-31"></div>
+        <div class="form-item"><label>配租状态</label><select><option>待配租</option><option>已配租</option></select></div>
+      </div>
+      <div class="alert alert-info mt-16">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>新增保租房房源后，系统自动在租赁房源基本信息中将「租赁房屋类型」置为保障性租赁住房，并纳入指导租金校验范围。</div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('保租房房源已新增，编号 BZF450200202600215','success')">保存</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function openAdmit(name) {
+  document.getElementById('adTitle').textContent = name;
+  PMS.openDrawer('drAdmit');
+}
+
+function openAdjust(no, old) {
+  document.getElementById('ajNo').value = no;
+  document.getElementById('ajOld').value = old;
+  document.getElementById('ajNew').value = (parseFloat(old) * 0.96).toFixed(2);
+  calcRate();
+  PMS.openDrawer('drAdjust');
+}
+
+function calcRate() {
+  var v = parseFloat(document.getElementById('ajNew').value || '0');
+  document.getElementById('ajRate').value = v ? (v / 25.6 * 100).toFixed(1) + '%' : '—';
+}
+
+function saveAdjust() {
+  PMS.confirm({
+    title: '调整指导租金',
+    message: '提交指导租金标准调整？',
+    detail: '调整后自 2026-09-01 起对新签合同生效，已备案在租合同按原约定履行。',
+    type: 'info',
+    okText: '提交',
+    onOk: function () {
+      PMS.closeDrawer();
+      PMS.toast('指导租金标准已调整并同步至发布审核校验规则', 'success');
+    }
+  });
+}
+
+(function () {
+  PMS.renderPager(document.getElementById('tblBzf'), {
+    pageNum: 1, pageSize: 20, total: 7986,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>窗口排班 · 统一工作门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="biz" data-active="window-schedule">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 预约窗口
+        <span class="sep">/</span> <span class="cur">窗口排班</span>
+      </div>
+      <div class="page-title">窗口排班</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="openSwap()"><i class="fa-solid fa-right-left"></i> 两人换班</button>
+      <button class="btn btn-primary" onclick="openWindow()"><i class="fa-solid fa-plus"></i> 新增窗口</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <span><b>综合窗口</b>可办全部业务，<b>专业窗口</b>只办指定业务大类；窗口的可办范围决定统一收件的分类受理归口。值班表调整后需<b>发布</b>才对叫号分流生效。</span>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-table-columns"></i></div><div>
+      <div class="s-label">窗口总数</div><div class="s-value" id="kAll">—</div></div></div>
+    <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-grip"></i></div><div>
+      <div class="s-label">综合窗口</div><div class="s-value" id="kAny">—</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-bullseye"></i></div><div>
+      <div class="s-label">专业窗口</div><div class="s-value" id="kPro">—</div></div></div>
+    <div class="stat-card"><div class="s-icon orange"><i class="fa-solid fa-bullhorn"></i></div><div>
+      <div class="s-label">班表状态</div><div class="s-value" id="kPub" style="font-size:16px">—</div></div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>窗口设置与授权</h3>
+      <span class="sub">窗口清单及其可办业务范围</span>
+      <div class="head-actions"><span class="node-tag"><i class="fa-solid fa-user-shield"></i>科室负责人</span></div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tbWin" data-static>
+        <thead><tr><th>窗口编号</th><th>窗口名称</th><th>窗口类型</th><th>可办业务范围</th>
+                   <th>所属属地</th><th class="num">单时段号源</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3>本周值班表</h3>
+      <span class="sub" id="pubTip">—</span>
+      <div class="head-actions">
+        <button class="btn btn-sm btn-primary" onclick="doPublish()"><i class="fa-solid fa-bullhorn"></i> 发布值班表</button>
+      </div>
+    </div>
+    <div class="card-body" id="shiftPanel"></div>
+  </div>
+</main>
+
+<!-- 窗口设置 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="winDrawer">
+  <div class="drawer-head"><h3 id="wdTitle">窗口设置</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>
+      <span>保存后预约页的窗口下拉与号源余量表即时同步；新增窗口会自动生成一周默认班表。</span></div>
+    <div class="form-grid">
+      <div class="form-item"><label>窗口名称<span class="req">*</span></label><input type="text" id="wName" placeholder="如 7 号窗口"></div>
+      <div class="form-item"><label>窗口类型<span class="req">*</span></label>
+        <select id="wType" onchange="syncScope()">
+          <option value="综合窗口">综合窗口</option><option value="专业窗口">专业窗口</option>
+        </select></div>
+      <div class="form-item"><label>可办业务范围<span class="req">*</span></label>
+        <select id="wScope"></select></div>
+      <div class="form-item"><label>所属属地<span class="req">*</span></label><select id="wSaid" data-dict="said" data-selected="100100"></select></div>
+      <div class="form-item"><label>单时段号源上限</label><input type="number" id="wCap" min="1" value="12"></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="saveWindow()"><i class="fa-solid fa-check"></i> 保存</button>
+  </div>
+</div>
+
+<!-- 换班 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="swapDrawer">
+  <div class="drawer-head"><h3>两人换班</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-warning"><i class="fa-solid fa-right-left"></i>
+      <span>选择两个班次后互换值班人员，换班后班表状态变为<b>待发布</b>，需重新发布才对叫号分流生效。</span></div>
+    <div class="form-grid">
+      <div class="form-item"><label>班次一<span class="req">*</span></label><select id="swA"></select></div>
+      <div class="form-item"><label>班次二<span class="req">*</span></label><select id="swB"></select></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="doSwap()"><i class="fa-solid fa-right-left"></i> 确认换班</button>
+  </div>
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/flow-data.js"></script>
+<script src="../assets/js/flow.js"></script>
+<script>
+(function () {
+  var WEEK = FLOW_DATA.WEEK;
+  var editingId = null;
+  function val(id) { return (document.getElementById(id).value || '').trim(); }
+
+  function render() {
+    var ws = FLOW.get('windows');
+    document.getElementById('kAll').textContent = ws.length;
+    document.getElementById('kAny').textContent = ws.filter(function (w) { return w.type === '综合窗口'; }).length;
+    document.getElementById('kPro').textContent = ws.filter(function (w) { return w.type === '专业窗口'; }).length;
+    var pub = FLOW.db().shiftPublished;
+    document.getElementById('kPub').textContent = pub ? '已发布' : '待发布';
+    document.getElementById('pubTip').innerHTML = pub
+      ? '已发布，叫号分流按本班表执行'
+      : '<span class="text-danger">班表有调整尚未发布，叫号分流仍按上一版执行</span>';
+
+    /* 值班表：单元格可改人 */
+    var users = FLOW.get('users');
+    document.getElementById('shiftPanel').innerHTML =
+      '<div class="table-wrap"><table class="data-table" data-static><thead><tr><th>窗口</th>' +
+      WEEK.map(function (d) { return '<th>' + d + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      ws.map(function (w) {
+        return '<tr><td>' + FLOW.esc(w.name) + '<div class="text-3 text-sm">' + FLOW.esc(w.type) + '</div></td>' +
+          WEEK.map(function (d) {
+            var s = null;
+            FLOW.get('shifts').some(function (x) { if (x.wid === w.id && x.day === d) { s = x; return true; } return false; });
+            if (!s) return '<td class="text-3">—</td>';
+            return '<td><select onchange="changeShift(\'' + s.id + '\',this.value)" style="width:110px">' +
+              users.map(function (u) {
+                return '<option value="' + u.id + '"' + (u.id === s.userId ? ' selected' : '') + '>' + FLOW.esc(u.name) + '</option>';
+              }).join('') + '</select></td>';
+          }).join('') + '</tr>';
+      }).join('') + '</tbody></table></div>';
+
+    FLOW.paint('tbWin');
+  }
+
+  /* 功能点 37 窗口设置授权 */
+  window.openWindow = function (id) {
+    editingId = id || null;
+    var w = id ? FLOW.byId('windows', id) : { name: '', type: '综合窗口', scope: '全部业务', said: '100100', cap: 12 };
+    document.getElementById('wdTitle').textContent = id ? '编辑窗口' : '新增窗口';
+    document.getElementById('wName').value = w.name;
+    document.getElementById('wType').value = w.type;
+    document.getElementById('wSaid').value = w.said;
+    document.getElementById('wCap').value = w.cap;
+    syncScope(w.scope);
+    PMS.openDrawer('winDrawer');
+  };
+  window.syncScope = function (preset) {
+    var isAny = val('wType') === '综合窗口';
+    var opts = isAny
+      ? ['全部业务']
+      : ['商品房交易', '存量房交易', '房屋租赁', '抵押与交易限制', '政策性住房与安置房',
+         '资金监管与维修资金', '测绘成果与面积', '房产档案', '查询与出证'];
+    document.getElementById('wScope').innerHTML = opts.map(function (o) {
+      return '<option value="' + o + '"' + (preset === o ? ' selected' : '') + '>' + o + '</option>';
+    }).join('');
+  };
+  window.saveWindow = function () {
+    var ok = FLOW.act.saveWindow({
+      id: editingId, name: val('wName'), type: val('wType'),
+      scope: val('wScope'), said: val('wSaid'), cap: val('wCap')
+    });
+    if (ok) PMS.closeDrawer('winDrawer');
+  };
+  window.toggleWin = function (id) {
+    var w = FLOW.byId('windows', id);
+    if (!w) return;
+    w.enabled = w.enabled ? 0 : 1;
+    FLOW.commit();
+    PMS.toast(w.enabled ? (w.name + ' 已启用') : (w.name + ' 已停用，不再放号'), 'success');
+  };
+
+  /* 功能点 38 人员排班 / 换班 / 发布 */
+  window.changeShift = function (sid, uid) { FLOW.act.saveShift(sid, uid); };
+  window.openSwap = function () {
+    var opts = FLOW.get('shifts').map(function (s) {
+      return '<option value="' + s.id + '">' + FLOW.esc(s.wname) + ' · ' + s.day + ' · ' + FLOW.esc(s.userName) + '</option>';
+    }).join('');
+    document.getElementById('swA').innerHTML = opts;
+    document.getElementById('swB').innerHTML = opts;
+    PMS.openDrawer('swapDrawer');
+  };
+  window.doSwap = function () {
+    if (FLOW.act.swapShift(val('swA'), val('swB'))) PMS.closeDrawer('swapDrawer');
+  };
+  window.doPublish = function () {
+    if (FLOW.db().shiftPublished) { PMS.toast('当前班表已是发布状态', 'error'); return; }
+    PMS.confirm({
+      title: '发布值班表', type: 'info', okText: '发布',
+      message: '确认发布本周值班表？',
+      detail: '发布后叫号分流按新班表执行，并向全员推送公告。',
+      onOk: function () { FLOW.act.publishShift(); }
+    });
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    FLOW.table({
+      id: 'tbWin', pageSize: 10, empty: '暂无窗口', icon: 'fa-table-columns',
+      rows: function () { return FLOW.get('windows'); },
+      cells: function (w) {
+        return [
+          '<td>' + FLOW.esc(w.id) + '</td>',
+          '<td>' + FLOW.esc(w.name) + '</td>',
+          '<td>' + FLOW.badge(w.type, w.type === '综合窗口' ? 'green' : 'cyan') + '</td>',
+          '<td class="cell-lg">' + FLOW.esc(w.scope) + '</td>',
+          '<td>' + FLOW.esc(FLOW.dict('said', w.said)) + '</td>',
+          '<td class="num">' + w.cap + '</td>',
+          '<td>' + (w.enabled ? FLOW.badge('启用', 'green') : FLOW.badge('停用', 'gray')) + '</td>',
+          '<td><span class="link" onclick="event.stopPropagation();openWindow(\'' + w.id + '\')">编辑</span> ' +
+            '<span class="link' + (w.enabled ? ' danger' : '') + '" onclick="event.stopPropagation();toggleWin(\'' + w.id + '\')">' +
+            (w.enabled ? '停用' : '启用') + '</span></td>'
+        ];
+      },
+      attrs: function (w) { return ' class="clickable" onclick="openWindow(\'' + w.id + '\')"'; }
+    });
+    FLOW.on(render);
+  });
+})();
+</script>
+</body>
+</html>

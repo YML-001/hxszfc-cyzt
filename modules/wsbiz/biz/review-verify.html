@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>差评核实整改 · 统一工作门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="biz" data-active="service-review">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 综合查询
+        <span class="sep">/</span> <a class="link" href="service-review.html?role=biz">服务评价</a>
+        <span class="sep">/</span> <span class="cur">差评核实整改</span>
+      </div>
+      <div class="page-title">差评核实整改</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="service-review.html?role=biz"><i class="fa-solid fa-arrow-left"></i> 返回服务评价</a>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <span>差评（不满意、非常不满意）在提交时<b>自动生成核实任务</b>进入待办中心，承办科室须在 3 个工作日内完成核实并录入整改措施，形成闭环后满意度与效能指标同步更新。</span>
+  </div>
+
+  <div id="root"></div>
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/flow-data.js"></script>
+<script src="../assets/js/flow.js"></script>
+<script>
+(function () {
+  var rid = null;
+
+  function render() {
+    var root = document.getElementById('root');
+    var bads = FLOW.where('reviews', function (r) { return r.pjdj >= '4'; })
+      .sort(function (a, b) { return (a.hsZt === '0' ? -1 : 1) - (b.hsZt === '0' ? -1 : 1) || b.czsj - a.czsj; });
+    var cur = rid ? FLOW.byId('reviews', rid) : bads.filter(function (r) { return r.hsZt === '0'; })[0] || bads[0];
+
+    var html = '';
+
+    html += '<div class="stat-grid">' +
+      kpi('blue', 'fa-comment-dots', '差评总数', bads.length) +
+      kpi('red', 'fa-hourglass-half', '待核实', bads.filter(function (r) { return r.hsZt === '0'; }).length) +
+      kpi('green', 'fa-circle-check', '已闭环', bads.filter(function (r) { return r.hsZt === '1'; }).length) +
+      kpi('cyan', 'fa-face-smile', '总体满意度', FLOW.stat('satisfyRate')) +
+    '</div>';
+
+    html += '<div class="grid-2">';
+
+    /* 左：差评清单 */
+    html += '<div class="card"><div class="card-head"><h3>差评清单</h3>' +
+      '<span class="sub">待核实优先</span></div><div class="card-body" style="padding-top:6px">' +
+      (bads.length ? '<div class="home-todo">' + bads.map(function (r) {
+        return '<a class="todo-row" href="javascript:void(0)" onclick="pick(\'' + r.id + '\')"' +
+          (cur && cur.id === r.id ? ' style="background:var(--primary-light)"' : '') + '>' +
+          FLOW.badge(FLOW.dict('pjdj', r.pjdj), 'red') +
+          '<span class="todo-text">' + FLOW.esc(r.sjbh) + '　' + FLOW.esc(r.sxmc) + '</span>' +
+          '<span class="todo-time' + (r.hsZt === '0' ? ' is-warn' : '') + '">' +
+            (r.hsZt === '1' ? '已闭环' : '待核实') + '</span></a>';
+      }).join('') + '</div>'
+        : '<div class="empty"><i class="fa-regular fa-face-smile"></i><div>暂无差评，可在服务评价页模拟提交一条差评体验闭环</div>' +
+          '<div class="mt-16"><a class="btn btn-primary" href="service-review.html?role=biz">去服务评价</a></div></div>') +
+      '</div></div>';
+
+    /* 右：核实整改 */
+    html += '<div class="card"><div class="card-head"><h3>核实与整改</h3>' +
+      '<span class="sub">' + (cur ? FLOW.esc(cur.sjbh) : '未选择') + '</span>' +
+      '<div class="head-actions"><span class="node-tag"><i class="fa-solid fa-user-shield"></i>科室负责人</span></div></div>' +
+      '<div class="card-body">';
+
+    if (!cur) {
+      html += '<div class="empty"><i class="fa-regular fa-clipboard"></i><div>请先在左侧选择一条差评</div></div>';
+    } else {
+      var c = FLOW.byId('cases', cur.bjzj) || {};
+      var rect = FLOW.where('rectifies', function (x) { return x.pjid === cur.id; })[0];
+      html += '<dl class="desc-list">' +
+        row('评价等级', FLOW.dict('pjdj', cur.pjdj)) + row('评价渠道', cur.way) +
+        row('评价时间', FLOW.fmt.time(cur.czsj)) + row('被评价人', cur.jbrmc) +
+        row('办理事项', cur.sxmc) + row('申请人', cur.sqr) +
+        row('评价窗口', cur.wname) + row('属地', FLOW.dict('said', cur.said)) +
+        '<div class="desc-item full"><dt>评价内容</dt><dd>' + FLOW.esc(cur.content || '未填写文字评价') + '</dd></div>' +
+      '</dl>';
+
+      if (rect) {
+        html += '<div class="alert alert-success mt-16"><i class="fa-solid fa-circle-check"></i>' +
+          '<span>该差评已完成核实整改，闭环时间 ' + FLOW.fmt.time(rect.czsj) + '，核实人 ' + FLOW.esc(rect.czr) + '</span></div>' +
+          '<div class="section-title mt-16" data-icon="fa-clipboard-check">核实与整改记录</div>' +
+          '<dl class="desc-list">' +
+            '<div class="desc-item full"><dt>核实结果</dt><dd>' + FLOW.esc(rect.result) + '</dd></div>' +
+            '<div class="desc-item full"><dt>整改措施</dt><dd>' + FLOW.esc(rect.measure) + '</dd></div>' +
+            (rect.reason ? '<div class="desc-item full"><dt>差评成因</dt><dd>' + FLOW.esc(rect.reason) + '</dd></div>' : '') +
+          '</dl>';
+      } else {
+        html += '<div class="section-title mt-16" data-icon="fa-pen-to-square">填写核实与整改</div>' +
+          '<div class="form-grid">' +
+            '<div class="form-item col-full"><label>核实结果<span class="req">*</span></label>' +
+              '<textarea id="rResult" rows="3" placeholder="如：经回访申请人并调取叫号记录，确认当日等待时间达 52 分钟，差评成立"></textarea></div>' +
+            '<div class="form-item col-full"><label>整改措施<span class="req">*</span></label>' +
+              '<textarea id="rMeasure" rows="3" placeholder="如：高峰时段增开 1 个综合窗口，并将该事项纳入网上预审范围"></textarea></div>' +
+            '<div class="form-item col-full"><label>差评成因分类</label>' +
+              '<select id="rReason">' +
+                '<option value="">请选择</option>' +
+                '<option value="等待时间过长">等待时间过长</option>' +
+                '<option value="材料要求前后不一致">材料要求前后不一致</option>' +
+                '<option value="业务口径解释不清">业务口径解释不清</option>' +
+                '<option value="系统故障影响办理">系统故障影响办理</option>' +
+                '<option value="服务态度问题">服务态度问题</option>' +
+                '<option value="申请人误评">申请人误评</option>' +
+              '</select></div>' +
+          '</div>' +
+          '<div class="btn-row mt-16">' +
+            '<button class="btn btn-primary" onclick="doVerify()"><i class="fa-solid fa-check"></i> 提交核实并闭环</button>' +
+            '<a class="btn" href="case-detail.html?role=biz&id=' + cur.bjzj + '">查看被评价办件</a>' +
+          '</div>';
+      }
+    }
+    html += '</div></div></div>';
+    root.innerHTML = html;
+  }
+
+  function kpi(color, icon, label, value) {
+    return '<div class="stat-card"><div class="s-icon ' + color + '"><i class="fa-solid ' + icon + '"></i></div><div>' +
+      '<div class="s-label">' + label + '</div><div class="s-value">' + value + '</div></div></div>';
+  }
+  function row(label, value) {
+    return '<div class="desc-item"><dt>' + label + '</dt><dd>' + FLOW.esc(value == null || value === '' ? '—' : value) + '</dd></div>';
+  }
+  function v(id) { var e = document.getElementById(id); return e ? e.value.trim() : ''; }
+
+  window.pick = function (id) { rid = id; render(); };
+  window.doVerify = function () {
+    var r = rid ? FLOW.byId('reviews', rid) : null;
+    if (!r) {
+      var bads = FLOW.where('reviews', function (x) { return x.pjdj >= '4' && x.hsZt === '0'; });
+      r = bads[0];
+    }
+    if (!r) { PMS.toast('没有待核实的差评', 'error'); return; }
+    rid = r.id;
+    FLOW.act.verifyReview(r.id, { result: v('rResult'), measure: v('rMeasure'), reason: v('rReason') });
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    rid = FLOW.param('id');
+    FLOW.on(render);
+  });
+})();
+</script>
+</body>
+</html>

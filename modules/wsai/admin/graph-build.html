@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>监管知识图谱构建 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="pt" data-active="knowledge-base" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>知识库管理</span>
+      <span class="sep">/</span><span class="cur">监管知识图谱构建</span>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-primary" onclick="AI.act.buildGraph()"><i class="fa-solid fa-hammer"></i> 重建图谱</button>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-sitemap"></i>知识库管理 wsai-04</span>
+    <a href="knowledge-base.html?role=pt">政务知识库</a>
+    <a href="knowledge-audit.html?role=pt">更新审核</a>
+    <a class="active" href="graph-build.html?role=pt">图谱构建</a>
+    <a href="graph-explorer.html?role=pt">图谱可视化</a>
+    <a href="risk-path.html?role=pt">风险传导路径</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-diagram-project"></i>
+    <span>图谱以<b>企业 - 项目 - 账户 - 人员 - 房屋</b>五类实体为骨架，关系从各业务库抽取。
+      标记为「风险传导关系」的边会被<a class="link" href="risk-path.html?role=pt">风险传导路径挖掘</a>用于识别隐性关联风险。</span>
+  </div>
+
+  <div class="stat-grid" id="typeStats"></div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head"><h3>实体抽取配置</h3><span class="sub">来源表与主键口径</span></div>
+      <div class="card-body">
+        <dl class="desc-list">
+          <div class="desc-item"><dt>企业</dt><dd>从业主体与信用监管 · 统一社会信用代码</dd></div>
+          <div class="desc-item"><dt>项目</dt><dd>房地产项目库 · xmbh 项目编号</dd></div>
+          <div class="desc-item"><dt>账户</dt><dd>预售资金监管 · 监管账户号</dd></div>
+          <div class="desc-item"><dt>人员</dt><dd>从业人员与法定代表人 · 证件号（脱敏）</dd></div>
+          <div class="desc-item"><dt>房屋</dt><dd>楼盘表与房屋基础数据 · bdcdyh 不动产单元号</dd></div>
+          <div class="desc-item"><dt>更新频率</dt><dd>每日凌晨增量抽取，重大变更实时触发</dd></div>
+        </dl>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>关系类型统计</h3><span class="sub">风险传导关系单独标注</span></div>
+      <div class="card-body"><div id="relList"></div></div>
+    </div>
+  </div>
+
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3>关系明细</h3>
+      <span class="sub" id="relSub">—</span>
+      <div class="head-actions">
+        <a class="btn btn-sm" href="graph-explorer.html?role=pt"><i class="fa-solid fa-circle-nodes"></i> 去可视化查询</a>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tEdge" data-static>
+        <thead><tr>
+          <th>起始实体</th><th>类型</th><th>关系</th><th>指向实体</th><th>类型</th>
+          <th>风险传导</th><th>起点风险</th><th>终点风险</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var ICON = { '1': 'fa-building', '2': 'fa-diagram-project', '3': 'fa-credit-card', '4': 'fa-user-tie', '5': 'fa-house' };
+  var COLOR = { '1': 'blue', '2': 'cyan', '3': 'green', '4': 'ai', '5': 'orange' };
+
+  function paint() {
+    /* 五类实体计数 */
+    document.getElementById('typeStats').innerHTML = ['1', '2', '3', '4', '5'].map(function (t) {
+      var n = AI.where('nodes', function (x) { return x.sttype === t; }).length;
+      var risk = AI.where('nodes', function (x) {
+        return x.sttype === t && (x.riskLv === 'red' || x.riskLv === 'orange');
+      }).length;
+      return '<div class="stat-card"><div class="s-icon ' + COLOR[t] + '"><i class="fa-solid ' + ICON[t] + '"></i></div>' +
+        '<div><div class="s-label">' + AI.dict('sttype', t) + '</div><div class="s-value">' + n + '</div>' +
+        (risk ? '<div class="s-trend text-danger">' + risk + ' 个高风险</div>' : '<div class="s-trend text-2">无高风险</div>') +
+        '</div></div>';
+    }).join('');
+
+    /* 关系类型分布 */
+    var byRel = {};
+    AI.get('edges').forEach(function (e) {
+      if (!byRel[e.rel]) byRel[e.rel] = { n: 0, risk: 0 };
+      byRel[e.rel].n++;
+      if (e.risk) byRel[e.rel].risk++;
+    });
+    var max = 1;
+    Object.keys(byRel).forEach(function (k) { if (byRel[k].n > max) max = byRel[k].n; });
+    document.getElementById('relList').innerHTML = Object.keys(byRel).map(function (k) {
+      var v = byRel[k];
+      return '<div class="factor-row"><span class="fr-n">' + AI.esc(k) + '</span>' +
+        '<span class="fr-bar"><span style="width:' + (v.n / max * 100) + '%;' +
+          (v.risk ? 'background:var(--lv-red)' : '') + '"></span></span>' +
+        '<span class="fr-v">' + v.n + ' 条</span>' +
+        '<span class="fr-d">' + (v.risk ? '<span class="text-danger">风险 ' + v.risk + '</span>' : '—') + '</span></div>';
+    }).join('');
+
+    var risk = AI.where('edges', function (e) { return e.risk; }).length;
+    document.getElementById('relSub').textContent =
+      '共 ' + AI.get('edges').length + ' 条关系，其中 ' + risk + ' 条标记为风险传导';
+  }
+
+  AI.table({
+    id: 'tEdge', pageSize: 20,
+    rows: function () { return AI.get('edges'); },
+    cells: function (e) {
+      var a = AI.byId('nodes', e.from), b = AI.byId('nodes', e.to);
+      return [
+        '<td>' + AI.esc(e.fromMc) + '</td>',
+        '<td>' + (a ? AI.dict('sttype', a.sttype) : '—') + '</td>',
+        '<td>' + AI.esc(e.rel) + '</td>',
+        '<td>' + AI.esc(e.toMc) + '</td>',
+        '<td>' + (b ? AI.dict('sttype', b.sttype) : '—') + '</td>',
+        '<td>' + (e.risk ? '<span class="badge red">是</span>' : '<span class="badge gray">否</span>') + '</td>',
+        '<td>' + (a ? AI.lv(a.riskLv, { red: '严重', orange: '预警', yellow: '提示', blue: '正常' }[a.riskLv]) : '—') + '</td>',
+        '<td>' + (b ? AI.lv(b.riskLv, { red: '严重', orange: '预警', yellow: '提示', blue: '正常' }[b.riskLv]) : '—') + '</td>'
+      ];
+    },
+    empty: '暂无关系数据'
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () { paint(); AI.repaintAll(); });
+  });
+})();
+</script>
+</body>
+</html>

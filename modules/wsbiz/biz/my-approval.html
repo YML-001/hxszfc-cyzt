@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>待我审批 · 统一工作门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="biz" data-active="my-approval">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 待办任务
+        <span class="sep">/</span> <span class="cur">待我审批</span>
+      </div>
+      <div class="page-title">待我审批</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="doSignBatch()"><i class="fa-solid fa-hand"></i> 批量签收</button>
+      <button class="btn" onclick="openTransfer()"><i class="fa-solid fa-share"></i> 批量转派</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-clipboard-list"></i></div><div>
+      <div class="s-label">待我审批</div><div class="s-value" id="kMine">—</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-hand"></i></div><div>
+      <div class="s-label">待签收</div><div class="s-value" id="kSign">—</div></div></div>
+    <div class="stat-card"><div class="s-icon orange"><i class="fa-solid fa-clock"></i></div><div>
+      <div class="s-label">临期</div><div class="s-value" id="kNear">—</div><div class="s-trend text-warning">剩余不足 20%</div></div></div>
+    <div class="stat-card"><div class="s-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div><div>
+      <div class="s-label">已超期</div><div class="s-value" id="kOver">—</div><div class="s-trend text-danger">需优先处理</div></div></div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-clock"></i>
+    <span>取数口径：办理人为本人且任务状态为待签收、待办理、办理中。<b>签收时间是办理时限的起算点</b>，未签收的任务不计入个人时长；中止办理期间不计入时限，承诺完成时间相应顺延。</span>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="all" onclick="setTab('all')">全部</div>
+      <div class="tab" data-tab="sign" onclick="setTab('sign')">待签收</div>
+      <div class="tab" data-tab="doing" onclick="setTab('doing')">待办理</div>
+      <div class="tab" data-tab="near" onclick="setTab('near')">临期</div>
+      <div class="tab" data-tab="over" onclick="setTab('over')">已超期</div>
+    </div>
+    <div class="filter-bar">
+      <div class="filter-item"><label>收件编号 / 事项</label><input type="text" id="fKw" placeholder="编号或事项名称" oninput="repaint()"></div>
+      <div class="filter-item"><label>业务大类</label><select id="fYwdlm" data-dict="ywdlm" onchange="repaint()"></select></div>
+      <div class="filter-item"><label>任务类型</label><select id="fRwlx" data-dict="rwlx" onchange="repaint()"></select></div>
+      <div class="filter-item"><label>紧急程度</label>
+        <select id="fJjcd" onchange="repaint()">
+          <option value="">全部</option><option value="2">特急</option><option value="1">加急</option><option value="0">普通</option>
+        </select>
+      </div>
+      <div class="filter-item"><label>来源渠道</label><select id="fSjly" data-dict="sjly" onchange="repaint()"></select></div>
+      <button class="btn btn-primary" onclick="repaint()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+      <button class="btn" onclick="resetFilter()">重置</button>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tbApproval" data-static>
+        <thead>
+          <tr>
+            <th style="width:38px"><input type="checkbox" onclick="FLOW.pickAll(this,'tbApproval')" title="全选本页"></th>
+            <th>收件编号</th><th>事项名称</th><th>任务类型</th><th>当前环节</th>
+            <th>申请人</th><th>紧急程度</th><th>剩余时限</th><th>任务状态</th><th>来源渠道</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- 批量转派 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="transferDrawer">
+  <div class="drawer-head"><h3>批量转派任务</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-info"><i class="fa-solid fa-circle-info"></i><span>转派后任务从本人待办移除并出现在接收人待办，转办记录写入任务流转流水（TASK_RWZBXX）。已办结任务不可转派。</span></div>
+    <div class="section-title">已选任务</div>
+    <dl class="desc-list"><div class="desc-item full"><dt>选中数量</dt><dd id="tfCount">0 件</dd></div></dl>
+    <div class="section-title mt-16">转派信息</div>
+    <div class="form-grid">
+      <div class="form-item">
+        <label>接收人<span class="req">*</span></label>
+        <select id="tfUser"></select>
+      </div>
+      <div class="form-item col-full">
+        <label>转派理由</label>
+        <textarea id="tfReason" rows="3" placeholder="如：该批业务归口商品房备案科办理"></textarea>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="doTransfer()"><i class="fa-solid fa-share"></i> 确认转派</button>
+  </div>
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/flow-data.js"></script>
+<script src="../assets/js/flow.js"></script>
+<script>
+(function () {
+  var tab = 'all';
+  window.setTab = function (t) { tab = t; repaint(); };
+  window.resetFilter = function () {
+    ['fKw', 'fYwdlm', 'fRwlx', 'fJjcd', 'fSjly'].forEach(function (id) { document.getElementById(id).value = ''; });
+    repaint();
+    PMS.toast('已重置查询条件');
+  };
+  function val(id) { return (document.getElementById(id).value || '').trim(); }
+
+  function rows() {
+    var kw = val('fKw'), ywdlm = val('fYwdlm'), rwlx = val('fRwlx'), jjcd = val('fJjcd'), sjly = val('fSjly');
+    return FLOW.myTasks().filter(function (t) {
+      var c = FLOW.caseOf(t);
+      var r = FLOW.remain(c);
+      if (tab === 'sign' && t.rwzt !== '0') return false;
+      if (tab === 'doing' && t.rwzt !== '1' && t.rwzt !== '2') return false;
+      if (tab === 'near' && r.level !== 'orange') return false;
+      if (tab === 'over' && !r.over) return false;
+      if (kw && t.sjbh.indexOf(kw) < 0 && t.sxmc.indexOf(kw) < 0) return false;
+      if (ywdlm && t.ywdlm !== ywdlm) return false;
+      if (rwlx && t.rwlx !== rwlx) return false;
+      if (jjcd && t.jjcd !== jjcd) return false;
+      if (sjly && t.sjly !== sjly) return false;
+      return true;
+    });
+  }
+
+  window.repaint = function () { FLOW.paint('tbApproval'); syncKpi(); };
+
+  function syncKpi() {
+    var all = FLOW.myTasks();
+    document.getElementById('kMine').textContent = all.length;
+    document.getElementById('kSign').textContent = all.filter(function (t) { return t.rwzt === '0'; }).length;
+    document.getElementById('kNear').textContent = all.filter(function (t) { return FLOW.remain(FLOW.caseOf(t)).level === 'orange'; }).length;
+    document.getElementById('kOver').textContent = all.filter(function (t) { return FLOW.remain(FLOW.caseOf(t)).over; }).length;
+    /* 页签计数 */
+    var counts = {
+      all: all.length,
+      sign: all.filter(function (t) { return t.rwzt === '0'; }).length,
+      doing: all.filter(function (t) { return t.rwzt === '1' || t.rwzt === '2'; }).length,
+      near: all.filter(function (t) { return FLOW.remain(FLOW.caseOf(t)).level === 'orange'; }).length,
+      over: all.filter(function (t) { return FLOW.remain(FLOW.caseOf(t)).over; }).length
+    };
+    document.querySelectorAll('.tabs .tab').forEach(function (el) {
+      var k = el.getAttribute('data-tab');
+      var base = { all: '全部', sign: '待签收', doing: '待办理', near: '临期', over: '已超期' }[k];
+      el.textContent = base + '(' + counts[k] + ')';
+      el.classList.toggle('active', k === tab);
+    });
+  }
+
+  window.doSignBatch = function () {
+    var ids = FLOW.checked('tbApproval');
+    if (!ids.length) { PMS.toast('请先勾选待签收的任务', 'error'); return; }
+    PMS.confirm({
+      title: '批量签收', type: 'info', okText: '签收',
+      message: '确认签收所选 ' + ids.length + ' 件任务？',
+      detail: '签收时间将作为办理时限的起算点写入任务流水。',
+      onOk: function () { FLOW.act.signBatch(ids); }
+    });
+  };
+  window.openTransfer = function () {
+    var ids = FLOW.checked('tbApproval');
+    if (!ids.length) { PMS.toast('请先勾选要转派的任务', 'error'); return; }
+    document.getElementById('tfCount').textContent = ids.length + ' 件';
+    document.getElementById('tfUser').innerHTML = '<option value="">请选择接收人</option>' +
+      FLOW.get('users').filter(function (u) { return u.id !== FLOW.me.id; }).map(function (u) {
+        return '<option value="' + u.id + '">' + u.name + '（' + u.dept + ' · ' + u.post + '）</option>';
+      }).join('');
+    document.getElementById('tfReason').value = '';
+    PMS.openDrawer('transferDrawer');
+  };
+  window.doTransfer = function () {
+    var ids = FLOW.checked('tbApproval');
+    var uid = document.getElementById('tfUser').value;
+    if (!uid) { PMS.toast('请选择接收人', 'error'); return; }
+    FLOW.act.transferBatch(ids, uid);
+    PMS.closeDrawer('transferDrawer');
+  };
+  window.handleTask = function (id) { FLOW.goto('approval-handle.html', { id: id }); };
+  window.viewCase = function (cid) { FLOW.goto('case-detail.html', { id: cid }); };
+  window.signOne = function (id) { FLOW.act.signTask(id); };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    FLOW.table({
+      id: 'tbApproval', pageSize: 10, empty: '当前筛选条件下没有待办任务', icon: 'fa-face-smile',
+      rows: rows,
+      cells: function (t) {
+        var c = FLOW.caseOf(t) || {};
+        var r = FLOW.remain(c);
+        var ops = [];
+        if (t.rwzt === '0') ops.push('<span class="link" onclick="event.stopPropagation();signOne(\'' + t.id + '\')">签收</span>');
+        else ops.push('<span class="link" onclick="event.stopPropagation();handleTask(\'' + t.id + '\')">办理</span>');
+        ops.push('<span class="link" onclick="event.stopPropagation();viewCase(\'' + t.bjzj + '\')">详情</span>');
+        return [
+          '<td onclick="event.stopPropagation()"><input type="checkbox" data-pick="' + t.id + '"></td>',
+          '<td>' + FLOW.esc(t.sjbh) + '</td>',
+          '<td class="cell-lg">' + FLOW.esc(t.sxmc) + '</td>',
+          '<td>' + FLOW.badge(FLOW.dict('rwlx', t.rwlx), t.rwlx === '1' ? 'orange' : 'blue') + '</td>',
+          '<td>' + FLOW.esc(t.jd) + '</td>',
+          '<td>' + FLOW.esc(c.sqr) + '</td>',
+          '<td>' + FLOW.jjBadge(t.jjcd) + '</td>',
+          '<td>' + FLOW.remainCell(c) + '</td>',
+          '<td>' + FLOW.rwztBadge(t.rwzt) + '</td>',
+          '<td>' + FLOW.esc(FLOW.dict('sjly', t.sjly)) + '</td>',
+          '<td>' + ops.join(' ') + '</td>'
+        ];
+      },
+      attrs: function (t) {
+        return ' class="clickable" data-focus="' + t.id + '" onclick="handleTask(\'' + t.id + '\')"';
+      },
+      after: syncKpi
+    });
+    FLOW.on(function () { FLOW.paint('tbApproval'); syncKpi(); });
+  });
+})();
+</script>
+</body>
+</html>

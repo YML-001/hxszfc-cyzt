@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>移动端智能导办 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/mobile.css">
+</head>
+<body>
+
+<div class="m-stage">
+
+  <div class="phone">
+    <div class="m-statusbar">
+      <span>9:41</span>
+      <span class="ms-r"><i class="fa-solid fa-signal"></i><i class="fa-solid fa-wifi"></i><i class="fa-solid fa-battery-full"></i></span>
+    </div>
+
+    <div class="m-nav">
+      <a class="mn-back" href="m-assistant.html"><i class="fa-solid fa-angle-left"></i></a>
+      <span class="mn-t">智能导办</span>
+    </div>
+
+    <div class="m-body">
+      <!-- 情形选择 -->
+      <div class="m-card">
+        <div class="m-card-h"><span class="mc-t">您要办什么</span></div>
+        <div class="m-grid" id="kinds"></div>
+      </div>
+
+      <!-- 导办结果 -->
+      <div id="result"></div>
+    </div>
+
+    <div class="m-tabbar">
+      <a href="m-assistant.html"><i class="fa-solid fa-house"></i><span>首页</span></a>
+      <a href="m-chat.html"><i class="fa-solid fa-comments"></i><span>问助手</span></a>
+      <a class="active" href="m-guide.html"><i class="fa-solid fa-signs-post"></i><span>导办</span></a>
+      <a href="m-assistant.html"><i class="fa-solid fa-user"></i><span>我的</span></a>
+    </div>
+  </div>
+
+  <div class="m-note">
+    <h3>移动端智能导办 · 功能点 20</h3>
+    <p style="color:var(--m-text2)">与 PC 端 <code>guide-bot.html</code> 调用<b>同一个动作</b> <code>AI.act.guide()</code>。
+      材料清单一律取自事项材料关联表，AI 不自行增删。</p>
+
+    <h4>页面结构</h4>
+    <ul>
+      <li>情形选择：4 类高频业务</li>
+      <li>推荐事项卡：承诺时限、材料件数、办理渠道</li>
+      <li>材料清单：逐项列出，标注原件与复印件</li>
+      <li>办理路径：四步流程</li>
+      <li>底部操作：一键预约 / 去问助手</li>
+    </ul>
+
+    <h4>硬约束体现</h4>
+    <ul>
+      <li>答复带模型版本与置信度</li>
+      <li>引用的办事指南必须是<b>已生效</b>状态</li>
+      <li>找不到已生效指南时<b>拒绝推荐并转人工</b></li>
+      <li>推荐结论进留痕台账等待人工确认</li>
+    </ul>
+
+    <a class="m-back" href="../admin/knowledge-audit.html?role=pt">
+      <i class="fa-solid fa-clipboard-check"></i> 去看知识库审核
+    </a>
+  </div>
+
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var ICON = { '新房': ['fa-building', ''], '二手房': ['fa-house-chimney', 'green'],
+               '租赁': ['fa-key', 'ai'], '抵押': ['fa-building-columns', 'orange'] };
+  var last = null;
+
+  function paintKinds() {
+    document.getElementById('kinds').innerHTML = AI.act.guideRules().map(function (r) {
+      var m = ICON[r.key] || ['fa-file-lines', ''];
+      return '<a onclick="go(\'' + r.key + '\')">' +
+        '<span class="mg-i ' + m[1] + '"><i class="fa-solid ' + m[0] + '"></i></span>' +
+        '<span class="mg-l">' + AI.esc(r.key) + '</span></a>';
+    }).join('');
+  }
+
+  window.go = function (kind) {
+    var r = AI.act.guide(kind, '2');   /* 渠道 2 = 移动端 H5 */
+    if (!r) return;
+    last = r;
+    paint();
+  };
+
+  function paint() {
+    if (!last) { document.getElementById('result').innerHTML = ''; return; }
+    var o = AI.byId('outputs', last.output.id) || last.output;
+    var r = last.rule;
+    if (o.blocked) {
+      document.getElementById('result').innerHTML =
+        '<div class="m-card"><div class="m-notice" style="margin:0">' +
+          '<i class="fa-solid fa-shield-halved"></i>' +
+          '<span>未找到该事项的已生效办事指南，为避免给出错误信息，已转人工为您解答。</span></div>' +
+          '<a class="m-btn ghost" href="m-chat.html" style="margin-top:12px">' +
+            '<i class="fa-solid fa-headset"></i> 去问人工客服</a>' +
+        '</div>';
+      return;
+    }
+    document.getElementById('result').innerHTML =
+      '<div class="m-card">' +
+        '<div class="m-card-h"><span class="mc-t">推荐事项</span>' +
+          '<span class="m-tag orange" style="margin-left:auto">需人工确认</span></div>' +
+        '<div style="font-size:16px;font-weight:700;margin-bottom:8px">' + AI.esc(r.sxmc) + '</div>' +
+        '<div class="m-list">' +
+          '<div class="mi"><div class="mi-x"><div class="mi-t">承诺时限</div></div>' +
+            '<span class="m-tag green">' + r.days + ' 个工作日</span></div>' +
+          '<div class="mi"><div class="mi-x"><div class="mi-t">材料件数</div></div>' +
+            '<span class="m-tag">' + r.mats.length + ' 项</span></div>' +
+          '<div class="mi"><div class="mi-x"><div class="mi-t">办理渠道</div></div>' +
+            '<span class="mi-a">窗口 / 网办 / 自助</span></div>' +
+        '</div>' +
+        '<div class="mt-src" style="font-size:11px;color:var(--m-text3);margin-top:10px">' +
+          '<i class="fa-solid fa-microchip"></i> ' + AI.esc(o.mxmc) + ' ' + AI.esc(o.ver) +
+          ' · 置信度 ' + o.conf + '%</div>' +
+      '</div>' +
+      '<div class="m-card">' +
+        '<div class="m-card-h"><span class="mc-t">需要带的材料</span></div>' +
+        '<div class="m-list">' +
+          r.mats.map(function (m, i) {
+            return '<div class="mi"><div class="mi-x">' +
+              '<div class="mi-t">' + (i + 1) + '. ' + AI.esc(m) + '</div>' +
+              '<div class="mi-s">原件 + 复印件各一份</div></div>' +
+              '<span class="m-tag gray">必需</span></div>';
+          }).join('') +
+        '</div>' +
+      '</div>' +
+      '<div class="m-card">' +
+        '<div class="m-card-h"><span class="mc-t">办理流程</span></div>' +
+        '<div class="m-list">' +
+          ['取号或网上申报', '窗口收件与材料核验', '业务审核', '出件与备案证明'].map(function (s, i) {
+            return '<div class="mi"><div class="mi-x"><div class="mi-t">第 ' + (i + 1) + ' 步　' + s + '</div></div>' +
+              '<span class="mi-a"><i class="fa-solid fa-angle-right"></i></span></div>';
+          }).join('') +
+        '</div>' +
+      '</div>' +
+      '<div class="m-card" style="margin-bottom:14px">' +
+        '<a class="m-btn" onclick="book()"><i class="fa-solid fa-calendar-check"></i> 一键预约办理</a>' +
+        '<a class="m-btn ghost" href="m-chat.html" style="margin-top:10px">' +
+          '<i class="fa-solid fa-comments"></i> 还有疑问，问助手</a>' +
+      '</div>';
+  }
+
+  window.book = function () {
+    var o = last ? AI.byId('outputs', last.output.id) : null;
+    if (o && o.qrzt === '0') {
+      AI.toast('导办结论尚未人工确认，暂不能直接预约，请先咨询窗口', 'error');
+      return;
+    }
+    AI.pushTo('统一工作门户 · 预约取号', last.rule.sxmc + ' 预约申请', null);
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    paintKinds();
+    AI.on(function () { paint(); });
+    var pre = AI.param('kind');
+    if (pre) go(pre);
+  });
+})();
+</script>
+</body>
+</html>

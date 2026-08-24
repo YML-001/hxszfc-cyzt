@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的工作台 · 统一工作门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="biz" data-active="workbench">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb"><i class="fa-solid fa-house bc-home"></i> <span class="cur">我的工作台</span></div>
+      <div class="page-title">我的工作台</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="openLayoutEdit()"><i class="fa-solid fa-table-cells-large"></i> 布局设置</button>
+      <a class="btn btn-primary" href="intake.html?role=biz"><i class="fa-solid fa-plus"></i> 新建收件</a>
+    </div>
+  </div>
+
+  <!-- 问候横幅 + KPI + 待办清单 + 常用入口，由 APP_CONFIG.home.biz 渲染，数字由 flow 回填 -->
+  <div id="home-root"></div>
+
+  <!-- 功能点 4：快捷检索定位 -->
+  <div class="card mt-16" id="cardSearch">
+    <div class="card-head">
+      <h3>快捷检索定位</h3>
+      <span class="sub">一处输入，直达办理页面</span>
+      <div class="head-actions"><span class="node-tag"><i class="fa-solid fa-user-shield"></i>全部岗位</span></div>
+    </div>
+    <div class="card-body">
+      <div class="flex items-center gap-12" style="flex-wrap:wrap">
+        <input type="text" id="qsKw" placeholder="输入收件编号 / 合同号 / 房屋编码 / 申请人姓名" style="width:420px"
+               onkeydown="if(event.key==='Enter'){quickGo();}">
+        <button class="btn btn-primary" onclick="quickGo()"><i class="fa-solid fa-magnifying-glass"></i> 检索并定位</button>
+        <span class="text-3 text-sm">示例：<span class="link" onclick="fillKw(this)" id="egSjbh">—</span>　<span class="link" onclick="fillKw(this)" id="egSqr">—</span>　<span class="link" onclick="fillKw(this)" id="egFwbm">—</span></span>
+      </div>
+      <div class="alert alert-info mt-16">
+        <i class="fa-solid fa-circle-info"></i>
+        <span>检索在全平台唯一的办件主表中进行，命中后直接打开该办件的详情与全过程追溯；四个维度的组合查询请用「综合查询 / 跨业务查询」。</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2 mt-16">
+    <!-- 功能点 2：材料在线预览 -->
+    <div class="card" id="cardMaterial">
+      <div class="card-head">
+        <h3>近期办件材料</h3>
+        <span class="sub">在工作台内直接预览影像</span>
+        <div class="head-actions"><span class="node-tag"><i class="fa-solid fa-user-shield"></i>业务审核员</span></div>
+      </div>
+      <div class="card-body" style="padding-top:6px">
+        <div class="home-todo" id="matList"></div>
+      </div>
+    </div>
+
+    <!-- 消息集中提醒的工作台入口 -->
+    <div class="card" id="cardMsg">
+      <div class="card-head">
+        <h3>消息提醒</h3>
+        <a class="home-more" href="news.html?role=biz">查看全部 <i class="fa-solid fa-angle-right"></i></a>
+      </div>
+      <div class="card-body" style="padding-top:6px">
+        <div class="home-todo" id="msgList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 收藏的政策：由业务指引页收藏后出现在这里 -->
+  <div class="card mt-16" id="cardFav">
+    <div class="card-head">
+      <h3>我收藏的政策口径</h3>
+      <a class="home-more" href="guide.html?role=biz">去业务指引收藏 <i class="fa-solid fa-angle-right"></i></a>
+    </div>
+    <div class="card-body" style="padding-top:6px">
+      <div class="home-todo" id="favList"></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- 功能点 1：编辑常用功能入口 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="quickDrawer">
+  <div class="drawer-head"><h3>编辑常用功能入口</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-info"><i class="fa-solid fa-circle-info"></i><span>勾选需要固定在工作台的入口，最多 9 个；保存后立即生效并随账号保留。</span></div>
+    <div class="section-title">可选入口</div>
+    <div id="quickPick" class="grid-3"></div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="saveQuick()"><i class="fa-solid fa-check"></i> 保存</button>
+  </div>
+</div>
+
+<!-- 功能点 3：工作台布局设置 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="layoutDrawer">
+  <div class="drawer-head"><h3>工作台布局设置</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-info"><i class="fa-solid fa-circle-info"></i><span>按岗位自定义工作台卡片的显示与隐藏，配置结果随账号保存（对应 WP_GZTBJPZXX 工作台布局配置表）。</span></div>
+    <div class="section-title">卡片显隐</div>
+    <div class="form-grid" id="layoutPick"></div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="saveLayout()"><i class="fa-solid fa-check"></i> 保存布局</button>
+  </div>
+</div>
+
+<!-- 功能点 2：材料在线预览抽屉 -->
+<div class="drawer-mask"></div>
+<div class="drawer drawer-lg" id="previewDrawer">
+  <div class="drawer-head">
+    <h3>材料影像预览</h3>
+    <span class="badge blue" id="pvName">—</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div>
+  </div>
+  <div class="drawer-body">
+    <div class="flex items-center gap-12 mb-16" style="flex-wrap:wrap">
+      <button class="btn btn-sm" onclick="pvPage(-1)"><i class="fa-solid fa-angle-left"></i> 上一页</button>
+      <span class="text-2" id="pvPager">第 1 / 1 页</span>
+      <button class="btn btn-sm" onclick="pvPage(1)">下一页 <i class="fa-solid fa-angle-right"></i></button>
+      <span style="width:1px;height:20px;background:var(--border)"></span>
+      <button class="btn btn-sm" onclick="pvZoom(0.2)"><i class="fa-solid fa-magnifying-glass-plus"></i> 放大</button>
+      <button class="btn btn-sm" onclick="pvZoom(-0.2)"><i class="fa-solid fa-magnifying-glass-minus"></i> 缩小</button>
+      <button class="btn btn-sm" onclick="pvRotate()"><i class="fa-solid fa-rotate"></i> 旋转</button>
+      <span class="text-3 text-sm" id="pvInfo">100% · 0°</span>
+    </div>
+    <div style="background:var(--bg-soft);border:1px solid var(--border);border-radius:8px;padding:24px;display:flex;align-items:center;justify-content:center;min-height:360px;overflow:auto">
+      <div id="pvSheet" style="width:420px;min-height:300px;background:var(--bg-card);border:1px solid var(--border-strong);
+           box-shadow:var(--shadow-sm);padding:28px;transition:transform .2s;transform-origin:center">
+        <div style="text-align:center">
+          <i class="fa-regular fa-file-lines" style="font-size:38px;color:var(--primary);opacity:.65"></i>
+          <div class="fw-700 mt-8" id="pvTitle" style="margin-top:10px">—</div>
+          <div class="text-3 text-sm" id="pvSub">—</div>
+        </div>
+        <dl class="desc-list mt-16">
+          <div class="desc-item"><dt>提交方式</dt><dd id="pvTjfs">—</dd></div>
+          <div class="desc-item"><dt>形式要件</dt><dd id="pvOk">—</dd></div>
+        </dl>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn btn-primary" onclick="pvRead()"><i class="fa-solid fa-check"></i> 标记阅毕</button>
+  </div>
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/flow-data.js"></script>
+<script src="../assets/js/flow.js"></script>
+<script>
+(function () {
+  /* 可选常用入口：key 与菜单一致 */
+  var ENTRIES = [
+    ['intake', '统一收件', 'fa-inbox', 'blue', 'intake.html'],
+    ['my-approval', '待我审批', 'fa-clipboard-check', 'green', 'my-approval.html'],
+    ['task-center', '待办中心', 'fa-list-check', 'blue', 'task-center.html'],
+    ['material-check', '材料核验', 'fa-file-circle-check', 'cyan', 'material-check.html'],
+    ['material-correct', '材料补正', 'fa-file-pen', 'orange', 'material-correct.html'],
+    ['intake-register', '收件登记', 'fa-stamp', 'purple', 'intake-register.html'],
+    ['cross-query', '跨业务查询', 'fa-magnifying-glass', 'cyan', 'cross-query.html'],
+    ['case-ledger', '办件台账', 'fa-chart-column', 'blue', 'case-ledger.html'],
+    ['appointment', '预约取号', 'fa-calendar-check', 'green', 'appointment.html'],
+    ['item-catalog', '事项目录', 'fa-book', 'purple', 'item-catalog.html'],
+    ['service-review', '服务评价', 'fa-face-smile', 'orange', 'service-review.html'],
+    ['identity-verify', '身份核验', 'fa-id-card', 'red', 'identity-verify.html']
+  ];
+  var CARDS = [
+    ['todo', '待我审批与常用入口'], ['kpi', '快捷检索定位'],
+    ['chart', '近期办件材料'], ['msg', '消息提醒']
+  ];
+  function entry(k) {
+    for (var i = 0; i < ENTRIES.length; i++) if (ENTRIES[i][0] === k) return ENTRIES[i];
+    return null;
+  }
+
+  /* ---- 渲染 ---- */
+  function render() {
+    var q = '?role=' + FLOW.role();
+
+    /* 横幅数字与 KPI 回填真实统计 */
+    /* 工作台是个人视角，四个数字统一按本人经办口径取数 */
+    var hs = document.querySelectorAll('#home-root .hero-r .hs-v');
+    if (hs.length >= 3) {
+      hs[0].textContent = FLOW.stat('myTodo');
+      hs[1].textContent = FLOW.stat('myDoing');
+      hs[2].textContent = FLOW.stat('myWarn');
+    }
+    var sv = document.querySelectorAll('#home-root .stat-card .s-value');
+    if (sv.length >= 4) {
+      sv[0].textContent = FLOW.stat('myDoing');
+      sv[1].textContent = FLOW.stat('myMonthDone');
+      sv[2].textContent = FLOW.stat('myWarn');
+      sv[3].textContent = FLOW.stat('myOnTimeRate');
+    }
+
+    /* 待我审批清单 */
+    var todoBox = document.getElementById('wbTodo');
+    if (todoBox) {
+      var ts = FLOW.myTasks().slice(0, 6);
+      todoBox.innerHTML = ts.length ? ts.map(function (t) {
+        var c = FLOW.caseOf(t);
+        var r = FLOW.remain(c);
+        return '<a class="todo-row" href="approval-handle.html' + q + '&id=' + t.id + '">' +
+          FLOW.badge(FLOW.dict('rwlx', t.rwlx), t.rwzt === '0' ? 'cyan' : 'orange') +
+          '<span class="todo-text">' + FLOW.esc(t.sxmc) + '　' + FLOW.esc(t.sjbh) + '</span>' +
+          '<span class="todo-time' + (r.level === 'red' || r.level === 'orange' ? ' is-warn' : '') + '">' + r.text + '</span></a>';
+      }).join('') : '<div class="empty"><i class="fa-regular fa-face-smile"></i><div>暂无待办，辛苦了</div></div>';
+    }
+
+    /* 常用功能入口 */
+    var quickBox = document.getElementById('wbQuick');
+    if (quickBox) {
+      var keys = FLOW.db().prefs.quick || [];
+      quickBox.innerHTML = keys.map(function (k) {
+        var e = entry(k);
+        if (!e) return '';
+        return '<a class="quick-item" href="' + e[4] + q + '">' +
+          '<span class="q-ico ' + e[3] + '"><i class="fa-solid ' + e[2] + '"></i></span>' +
+          '<span class="q-label">' + e[1] + '</span></a>';
+      }).join('');
+    }
+
+    /* 检索示例 */
+    var cs = FLOW.get('cases');
+    if (cs.length) {
+      document.getElementById('egSjbh').textContent = cs[3].sjbh;
+      document.getElementById('egSqr').textContent = cs[5].sqr;
+      document.getElementById('egFwbm').textContent = cs[1].fwbm;
+    }
+
+    /* 近期办件材料 */
+    var recent = FLOW.get('cases').slice().sort(function (a, b) { return b.sjsj - a.sjsj; }).slice(0, 4);
+    var rows = [];
+    recent.forEach(function (c) {
+      FLOW.where('materials', function (m) { return m.bjzj === c.id; }).slice(0, 2).forEach(function (m) {
+        rows.push({ c: c, m: m });
+      });
+    });
+    document.getElementById('matList').innerHTML = rows.length ? rows.slice(0, 6).map(function (x) {
+      return '<a class="todo-row" href="javascript:void(0)" onclick="openPreview(\'' + x.m.id + '\')">' +
+        FLOW.badge(FLOW.dict('tjfs', x.m.tjfs).replace('免提交-', ''), x.m.tjfs === '0' ? 'gray' : 'green') +
+        '<span class="todo-text">' + FLOW.esc(x.m.clmc) + '　' + FLOW.esc(x.c.sjbh) + '</span>' +
+        '<span class="todo-time">' + (x.m.previewed ? '已阅' : x.m.pages + ' 页') + '</span></a>';
+    }).join('') : '<div class="empty"><i class="fa-regular fa-folder-open"></i><div>暂无材料</div></div>';
+
+    /* 消息提醒 */
+    var ms = FLOW.get('msgs').slice(0, 6);
+    document.getElementById('msgList').innerHTML = ms.length ? ms.map(function (m) {
+      return '<a class="todo-row" href="news.html' + q + '&focus=' + m.id + '" onclick="FLOW.act.readMsg(\'' + m.id + '\')">' +
+        FLOW.badge(FLOW.dict('xxlx', m.xxlx), m.read ? 'gray' : 'red') +
+        '<span class="todo-text">' + FLOW.esc(m.content) + '</span>' +
+        '<span class="todo-time">' + FLOW.fmt.time(m.createdAt).slice(5) + '</span></a>';
+    }).join('') : '<div class="empty"><i class="fa-regular fa-bell"></i><div>暂无消息</div></div>';
+
+    /* 收藏的政策 */
+    var fav = FLOW.where('policies', function (p) { return p.fav; });
+    document.getElementById('favList').innerHTML = fav.length ? fav.map(function (p) {
+      return '<a class="todo-row" href="guide.html' + q + '&focus=' + p.id + '">' +
+        FLOW.badge(p.cat, 'blue') +
+        '<span class="todo-text">' + FLOW.esc(p.wh) + '　' + FLOW.esc(p.title) + '</span>' +
+        '<span class="todo-time">' + FLOW.esc(FLOW.dict('bllj', p.bllj)) + '</span></a>';
+    }).join('') : '<div class="empty"><i class="fa-regular fa-star"></i><div>还没有收藏，去「业务指引 / 政策制度速查」收藏常用口径</div></div>';
+
+    /* 卡片显隐 */
+    var cfg = FLOW.db().prefs.cards || {};
+    var map = { todo: null, kpi: 'cardSearch', chart: 'cardMaterial', msg: 'cardMsg' };
+    Object.keys(map).forEach(function (k) {
+      if (!map[k]) return;
+      var el = document.getElementById(map[k]);
+      if (el) el.style.display = (cfg[k] === 0) ? 'none' : '';
+    });
+    var g2 = document.querySelector('#home-root .grid-2');
+    if (g2) g2.style.display = (cfg.todo === 0) ? 'none' : '';
+  }
+
+  /* ---- 功能点 4 快捷检索 ---- */
+  window.quickGo = function () { FLOW.act.quickSearch(document.getElementById('qsKw').value); };
+  window.fillKw = function (el) { document.getElementById('qsKw').value = el.textContent; };
+
+  /* ---- 功能点 1 常用入口 ---- */
+  window.saveQuick = function () {
+    var keys = FLOW.checked('quickPick');
+    if (!keys.length) { PMS.toast('至少保留一个常用入口', 'error'); return; }
+    if (keys.length > 9) { PMS.toast('最多只能固定 9 个入口', 'error'); return; }
+    FLOW.act.saveQuick(keys);
+    PMS.closeDrawer('quickDrawer');
+  };
+  function buildQuickPick() {
+    var cur = FLOW.db().prefs.quick || [];
+    document.getElementById('quickPick').innerHTML = ENTRIES.map(function (e) {
+      var on = cur.indexOf(e[0]) >= 0;
+      return '<label class="quick-item" style="cursor:pointer">' +
+        '<input type="checkbox" data-pick="' + e[0] + '"' + (on ? ' checked' : '') + '>' +
+        '<span class="q-ico ' + e[3] + '"><i class="fa-solid ' + e[2] + '"></i></span>' +
+        '<span class="q-label">' + e[1] + '</span></label>';
+    }).join('');
+  }
+
+  /* ---- 功能点 3 布局设置 ---- */
+  window.saveLayout = function () {
+    var cfg = {};
+    CARDS.forEach(function (c) {
+      var box = document.querySelector('#layoutPick input[data-card="' + c[0] + '"]');
+      cfg[c[0]] = (box && box.checked) ? 1 : 0;
+    });
+    FLOW.act.saveLayout(cfg);
+    PMS.closeDrawer('layoutDrawer');
+  };
+  function buildLayoutPick() {
+    var cfg = FLOW.db().prefs.cards || {};
+    document.getElementById('layoutPick').innerHTML = CARDS.map(function (c) {
+      return '<div class="form-item"><label>' + c[1] + '</label>' +
+        '<label class="flex items-center gap-8" style="font-weight:400">' +
+        '<input type="checkbox" data-card="' + c[0] + '"' + (cfg[c[0]] === 0 ? '' : ' checked') + '> 在工作台显示</label></div>';
+    }).join('');
+  }
+
+  /* ---- 功能点 2 材料预览 ---- */
+  var pv = { id: null, page: 1, total: 1, zoom: 1, deg: 0 };
+  window.openPreview = function (mid) {
+    var m = FLOW.byId('materials', mid);
+    if (!m) return;
+    var c = FLOW.byId('cases', m.bjzj);
+    pv = { id: mid, page: 1, total: m.pages, zoom: 1, deg: 0 };
+    document.getElementById('pvName').textContent = m.clmc;
+    document.getElementById('pvTitle').textContent = m.clmc;
+    document.getElementById('pvSub').textContent = (c ? c.sjbh + ' · ' + c.sqr : '') ;
+    document.getElementById('pvTjfs').textContent = FLOW.dict('tjfs', m.tjfs);
+    document.getElementById('pvOk').innerHTML = m.ok
+      ? '<span class="text-success">合格</span>'
+      : '<span class="miss">不合格：' + FLOW.esc(m.bad) + '</span>';
+    syncPv();
+    PMS.openDrawer('previewDrawer');
+  };
+  function syncPv() {
+    document.getElementById('pvPager').textContent = '第 ' + pv.page + ' / ' + pv.total + ' 页';
+    document.getElementById('pvInfo').textContent = Math.round(pv.zoom * 100) + '% · ' + pv.deg + '°';
+    document.getElementById('pvSheet').style.transform = 'scale(' + pv.zoom + ') rotate(' + pv.deg + 'deg)';
+  }
+  window.pvPage = function (d) {
+    var n = pv.page + d;
+    if (n < 1) { PMS.toast('已是第一页', 'error'); return; }
+    if (n > pv.total) { PMS.toast('已是最后一页', 'error'); return; }
+    pv.page = n; syncPv();
+  };
+  window.pvZoom = function (d) {
+    var z = Math.round((pv.zoom + d) * 10) / 10;
+    if (z < 0.6) { PMS.toast('已是最小比例', 'error'); return; }
+    if (z > 2) { PMS.toast('已是最大比例', 'error'); return; }
+    pv.zoom = z; syncPv();
+  };
+  window.pvRotate = function () { pv.deg = (pv.deg + 90) % 360; syncPv(); };
+  window.pvRead = function () {
+    if (!pv.id) return;
+    FLOW.act.markPreviewed(pv.id);
+    PMS.closeDrawer('previewDrawer');
+  };
+
+  /* 打开前重建勾选状态，保证抽屉里显示的是当前配置 */
+  window.openQuickEdit = function () { buildQuickPick(); PMS.openDrawer('quickDrawer'); };
+  window.openLayoutEdit = function () { buildLayoutPick(); PMS.openDrawer('layoutDrawer'); };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    FLOW.on(render);
+    buildQuickPick();
+    buildLayoutPick();
+  });
+})();
+</script>
+</body>
+</html>

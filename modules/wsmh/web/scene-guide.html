@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>办事情形引导 · 统一服务门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  .sg-body { padding: 0 0 40px; }
+  .sg-head {
+    background: linear-gradient(120deg, var(--primary-deep), var(--primary) 70%, #4272d8);
+    color: #fff; padding: 30px 0;
+  }
+  .sg-head h1 { font-size: 28px; letter-spacing: 1px; }
+  .sg-head .sh-d { font-size: 14.5px; opacity: .9; margin-top: 8px; }
+  .sg-pick { display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+  .sg-pick a {
+    padding: 7px 18px; border-radius: 20px; font-size: 14px; color: #fff;
+    background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28);
+  }
+  .sg-pick a:hover { background: rgba(255,255,255,.28); color: #fff; }
+  .sg-pick a.on { background: #fff; color: var(--primary); font-weight: 700; border-color: #fff; }
+  .sg-main { display: grid; grid-template-columns: 1fr 320px; gap: 20px; align-items: start; }
+  .mat-list li {
+    display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px dashed var(--row-line); font-size: 13.5px;
+  }
+  .mat-list li:last-child { border-bottom: 0; }
+  .mat-list .mi-n { width: 22px; flex: none; color: var(--text-3); font-family: "DIN Alternate", var(--font); }
+  .mat-list .mi-t { flex: 1; }
+  .mat-list .mi-t b { font-weight: 500; }
+  .mat-list .mi-d { font-size: 12.5px; color: var(--text-3); margin-top: 2px; }
+</style>
+</head>
+<body data-nav="home">
+
+<div class="sg-head">
+  <div class="wrap">
+    <div class="crumb" style="padding:0 0 10px;color:rgba(255,255,255,.7)">
+      <a href="home.html" style="color:rgba(255,255,255,.75)">首页</a><i class="fa-solid fa-angle-right"></i>办事情形引导
+    </div>
+    <h1 id="sg-title">办事情形引导</h1>
+    <div class="sh-d" id="sg-desc">按群众的办事情形组织入口，一个情形聚合材料清单、办理流程、办理时限与在线办理入口，不用先弄懂事项名称。</div>
+    <div class="sg-pick" id="sg-pick"></div>
+  </div>
+</div>
+
+<div class="wrap sg-body">
+  <div class="section" style="padding:22px 0">
+    <div class="sg-main">
+      <div>
+        <!-- 办理流程（wsmh-04-02） -->
+        <div class="card mb-16">
+          <div class="card-head"><h3><i class="fa-solid fa-route text-primary"></i> 办理流程</h3>
+            <span class="sub" id="flow-sub"></span></div>
+          <div class="card-body"><div class="step-flow" id="sg-flow"></div></div>
+        </div>
+
+        <!-- 涉及事项 -->
+        <div class="card mb-16">
+          <div class="card-head"><h3><i class="fa-solid fa-list-check text-primary"></i> 本情形涉及的办理事项</h3>
+            <span class="sub">逐项显示办理方式、时限与是否全程网办</span></div>
+          <div class="card-body np">
+            <div class="table-wrap" style="border:0;border-radius:0">
+              <table class="pub-table">
+                <thead><tr><th style="width:52px">序号</th><th>事项名称</th><th style="width:130px">承办科室</th>
+                  <th style="width:100px">承诺时限</th><th style="width:88px">材料</th><th style="width:96px">办理方式</th><th style="width:150px">操作</th></tr></thead>
+                <tbody id="sg-items"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 材料清单 -->
+        <div class="card">
+          <div class="card-head"><h3><i class="fa-solid fa-folder-open text-primary"></i> 一套材料清单</h3>
+            <span class="sub">同一情形内多个事项共用材料，只需提交一次</span>
+            <div class="ca"><span class="badge green" id="mat-exempt"></span></div></div>
+          <div class="card-body"><ul class="mat-list" id="sg-mats"></ul></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card mb-16">
+          <div class="card-head"><h3><i class="fa-solid fa-bolt text-accent"></i> 在线办理入口</h3></div>
+          <div class="card-body" id="sg-entry"></div>
+        </div>
+        <div class="card mb-16">
+          <div class="card-head"><h3><i class="fa-solid fa-triangle-exclamation text-warning"></i> 风险提示</h3></div>
+          <div class="card-body" id="sg-risk"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3><i class="fa-solid fa-circle-question text-primary"></i> 相关问答</h3>
+            <div class="ca"><a class="btn btn-sm" href="help.html">更多</a></div></div>
+          <div class="card-body" id="sg-faq"></div>
+        </div>
+      </div>
+    </div>
+    <div id="src-note"></div>
+  </div>
+</div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+/* 七个情形的流程、入口与提示 */
+var SG = {
+  'buy-new': {
+    n: '买新房', d: '从看房选房到拿到备案证明，个人可全程网办。购房款必须缴入项目预售资金监管账户，切勿转入个人账户。',
+    flow: [
+      ['查看核验房源', 'fa-magnifying-glass', '在房源超市新房专区查看核验通过项目，核对预售证与监管账号', '房源超市'],
+      ['在线选房认购', 'fa-hand-pointer', '在一房一价销控表点选可售房号，提交认购登记', '本人办理'],
+      ['签订购房合同', 'fa-file-signature', '与开发企业在线签署商品房买卖合同并完成实名核验', '统一签约平台'],
+      ['网签备案', 'fa-stamp', '合同网签即备案，承诺 3 个工作日内办结', '商品房备案科'],
+      ['缴存购房款', 'fa-building-columns', '按监管账户缴存，到账结果实时反馈', '监管银行'],
+      ['缴存维修资金', 'fa-screwdriver-wrench', '按 66 元/㎡ 标准缴存住宅专项维修资金', '维修资金科'],
+      ['获取备案证明', 'fa-file-shield', '在线获取带二维码的备案证明，可扫码验真', '本人办理']
+    ],
+    entry: [['在线选房与认购登记', 'price-table.html', 'fa-hand-pointer', 1], ['新房专区找房', 'new-house.html', 'fa-building', 0],
+      ['购房进度查询', 'buy-service.html', 'fa-magnifying-glass-chart', 0], ['新房购置一件事', 'one-thing.html?pkg=YJS01', 'fa-layer-group', 1]],
+    items: ['SX0101', 'SX0901', 'SX0102'],
+    risk: ['购房款必须缴入公示的预售资金监管账户，任何要求转入个人账户的都是诈骗。',
+      '签约前务必在楼盘详情核对预售许可证号、可售状态与一房一价备案价格。',
+      '一房一价公示的是备案（拟售）价格，实际成交以合同为准。']
+  },
+  'buy-second': {
+    n: '买卖二手房', d: '买卖双方自助申报、在线签约、签订资金监管协议后提交，无需先到窗口排队。签约前先用核验码验证房源真实性。',
+    flow: [
+      ['验证房源核验码', 'fa-shield-halved', '凭核验码查询房源真实性、挂牌状态与委托机构', '查询中心'],
+      ['自助填报申报', 'fa-keyboard', '买卖双方填报交易信息并上传身份与产权材料', '本人办理'],
+      ['在线签约', 'fa-file-signature', '发起存量房买卖合同在线签约，电子签章存证', '统一签约平台'],
+      ['签订资金监管协议', 'fa-shield-halved', '买卖双方与监管银行在线签订三方协议', '监管银行'],
+      ['网签即备案', 'fa-stamp', '承诺 2 个工作日内办结备案', '存量房备案科'],
+      ['纳税与过户', 'fa-receipt', '纳税申报、税款缴纳与不动产过户登记跨部门联办', '税务 / 不动产登记'],
+      ['资金解付', 'fa-money-bill-transfer', '过户完成后监管资金解付给卖方', '监管银行']
+    ],
+    entry: [['二手房自助办理', 'second-hand-apply.html', 'fa-keyboard', 1], ['房源核验码验真', 'query-verify.html', 'fa-shield-halved', 0],
+      ['办理进度查询', 'second-hand-progress.html', 'fa-magnifying-glass-chart', 0], ['二手房交易一件事', 'one-thing.html?pkg=YJS02', 'fa-layer-group', 1]],
+    items: ['SX0201', 'SX0202', 'SX0203'],
+    risk: ['警惕「阴阳合同」与私下交易，交易资金务必走监管账户，不要直接转给对方个人。',
+      '房源核验码有有效期，逾期未续期的房源会自动下架，签约前请重新核验。',
+      '涉经纪代理、按揭贷款与带押过户的，需到窗口或经纪机构完成身份核验与确认签署。']
+  },
+  'rent': {
+    n: '租房', d: '找房只看核验通过的租赁房源，签约用统一示范文本，备案后可获取租赁备案证明用于落户、入学与公积金提取。',
+    flow: [
+      ['查看核验租赁房源', 'fa-magnifying-glass', '在租房专区查看核验房源，对照区域租金参考价', '房源超市'],
+      ['核验房源与出租人', 'fa-user-shield', '查询权属核验结论与委托租赁企业信息', '查询中心'],
+      ['在线签约', 'fa-file-signature', '采用统一示范文本，双方完成实名核验后签署', '统一签约平台'],
+      ['提交备案申请', 'fa-stamp', '签约后在线提交备案申请与材料，承诺 3 个工作日', '租赁管理科'],
+      ['获取备案证明', 'fa-file-shield', '在线获取电子证明，可用于落户、入学、公积金提取', '本人办理']
+    ],
+    entry: [['租房签约备案', 'rent-sign.html', 'fa-file-signature', 1], ['租房专区找房', 'rent-house.html', 'fa-key', 0],
+      ['保障性租赁住房专栏', 'rent-public.html', 'fa-hand-holding-heart', 0], ['房屋租赁一件事', 'one-thing.html?pkg=YJS03', 'fa-layer-group', 1]],
+    items: ['SX0301', 'SX0303', 'SX0304'],
+    risk: ['签约前务必核验房源核验码与出租人身份，未核验房源不得对外发布。',
+      '警惕群租与克扣押金，遇到问题可在租房公共服务提交投诉举报。',
+      '租金参考价供议价参考，明显偏离参考价的房源平台会作出提示。']
+  },
+  'sell': {
+    n: '卖房出租', d: '个人经实名认证与房屋权属核验后可自主发布出售或出租房源，核验通过后生成核验码对外展示；也可委托在册经纪机构代理。',
+    flow: [
+      ['实名认证', 'fa-user-check', '完成个人实名认证，认证等级决定可办范围', '本人办理'],
+      ['填报房源信息', 'fa-keyboard', '填写房屋信息、价格与看房方式并上传权属材料', '本人办理'],
+      ['权属核验', 'fa-shield-halved', '平台核验房屋权属与挂牌资格', '存量房备案科'],
+      ['生成核验码上架', 'fa-barcode', '核验通过后生成核验码，房源对外展示', '系统自动'],
+      ['委托或自主带看', 'fa-handshake', '可委托在册经纪机构签订经纪服务合同，或自行接受预约看房', '本人 / 经纪机构'],
+      ['核验到期续期', 'fa-clock-rotate-left', '核验码有效期 90 天，到期前提醒续期，逾期自动下架', '本人办理']
+    ],
+    entry: [['个人自主挂牌', 'listing-publish.html', 'fa-house-circle-check', 1], ['求购求租登记', 'listing-publish.html?tab=lp-demand', 'fa-bullhorn', 1],
+      ['委托经纪机构', 'listing-publish.html?tab=lp-entrust', 'fa-handshake', 1], ['我的房源与挂牌', '../person/my-listing.html', 'fa-list', 1]],
+    items: ['SX0201', 'SX0301'],
+    risk: ['自主挂牌需本人实名并通过权属核验，虚假房源将被下架并记入信用记录。',
+      '委托经纪机构须签订经纪服务合同并明示佣金标准，平台不介入佣金结算。',
+      '平台不做自动撮合推荐，不设付费排序与广告位。']
+  },
+  'loan': {
+    n: '办贷款', d: '房屋抵押合同备案、在建工程抵押与抵押注销备案均可网办。带押过户可走「带押过户一件事」，无需提前还贷。',
+    flow: [
+      ['选择贷款方式', 'fa-calculator', '用房贷计算器与公积金额度测算比较商贷、公积金与组合贷', '本人办理'],
+      ['银行受理与审批', 'fa-building-columns', '向贷款银行提交材料，银行完成审批', '贷款银行'],
+      ['抵押合同备案', 'fa-file-contract', '在线提交房屋抵押合同备案，承诺 2 个工作日', '抵押备案科'],
+      ['放款与入账', 'fa-money-bill-transfer', '银行放款，入账情况可在我的贷款查看', '贷款银行'],
+      ['还清后注销备案', 'fa-circle-check', '贷款还清后提交抵押注销备案', '抵押备案科']
+    ],
+    entry: [['房贷计算器', 'tool-loan.html', 'fa-calculator', 0], ['公积金额度测算', 'tool-fund.html', 'fa-piggy-bank', 0],
+      ['抵押备案办理', 'service-hall.html?theme=mortgage', 'fa-file-contract', 1], ['带押过户一件事', 'one-thing.html?pkg=YJS04', 'fa-layer-group', 1]],
+    items: ['SX0401', 'SX0402'],
+    risk: ['计算器结果仅供参考，实际月供与额度以贷款银行核定为准。',
+      '抵押备案前请确认房屋无查封、异议登记等限制交易情形。',
+      '在建工程抵押涉及的项目与楼栋在信息公示栏目可查，购房前请核对。']
+  },
+  'cert': {
+    n: '办证明', d: '本人房产查询与证明出证全程网办，出具的证明带二维码与验真码，第三方扫码即可核验真伪。查他人房产必须取得权利人在线授权。',
+    flow: [
+      ['选择查询类型', 'fa-list-check', '房产信息、网签备案、抵押租赁、办件进度等', '查询中心'],
+      ['二次身份核验', 'fa-shield-halved', '查看敏感字段需二次身份核验，全程留痕', '本人办理'],
+      ['查询结果', 'fa-file-lines', '结果按脱敏口径展示，敏感字段默认遮蔽', '系统自动'],
+      ['打印出证', 'fa-print', '生成带二维码与验真码的证明或查询结果单', '本人办理'],
+      ['第三方验真', 'fa-qrcode', '第三方扫码或输入验真码核验真伪与有效期', '任何人可验']
+    ],
+    entry: [['个人房产信息查询', 'query-house.html', 'fa-house-circle-check', 1], ['证明打印出证', 'cert-print.html', 'fa-print', 1],
+      ['扫码验真与电子亮证', 'query-verify.html', 'fa-qrcode', 0], ['查询授权管理', 'query-auth.html', 'fa-user-lock', 1]],
+    items: ['SX0701'],
+    risk: ['非本人查询必须取得权利人在线授权，授权范围、期限与撤回情况全程可查。',
+      '对外查询结果敏感字段默认遮蔽，查看需二次身份核验。',
+      '收到的证明可在扫码验真核验真伪，编造的验真码会返回「未查询到该证明」。']
+  },
+  'progress': {
+    n: '查进度', d: '备案、资金监管、纳税过户三类进度统一查询。登录后在个人中心可看完整进度时间轴、补正要求与办结出件情况。',
+    flow: [
+      ['输入办件编号', 'fa-keyboard', '凭办件编号或身份信息查询，无需登录', '查询中心'],
+      ['查看备案进度', 'fa-stamp', '网签、受理、审核、办结进度与退件原因', '系统自动'],
+      ['查看资金监管', 'fa-shield-halved', '资金存入、贷款到账、过户解付节点', '监管银行'],
+      ['查看纳税过户', 'fa-receipt', '纳税申报、税款缴纳与不动产过户登记', '税务 / 不动产登记'],
+      ['办结获取结果', 'fa-file-shield', '办结后在线获取备案证明，可下载与验真', '本人办理']
+    ],
+    entry: [['办件进度查询', 'query-center.html', 'fa-magnifying-glass-chart', 0], ['二手房进度查询', 'second-hand-progress.html', 'fa-house', 0],
+      ['我的办件', '../person/my-case.html', 'fa-list-check', 1], ['购房进度查询', 'buy-service.html', 'fa-building', 0]],
+    items: ['SX0201', 'SX0101'],
+    risk: ['需要补正的办件会同步告知补正内容，请在告知期限内一次性补齐。',
+      '办件超过承诺时限未办结的，可通过咨询投诉渠道催办。',
+      '进度信息以业务系统实时数据为准，与广西政务服务网同源。']
+  }
+};
+
+function pageInit() {
+  var key = UI.param('scene') || 'buy-new';
+  if (!SG[key]) key = 'buy-new';
+
+  document.getElementById('sg-pick').innerHTML = PDATA.SCENES.map(function (s) {
+    return '<a class="' + (s.k === key ? 'on' : '') + '" href="scene-guide.html?scene=' + s.k + '">'
+      + '<i class="fa-solid ' + s.ico + '"></i> ' + s.n + '</a>';
+  }).join('');
+
+  var g = SG[key];
+  document.getElementById('sg-title').textContent = '我要' + g.n;
+  document.getElementById('sg-desc').textContent = g.d;
+  document.getElementById('flow-sub').textContent = '共 ' + g.flow.length + ' 个步骤，逐步骤标注办理部门与线上线下方式';
+
+  /* 流程图解（wsmh-04-02） */
+  document.getElementById('sg-flow').innerHTML = g.flow.map(function (f, i) {
+    return '<div class="sf-i"><div class="sf-n"><i class="fa-solid ' + f[1] + '"></i></div>'
+      + '<div class="sf-t">' + (i + 1) + '. ' + f[0] + '</div>'
+      + '<div class="sf-d">' + f[2] + '</div>'
+      + '<div class="sf-tag"><span class="badge ' + (f[3] === '本人办理' ? 'green' : f[3] === '系统自动' ? 'cyan' : 'blue') + '">' + f[3] + '</span></div></div>';
+  }).join('');
+
+  /* 涉及事项 */
+  document.getElementById('sg-items').innerHTML = g.items.map(function (code, i) {
+    var it = PORTAL.item(code); if (!it) return '';
+    return '<tr><td class="num">' + (i + 1) + '</td>'
+      + '<td class="strong"><a href="item-detail.html?code=' + it.code + '">' + it.name + '</a></td>'
+      + '<td>' + it.dept + '</td>'
+      + '<td>法定 ' + it.fdrq + ' 日 / 承诺 <b class="text-accent">' + it.nsrq + '</b> 日</td>'
+      + '<td class="num">' + it.clnum + ' 份</td>'
+      + '<td>' + (it.wb ? '<span class="badge green">全程网办</span>' : '<span class="badge orange">需到窗口</span>') + '</td>'
+      + '<td class="acts"><a href="item-detail.html?code=' + it.code + '">办事指南</a>'
+      + '<a href="javascript:;" data-apply="' + it.code + '" data-fp="wsmh-02-02">在线办理</a></td></tr>';
+  }).join('');
+
+  /* 一套材料清单（去重，标注可免提交） */
+  var mats = [], seen = {}, exempt = 0;
+  g.items.forEach(function (code) {
+    var it = PORTAL.item(code); if (!it) return;
+    it.cl.forEach(function (m) {
+      if (seen[m.mc]) return; seen[m.mc] = 1; mats.push(m); if (m.mian) exempt++;
+    });
+  });
+  document.getElementById('mat-exempt').textContent = exempt + ' 份可电子证照免提交';
+  document.getElementById('sg-mats').innerHTML = mats.map(function (m, i) {
+    return '<li><span class="mi-n">' + (i + 1) + '</span>'
+      + '<span class="mi-t"><b>' + m.mc + '</b>'
+      + (m.bt ? ' <span class="badge red">必需</span>' : ' <span class="badge gray">条件必需</span>')
+      + (m.mian ? ' <span class="badge green">电子证照免提交</span>' : (m.fy ? ' <span class="badge cyan">材料库可复用</span>' : ''))
+      + '<span class="mi-d">' + m.lx + '　原件或加盖公章的复印件，支持 PDF / JPG</span></span></li>';
+  }).join('');
+
+  /* 在线办理入口 */
+  document.getElementById('sg-entry').innerHTML = g.entry.map(function (e) {
+    return '<a class="btn btn-block ' + (e === g.entry[0] ? 'btn-accent' : '') + ' mb-8" '
+      + 'href="' + e[1] + '" data-need="' + (e[3] ? 1 : 0) + '" data-name="' + e[0] + '">'
+      + '<i class="fa-solid ' + e[2] + '"></i> ' + e[0] + '</a>';
+  }).join('')
+    + '<div class="text-3 text-xs mt-12"><i class="fa-solid fa-circle-info"></i> 带锁标的入口需登录并完成实名认证；未登录时点击会引导登录。</div>';
+
+  /* 风险提示（wsmh-04-06） */
+  document.getElementById('sg-risk').innerHTML = g.risk.map(function (r) {
+    return '<div class="alert alert-warning" style="margin-bottom:8px"><i class="fa-solid fa-triangle-exclamation"></i><span>' + r + '</span></div>';
+  }).join('');
+
+  /* 相关问答 */
+  var faqs = PORTAL.faq().filter(function (q) {
+    return g.items.some(function (c) { var it = PORTAL.item(c); return it && q.a.indexOf(it.name.slice(0, 3)) >= 0; })
+      || q.lb.indexOf(g.n.slice(-2)) >= 0;
+  }).slice(0, 3);
+  if (!faqs.length) faqs = PORTAL.faq().slice(0, 3);
+  document.getElementById('sg-faq').innerHTML = faqs.map(function (q) {
+    return '<div style="padding:9px 0;border-bottom:1px dashed var(--row-line)">'
+      + '<div class="text-1" style="font-size:13.5px;font-weight:500"><i class="fa-solid fa-q text-primary"></i> ' + q.q + '</div>'
+      + '<div class="text-3 text-xs mt-8" style="line-height:1.8">' + q.a + '</div></div>';
+  }).join('')
+    + '<button class="btn btn-block mt-12" data-act="chat"><i class="fa-solid fa-headset"></i> 问智能客服</button>';
+
+  /* 入口登录拦截（wsmh-34-06） */
+  document.querySelectorAll('[data-need]').forEach(function (a) {
+    a.onclick = function (e) {
+      if (a.getAttribute('data-need') === '1' && !UI.needLogin(a.getAttribute('data-name'))) { e.preventDefault(); return false; }
+    };
+  });
+  document.querySelectorAll('[data-apply]').forEach(function (a) {
+    a.onclick = function () {
+      var code = a.getAttribute('data-apply');
+      if (!UI.needLogin('在线办理')) return;
+      PORTAL.act('prefs.recent', { code: code, name: PORTAL.item(code).name });
+      var MAP = { SX0201: 'second-hand-apply.html', SX0202: 'second-hand-apply.html', SX0203: 'second-hand-apply.html',
+        SX0301: 'rent-sign.html', SX0303: 'rent-sign.html', SX0304: 'rent-sign.html', SX0101: 'select-room.html' };
+      UI.go(MAP[code] || ('item-detail.html?code=' + code));
+    };
+  });
+
+  document.getElementById('src-note').innerHTML = UI.sourceNote('本页办事指南内容与广西政务服务网事项目录同源，材料清单以事项详情页为准。');
+}
+</script>
+</body>
+</html>

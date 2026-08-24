@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>成果版本管理 · 房屋交易面积信息管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：版本链路卡片、分支版本、两版逐户对比着色 */
+  .amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .vt { display: flex; align-items: flex-start; gap: 0; overflow-x: auto; padding: 4px 2px 8px; }
+  .vcol { display: flex; flex-direction: column; align-items: center; gap: 10px; flex-shrink: 0; }
+  .vcard {
+    width: 232px; border: 1.5px solid var(--border); border-radius: var(--radius); background: #fff;
+    overflow: hidden; transition: all .15s; cursor: pointer;
+  }
+  .vcard:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+  .vcard .vh { padding: 8px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 7px; background: var(--bg-soft); }
+  .vcard .vh .vn { font-size: 15px; font-weight: 800; color: var(--text-1); }
+  .vcard .vh .vs { margin-left: auto; }
+  .vcard .vb { padding: 9px 12px; font-size: 12.5px; }
+  .vcard .vb .r { display: flex; padding: 2px 0; }
+  .vcard .vb .r .k { width: 66px; color: var(--text-3); flex-shrink: 0; }
+  .vcard .vb .r .v { flex: 1; min-width: 0; color: var(--text-1); }
+  .vcard .vb .big { font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; margin: 5px 0 2px; }
+  .vcard .vf { padding: 6px 12px; border-top: 1px dashed var(--border); font-size: 11.5px; color: var(--text-3); background: #fbfcfe; }
+  .vcard.live { border-color: var(--success); }
+  .vcard.live .vh { background: #f0fdf4; }
+  .vcard.live .vb .big { color: var(--success); }
+  .vcard.dead { opacity: .82; }
+  .vcard.dead .vh { background: #f1f5f9; }
+  .vcard.dead .vb .big { color: var(--text-3); }
+  .vcard.plan { border-style: dashed; opacity: .7; }
+  /* 箭头与首张版本卡纵向居中对齐，不受下方分支卡影响 */
+  .arrow { align-self: flex-start; margin-top: 96px; padding: 0 12px; color: var(--primary); font-size: 17px; flex-shrink: 0; }
+  .arrow.dash { color: var(--text-3); }
+  .branch { display: flex; flex-direction: column; align-items: center; font-size: 11.5px; color: var(--text-3); }
+  .branch .ln { width: 2px; height: 18px; background: var(--border-strong); }
+
+  td.dp { color: var(--warning); font-weight: 700; }
+  td.dn { color: var(--primary); font-weight: 700; }
+  td.dz { color: var(--text-3); }
+  tr.over > td { background: #fef2f2; }
+  tr.over:hover > td { background: #fee9e9; }
+  tfoot td { background: var(--bg-soft) !important; font-weight: 700; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wschcg-09">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易面积信息管理系统
+        <span class="sep">/</span> 测绘成果接入
+        <span class="sep">/</span> <span class="cur">成果版本管理</span>
+      </div>
+      <div class="page-title">成果版本管理</div>
+    </div>
+    <div class="page-actions">
+      <select style="width:250px" onchange="PMS.toast('已切换查看对象：' + this.value)">
+        <option>荣和公园大道二期 8 栋</option>
+        <option>万科城 5 栋</option>
+        <option>恒大城 5 栋</option>
+      </select>
+      <button type="button" class="btn" onclick="location.href='result-list.html'"><i class="fa-solid fa-list"></i> 成果台账</button>
+      <button type="button" class="btn" onclick="PMS.toast('《版本对比表》Excel 已生成，正在下载','success')"><i class="fa-solid fa-download"></i> 导出对比表</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-code-branch"></i>
+    <div>预测、实测、变更、更正成果均为同一幢楼的成果，通过<b>成果类型（cglx）+ 版本号（bbh2）</b>区分，通过 <b>ybbzj</b> 指向上一版本形成版本链。楼盘表正式数据永远指向<b>当前生效版本（sfdqbb=1）</b>；新版本入库时旧版本自动置为「已被新版本替代」并记录替换原因。</div>
+  </div>
+
+  <!-- 第一段：版本链路 -->
+  <div class="card">
+    <div class="card-head">
+      <h3>版本链路 · 荣和公园大道二期 8 栋</h3>
+      <span class="sub">共 3 个版本（含 1 个分支更正成果），当前生效版本 V2.0</span>
+    </div>
+    <div class="card-body">
+      <div class="vt">
+        <div class="vcol">
+          <div class="vcard dead" onclick="location.href='result-detail.html'">
+            <div class="vh"><span class="vn">V1.0</span><span class="badge">预测成果</span><span class="vs"><span class="badge">已被替代</span></span></div>
+            <div class="vb">
+              <div class="big">28,600.00 ㎡</div>
+              <div class="r"><span class="k">成果编号</span><span class="v">CG450200202600151</span></div>
+              <div class="r"><span class="k">成果类型</span><span class="v">01 预测成果</span></div>
+              <div class="r"><span class="k">测绘日期</span><span class="v">2024-03-18</span></div>
+              <div class="r"><span class="k">测绘机构</span><span class="v">XXXX市测绘院</span></div>
+              <div class="r"><span class="k">总户数</span><span class="v">96 户</span></div>
+            </div>
+            <div class="vf">替换原因：竣工实测替换预测成果</div>
+          </div>
+          <div class="branch">
+            <div class="ln"></div>
+            <i class="fa-solid fa-caret-down"></i>
+            <div>分支：更正成果</div>
+          </div>
+          <div class="vcard dead" onclick="location.href='result-detail.html'">
+            <div class="vh"><span class="vn">V1.1</span><span class="badge purple">更正成果</span><span class="vs"><span class="badge">已被替代</span></span></div>
+            <div class="vb">
+              <div class="big">28,600.00 ㎡</div>
+              <div class="r"><span class="k">成果编号</span><span class="v">CG450200202600158</span></div>
+              <div class="r"><span class="k">成果类型</span><span class="v">05 更正成果</span></div>
+              <div class="r"><span class="k">测绘日期</span><span class="v">2024-06-02</span></div>
+              <div class="r"><span class="k">上一版本</span><span class="v">V1.0</span></div>
+              <div class="r"><span class="k">总户数</span><span class="v">96 户</span></div>
+            </div>
+            <div class="vf">更正内容：8-2-1201 房号重复更正为 1202，面积不变</div>
+          </div>
+        </div>
+
+        <div class="arrow"><i class="fa-solid fa-arrow-right"></i></div>
+
+        <div class="vcol">
+          <div class="vcard live" onclick="location.href='result-detail.html'">
+            <div class="vh">
+              <span class="vn">V2.0</span><span class="badge blue">实测成果</span>
+              <span class="vs"><span class="badge green"><i class="fa-solid fa-flag"></i> 当前生效</span></span>
+            </div>
+            <div class="vb">
+              <div class="big">28,842.60 ㎡</div>
+              <div class="r"><span class="k">成果编号</span><span class="v">CG450200202600186</span></div>
+              <div class="r"><span class="k">成果类型</span><span class="v">02 实测成果</span></div>
+              <div class="r"><span class="k">测绘日期</span><span class="v">2026-07-26</span></div>
+              <div class="r"><span class="k">测绘机构</span><span class="v">XXXX市测绘院</span></div>
+              <div class="r"><span class="k">总户数</span><span class="v">96 户</span></div>
+            </div>
+            <div class="vf">入库时间 2026-08-01 · 楼盘表数据指向本版本</div>
+          </div>
+        </div>
+
+        <div class="arrow dash"><i class="fa-solid fa-arrow-right"></i></div>
+
+        <div class="vcol">
+          <div class="vcard plan" onclick="PMS.toast('改扩建后重测成果尚未报送，此为版本链后续位置示意')">
+            <div class="vh"><span class="vn">V3.0</span><span class="badge">变更成果</span><span class="vs"><span class="badge">未报送</span></span></div>
+            <div class="vb">
+              <div class="big text-3">—</div>
+              <div class="r"><span class="k">成果类型</span><span class="v">04 变更测绘成果</span></div>
+              <div class="r"><span class="k">触发场景</span><span class="v">改扩建后重测</span></div>
+              <div class="r"><span class="k">上一版本</span><span class="v">V2.0</span></div>
+              <div class="r"><span class="k">说明</span><span class="v">发生改扩建时报送</span></div>
+            </div>
+            <div class="vf">版本链后续位置示意，暂无数据</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 第二段：两版本逐户对比 -->
+  <div class="card list-card">
+    <div class="card-head">
+      <h3>两版本逐户对比</h3>
+      <span class="sub">选择任意两个版本进行逐户面积对比，差异比例超 3% 的整行标红</span>
+    </div>
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>对比版本 A</label>
+        <select id="vA" onchange="PMS.toast('对比版本 A 已切换')"><option>V1.0 预测成果（2024-03-18）</option><option>V1.1 更正成果（2024-06-02）</option></select>
+      </div>
+      <div class="filter-item">
+        <label>对比版本 B</label>
+        <select id="vB" onchange="PMS.toast('对比版本 B 已切换')"><option>V2.0 实测成果（2026-07-26）</option><option>V1.1 更正成果（2024-06-02）</option></select>
+      </div>
+      <div class="filter-item"><label>房号</label><input type="text" id="fRoom" placeholder="如 8-1-1502"></div>
+      <div class="filter-item">
+        <label>仅看有差异户</label>
+        <select id="fDiff"><option value="0">否</option><option value="1">是</option></select>
+      </div>
+      <div class="filter-item">
+        <label>仅看超阈值户</label>
+        <select id="fOver"><option value="0">否</option><option value="1">是</option></select>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="applyFilter()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn" onclick="resetFilter()"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        <button type="button" class="btn" onclick="PMS.toast('《两版本逐户对比表》Excel 已生成，正在下载','success')"><i class="fa-solid fa-download"></i> 导出对比表</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table compact" id="tbCmp" data-static>
+        <thead>
+          <tr>
+            <th>房号</th><th>户型</th>
+            <th class="text-right">V1.0 建筑面积</th><th class="text-right">V2.0 建筑面积</th>
+            <th class="text-right">差值</th><th class="text-right">差异比例</th>
+            <th class="text-right">V1.0 套内</th><th class="text-right">V2.0 套内</th>
+            <th class="text-right">V1.0 分摊系数</th><th class="text-right">V2.0 分摊系数</th>
+            <th>结论</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-diff="1" data-over="0">
+            <td class="fw-600 nowrap">8-1-1502</td><td class="nowrap">三室两厅</td>
+            <td class="text-right amt">118.65</td><td class="text-right amt">120.86</td>
+            <td class="text-right amt dp">+2.21</td><td class="text-right amt dp">+1.86%</td>
+            <td class="text-right amt">92.18</td><td class="text-right amt">93.62</td>
+            <td class="text-right amt">0.2225</td><td class="text-right amt">0.2270</td>
+            <td class="nowrap"><span class="badge green">幅度内</span></td>
+            <td class="col-ops"><span class="link" onclick="location.href='drawing-viewer.html'">图纸对照</span></td>
+          </tr>
+          <tr class="over" data-diff="1" data-over="1">
+            <td class="fw-600 nowrap">8-2-1806</td><td class="nowrap">两室两厅</td>
+            <td class="text-right amt">96.20</td><td class="text-right amt">100.15</td>
+            <td class="text-right amt dp">+3.95</td><td class="text-right amt dp">+4.11%</td>
+            <td class="text-right amt">74.86</td><td class="text-right amt">77.92</td>
+            <td class="text-right amt">0.2218</td><td class="text-right amt">0.2220</td>
+            <td class="nowrap"><span class="badge red">超 3%</span></td>
+            <td class="col-ops"><span class="link danger" onclick="location.href='area-diff.html'">处理差异</span><span class="link" onclick="location.href='drawing-viewer.html'">图纸对照</span></td>
+          </tr>
+          <tr class="over" data-diff="1" data-over="1">
+            <td class="fw-600 nowrap">8-3-902</td><td class="nowrap">四室两厅</td>
+            <td class="text-right amt">142.30</td><td class="text-right amt">135.68</td>
+            <td class="text-right amt dn">−6.62</td><td class="text-right amt dn">−4.65%</td>
+            <td class="text-right amt">110.92</td><td class="text-right amt">105.76</td>
+            <td class="text-right amt">0.2205</td><td class="text-right amt">0.2205</td>
+            <td class="nowrap"><span class="badge red">超 3%</span></td>
+            <td class="col-ops"><span class="link danger" onclick="location.href='area-diff.html'">处理差异</span><span class="link" onclick="location.href='drawing-viewer.html'">图纸对照</span></td>
+          </tr>
+          <tr class="over" data-diff="1" data-over="1">
+            <td class="fw-600 nowrap">8-2-2102</td><td class="nowrap">两室两厅</td>
+            <td class="text-right amt">96.20</td><td class="text-right amt">99.28</td>
+            <td class="text-right amt dp">+3.08</td><td class="text-right amt dp">+3.20%</td>
+            <td class="text-right amt">74.86</td><td class="text-right amt">77.24</td>
+            <td class="text-right amt">0.2218</td><td class="text-right amt">0.2220</td>
+            <td class="nowrap"><span class="badge red">超 3%</span></td>
+            <td class="col-ops"><span class="link danger" onclick="location.href='area-diff.html'">处理差异</span><span class="link" onclick="location.href='drawing-viewer.html'">图纸对照</span></td>
+          </tr>
+          <tr data-diff="1" data-over="0">
+            <td class="fw-600 nowrap">8-1-0801</td><td class="nowrap">三室两厅</td>
+            <td class="text-right amt">118.65</td><td class="text-right amt">119.02</td>
+            <td class="text-right amt dp">+0.37</td><td class="text-right amt dp">+0.31%</td>
+            <td class="text-right amt">92.18</td><td class="text-right amt">92.46</td>
+            <td class="text-right amt">0.2231</td><td class="text-right amt">0.2232</td>
+            <td class="nowrap"><span class="badge green">幅度内</span></td>
+            <td class="col-ops"><span class="link" onclick="location.href='drawing-viewer.html'">图纸对照</span></td>
+          </tr>
+          <tr data-diff="1" data-over="0">
+            <td class="fw-600 nowrap">8-2-0606</td><td class="nowrap">两室两厅</td>
+            <td class="text-right amt">96.20</td><td class="text-right amt">95.42</td>
+            <td class="text-right amt dn">−0.78</td><td class="text-right amt dn">−0.81%</td>
+            <td class="text-right amt">74.86</td><td class="text-right amt">74.28</td>
+            <td class="text-right amt">0.2218</td><td class="text-right amt">0.2216</td>
+            <td class="nowrap"><span class="badge green">幅度内</span></td>
+            <td class="col-ops"><span class="link" onclick="location.href='drawing-viewer.html'">图纸对照</span></td>
+          </tr>
+          <tr data-diff="1" data-over="0">
+            <td class="fw-600 nowrap">8-3-1205</td><td class="nowrap">四室两厅</td>
+            <td class="text-right amt">142.30</td><td class="text-right amt">143.16</td>
+            <td class="text-right amt dp">+0.86</td><td class="text-right amt dp">+0.60%</td>
+            <td class="text-right amt">110.92</td><td class="text-right amt">111.58</td>
+            <td class="text-right amt">0.2205</td><td class="text-right amt">0.2206</td>
+            <td class="nowrap"><span class="badge green">幅度内</span></td>
+            <td class="col-ops"><span class="link" onclick="location.href='drawing-viewer.html'">图纸对照</span></td>
+          </tr>
+          <tr data-diff="0" data-over="0">
+            <td class="fw-600 nowrap">8-1-2201</td><td class="nowrap">三室两厅</td>
+            <td class="text-right amt">118.65</td><td class="text-right amt">118.65</td>
+            <td class="text-right amt dz">0.00</td><td class="text-right amt dz">0.00%</td>
+            <td class="text-right amt">92.18</td><td class="text-right amt">92.18</td>
+            <td class="text-right amt">0.2231</td><td class="text-right amt">0.2231</td>
+            <td class="nowrap"><span class="badge">无差异</span></td>
+            <td class="col-ops"><span class="link" onclick="location.href='drawing-viewer.html'">图纸对照</span></td>
+          </tr>
+          <tr data-diff="1" data-over="0">
+            <td class="fw-600 nowrap">8-2-1202</td><td class="nowrap">两室两厅</td>
+            <td class="text-right amt">96.20</td><td class="text-right amt">96.20</td>
+            <td class="text-right amt dz">0.00</td><td class="text-right amt dz">0.00%</td>
+            <td class="text-right amt">74.86</td><td class="text-right amt">74.86</td>
+            <td class="text-right amt">0.2218</td><td class="text-right amt">0.2218</td>
+            <td class="nowrap"><span class="badge purple">房号更正</span></td>
+            <td class="col-ops"><span class="link" onclick="location.href='room-match.html'">房号匹配</span></td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="3">合计 / 平均（96 户）</td>
+            <td class="text-right amt">28,600.00</td><td class="text-right amt">28,842.60</td>
+            <td class="text-right amt dp">+242.60</td><td class="text-right amt dp">+0.85%</td>
+            <td class="text-right amt">22,024.60</td><td class="text-right amt">22,368.42</td>
+            <td class="text-right amt">0.2225</td><td class="text-right amt">0.2270</td>
+            <td colspan="2">超阈值 5 户 · 有差异 91 户</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function applyFilter() {
+  var room = document.getElementById('fRoom').value.trim(),
+      diff = document.getElementById('fDiff').value,
+      over = document.getElementById('fOver').value, n = 0;
+  document.querySelectorAll('#tbCmp tbody tr').forEach(function (tr) {
+    var ok = (!room || tr.cells[0].textContent.indexOf(room) > -1)
+      && (diff !== '1' || tr.dataset.diff === '1')
+      && (over !== '1' || tr.dataset.over === '1');
+    tr.style.display = ok ? '' : 'none';
+    if (ok) n++;
+  });
+  PMS.toast('已按条件筛选：' + n + ' 户');
+}
+
+function resetFilter() {
+  document.getElementById('fRoom').value = '';
+  document.getElementById('fDiff').value = '0';
+  document.getElementById('fOver').value = '0';
+  document.querySelectorAll('#tbCmp tbody tr').forEach(function (tr) { tr.style.display = ''; });
+  PMS.toast('筛选条件已重置');
+}
+</script>
+</body>
+</html>

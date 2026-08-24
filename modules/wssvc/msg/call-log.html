@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>服务调用日志 · 统一消息服务</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../../assets/css/app.css">
+<link rel="stylesheet" href="../../../assets/css/wssvc.css">
+</head>
+<body data-role="admin" data-active="wssvc-46">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 统一应用服务平台
+        <span class="sep">/</span> 统一消息服务 <span class="sep">/</span> <span class="cur">服务调用日志</span>
+      </div>
+      <div class="page-title">服务调用日志 · 统一消息服务</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="../gov/call-log.html"><i class="fa-solid fa-layer-group"></i> 全局调用日志</a>
+      <a class="btn" href="api-debug.html"><i class="fa-solid fa-terminal"></i> 接口调试</a>
+      <button class="btn" onclick="SVC.exportAsync('消息服务调用日志')"><i class="fa-solid fa-download"></i> 导出</button>
+      <button class="btn btn-primary" onclick="PMS.toast('已订阅失败告警，异常时推送到站内与短信','success')"><i class="fa-solid fa-bell"></i> 订阅告警</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-list-ul"></i>
+    <div>这里记的是<b>平台与三方之间的接口调用流水</b>，
+      跟<a class="link" href="queue-receipt.html">发送队列</a>那边看的角度不一样——
+      队列关心「这条消息发到用户手上了没」，
+      这里关心「调阿里云那个接口通不通、慢不慢、返回了什么」。
+      排查问题时通常是先在队列里找到消息，再顺着 TraceID 到这里看报文。</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-right-left"></i></div>
+      <div><div class="s-label">今日调用</div><div class="s-value">62,486</div><div class="s-trend">出向 44,286 · 入向 18,200</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">成功率</div><div class="s-value">99.42%</div><div class="s-trend">承诺 99.0%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-gauge-high"></i></div>
+      <div><div class="s-label">P95 时延</div><div class="s-value">486 ms</div><div class="s-trend">阈值 1500 ms</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-circle-xmark"></i></div>
+      <div><div class="s-label">失败调用</div><div class="s-value">362</div><div class="s-trend text-danger">其中 122 条为回执断流</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">慢调用</div><div class="s-value">86</div><div class="s-trend">超 1500 ms · 集中在微信下发</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-rotate"></i></div>
+      <div><div class="s-label">重试次数</div><div class="s-value">248</div><div class="s-trend">重试后成功 192</div></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-chart-column"></i> 24 小时调用量与成功率</h3></div>
+      <div class="card-body">
+        <div class="svc-chart" data-chart="dual" data-series='{"x":["0","2","4","6","8","9","10","11","12","14","15","16","17","18","20","22"],"bar":[186,86,62,286,5286,7124,6862,6086,2486,4628,5862,6862,7286,4086,1862,686],"line":[99.8,99.9,99.9,99.7,99.5,99.2,99.4,99.6,99.7,99.6,99.4,99.1,98.6,99.2,99.5,97.4]}'></div>
+        <p class="hint"><i class="fa-solid fa-triangle-exclamation"></i>
+          22 点那个成功率的坑（97.4%）就是移动直连的<b>回执推送断流</b>——
+          从 21:30 起状态报告接口一条都没回来。
+          提交链路是好的，说明不是网络问题，
+          是对方回执推送模块的故障。</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-chart-pie"></i> 失败原因分布</h3><span class="sub">今日 362 次</span></div>
+      <div class="card-body">
+        <div class="svc-chart" data-chart="donut" data-series='{"label":"失败","total":"362","items":[{"n":"回执推送断流","v":122,"color":"var(--danger)"},{"n":"微信 access_token 过期","v":86,"color":"var(--warning)"},{"n":"号码格式非法","v":62,"color":"var(--info)"},{"n":"三方限流","v":42,"color":"var(--lv-orange)"},{"n":"模板参数不匹配","v":28,"color":"#7c5cd6"},{"n":"网络超时","v":22,"color":"var(--text-3)"}]}'></div>
+        <p class="hint"><i class="fa-solid fa-circle-info"></i>
+          <b>access_token 过期 86 次值得注意</b>。微信的 token 有效期 7200 秒，
+          平台缓存 7000 秒并提前 200 秒刷新，理论上不该过期。
+          排查发现是<b>两个实例各自刷新，互相把对方的 token 顶掉了</b>，
+          已改成用 Redis 分布式锁统一刷新。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item"><label>关键词</label><input type="text" placeholder="TraceID / 消息 ID / 手机号 / 业务号"></div>
+      <div class="filter-item"><label>服务商</label><select><option value="">全部</option><option>阿里云短信</option><option>广西移动直连</option><option>广西电信直连</option><option>柳州房产公众号</option><option>站内消息中心</option><option>号码状态核验</option></select></div>
+      <div class="filter-item"><label>接口</label><select><option value="">全部</option><option>单条短信发送</option><option>批量短信发送</option><option>发送回执推送</option><option>上行短信接收</option><option>模板消息下发</option><option>access_token 获取</option><option>号码状态查询</option></select></div>
+      <div class="filter-item"><label>方向</label><select><option value="">全部</option><option>出向</option><option>入向</option></select></div>
+      <div class="filter-item"><label>调用方应用</label><select><option value="">全部</option><option>不动产登记系统</option><option>存量房网签备案</option><option>资金监管系统</option><option>网上办事大厅</option><option>维修资金系统</option></select></div>
+      <div class="filter-item"><label>结果</label><select><option value="">全部</option><option>成功</option><option>失败</option><option>慢调用</option><option>已重试成功</option></select></div>
+      <div class="filter-item"><label>时间</label><select><option>今日</option><option>近 3 天</option><option>近 7 天</option><option>自定义</option></select></div>
+      <div class="filter-actions">
+        <button class="btn btn-primary" onclick="PMS.toast('已检索调用日志','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button class="btn" onclick="PMS.toast('已重置为默认条件')">重置</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>时间</th><th>接口</th><th>服务商</th><th>方向</th><th>调用方应用</th><th>关联标识</th><th class="num">耗时</th><th>状态码</th><th>结果</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:46:28</td><td class="cell-lg">单条短信发送</td><td class="nowrap">阿里云短信</td><td>出向</td><td class="nowrap">资金监管系统</td>
+            <td class="nowrap">MSG20260801214628</td><td class="num">242 ms</td><td>200</td><td><span class="badge green">成功</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:46:24</td><td class="cell-lg">单条短信发送</td><td class="nowrap">阿里云短信</td><td>出向</td><td class="nowrap">网上办事大厅</td>
+            <td class="nowrap">MSG20260801214624</td><td class="num">186 ms</td><td>200</td><td><span class="badge green">成功</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:46:12</td><td class="cell-lg">模板消息下发</td><td class="nowrap">柳州房产公众号</td><td>出向</td><td class="nowrap">不动产登记系统</td>
+            <td class="nowrap">MSG20260801214612</td><td class="num">486 ms</td><td>200</td><td><span class="badge green">成功</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:45:58</td><td class="cell-lg">CMPP 提交</td><td class="nowrap">广西移动直连</td><td>出向</td><td class="nowrap">不动产登记系统</td>
+            <td class="nowrap">MSG20260801214558</td><td class="num">68 ms</td><td>0</td><td><span class="badge green">成功</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:45:32</td><td class="cell-lg">CMPP 状态报告</td><td class="nowrap">广西移动直连</td><td>入向</td><td class="nowrap">—</td>
+            <td class="nowrap">MSG20260801213748</td><td class="num">—</td><td>—</td><td><span class="badge red">超时未回</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:44:18</td><td class="cell-lg">模板消息下发</td><td class="nowrap">柳州房产公众号</td><td>出向</td><td class="nowrap">存量房网签备案</td>
+            <td class="nowrap">MSG20260801214418</td><td class="num">1,862 ms</td><td>200</td><td><span class="badge orange">慢调用</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:42:46</td><td class="cell-lg">access_token 获取</td><td class="nowrap">柳州房产公众号</td><td>出向</td><td class="nowrap">—</td>
+            <td class="nowrap">TOKEN-REFRESH</td><td class="num">324 ms</td><td>200</td><td><span class="badge green">成功</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:42:44</td><td class="cell-lg">模板消息下发</td><td class="nowrap">柳州房产公众号</td><td>出向</td><td class="nowrap">不动产登记系统</td>
+            <td class="nowrap">MSG20260801214244</td><td class="num">142 ms</td><td>40001</td><td><span class="badge red">token 失效</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:41:12</td><td class="cell-lg">发送回执推送</td><td class="nowrap">阿里云短信</td><td>入向</td><td class="nowrap">—</td>
+            <td class="nowrap">MSG20260801213842</td><td class="num">18 ms</td><td>200</td><td><span class="badge green">已接收</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:40:28</td><td class="cell-lg">SGIP 提交</td><td class="nowrap">广西电信直连</td><td>出向</td><td class="nowrap">网上办事大厅</td>
+            <td class="nowrap">MSG20260801214028</td><td class="num">86 ms</td><td>12</td><td><span class="badge orange">通道限流</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:38:52</td><td class="cell-lg">上行短信接收</td><td class="nowrap">阿里云短信</td><td>入向</td><td class="nowrap">—</td>
+            <td class="nowrap">UP20260801213852</td><td class="num">24 ms</td><td>200</td><td><span class="badge green">已接收</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:37:48</td><td class="cell-lg">CMPP 提交</td><td class="nowrap">广西移动直连</td><td>出向</td><td class="nowrap">不动产登记系统</td>
+            <td class="nowrap">MSG20260801213748</td><td class="num">242 ms</td><td>0</td><td><span class="badge green">成功</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:36:24</td><td class="cell-lg">单条短信发送</td><td class="nowrap">阿里云短信</td><td>出向</td><td class="nowrap">存量房网签备案</td>
+            <td class="nowrap">MSG20260801213624</td><td class="num">286 ms</td><td>400</td><td><span class="badge red">号码格式非法</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:34:06</td><td class="cell-lg">批量号码清洗</td><td class="nowrap">号码状态核验</td><td>出向</td><td class="nowrap">维修资金系统</td>
+            <td class="nowrap">CLEAN20260801003</td><td class="num">28,642 ms</td><td>200</td><td><span class="badge green">成功</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:32:18</td><td class="cell-lg">站内消息投递</td><td class="nowrap">站内消息中心</td><td>出向</td><td class="nowrap">不动产登记系统</td>
+            <td class="nowrap">MSG20260801213218</td><td class="num">42 ms</td><td>200</td><td><span class="badge green">成功</span></td><td><span class="link">报文</span></td>
+          </tr>
+          <tr class="clickable" onclick="PMS.openDrawer('logDrawer')">
+            <td class="nowrap">21:30:42</td><td class="cell-lg">单条短信发送</td><td class="nowrap">阿里云短信</td><td>出向</td><td class="nowrap">维修资金系统</td>
+            <td class="nowrap">MSG20260801213042</td><td class="num">3,286 ms</td><td>200</td><td><span class="badge orange">慢调用（重试 1 次）</span></td><td><span class="link">报文</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="drawer-mask" onclick="PMS.closeDrawer('logDrawer')"></div>
+  <div class="drawer drawer-lg" id="logDrawer">
+    <div class="drawer-head">
+      <h3>调用报文详情 · 模板消息下发（token 失效）</h3>
+      <span class="close" onclick="PMS.closeDrawer('logDrawer')"><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="svc-resp bad">
+        <span><i class="fa-solid fa-circle-xmark"></i> <b>调用失败</b></span>
+        <span>errcode <b>40001</b></span>
+        <span>耗时 <b>142 ms</b></span>
+        <span>重试 <b>1 次后成功</b></span>
+        <span>TraceID <b>e2a4f8c6-4862-2026-0801-2142</b></span>
+      </div>
+      <dl class="svc-kv">
+        <dt>调用时间</dt><dd>2026-08-01 21:42:44.286</dd>
+        <dt>接口</dt><dd>柳州房产公众号 / 模板消息下发（message.template.send）</dd>
+        <dt>调用方</dt><dd>不动产登记系统　APP-DJ-0001　IP 10.86.12.6</dd>
+        <dt>关联消息</dt><dd>MSG20260801214244　·　出证取件通知（WX-DJ-016）</dd>
+        <dt>接收人</dt><dd>oq3F****9wE2　·　韦**　·　已关注已绑定</dd>
+        <dt>关联业务</dt><dd>DJ2026073100642　抵押权登记</dd>
+      </dl>
+      <div class="section-title mt-16">耗时分解</div>
+      <div class="svc-span">
+        <i class="s1" style="width:18%" title="平台处理 26ms"></i>
+        <i class="s4" style="width:66%" title="微信响应 94ms"></i>
+        <i class="s3" style="width:16%" title="平台记录 22ms"></i>
+      </div>
+      <div class="svc-lg">
+        <span><i style="background:var(--primary)"></i>平台处理 26 ms</span>
+        <span><i style="background:var(--lv-orange)"></i>微信响应 94 ms</span>
+        <span><i style="background:#7ea6e8"></i>平台记录 22 ms</span>
+      </div>
+      <div class="section-title mt-16">请求报文</div>
+      <pre class="svc-code"><span class="c">POST https://api.weixin.qq.com/cgi-bin/message/template/send?access_token=48_Xk2***</span>
+{
+  <span class="k">"touser"</span>: <span class="s">"oq3F****9wE2"</span>,
+  <span class="k">"template_id"</span>: <span class="s">"P4x8kQ2mF-7pR9nT4wL6cJ8dS2aG"</span>,
+  <span class="k">"url"</span>: <span class="s">"https://wx.lzfc.gov.cn/h5/detail?no=DJ2026073100642"</span>,
+  <span class="k">"data"</span>: {
+    <span class="k">"first"</span>:    { <span class="k">"value"</span>: <span class="s">"您办理的不动产登记业务已办结"</span> },
+    <span class="k">"keyword1"</span>: { <span class="k">"value"</span>: <span class="s">"抵押权登记"</span> },
+    <span class="k">"keyword2"</span>: { <span class="k">"value"</span>: <span class="s">"DJ2026073100642"</span> },
+    <span class="k">"keyword3"</span>: { <span class="k">"value"</span>: <span class="s">"2026-08-01 21:40"</span> },
+    <span class="k">"keyword4"</span>: { <span class="k">"value"</span>: <span class="s">"城中区文昌路12号3号窗口"</span> },
+    <span class="k">"remark"</span>:   { <span class="k">"value"</span>: <span class="s">"请携带本人身份证原件领取，工作日 9:00-17:00。"</span> }
+  }
+}</pre>
+      <div class="section-title mt-16">响应报文</div>
+      <pre class="svc-code">{
+  <span class="k">"errcode"</span>: <span class="n">40001</span>,
+  <span class="k">"errmsg"</span>: <span class="s">"invalid credential, access_token is invalid or not latest"</span>
+}</pre>
+      <div class="section-title mt-16">重试链路</div>
+      <div class="svc-retry">
+        <span class="rt bad">21:42:44 首次 40001</span><span class="sep">→</span>
+        <span class="rt">21:42:46 刷新 token</span><span class="sep">→</span>
+        <span class="rt ok">21:42:46 重试成功 200</span>
+      </div>
+      <div class="alert alert-warning mt-16">
+        <i class="fa-solid fa-lightbulb"></i>
+        <div>40001 的字面意思是「凭证无效或不是最新的」，
+          注意后半句——<b>不是过期，是「不是最新的」</b>。
+          这说明有另一个实例刚刷过 token，把当前实例缓存的这个顶掉了。
+          微信同一个 AppID 全局只认一个 token，
+          <b>多实例部署时必须用分布式锁统一刷新</b>，
+          否则两个实例会互相顶，今天已经因此失败 86 次。
+          修复方案已提交，预计本周上线。</div>
+      </div>
+      <div class="section-title mt-16">同类问题</div>
+      <div class="svc-tbl">
+        <table class="data-table compact">
+          <thead><tr><th>时间段</th><th class="num">40001 次数</th><th class="num">重试后成功</th><th>影响</th></tr></thead>
+          <tbody>
+            <tr><td class="nowrap">08-01 全天</td><td class="num">86</td><td class="num">86</td><td class="cell-lg">用户无感知，但每次多花 200 ms 和一次额外调用</td></tr>
+            <tr><td class="nowrap">07-31 全天</td><td class="num">62</td><td class="num">62</td><td class="cell-lg">同上</td></tr>
+            <tr><td class="nowrap">07-30 全天</td><td class="num">74</td><td class="num">73</td><td class="cell-lg">1 条重试也失败，最终转短信发出</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn" onclick="PMS.closeDrawer('logDrawer')">关闭</button>
+      <button class="btn" onclick="PMS.toast('已复制 TraceID e2a4f8c6-4862-2026-0801-2142')"><i class="fa-solid fa-copy"></i> 复制 TraceID</button>
+      <button class="btn" onclick="PMS.toast('已跳转发送队列，定位消息 MSG20260801214244')"><i class="fa-solid fa-layer-group"></i> 查看消息</button>
+      <button class="btn btn-primary" onclick="PMS.toast('已在调试台载入本次请求参数')"><i class="fa-solid fa-terminal"></i> 载入调试台</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../../assets/js/app.js"></script>
+<script src="../../../assets/js/wssvc.js"></script>
+</body>
+</html>

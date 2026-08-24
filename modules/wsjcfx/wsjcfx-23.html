@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>预警处置工作台 · 房地产市场监管监测系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<link rel="stylesheet" href="../../assets/css/wsjcfx.css">
+</head>
+<body data-role="manager" data-active="wsjcfx-23">
+<main class="app-main list-layout">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房地产市场监管监测系统
+        <span class="sep">/</span> 预警督办
+        <span class="sep">/</span> <span class="cur">预警处置工作台</span>
+      </div>
+      <div class="page-title">预警处置工作台</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="PMS.openModal('mSla')"><i class="fa-solid fa-stopwatch"></i> 处置时限规则</button>
+      <button class="btn" onclick="PMS.openModal('mKey')"><i class="fa-regular fa-keyboard"></i> 快捷键</button>
+      <button class="btn" onclick="JC.exportAsync('当前筛选下的预警清单')"><i class="fa-solid fa-download"></i> 导出</button>
+      <a class="btn btn-primary" href="wsjcfx-22.html"><i class="fa-solid fa-chart-pie"></i> 预警总览</a>
+    </div>
+  </div>
+
+  <!-- 处置时限规则条常驻：倒计时的依据必须一眼可查，否则「还剩几小时」就是无根之数 -->
+  <div class="jc-sla">
+    <span class="sl-t"><i class="fa-solid fa-stopwatch"></i> 处置时限</span>
+    <span class="sl-i red"><b>红</b> 4 小时确认 · 3 工作日办结</span>
+    <span class="sl-i orange"><b>橙</b> 1 工作日确认 · 5 工作日办结</span>
+    <span class="sl-i yellow"><b>黄</b> 2 工作日确认 · 10 工作日办结</span>
+    <span class="sl-i blue"><b>蓝</b> 5 工作日确认 · 不强制派单</span>
+    <span class="sl-x">超期自动上报市住建局并计入县区处置成效考核</span>
+  </div>
+
+  <div class="jc-wb" id="wb">
+
+    <!-- ===================== 左：筛选侧栏 ===================== -->
+    <aside class="card jc-wb-f">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-filter"></i> 筛选</h3>
+        <a href="javascript:;" class="text-sm ml-auto" onclick="WB.reset()">重置</a>
+      </div>
+      <div class="dc-scroll" style="padding:0">
+
+        <div class="jc-lvs">
+          <div class="lb red" data-lv="red" onclick="WB.togLv(this)"><div class="n" id="cRed">6</div><div class="t">红</div></div>
+          <div class="lb orange" data-lv="orange" onclick="WB.togLv(this)"><div class="n" id="cOrange">9</div><div class="t">橙</div></div>
+          <div class="lb yellow" data-lv="yellow" onclick="WB.togLv(this)"><div class="n" id="cYellow">5</div><div class="t">黄</div></div>
+          <div class="lb blue" data-lv="blue" onclick="WB.togLv(this)"><div class="n" id="cBlue">1</div><div class="t">蓝</div></div>
+        </div>
+
+        <div class="jc-quick">
+          <div class="q-item on" data-view="all" onclick="WB.pickView(this)">
+            <i class="fa-solid fa-list-check"></i> 全部未办结 <span class="q-n">21</span></div>
+          <div class="q-item" data-view="mine-c" onclick="WB.pickView(this)">
+            <i class="fa-solid fa-inbox"></i> 待我确认 <span class="q-n bad">13</span></div>
+          <div class="q-item" data-view="mine-f" onclick="WB.pickView(this)">
+            <i class="fa-solid fa-reply"></i> 待我反馈 <span class="q-n">4</span></div>
+          <div class="q-item" data-view="mine-a" onclick="WB.pickView(this)">
+            <i class="fa-solid fa-user-check"></i> 待我审核 <span class="q-n">2</span></div>
+          <div class="q-item" data-view="over" onclick="WB.pickView(this)">
+            <i class="fa-solid fa-hourglass-end"></i> 超期未办结 <span class="q-n bad">5</span></div>
+          <div class="q-item" data-view="done" onclick="WB.pickView(this)">
+            <i class="fa-solid fa-circle-check"></i> 已办结 <span class="q-n">238</span></div>
+        </div>
+
+        <!-- 三个大类折叠组：26 类规则全部收在这里，与预警规则配置页的分类树同一套模型 -->
+        <div class="jc-cats" id="cats"></div>
+
+        <div class="jc-filters">
+          <div class="ft-g">
+            <div class="ft-t">是否超期</div>
+            <div class="ft-chips">
+              <span class="ft-chip" onclick="WB.togChip(this)">仅看超期 5</span>
+              <span class="ft-chip" onclick="WB.togChip(this)">24 小时内到期</span>
+            </div>
+          </div>
+          <div class="ft-g">
+            <div class="ft-t">区划</div>
+            <select data-dict="said" data-selected="450200" data-ph=""></select>
+          </div>
+          <div class="ft-g">
+            <div class="ft-t">责任单位</div>
+            <select>
+              <option>全部</option><option>柳南区住建局</option><option>柳北区住建局</option>
+              <option>城中区住建局</option><option>鱼峰区住建局</option><option>柳江区住建局</option>
+              <option>柳城县住建局</option><option>鹿寨县住建局</option><option>融安县住建局</option>
+              <option>融水县住建局</option><option>三江县住建局</option>
+            </select>
+          </div>
+          <div class="ft-g">
+            <div class="ft-t">生成时间</div>
+            <select><option>近 7 日</option><option>近 30 日</option><option>近 90 日</option><option>自定义</option></select>
+          </div>
+          <div class="ft-g">
+            <div class="ft-t">状态</div>
+            <select><option>未办结</option><option>待确认</option><option>已确认待派单</option>
+              <option>处置中</option><option>待审核</option><option>已办结</option></select>
+          </div>
+          <div class="ft-g">
+            <div class="ft-t">项目 / 企业 / 合同</div>
+            <input type="text" placeholder="名称或编号">
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- ===================== 中：预警列表 ===================== -->
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-bell"></i> 预警列表</h3>
+        <span class="text-sm">共 <b id="lsTotal">21</b> 条</span>
+        <a href="javascript:;" class="text-sm ml-auto" onclick="WB.openBatch()">
+          <i class="fa-solid fa-layer-group"></i> 批量处置</a>
+      </div>
+      <div class="jc-live" id="liveBar" style="display:none">
+        <span class="dot-live"></span>
+        <span id="liveTxt">实时预警：柳南区恒大·御景湾监管账户单笔支出 620 万元</span>
+        <a href="javascript:;" onclick="WB.jumpLive()" class="ml-auto">立即查看</a>
+        <i class="fa-solid fa-xmark clickable" onclick="this.parentElement.style.display='none'"></i>
+      </div>
+      <div class="jc-sort">
+        <i class="fa-solid fa-arrow-down-short-wide"></i> 排序
+        <span class="so on" onclick="WB.sort(this,'cd')">剩余时限</span>
+        <span class="so" onclick="WB.sort(this,'lv')">等级</span>
+        <span class="so" onclick="WB.sort(this,'time')">生成时间</span>
+        <span class="ml-auto"><span class="jc-kbd">J</span><span class="jc-kbd">K</span> 切换</span>
+      </div>
+      <div class="jc-alist" id="alist"></div>
+      <div class="table-foot">
+        <div class="tf-l">已选 <b id="selN">0</b> 条</div>
+        <div class="tf-r"><button class="btn btn-sm" onclick="WB.openBatch()">批量处置</button></div>
+      </div>
+    </div>
+
+    <!-- ===================== 右：详情与处置 ===================== -->
+    <div class="card jc-wb-d" id="dPane">
+      <div class="card-head">
+        <h3 id="dTitle">—</h3>
+        <span id="dLv"></span>
+        <span id="dSt"></span>
+        <span class="text-sm ml-auto" id="dCd"></span>
+      </div>
+      <div class="dc-scroll" id="dBody"></div>
+      <div class="jc-act" id="dAct"></div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ===================== 判定误报弹窗 ===================== -->
+<div class="modal-mask" id="mFalse">
+  <div class="modal" style="width:600px">
+    <div class="modal-head"><h3><i class="fa-solid fa-circle-xmark"></i> 判定误报</h3>
+      <button class="close" data-close-modal><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <div class="alert alert-info">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>误报不是「关掉了事」。<b>误报原因会回流到规则质量统计与阈值优化</b>，填得准，下个月你少收几十条无效预警。</div>
+      </div>
+      <div class="form-item">
+        <label>误报原因分类 <span class="req">*</span></label>
+        <select id="fCat" onchange="WB.chkFalse()">
+          <option value="">请选择</option>
+          <option>数据源错误或延迟</option>
+          <option>业务情形特殊（合规但非典型）</option>
+          <option>阈值设置不合理</option>
+          <option>规则逻辑不适用</option>
+          <option>重复预警</option>
+          <option>其他</option>
+        </select>
+      </div>
+      <div class="alert alert-warning" id="fEsc" style="display:none">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>本条将<b>自动推送市级规则责任人复核</b>。选择这两类原因意味着你认为规则本身有问题，而不只是这一条报错了。</div>
+      </div>
+      <div class="form-item">
+        <label>误报理由 <span class="req">*</span>（不少于 20 字）</label>
+        <textarea rows="4" id="fTxt" oninput="WB.chkFalse()"
+          placeholder="例：该笔 620 万元支出为向施工单位支付经审核的工程进度款，附监理签认的进度确认单与拨付审批表，属合规用款，系白名单未覆盖导致误报"></textarea>
+        <div class="hint"><span id="fLen">0</span> / 20 字</div>
+      </div>
+      <div class="form-item">
+        <label>佐证附件</label>
+        <div data-upload data-accept=".pdf,.jpg,.png,.xlsx" data-max="5"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close-modal>取消</button>
+      <button class="btn btn-primary" id="fBtn" disabled onclick="WB.doFalse()">
+        <i class="fa-solid fa-check"></i> 提交并处理下一条</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== 转督办弹窗 ===================== -->
+<div class="modal-mask" id="mOrder">
+  <div class="modal" style="width:620px">
+    <div class="modal-head"><h3><i class="fa-solid fa-paper-plane"></i> 转督办</h3>
+      <button class="close" data-close-modal><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <div class="alert alert-info">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>转督办会先生成问题清单条目，再派发督办单到责任单位，后续在
+          <a href="wsjcfx-24.html">督办闭环管理</a> 跟踪反馈与审核。</div>
+      </div>
+      <div class="form-item"><label>责任单位 <span class="req">*</span></label>
+        <select id="oUnit"></select></div>
+      <div class="form-item"><label>办理时限 <span class="req">*</span></label>
+        <select id="oSla"></select>
+        <div class="hint">默认按等级带出，缩短时限须在督办要求中说明理由</div></div>
+      <div class="form-item"><label>督办要求 <span class="req">*</span></label>
+        <textarea rows="3" placeholder="要求属地做什么、反馈什么材料、何时反馈"></textarea></div>
+      <div class="form-item"><label>抄送</label>
+        <select multiple size="3">
+          <option>市住建局资金监管科</option><option>市住建局市场科</option>
+          <option>市住建局房产科</option><option>市不动产登记中心</option>
+        </select></div>
+    </div>
+    <div class="modal-foot"><button class="btn" data-close-modal>取消</button>
+      <button class="btn btn-primary" onclick="WB.doOrder()"><i class="fa-solid fa-paper-plane"></i> 派发督办单</button></div>
+  </div>
+</div>
+
+<!-- ===================== 挂起观察弹窗 ===================== -->
+<div class="modal-mask" id="mHold">
+  <div class="modal modal-sm" style="width:520px">
+    <div class="modal-head"><h3><i class="fa-solid fa-pause"></i> 挂起观察</h3>
+      <button class="close" data-close-modal><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <p class="hint mb-16"><i class="fa-solid fa-circle-info"></i>
+        挂起只暂停派单，<b>倒计时继续走</b>。到期仍未处置的，一样计入超期。</p>
+      <div class="form-item"><label>观察期 <span class="req">*</span></label>
+        <select><option>3 个工作日</option><option>5 个工作日</option><option>下一批次复核后</option></select></div>
+      <div class="form-item"><label>挂起理由 <span class="req">*</span></label>
+        <textarea rows="3" placeholder="例：企业已提交补缴计划，约定 8 月 5 日前到账，届时由系统自动回跑规则复核"></textarea></div>
+    </div>
+    <div class="modal-foot"><button class="btn" data-close-modal>取消</button>
+      <button class="btn btn-primary" onclick="PMS.closeModal('mHold');PMS.toast('已挂起观察，到期自动回跑规则复核','success')">确认挂起</button></div>
+  </div>
+</div>
+
+<!-- ===================== 补充材料弹窗 ===================== -->
+<div class="modal-mask" id="mSupp">
+  <div class="modal modal-sm" style="width:540px">
+    <div class="modal-head"><h3><i class="fa-solid fa-paperclip"></i> 补充材料</h3>
+      <button class="close" data-close-modal><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <div class="form-item"><label>向谁索要 <span class="req">*</span></label>
+        <select><option>开发企业（企业端待办）</option><option>属地住建局</option><option>监管银行</option></select></div>
+      <div class="form-item"><label>需要的材料 <span class="req">*</span></label>
+        <textarea rows="3" placeholder="逐项列出，企业端会按项生成上传位"></textarea></div>
+      <div class="form-item"><label>反馈期限</label>
+        <select><option>2 个工作日</option><option>3 个工作日</option><option>5 个工作日</option></select></div>
+      <p class="hint"><i class="fa-solid fa-circle-info"></i> 索要材料期间倒计时暂停，对方提交后自动恢复计时并提醒你。</p>
+    </div>
+    <div class="modal-foot"><button class="btn" data-close-modal>取消</button>
+      <button class="btn btn-primary" onclick="PMS.closeModal('mSupp');PMS.toast('已发出材料补充要求，倒计时暂停','success')">发出要求</button></div>
+  </div>
+</div>
+
+<!-- ===================== 批量处置弹窗 ===================== -->
+<div class="modal-mask" id="mBatch">
+  <div class="modal" style="width:620px">
+    <div class="modal-head"><h3><i class="fa-solid fa-layer-group"></i> 批量处置</h3>
+      <button class="close" data-close-modal><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <div class="alert alert-danger">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <div><b>红级预警不可批量处置</b>。红级意味着购房人资金或交付已在风险中，必须逐条看过证据再下结论；
+          勾选中的红级已自动排除。</div>
+      </div>
+      <dl class="desc-list">
+        <div class="desc-item"><dt>可批量条数</dt><dd id="bOk">0 条</dd></div>
+        <div class="desc-item"><dt>已排除</dt><dd class="text-danger" id="bNo">0 条红级</dd></div>
+      </dl>
+      <div class="form-item mt-16"><label>批量操作 <span class="req">*</span></label>
+        <select><option>确认成立并生成问题</option><option>判定误报</option><option>挂起观察</option></select></div>
+      <div class="form-item"><label>统一理由 <span class="req">*</span>（不少于 20 字）</label>
+        <textarea rows="3" placeholder="批量处置的理由会写入每一条的处置记录，请确保对全部所选条目都成立"></textarea></div>
+    </div>
+    <div class="modal-foot"><button class="btn" data-close-modal>取消</button>
+      <button class="btn btn-primary" onclick="PMS.closeModal('mBatch');PMS.toast('批量处置已提交，红级请逐条处置','success')">提交</button></div>
+  </div>
+</div>
+
+<!-- ===================== 处置时限规则弹窗 ===================== -->
+<div class="modal-mask" id="mSla">
+  <div class="modal" style="width:720px">
+    <div class="modal-head"><h3><i class="fa-solid fa-stopwatch"></i> 处置时限规则</h3>
+      <button class="close" data-close-modal><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <table class="data-table compact" data-static>
+        <thead><tr><th>等级</th><th>确认时限</th><th>办结时限</th><th>是否强制派单</th>
+          <th>超期后果</th><th>是否可批量</th></tr></thead>
+        <tbody>
+          <tr><td><span class="lv red">红</span></td><td>4 小时</td><td>3 个工作日</td>
+            <td><span class="badge red">强制</span></td><td>自动上报市住建局分管领导</td><td>否</td></tr>
+          <tr><td><span class="lv orange">橙</span></td><td>1 个工作日</td><td>5 个工作日</td>
+            <td><span class="badge orange">部分强制</span></td><td>自动上报市住建局科室</td><td>是</td></tr>
+          <tr><td><span class="lv yellow">黄</span></td><td>2 个工作日</td><td>10 个工作日</td>
+            <td>否</td><td>计入县区处置成效考核</td><td>是</td></tr>
+          <tr><td><span class="lv blue">蓝</span></td><td>5 个工作日</td><td>不强制</td>
+            <td>否</td><td>仅列表标记</td><td>是</td></tr>
+        </tbody>
+      </table>
+      <p class="hint" style="margin-top:10px"><i class="fa-solid fa-circle-info"></i>
+        时限按工作日计算，法定节假日不计入。阈值与分级口径在
+        <a href="wsjcfx-25.html">预警规则配置</a> 维护，本页只读。</p>
+    </div>
+    <div class="modal-foot"><button class="btn btn-primary" data-close-modal>知道了</button></div>
+  </div>
+</div>
+
+<!-- ===================== 快捷键说明 ===================== -->
+<div class="modal-mask" id="mKey">
+  <div class="modal modal-sm" style="width:460px">
+    <div class="modal-head"><h3><i class="fa-regular fa-keyboard"></i> 键盘快捷操作</h3>
+      <button class="close" data-close-modal><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <p class="hint mb-16">批量处置场景下键盘比鼠标快一倍。处置提交后自动跳到下一条，保持处置流连贯。</p>
+      <dl class="desc-list">
+        <div class="desc-item"><dt><span class="jc-kbd">J</span> / <span class="jc-kbd">K</span></dt><dd>下一条 / 上一条预警</dd></div>
+        <div class="desc-item"><dt><span class="jc-kbd">Y</span></dt><dd>确认成立</dd></div>
+        <div class="desc-item"><dt><span class="jc-kbd">N</span></dt><dd>判定误报（打开填写框）</dd></div>
+        <div class="desc-item"><dt><span class="jc-kbd">D</span></dt><dd>转督办</dd></div>
+        <div class="desc-item"><dt><span class="jc-kbd">Esc</span></dt><dd>关闭弹窗</dd></div>
+      </dl>
+    </div>
+    <div class="modal-foot"><button class="btn btn-primary" data-close-modal>知道了</button></div>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/wsjcfx.js"></script>
+<script>
+/* ==========================================================================
+   一套三栏承载 26 类预警。三个大类的差异只体现在「证据快照」分区内用哪个证据组件，
+   页面骨架、字段位置、操作条一律相同——这是原来三页三种风格的根治办法。
+   ========================================================================== */
+var WB = (function () {
+  'use strict';
+
+  /* 26 类规则分组，与 wsjcfx-25 预警规则配置的分类树共用同一套模型 */
+  var CATS = [
+    { k: 'zj', n: '资金监管类', i: 'fa-vault', c: 15, items: [
+      ['ZJ-01', '监管账户未开立', 1], ['ZJ-02', '重点监管额度不足', 1], ['ZJ-03', '协议未签订', 0],
+      ['ZJ-04', '逾期未缴存', 0], ['ZJ-05', '资金归集异常', 1], ['ZJ-06', '余额低于下限', 1],
+      ['ZJ-07', '大额支出', 2], ['ZJ-08', '违规拨付', 1], ['ZJ-09', '资金挪用嫌疑', 1],
+      ['ZJ-10', '拨付节点不符', 0], ['ZJ-11', '维修资金欠缴', 0], ['ZJ-12', '维修资金超支', 0],
+      ['ZJ-13', '银行数据未报送', 0], ['ZJ-14', '账户冻结', 0], ['ZJ-15', '账户信息不完整', 1]
+    ] },
+    { k: 'hg', n: '业务合规类', i: 'fa-scale-balanced', c: 7, items: [
+      ['HG-01', '超范围销售', 1], ['HG-02', '价格备案违规', 1], ['HG-03', '未取证销售', 1],
+      ['HG-04', '阴阳合同', 1], ['HG-05', '主体信用风险', 1], ['HG-06', '查封限制', 1],
+      ['HG-07', '租赁资金监管', 1]
+    ] },
+    { k: 'yq', n: '项目舆情类', i: 'fa-bullhorn', c: 4, items: [
+      ['YQ-01', '停工缓建', 1], ['YQ-02', '延期交付', 1], ['YQ-03', '土地闲置 / 市场滞销', 2],
+      ['YQ-04', '舆情投诉', 1]
+    ] }
+  ];
+
+  /* 21 条示例预警：三大类各取代表规则，字段结构完全一致，只有 ev.kind 决定证据组件 */
+  var DATA = [
+    { lv: 'red', k: 'zj', type: '资金挪用嫌疑', code: 'YJ-ZJ-09-0186', rule: 'ZJ-09（FR-046）',
+      obj: '恒大·御景湾', sub: '监管账户 6228****4021（建行柳南支行）', said: '柳南区',
+      unit: '柳南区住建局', amt: '620.00 万元', time: '2026-07-31 23:08', cd: -3, cdTxt: '已超期 3 小时',
+      st: '待确认', tag: '实时',
+      calc: [['单笔支出金额', '≥ 500 万元', '620.00 万元', 1],
+             ['占账户余额比例', '≥ 30%', '18.6%', 0],
+             ['用途是否在白名单', '不在即命中', '往来款（不在白名单）', 1],
+             ['近 7 日同账户大额次数', '≥ 3 次', '4 次', 1]],
+      ev: { kind: 'table', h: '判定时点账户流水快照 · 取自预售资金监管系统 2026-07-31 23:08',
+        cols: ['流水号', '时间', '收款方', '金额（万元）', '用途', '审批单号'],
+        rows: [['LS2026073100186', '23:08:12', '柳州某贸易有限公司', '620.00', '往来款', '无'],
+               ['LS2026073100171', '16:20:44', '柳州某贸易有限公司', '480.00', '往来款', '无'],
+               ['LS2026072900093', '10:12:03', '柳州某贸易有限公司', '350.00', '往来款', '无']] },
+      rel: [['本项目在办预警', '4 条（红 2 / 橙 1 / 黄 1）'], ['项目风险等级', '红色 · 78.2 分'],
+            ['形象进度', '42%，较计划滞后 18 个百分点'], ['涉及购房人', '862 户，已缴存 4.86 亿元'],
+            ['监管账户余额', '3,336 万元，低于应留存额度 8,420 万元']],
+      note: '收款方与开发企业实际控制人存在关联关系（来自企业信用库），连续 3 笔以「往来款」名义支出合计 1,450 万元且无任何审批单。',
+      log: [['2026-07-31 23:08', '系统', '实时监控触发，生成预警并短信通知资金监管科'],
+            ['2026-08-01 02:15', '系统', '次日批处理复核：仍然成立，未降级'],
+            ['2026-08-01 09:00', '系统', '确认时限 4 小时已超期，自动上报市住建局分管领导']] },
+
+    { lv: 'red', k: 'zj', type: '资金归集异常', code: 'YJ-ZJ-05-0184', rule: 'ZJ-05（FR-042）',
+      obj: '阳光·翡翠城', sub: '监管账户 6228****9902（工行柳北支行）', said: '柳北区',
+      unit: '柳北区住建局', amt: '缺口 1,286.40 万元', time: '2026-07-31 02:11', cd: 5, cdTxt: '剩余 5 小时',
+      st: '待确认', tag: '',
+      calc: [['应归集金额', '按网签合同价 × 归集比例', '9,842.60 万元', 0],
+             ['实际到账金额', '—', '8,556.20 万元', 0],
+             ['差额', '> 50 万元 或 > 5%', '1,286.40 万元 / 13.1%', 1],
+             ['未归集合同笔数', '—', '46 笔', 1]],
+      ev: { kind: 'table', h: '应归集与实到对照 · 取自网签库与账户流水 2026-07-31 02:11',
+        cols: ['合同编号', '网签日期', '合同金额（万元）', '应归集（万元）', '实到（万元）', '差额'],
+        rows: [['HT20260712008', '2026-07-12', '128.60', '102.88', '0.00', '-102.88'],
+               ['HT20260715022', '2026-07-15', '96.40', '77.12', '30.00', '-47.12'],
+               ['HT20260718041', '2026-07-18', '142.20', '113.76', '0.00', '-113.76']] },
+      rel: [['本项目在办预警', '2 条（红 1 / 橙 1）'], ['项目风险等级', '橙色 · 58 分'],
+            ['涉及购房人', '46 户，合同金额合计 5,124 万元'], ['是否保交楼项目', '是 · 严重滞后']],
+      note: '连续 4 个月归集不到位且缺口扩大，已不是「偶发延迟」可以解释的。建议确认成立后直接转督办，并同步考虑暂停网签。',
+      log: [['2026-07-31 02:11', '系统', '批处理触发，第 4 次命中同一规则'],
+            ['2026-07-31 09:20', '李茜（资金监管科）', '已电话联系企业财务，要求 3 日内说明']] },
+
+    { lv: 'red', k: 'hg', type: '未取证销售', code: 'YJ-HG-03-0191', rule: 'HG-03（FR-055）',
+      obj: '融水·苗岭春晓', sub: '开发企业：融水某置业有限公司', said: '融水苗族自治县',
+      unit: '融水县住建局', amt: '38 套 · 认购金 486 万元', time: '2026-07-31 03:02', cd: -8,
+      cdTxt: '已超期 8 小时', st: '待确认', tag: '强制派单', force: true,
+      calc: [['预售许可', '须已核发', '未核发', 1],
+             ['认购 / 网签记录', '不应存在', '认购 38 笔', 1],
+             ['收取款项', '不应存在', '486 万元', 1]],
+      ev: { kind: 'table', h: '认购记录快照 · 取自交易系统与 12345 投诉工单附件',
+        cols: ['认购编号', '认购日期', '房号', '认购金额（元）', '购房人', '来源'],
+        rows: [['RG20260705012', '2026-07-05', '3-1802', '150,000', '陈**', '现场认购单'],
+               ['RG20260708031', '2026-07-08', '3-1905', '120,000', '韦**', '现场认购单'],
+               ['RG20260712047', '2026-07-12', '5-0703', '100,000', '梁**', '12345 投诉附件']] },
+      rel: [['本项目在办预警', '2 条'], ['项目风险等级', '橙色 · 54 分'],
+            ['预售许可状态', '申报中，材料补正 2 次'], ['已收款项去向', '未进入监管账户']],
+      note: '未取证即收款，且款项未进监管账户，购房人资金完全没有保障。此类命中即成立，无阈值调整空间，规则设为强制派单。',
+      log: [['2026-07-31 03:02', '系统', '批处理触发，规则标记为强制派单，不可判定误报']] },
+
+    { lv: 'red', k: 'hg', type: '主体信用风险', code: 'YJ-HG-05-0188', rule: 'HG-05（FR-057）',
+      obj: 'XXXX市恒大置业有限公司', sub: '在建项目 2 个 · 关联预警 6 条', said: '柳南区',
+      unit: '柳南区住建局', amt: '影响 862 户 · 监管资金 4,862 万元', time: '2026-07-31 03:05',
+      cd: 4, cdTxt: '剩余 4 小时', st: '待确认', tag: '',
+      calc: [['新增被执行信息', '≥ 1 条', '3 条，合计 1.86 亿元', 1],
+             ['新增失信被执行', '≥ 1 条', '1 条', 1],
+             ['信用评级', '连续下调 2 档触发', 'B → C → D', 1]],
+      ev: { kind: 'table', h: '信用信息快照 · 取自企业信用库 2026-07-31 03:05',
+        cols: ['信息类型', '发生日期', '来源', '内容', '金额（万元）'],
+        rows: [['被执行人', '2026-07-28', 'XXXX市中级人民法院', '建设工程施工合同纠纷', '9,860'],
+               ['被执行人', '2026-07-25', '柳南区人民法院', '买卖合同纠纷', '4,200'],
+               ['失信被执行人', '2026-07-29', 'XXXX市中级人民法院', '有履行能力而拒不履行', '4,540']] },
+      rel: [['关联在办预警', '6 条（含关联企业）'], ['本企业在建项目', '2 个'],
+            ['企业信用评级', 'D 级（本月由 C 下调）'], ['受影响购房人', '862 户']],
+      note: '评级下调不是结论，影响面才是。862 户购房人、4,862 万元监管资金决定这条要升级到市级层面处置。',
+      log: [['2026-07-31 03:05', '系统', '企业信用库变更触发'],
+            ['2026-07-31 08:40', '梁国华（市场科）', '已提请市住建局约谈企业负责人']] },
+
+    { lv: 'red', k: 'yq', type: '停工缓建', code: 'YJ-YQ-01-0193', rule: 'YQ-01（FR-060）',
+      obj: '彰泰江与城', sub: '柳南区柳石路 1888 号 · 保交楼项目', said: '柳南区',
+      unit: '柳南区住建局', amt: '停工 92 天 · 涉 862 户', time: '2026-07-31 04:06', cd: -5,
+      cdTxt: '已超期 5 小时', st: '待确认', tag: '保交楼', ttag: 'idle',
+      impact: [['862', '涉及购房人（户）'], ['1,286', '涉及套数（套）'],
+               ['4.86', '已缴监管资金（亿元）'], ['92', '停工天数（天）']],
+      calc: [['连续无进度上报天数', '> 60 天', '92 天', 1],
+             ['形象进度变化', '≈ 0 视为停工', '38% → 38%（3 个月未变）', 1],
+             ['现场核验结论', '停工即命中', '2026-07-28 核验确认停工', 1],
+             ['监管账户近 90 日拨付', '为 0 加重判定', '0 元', 1]],
+      ev: { kind: 'impact', h: '计划进度与实际进度对照 · 取自项目进度监测',
+        cols: ['节点', '计划完成', '实际完成', '偏差（天）', '状态'],
+        rows: [['主体结构封顶', '2025-11-30', '未完成', '+244', '滞后'],
+               ['外立面施工', '2026-03-31', '未开始', '+122', '未启动'],
+               ['竣工验收', '2026-12-31', '未完成', '+212', '滞后'],
+               ['交付', '2027-06-30', '—', '—', '预计无法按期']] },
+      rel: [['本项目在办预警', '3 条（红 1 / 橙 1 / 黄 1）'], ['项目风险等级', '红色 · 78.2 分（一票红）'],
+            ['是否保交楼项目', '是 · 严重滞后'],
+            ['资金联动', '账户余额 6,482 万元，近 90 日拨付 0 元，同时挂着资金挪用嫌疑预警 1 条']],
+      note: '停工 92 天、进度 3 个月零增长、拨付为零、同时挂着资金挪用嫌疑——四条线索指向同一结论：这不是缓建，是停摆。',
+      log: [['2026-07-31 04:06', '系统', '批处理触发，累计第 3 次'],
+            ['2026-07-28 16:20', '周敏（柳南区住建局）', '现场核验：施工单位已撤场，塔吊停用'],
+            ['2026-08-01 09:06', '系统', '确认时限已超期，自动上报市住建局分管领导']] },
+
+    { lv: 'red', k: 'yq', type: '延期交付', code: 'YJ-YQ-02-0190', rule: 'YQ-02（FR-061）',
+      obj: '阳光·翡翠城 1—3 号楼', sub: '合同交付日期 2026-09-30', said: '柳北区',
+      unit: '柳北区住建局', amt: '预计延期 8 个月 · 涉 486 户', time: '2026-07-31 04:08',
+      cd: 3, cdTxt: '剩余 3 小时', st: '待确认', tag: '保交楼',
+      impact: [['486', '涉及购房人（户）'], ['486', '涉及套数（套）'],
+               ['3.28', '已缴监管资金（亿元）'], ['8', '预计延期（月）']],
+      calc: [['合同交付日期', '—', '2026-09-30', 0],
+             ['按当前进度测算交付日期', '晚于合同日期即命中', '2027-05-31', 1],
+             ['预计延期时长', '> 3 个月为红级', '8 个月', 1],
+             ['交付条件完成率', '< 80% 加重判定', '5 / 9 项（55.6%）', 1]],
+      ev: { kind: 'impact', h: '楼栋级交付日期表 · 取自项目进度监测与网签合同',
+        cols: ['楼栋', '合同交付日期', '当前进度', '测算交付日期', '延期（月）', '涉及户数'],
+        rows: [['1 号楼', '2026-09-30', '主体封顶，装修未开始', '2027-03-31', '6', '162'],
+               ['2 号楼', '2026-09-30', '主体 22/26 层', '2027-05-31', '8', '168'],
+               ['3 号楼', '2026-12-31', '主体 18/26 层', '2027-08-31', '8', '156']] },
+      rel: [['本项目在办预警', '3 条'], ['项目风险等级', '橙色 · 58 分'],
+            ['是否保交楼项目', '是 · 轻度滞后'], ['关联资金预警', '资金归集异常 1 条（缺口 1,286 万元）']],
+      note: '上次说能追回来，结果延期从 3 个月变成 8 个月。这次反馈须附施工组织方案与资金保障说明，不接受「加快施工」这类表态。',
+      log: [['2026-07-31 04:08', '系统', '批处理触发'],
+            ['2026-04-18', '柳北区住建局', '上次同类预警反馈：加快施工可按期交付（未兑现）']] },
+
+    { lv: 'orange', k: 'zj', type: '大额支出', code: 'YJ-ZJ-07-0179', rule: 'ZJ-07（FR-044）',
+      obj: '中海·天府', sub: '监管账户 6228****7710（农行柳江支行）', said: '柳江区',
+      unit: '柳江区住建局', amt: '540.00 万元', time: '2026-07-31 16:42', cd: 14, cdTxt: '剩余 14 小时',
+      st: '待确认', tag: '实时',
+      calc: [['单笔支出金额', '≥ 500 万元', '540.00 万元', 1],
+             ['占账户余额比例', '≥ 30%', '12.1%', 0],
+             ['用途是否在白名单', '不在即命中', '工程款（在白名单内）', 0]],
+      ev: { kind: 'table', h: '判定时点账户流水快照 · 2026-07-31 16:42',
+        cols: ['流水号', '时间', '收款方', '金额（万元）', '用途', '审批单号'],
+        rows: [['LS2026073100171', '16:42:08', '广西建工第五建筑公司', '540.00', '工程进度款', 'BF20260731009']] },
+      rel: [['本项目在办预警', '1 条'], ['项目风险等级', '蓝色 · 22 分'],
+            ['形象进度', '78%，符合计划'], ['监管账户余额', '4,462 万元，高于应留存额度']],
+      note: '收款方为总包单位、附拨付审批单号、进度与拨付节点匹配。这类正是 ZJ-07 误报率 58.3% 的典型来源，建议同步在规则配置里补全白名单，而不是每次人工关一遍。',
+      log: [['2026-07-31 16:42', '系统', '实时监控触发']] },
+
+    { lv: 'orange', k: 'zj', type: '重点监管额度不足', code: 'YJ-ZJ-02-0162', rule: 'ZJ-02（FR-039）',
+      obj: '碧桂园·凤凰城三期', sub: '监管账户 6228****5566（中行城中支行）', said: '城中区',
+      unit: '城中区住建局', amt: '缺口 2,840.00 万元', time: '2026-07-30 02:06', cd: -26,
+      cdTxt: '已超期 26 小时', st: '待确认', tag: '',
+      calc: [['工程造价（备案）', '—', '38,600 万元', 0],
+             ['应设重点监管额度', '≥ 造价 × 1.1', '42,460 万元', 0],
+             ['实设额度', '—', '39,620 万元', 1], ['缺口率', '> 0', '6.7%', 1]],
+      ev: { kind: 'table', h: '额度核定记录 · 取自资金监管系统',
+        cols: ['核定文号', '核定日期', '造价（万元）', '倍数', '核定额度（万元）', '经办'],
+        rows: [['LZZJ〔2025〕118 号', '2025-11-20', '36,000', '1.10', '39,600', '城中区住建局'],
+               ['LZZJ〔2026〕046 号', '2026-06-18', '38,600', '1.03', '39,620', '城中区住建局']] },
+      rel: [['本项目在办预警', '2 条'], ['项目风险等级', '黄色 · 44 分'],
+            ['涉及购房人', '1,024 户'], ['责任单位', '城中区住建局']],
+      note: '造价从 3.6 亿调到 3.86 亿，额度却只加了 20 万，倍数由 1.10 掉到 1.03。这是流程脱节而非主观违规，但结果一样：购房人资金保障少了 2,840 万元。',
+      log: [['2026-07-30 02:06', '系统', '批处理触发'],
+            ['2026-08-01 04:06', '系统', '确认时限已超期，自动上报市住建局资金监管科']] },
+
+    { lv: 'orange', k: 'zj', type: '违规拨付', code: 'YJ-ZJ-08-0158', rule: 'ZJ-08（FR-045）',
+      obj: '恒大·滨江左岸', sub: '拨付申请 BF20260729014', said: '柳江区',
+      unit: '柳江区住建局', amt: '318.00 万元', time: '2026-07-30 02:14', cd: 2, cdTxt: '剩余 2 小时',
+      st: '待确认', tag: '',
+      calc: [['拨付节点', '须与形象进度匹配', '申请「主体封顶」节点', 1],
+             ['实际形象进度', '≥ 节点要求 100%', '82%（未封顶）', 1],
+             ['监理确认单', '须齐备', '缺失', 1]],
+      ev: { kind: 'table', h: '拨付申请材料清单 · 取自资金监管系统',
+        cols: ['材料', '是否提供', '备注'],
+        rows: [['拨付申请表', '是', 'BF20260729014'], ['监理进度确认单', '否', '缺失'],
+               ['形象进度核验照片', '是', '拍摄于 2026-07-20，显示 20 层未封顶'],
+               ['施工合同付款节点表', '是', '封顶节点对应 25 层']] },
+      rel: [['本项目在办预警', '2 条'], ['项目风险等级', '橙色 · 61 分'], ['涉及购房人', '486 户']],
+      note: '照片显示 20 层、合同封顶节点为 25 层，材料自相矛盾且监理确认单缺失。',
+      log: [['2026-07-30 02:14', '系统', '批处理触发'],
+            ['2026-05-12', '柳江区住建局', '同类问题曾退回一次，补齐监理确认单后放行']] },
+
+    { lv: 'orange', k: 'hg', type: '阴阳合同', code: 'YJ-HG-04-0183', rule: 'HG-04（FR-056）',
+      obj: '合同 HT20260726019', sub: '中海·天府 12-2103 · 经纪机构：柳州安家房产经纪', said: '柳江区',
+      unit: '柳江区住建局', amt: '偏离 28.6% · 差额 42.8 万元', time: '2026-07-31 03:08',
+      cd: 11, cdTxt: '剩余 11 小时', st: '待确认', tag: '',
+      calc: [['网签价与完税价偏离度', '> 20%', '28.6%', 1],
+             ['网签价与评估价偏离度', '> 20%', '9.2%', 0],
+             ['网签价与备案参考价偏离度', '> 20%', '6.4%', 0]],
+      ev: { kind: 'price', h: '四价对照 · 取自网签库、税务共享接口与评估系统',
+        price: [['网签合同价', '149.80 万', '网签系统 07-26', 'base'],
+                ['完税计税价', '107.00 万', '偏离 -28.6%', 'bad'],
+                ['评估价', '137.20 万', '偏离 -8.4%', ''],
+                ['备案参考价', '140.60 万', '偏离 -6.1%', '']],
+        cols: ['项目', '取值', '来源', '时间'],
+        rows: [['网签合同价', '149.80 万元', '网签系统', '2026-07-26'],
+               ['完税计税价', '107.00 万元', '税务共享接口', '2026-07-28'],
+               ['评估价', '137.20 万元', '存量房评估系统', '2026-07-27'],
+               ['备案参考价', '140.60 万元', '价格备案库', '2026-06-30']] },
+      rel: [['本合同关联预警', '1 条'], ['经纪机构', '柳州安家房产经纪有限公司'],
+            ['该机构近 90 日同类命中', '4 笔，3 笔确认成立']],
+      note: '四价里只有完税价明显偏低，评估价与参考价都贴近网签价——这是典型的低报计税价避税，而非网签价虚高。确认成立后同步移送税务。',
+      log: [['2026-07-31 03:08', '系统', '批处理触发，四价比对模型命中']] },
+
+    { lv: 'orange', k: 'hg', type: '价格备案违规', code: 'YJ-HG-02-0170', rule: 'HG-02（FR-054）',
+      obj: '碧桂园·凤凰城三期', sub: '46 套超备案价成交', said: '城中区',
+      unit: '城中区住建局', amt: '最高上浮 12.4%', time: '2026-07-30 03:04', cd: -14,
+      cdTxt: '已超期 14 小时', st: '待确认', tag: '强制派单', force: true,
+      calc: [['成交价高于备案价', '> 0%', '最高 12.4%，46 套', 1],
+             ['是否已办理价格调整备案', '须已办理', '未办理', 1],
+             ['是否属豁免情形', '装修包 / 车位捆绑等', '待人工核实', 0]],
+      ev: { kind: 'table', h: '超备案价成交清单 · 取自网签库 2026-07-30 03:04',
+        cols: ['房号', '网签日期', '备案价（元/㎡）', '成交价（元/㎡）', '上浮', '面积（㎡）'],
+        rows: [['8-1602', '2026-07-24', '9,860', '11,082', '+12.4%', '112.40'],
+               ['8-1701', '2026-07-25', '9,860', '10,846', '+10.0%', '112.40'],
+               ['9-0803', '2026-07-26', '9,620', '10,428', '+8.4%', '96.20']] },
+      rel: [['本项目在办预警', '2 条'], ['项目风险等级', '黄色 · 44 分'], ['涉及购房人', '46 户']],
+      note: '上次是装修包豁免，这次上浮幅度更大且集中在高层，需核实是否仍属同一情形。认定豁免须附装修合同与价格构成说明。',
+      log: [['2026-07-30 03:04', '系统', '批处理触发'],
+            ['2026-04-22', '城中区住建局', '同类预警上次认定为装修包单列，属豁免情形']] },
+
+    { lv: 'orange', k: 'hg', type: '查封限制', code: 'YJ-HG-06-0166', rule: 'HG-06（FR-058）',
+      obj: '阳光·翡翠城 3 号楼', sub: '查封 68 套，其中 42 套已售', said: '柳北区',
+      unit: '柳北区住建局', amt: '涉及缴存 3,286 万元', time: '2026-07-30 03:06', cd: 6,
+      cdTxt: '剩余 6 小时', st: '待确认', tag: '',
+      calc: [['房屋查封 / 抵押登记', '存在即命中', '查封 68 套', 1],
+             ['其中已网签', '> 0 触发高关注', '42 套', 1],
+             ['购房人已缴存资金', '—', '3,286 万元', 1]],
+      ev: { kind: 'table', h: '受影响购房人及缴存情况 · 取自登记库与监管账户',
+        cols: ['房号', '购房人', '网签日期', '合同金额（万元）', '已缴存（万元）', '查封机关'],
+        rows: [['3-0602', '黄**', '2026-03-12', '86.40', '86.40', '柳北区人民法院'],
+               ['3-0803', '罗**', '2026-04-08', '92.20', '30.00', '柳北区人民法院'],
+               ['3-1105', '覃**', '2026-05-20', '88.60', '88.60', 'XXXX市中级人民法院']] },
+      rel: [['本项目在办预警', '3 条'], ['项目风险等级', '橙色 · 58 分'],
+            ['受影响购房人', '42 户，已缴存 3,286 万元']],
+      note: '42 户已缴款购房人的房子被查封，这不是「合规瑕疵」而是直接的群体性风险。处置须同步准备购房人沟通口径。',
+      log: [['2026-07-30 03:06', '系统', '登记库数据变更触发']] },
+
+    { lv: 'orange', k: 'yq', type: '舆情投诉', code: 'YJ-YQ-04-0181', rule: 'YQ-04（FR-063）',
+      obj: '碧桂园·凤凰城三期', sub: '7 日内投诉聚集，环比 +320%', said: '城中区',
+      unit: '城中区住建局', amt: '28 件投诉 · 涉 196 户', time: '2026-07-30 04:12', cd: 9,
+      cdTxt: '剩余 9 小时', st: '待确认', tag: 'AI 判定',
+      impact: [['28', '投诉件数（件）'], ['196', '涉及购房人（户）'],
+               ['0.86', 'AI 置信度'], ['+320%', '较上周环比']],
+      calc: [['7 日内同项目投诉量', '≥ 10 件', '28 件', 1],
+             ['环比增幅', '≥ 100%', '320%', 1],
+             ['负面情感占比', '≥ 60%', '82%', 1],
+             ['AI 事件聚类置信度', '≥ 0.75', '0.86', 1]],
+      ev: { kind: 'ai', h: '投诉工单明细 · 取自 12345 与信访系统（已脱敏）',
+        ai: { cf: '置信度 0.86', qs: [
+                ['反映精装标准与样板房不符，公区材料明显降级', '12345 热线 GD20260726**** · 负面'],
+                ['反映外墙渗水、公区未完工即通知收房', '12345 热线 GD20260727**** · 负面'],
+                ['反映实际公摊高于合同约定 3.2 个百分点', '网上信访 XF20260728**** · 负面']],
+              bars: [['7-24', 2], ['7-25', 3], ['7-26', 6], ['7-27', 9, 1], ['7-28', 5], ['7-29', 3]] },
+        cols: ['工单号', '受理日期', '渠道', '事项分类', '诉求摘要'],
+        rows: [['GD20260726****', '2026-07-26', '12345 热线', '交付质量', '反映精装标准与样板房不符'],
+               ['GD20260727****', '2026-07-27', '12345 热线', '交付质量', '反映外墙渗水、公区未完工'],
+               ['XF20260728****', '2026-07-28', '网上信访', '合同争议', '反映实际公摊高于合同约定']] },
+      rel: [['本项目在办预警', '2 条'], ['项目风险等级', '黄色 · 44 分'],
+            ['关联合规预警', '价格备案违规 1 条（46 套超备案价）']],
+      note: '投诉集中在交付质量而非价格，与在办的价格备案违规不是同一件事，处置时不要混为一谈。',
+      log: [['2026-07-30 04:12', '系统', 'AI 事件聚类触发，置信度 0.86']] },
+
+    { lv: 'orange', k: 'yq', type: '土地闲置', code: 'YJ-YQ-03-0176', rule: 'YQ-03（FR-062）',
+      obj: '柳北·白露片区 2023-18 号地块', sub: '受让企业：广西恒信置业（C 级）', said: '柳北区',
+      unit: '柳北区住建局', amt: '闲置 26 个月 · 96.4 亩', time: '2026-07-30 04:14', cd: 15,
+      cdTxt: '剩余 15 小时', st: '待确认', tag: '', ttag: 'idle',
+      impact: [['96.4', '地块面积（亩）'], ['26', '闲置月数（月）'],
+               ['3.82', '土地出让金（亿元）'], ['0', '涉及购房人（户）']],
+      calc: [['约定动工日期', '—', '2024-05-31', 0],
+             ['实际动工', '超期 12 个月以上即命中', '未动工', 1],
+             ['闲置时长', '> 12 个月', '26 个月', 1],
+             ['是否属政府原因', '政府原因不计入', '否（企业资金原因）', 1]],
+      ev: { kind: 'impact', h: '土地出让与动工记录',
+        cols: ['项目', '内容', '来源'],
+        rows: [['出让合同号', 'LZTD〔2023〕第 018 号', '自然资源局共享数据'],
+               ['成交日期 / 价款', '2023-05-18 / 3.82 亿元', '自然资源局共享数据'],
+               ['约定动工 / 竣工', '2024-05-31 / 2027-05-31', '出让合同'],
+               ['实际状态', '围挡完成，未开挖', '2026-07-20 现场核验']] },
+      rel: [['受让企业', '广西恒信置业有限公司（C 级）'], ['该企业其他闲置地块', '1 宗'],
+            ['是否已缴纳闲置费', '未缴纳']],
+      note: '本条判定为「土地闲置」而非「市场滞销」：地块尚未开发、无在售房源，问题在企业未履约动工，处置路径是自然资源部门的闲置土地认定，不走去化调节。',
+      log: [['2026-07-30 04:14', '系统', '批处理触发，累计第 2 次'],
+            ['2025-05-20', '柳北区住建局', '上次反馈：企业正在办理规划调整（一年后仍未动工）']] },
+
+    { lv: 'yellow', k: 'zj', type: '余额低于下限', code: 'YJ-ZJ-06-0140', rule: 'ZJ-06（FR-043）',
+      obj: '融安·滨河新城', sub: '监管账户 6228****8801（农信社融安支行）', said: '融安县',
+      unit: '融安县住建局', amt: '余额 486.20 万元', time: '2026-07-29 02:09', cd: 68,
+      cdTxt: '剩余 2 天 20 小时', st: '待确认', tag: '',
+      calc: [['账户余额', '—', '486.20 万元', 0],
+             ['应留存下限', '按未完工工程量测算', '820.00 万元', 0],
+             ['缺口', '> 0', '333.80 万元', 1]],
+      ev: { kind: 'table', h: '余额与留存下限测算 · 2026-07-29 02:09',
+        cols: ['科目', '金额（万元）', '说明'],
+        rows: [['账户余额', '486.20', '截至 2026-07-28 24:00'],
+               ['未完工工程量对应资金', '820.00', '按剩余 32% 工程量测算'],
+               ['缺口', '333.80', '—']] },
+      rel: [['本项目在办预警', '2 条'], ['项目风险等级', '黄色 · 66 分'], ['涉及购房人', '208 户']],
+      note: '县域项目销售回款慢，余额下滑属结构性问题。宜纳入月度跟踪而非单次督办。',
+      log: [['2026-07-29 02:09', '系统', '批处理触发，近 12 个月首次']] },
+
+    { lv: 'yellow', k: 'zj', type: '监管账户未开立', code: 'YJ-ZJ-01-0136', rule: 'ZJ-01（FR-038）',
+      obj: '鹿寨·山湖郡', sub: '预售证 柳房预售〔2026〕第 048 号', said: '鹿寨县',
+      unit: '鹿寨县住建局', amt: '—', time: '2026-07-29 02:04', cd: 44, cdTxt: '剩余 1 天 20 小时',
+      st: '待确认', tag: '',
+      calc: [['预售许可核发日', '—', '2026-07-21', 0],
+             ['已过工作日', '> 5 个工作日', '6 个工作日', 1],
+             ['监管账户开立记录', '须存在', '无', 1]],
+      ev: { kind: 'table', h: '预售许可与账户开立记录比对',
+        cols: ['预售证号', '核发日期', '可售套数', '账户开立日期', '状态'],
+        rows: [['柳房预售〔2026〕第 048 号', '2026-07-21', '286', '—', '未开立']] },
+      rel: [['本项目在办预警', '1 条'], ['项目风险等级', '蓝色 · 22 分'], ['已网签套数', '0 套（尚未开始销售）']],
+      note: '尚未网签，实质风险低，但账户不开立就网签是硬性违规，须在开盘前解决。',
+      log: [['2026-07-29 02:04', '系统', '批处理触发，新项目首次']] },
+
+    { lv: 'yellow', k: 'zj', type: '实时大额（已降级）', code: 'YJ-ZJ-07-0121', rule: 'ZJ-07（FR-052）',
+      obj: '万科·柳江公园', sub: '监管账户 6228****3388（工行柳江支行）', said: '柳江区',
+      unit: '柳江区住建局', amt: '312.00 万元', time: '2026-07-28 15:20', cd: 96, cdTxt: '剩余 4 天',
+      st: '已降级', tag: '降级',
+      calc: [['实时初判', '单笔 ≥ 300 万元触发实时提醒', '312.00 万元', 1],
+             ['次日批处理复核', '用途 + 审批单齐备则降级', '税费代扣，审批齐备', 0]],
+      ev: { kind: 'table', h: '实时初判与次日复核对照',
+        cols: ['环节', '时间', '结论', '依据'],
+        rows: [['实时初判', '2026-07-28 15:20', '触发橙级', '单笔金额超实时阈值'],
+               ['批处理复核', '2026-07-29 02:18', '降级为黄级', '经核查为合规用款：契税代扣，附税务缴款书']] },
+      rel: [['本项目在办预警', '1 条'], ['项目风险等级', '蓝色 · 15 分']],
+      note: '经核查为合规用款，系统已自动降级。保留在列表中是为了留痕，不需要再单独处置。',
+      log: [['2026-07-28 15:20', '系统', '实时监控触发橙级'],
+            ['2026-07-29 02:18', '系统', '批处理复核为合规用款，自动降级为黄级并留痕']] },
+
+    { lv: 'yellow', k: 'hg', type: '超范围销售', code: 'YJ-HG-01-0152', rule: 'HG-01（FR-053）',
+      obj: '万科·柳江公园 5 号楼', sub: '超预售证范围 12 套', said: '柳江区',
+      unit: '柳江区住建局', amt: '12 套', time: '2026-07-29 03:01', cd: 40, cdTxt: '剩余 1 天 16 小时',
+      st: '待确认', tag: '',
+      calc: [['网签房号是否在预售证范围内', '不在即命中', '12 套不在范围内', 1],
+             ['是否已申请预售范围变更', '须已申请', '未申请', 1]],
+      ev: { kind: 'table', h: '超范围网签清单 · 取自网签库与预售证附表',
+        cols: ['房号', '网签日期', '预售证范围', '合同金额（万元）', '购房人'],
+        rows: [['5-2601', '2026-07-22', '1—25 层（不含 26 层）', '108.60', '韦**'],
+               ['5-2602', '2026-07-24', '1—25 层（不含 26 层）', '112.40', '张**'],
+               ['5-2603', '2026-07-26', '1—25 层（不含 26 层）', '106.20', '陆**']] },
+      rel: [['本项目在办预警', '1 条'], ['项目风险等级', '蓝色 · 22 分'], ['涉及购房人', '12 户']],
+      note: '26 层为后期加建部分，预售证尚未覆盖。须先补办预售范围变更，已网签的 12 套暂缓办理资金拨付。',
+      log: [['2026-07-29 03:01', '系统', '批处理触发']] },
+
+    { lv: 'yellow', k: 'hg', type: '租赁资金监管', code: 'YJ-HG-07-0148', rule: 'HG-07（FR-059）',
+      obj: '柳州安居租赁管理有限公司', sub: '租金监管专户 6228****4477', said: '鱼峰区',
+      unit: '鱼峰区住建局', amt: '缺口 168.40 万元 · 涉 286 名租客', time: '2026-07-29 03:12',
+      cd: 60, cdTxt: '剩余 2 天 12 小时', st: '待确认', tag: '',
+      calc: [['应存入租金监管专户金额', '按备案租赁合同测算', '486.20 万元', 0],
+             ['实际存入', '—', '317.80 万元', 0],
+             ['缺口', '> 30 万元', '168.40 万元', 1],
+             ['是否存在高收低租', '价差 > 20% 加重判定', '否', 0]],
+      ev: { kind: 'table', h: '租金归集对照 · 取自租赁备案库与专户流水',
+        cols: ['月份', '备案合同（份）', '应存入（万元）', '实际存入（万元）', '缺口（万元）'],
+        rows: [['2026-05', '96', '162.40', '148.20', '14.20'],
+               ['2026-06', '102', '168.60', '108.40', '60.20'],
+               ['2026-07', '88', '155.20', '61.20', '94.00']] },
+      rel: [['该机构在办预警', '1 条'], ['机构备案状态', '有效'], ['涉及租客', '286 名']],
+      note: '缺口连续 3 个月扩大，7 月只存入四成。租赁不涉及购房人但涉及 286 名租客的押金安全，不能因为等级是黄就拖。',
+      log: [['2026-07-29 03:12', '系统', '批处理触发，连续第 3 个月']] },
+
+    { lv: 'yellow', k: 'yq', type: '市场滞销', code: 'YJ-YQ-03-0164', rule: 'YQ-03（FR-062）',
+      obj: '融安·滨河新城', sub: '在售库存 386 套', said: '融安县',
+      unit: '融安县住建局', amt: '去化周期 42.6 个月', time: '2026-07-29 04:16', cd: 52,
+      cdTxt: '剩余 2 天 4 小时', st: '待确认', tag: '', ttag: 'slow',
+      impact: [['386', '在售库存（套）'], ['42.6', '去化周期（月）'],
+               ['208', '已售购房人（户）'], ['3.2', '月均销售（套）']],
+      calc: [['去化周期', '> 36 个月', '42.6 个月', 1],
+             ['近 6 个月月均销售', '< 5 套加重判定', '3.2 套', 1],
+             ['是否已动工并在售', '是则判为滞销', '是', 1]],
+      ev: { kind: 'impact', h: '销售与库存趋势 · 取自网签库',
+        cols: ['月份', '成交（套）', '成交面积（㎡）', '在售库存（套）', '去化周期（月）'],
+        rows: [['2026-03', '5', '486.20', '402', '38.2'], ['2026-04', '4', '392.60', '398', '39.6'],
+               ['2026-05', '3', '288.40', '395', '40.8'], ['2026-06', '2', '196.80', '393', '42.1'],
+               ['2026-07', '2', '204.20', '386', '42.6']] },
+      rel: [['本项目在办预警', '2 条'], ['项目风险等级', '黄色 · 66 分'],
+            ['同时在办资金预警', '余额低于下限 1 条（缺口 333.80 万元）']],
+      note: '本条判定为「市场滞销」而非「土地闲置」：项目已动工在售，问题在县域需求不足。处置路径是纳入土地供应节奏调节与去化跟踪，不走闲置认定。',
+      log: [['2026-07-29 04:16', '系统', '批处理触发']] },
+
+    { lv: 'blue', k: 'zj', type: '账户信息不完整', code: 'YJ-ZJ-15-0118', rule: 'ZJ-15（FR-051）',
+      obj: '三江·侗乡人家', sub: '监管账户 6228****6633（农信社三江支行）', said: '三江侗族自治县',
+      unit: '三江县住建局', amt: '—', time: '2026-07-28 02:22', cd: 120, cdTxt: '剩余 5 天',
+      st: '待确认', tag: '提示',
+      calc: [['账户三方协议', '须上传', '未上传', 1], ['开户行联系人', '须填写', '未填写', 1]],
+      ev: { kind: 'table', h: '账户档案完整性检查',
+        cols: ['字段', '状态', '影响'],
+        rows: [['三方监管协议扫描件', '缺失', '资金拨付审批无法线上留痕'],
+               ['开户行联系人及电话', '缺失', '异常情况无法及时联系银行']] },
+      rel: [['本项目在办预警', '1 条'], ['项目风险等级', '蓝色 · 12 分']],
+      note: '提示性预警，补齐材料即可关闭，不进入问题清单，不强制派单。',
+      log: [['2026-07-28 02:22', '系统', '批处理触发']] }
+  ];
+
+  var cur = 0, sortBy = 'cd', catFilter = null, lvFilter = [];
+  var LVN = { red: '红级', orange: '橙级', yellow: '黄级', blue: '蓝级' };
+  var LVW = { red: 0, orange: 1, yellow: 2, blue: 3 };
+  var KN = { zj: '资金监管', hg: '业务合规', yq: '项目舆情' };
+  var $ = function (id) { return document.getElementById(id); };
+
+  function view() {
+    var a = DATA.filter(function (d) {
+      if (lvFilter.length && lvFilter.indexOf(d.lv) < 0) return false;
+      if (catFilter && d.rule.indexOf(catFilter) !== 0) return false;
+      return true;
+    });
+    a.sort(function (x, y) {
+      if (sortBy === 'lv') return LVW[x.lv] - LVW[y.lv] || x.cd - y.cd;
+      if (sortBy === 'time') return x.time < y.time ? 1 : -1;
+      return x.cd - y.cd;
+    });
+    return a;
+  }
+
+  function cdCls(h) { return h < 0 ? 'over' : (h <= 8 ? 'soon' : 'ok'); }
+  function stBadge(s) {
+    return '<span class="badge ' + (s === '已降级' ? 'gray' : s === '处置中' ? 'blue' : 'orange') + '">' + s + '</span>';
+  }
+
+  function renderCats() {
+    var h = '';
+    CATS.forEach(function (c) {
+      h += '<div class="jc-cat" data-open="1">' +
+        '<div class="ct-h" onclick="WB.togCat(this)">' +
+          '<i class="fa-solid fa-chevron-down ct-ar"></i>' +
+          '<i class="fa-solid ' + c.i + '"></i> ' + c.n +
+          '<span class="ct-c">' + c.c + ' 类</span></div><div class="ct-b">';
+      c.items.forEach(function (it) {
+        h += '<div class="ct-i' + (it[2] ? '' : ' zero') + '" onclick="WB.pickCat(this,\'' + it[0] + '\')">' +
+          '<span class="ci-c">' + it[0] + '</span>' + it[1] +
+          '<span class="ci-n">' + (it[2] || '') + '</span></div>';
+      });
+      h += '</div></div>';
+    });
+    $('cats').innerHTML = h;
+  }
+
+  function renderList() {
+    var a = view(), h = '';
+    a.forEach(function (d) {
+      var i = DATA.indexOf(d);
+      /* 六要素固定同位置：等级色条 + 规则名 + 对象名 + 触发时间 + 剩余时限 + 状态徽章 */
+      h += '<div class="jc-al ' + d.lv + (i === cur ? ' on' : '') + '" onclick="WB.pick(' + i + ')">' +
+        '<span class="a-ck"><input type="checkbox" onclick="event.stopPropagation();WB.cntSel()"' +
+          (d.lv === 'red' ? ' disabled title="红级不可批量处置"' : '') + '></span>' +
+        '<div class="a-h"><span class="a-t">' + d.type + '</span>' +
+          '<span class="a-k ' + d.k + '">' + KN[d.k] + '</span>' +
+          (d.tag ? '<span class="badge ' + (d.tag === '降级' || d.tag === '提示' ? 'gray' :
+                    d.tag === '实时' ? 'cyan' : d.tag === '强制派单' ? 'red' : 'purple') + '">' + d.tag + '</span>' : '') +
+        '</div>' +
+        '<div class="a-o">' + d.obj + ' <span class="text-3">·</span> ' + d.said + '</div>' +
+        '<div class="a-m"><span class="a-amt">' + d.amt + '</span>' +
+          '<span><i class="fa-regular fa-clock"></i> ' + d.time.slice(5, 11) + '</span>' +
+          '<span class="jc-cd ' + cdCls(d.cd) + '">' + d.cdTxt + '</span>' +
+          '<span class="ml-auto">' + stBadge(d.st) + '</span></div>' +
+        '</div>';
+    });
+    $('alist').innerHTML = h || '<div class="empty"><i class="fa-regular fa-face-smile"></i>' +
+      '<p>当前筛选下没有待处置预警</p></div>';
+    $('lsTotal').textContent = a.length;
+  }
+
+  /* 三类差异化证据组件，统一收在「证据快照」分区内，不改变整页布局 */
+  function evHtml(d) {
+    var e = d.ev, top = '';
+    if (e.kind === 'price') {
+      top = '<div class="jc-price">' + e.price.map(function (p) {
+        return '<div class="pc ' + p[3] + '"><div class="pl">' + p[0] + '</div>' +
+          '<div class="pv">' + p[1] + '</div><div class="pd">' + p[2] + '</div></div>';
+      }).join('') + '</div>';
+    } else if (d.impact) {
+      top = '<div class="jc-impact">' + d.impact.map(function (m) {
+        return '<div class="im"><div class="iv">' + m[0] + '</div><div class="il">' + m[1] + '</div></div>';
+      }).join('') + '</div>';
+    }
+    if (e.kind === 'ai' && e.ai) {
+      var mx = Math.max.apply(null, e.ai.bars.map(function (b) { return b[1]; }));
+      top += '<div class="jc-ai mt-8"><div class="ai-h">' +
+        '<i class="fa-solid fa-robot"></i> AI 事件聚类判定依据<span class="cf">' + e.ai.cf + '</span></div>' +
+        e.ai.qs.map(function (q) {
+          return '<div class="ai-q">' + q[0] + '<span class="src">' + q[1] + '</span></div>';
+        }).join('') +
+        '<div class="ai-bars">' + e.ai.bars.map(function (b) {
+          return '<div class="ai-bar' + (b[2] ? ' peak' : '') + '">' +
+            '<i style="height:' + Math.round(b[1] / mx * 30 + 6) + 'px"></i>' + b[0] + '</div>';
+        }).join('') + '</div></div>';
+    }
+    var tbl = '<div class="jc-ev mt-8"' + (top ? '' : '') + '>' +
+      '<div class="ev-h"><i class="fa-solid fa-camera"></i> ' + e.h +
+      '<span class="lock"><i class="fa-solid fa-lock"></i> 只读快照，不可修改</span></div>' +
+      '<div class="table-wrap"><table class="data-table compact" data-static><thead><tr>' +
+      e.cols.map(function (c) { return '<th>' + c + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      e.rows.map(function (r) {
+        return '<tr>' + r.map(function (x) { return '<td>' + x + '</td>'; }).join('') + '</tr>';
+      }).join('') + '</tbody></table></div></div>';
+    return top + tbl;
+  }
+
+  function pick(i) {
+    cur = i; renderList();
+    var d = DATA[i];
+    $('dTitle').textContent = d.type;
+    $('dLv').innerHTML = '<span class="lv ' + d.lv + '">' + LVN[d.lv] + '</span>';
+    $('dSt').innerHTML = stBadge(d.st);
+    $('dCd').innerHTML = '<span class="jc-cd ' + cdCls(d.cd) + '">' + d.cdTxt + '</span>';
+
+    /* 分区一 预警摘要 */
+    var sum = '<div class="jc-dsec"><div class="ds-h"><i class="fa-solid fa-circle-info"></i> 预警摘要' +
+      '<span class="sub">' + d.code + ' ｜ 规则 ' + d.rule + '</span></div>' +
+      (d.ttag ? '<div class="mb-8"><span class="jc-ttag ' + d.ttag + '">' +
+        '<i class="fa-solid fa-' + (d.ttag === 'idle' ? 'ban' : 'arrow-trend-down') + '"></i> ' +
+        (d.ttag === 'idle' ? '停工 / 闲置型' : '滞销型') + '</span></div>' : '') +
+      '<dl class="desc-list">' +
+      '<div class="desc-item"><dt>预警对象</dt><dd>' + d.obj + '</dd></div>' +
+      '<div class="desc-item"><dt>对象补充</dt><dd>' + d.sub + '</dd></div>' +
+      '<div class="desc-item"><dt>所属区划</dt><dd>' + d.said + '</dd></div>' +
+      '<div class="desc-item"><dt>责任单位</dt><dd>' + d.unit + '</dd></div>' +
+      '<div class="desc-item"><dt>生成时间</dt><dd>' + d.time + '</dd></div>' +
+      '<div class="desc-item"><dt>涉及规模</dt><dd class="fw-700">' + d.amt + '</dd></div>' +
+      '</dl>' +
+      '<div class="alert alert-info" style="margin:9px 0 0"><i class="fa-solid fa-lightbulb"></i><div>' +
+      d.note + '</div></div></div>';
+
+    /* 分区二 判定过程 */
+    var calc = '<div class="jc-dsec"><div class="ds-h"><i class="fa-solid fa-scale-balanced"></i> 判定过程' +
+      '<span class="sub">阈值与实际值对照</span></div><div class="jc-calc">' +
+      '<div class="cl h"><span>判定项</span><span>阈值</span><span>实际取值</span><span>结果</span></div>' +
+      d.calc.map(function (c) {
+        return '<div class="cl"><span>' + c[0] + '</span><span class="text-3">' + c[1] + '</span>' +
+          '<b>' + c[2] + '</b><span class="' + (c[3] ? 'hit' : 'miss') + '">' +
+          (c[3] ? '命中' : '未命中') + '</span></div>';
+      }).join('') + '</div></div>';
+
+    /* 分区三 证据快照 */
+    var ev = '<div class="jc-dsec"><div class="ds-h"><i class="fa-solid fa-file-shield"></i> 证据快照' +
+      '<span class="sub">判定时点原始数据</span></div>' + evHtml(d) + '</div>';
+
+    /* 分区四 关联信息 */
+    var rel = '<div class="jc-dsec"><div class="ds-h"><i class="fa-solid fa-diagram-project"></i> 关联信息</div>' +
+      '<dl class="desc-list">' + d.rel.map(function (r) {
+        return '<div class="desc-item"><dt>' + r[0] + '</dt><dd>' + r[1] + '</dd></div>';
+      }).join('') + '</dl><div class="btn-row" style="margin-top:9px">' +
+      '<a class="btn btn-sm" href="wsjcfx-17-view.html"><i class="fa-solid fa-folder-open"></i> 项目视图</a>' +
+      '<a class="btn btn-sm" href="wsjcfx-17.html"><i class="fa-solid fa-shield-halved"></i> 风险评级</a>' +
+      '<a class="btn btn-sm" href="wsjcfx-21.html"><i class="fa-solid fa-map-location-dot"></i> 地图定位</a>' +
+      '<a class="btn btn-sm" href="wsjcfx-25.html"><i class="fa-solid fa-sliders"></i> 规则与阈值</a></div></div>';
+
+    /* 分区五 处置记录时间轴 */
+    var log = '<div class="jc-dsec"><div class="ds-h"><i class="fa-solid fa-clock-rotate-left"></i> 处置记录' +
+      '<span class="sub">全程留痕，不可删改</span></div><div class="timeline">' +
+      d.log.map(function (l, ix) {
+        return '<div class="tl-item' + (ix === 0 ? ' done' : '') + '"><div class="tl-dot"></div>' +
+          '<div class="tl-title">' + l[2] + '</div>' +
+          '<div class="tl-meta">' + l[0] + ' · ' + l[1] + '</div></div>';
+      }).join('') + '</div></div>';
+
+    $('dBody').innerHTML = sum + calc + ev + rel + log;
+    renderAct(d);
+    document.querySelector('#dPane .dc-scroll').scrollTop = 0;
+  }
+
+  /* 统一的底部操作条：五个动作对所有类型一致，只在禁用状态上体现差异 */
+  function renderAct(d) {
+    if (d.st === '已降级') {
+      $('dAct').innerHTML = '<div class="alert alert-success" style="margin:0">' +
+        '<i class="fa-solid fa-circle-check"></i><div>经次日批处理复核为<b>合规用款</b>，' +
+        '系统已自动降级并留痕，无需人工处置。</div></div>';
+      return;
+    }
+    var noFalse = d.force;
+    $('dAct').innerHTML = '<div class="ac-btns">' +
+      '<button class="btn btn-danger-solid" onclick="WB.doConfirm()">' +
+        '<i class="fa-solid fa-check"></i> 确认成立 <span class="jc-kbd">Y</span></button>' +
+      '<button class="btn' + (noFalse ? ' disabled' : '') + '" ' +
+        (noFalse ? 'onclick="JC.denied(\'该规则为强制派单类，命中即成立，不允许判定误报\')"' :
+                   'onclick="WB.openFalse()"') + '>' +
+        '<i class="fa-solid fa-xmark"></i> 判定误报 <span class="jc-kbd">N</span></button>' +
+      '<button class="btn" onclick="WB.openOrder()"><i class="fa-solid fa-paper-plane"></i> 转督办 ' +
+        '<span class="jc-kbd">D</span></button>' +
+      '<button class="btn" onclick="PMS.openModal(\'mSupp\')"><i class="fa-solid fa-paperclip"></i> 补充材料</button>' +
+      '<button class="btn" onclick="PMS.openModal(\'mHold\')"><i class="fa-solid fa-pause"></i> 挂起观察</button>' +
+      '<button class="btn btn-ghost ml-auto" onclick="WB.next()">跳过 <span class="jc-kbd">J</span></button>' +
+      '</div><div class="ac-tip"><i class="fa-solid fa-circle-info"></i> ' +
+      (noFalse ? '<b class="text-danger">本规则强制派单</b>，确认成立后自动生成督办单派往 ' + d.unit + '；' :
+                 '确认成立后进入问题清单并生成问题编号；') +
+      '误报须选原因分类并填不少于 20 字理由，可在 <a href="wsjcfx-24.html">督办闭环管理</a> 跟踪后续。</div>';
+  }
+
+  function doConfirm() {
+    var d = DATA[cur];
+    d.st = '处置中';
+    $('dAct').innerHTML = '<div class="alert alert-success" style="margin:0">' +
+      '<i class="fa-solid fa-circle-check"></i><div><b>已确认成立，进入问题清单</b>：问题编号 ' +
+      '<b>WT-20260801-0092</b>，责任单位 ' + d.unit + '，办理时限 ' +
+      (d.lv === 'red' ? '3' : d.lv === 'orange' ? '5' : '10') + ' 个工作日。' +
+      '<a href="wsjcfx-24.html">查看问题</a> ｜ <a href="javascript:;" onclick="WB.next()">处理下一条</a></div></div>';
+    renderList();
+    PMS.toast('已确认成立，生成问题 WT-20260801-0092', 'success');
+  }
+
+  function openOrder() {
+    var d = DATA[cur];
+    $('oUnit').innerHTML = '<option>' + d.unit + '</option><option>市住建局资金监管科</option>' +
+      '<option>市住建局市场科</option><option>市住建局房产科</option>';
+    $('oSla').innerHTML = '<option>' + (d.lv === 'red' ? '3 个工作日（红级默认）' :
+      d.lv === 'orange' ? '5 个工作日（橙级默认）' : '10 个工作日（黄级默认）') + '</option>' +
+      '<option>3 个工作日</option><option>5 个工作日</option><option>10 个工作日</option>';
+    PMS.openModal('mOrder');
+  }
+
+  function doOrder() {
+    PMS.closeModal('mOrder');
+    DATA[cur].st = '处置中';
+    renderList();
+    PMS.toast('督办单 DB20260801007 已派发，进入属地反馈环节', 'success');
+  }
+
+  function openFalse() {
+    $('fCat').value = ''; $('fTxt').value = ''; $('fLen').textContent = '0';
+    $('fEsc').style.display = 'none'; $('fBtn').disabled = true;
+    PMS.openModal('mFalse');
+  }
+
+  function chkFalse() {
+    var c = $('fCat').value, v = $('fTxt').value.trim();
+    $('fLen').textContent = v.length;
+    $('fEsc').style.display = (c === '阈值设置不合理' || c === '规则逻辑不适用') ? '' : 'none';
+    $('fBtn').disabled = !(c && v.length >= 20);
+  }
+
+  function doFalse() {
+    var c = $('fCat').value;
+    PMS.closeModal('mFalse');
+    PMS.toast('已判定误报' + ((c === '阈值设置不合理' || c === '规则逻辑不适用') ?
+      '，并推送市级规则责任人复核' : ''), 'success');
+    next();
+  }
+
+  function step(dir) {
+    var a = view(), p = a.indexOf(DATA[cur]);
+    var n = Math.min(Math.max(p + dir, 0), a.length - 1);
+    if (a[n]) pick(DATA.indexOf(a[n]));
+  }
+
+  function cntSel() {
+    $('selN').textContent = document.querySelectorAll('#alist input[type=checkbox]:checked').length;
+  }
+
+  function openBatch() {
+    var n = document.querySelectorAll('#alist input[type=checkbox]:checked').length;
+    var red = view().filter(function (d) { return d.lv === 'red'; }).length;
+    $('bOk').textContent = n + ' 条';
+    $('bNo').textContent = red + ' 条红级（不可勾选）';
+    PMS.openModal('mBatch');
+  }
+
+  function init() {
+    renderCats(); renderList(); pick(0);
+    setTimeout(function () { $('liveBar').style.display = ''; }, 2600);
+    document.addEventListener('keydown', function (e) {
+      if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+      if (document.querySelector('.modal-mask.open')) return;
+      var k = e.key.toLowerCase();
+      if (k === 'j') { e.preventDefault(); step(1); }
+      else if (k === 'k') { e.preventDefault(); step(-1); }
+      else if (k === 'y') { e.preventDefault(); if (DATA[cur].st !== '已降级') doConfirm(); }
+      else if (k === 'n') { e.preventDefault(); if (DATA[cur].st !== '已降级' && !DATA[cur].force) openFalse(); }
+      else if (k === 'd') { e.preventDefault(); if (DATA[cur].st !== '已降级') openOrder(); }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+
+  return {
+    pick: pick, next: function () { step(1); }, cntSel: cntSel, openBatch: openBatch,
+    doConfirm: doConfirm, openOrder: openOrder, doOrder: doOrder,
+    openFalse: openFalse, chkFalse: chkFalse, doFalse: doFalse,
+    togLv: function (el) {
+      el.classList.toggle('on');
+      var lv = el.dataset.lv, i = lvFilter.indexOf(lv);
+      if (i < 0) lvFilter.push(lv); else lvFilter.splice(i, 1);
+      renderList();
+    },
+    pickView: function (el) {
+      document.querySelectorAll('.jc-quick .q-item').forEach(function (n) { n.classList.remove('on'); });
+      el.classList.add('on');
+      PMS.toast('已切换视图：' + el.innerText.trim().split(' ')[0]);
+    },
+    togCat: function (el) {
+      var b = el.parentElement;
+      b.dataset.open = b.dataset.open === '1' ? '0' : '1';
+    },
+    pickCat: function (el, code) {
+      var on = el.classList.contains('on');
+      document.querySelectorAll('.ct-i').forEach(function (n) { n.classList.remove('on'); });
+      if (on) { catFilter = null; } else { el.classList.add('on'); catFilter = code; }
+      renderList();
+      var a = view();
+      if (a.length) pick(DATA.indexOf(a[0]));
+    },
+    sort: function (el, by) {
+      document.querySelectorAll('.jc-sort .so').forEach(function (n) { n.classList.remove('on'); });
+      el.classList.add('on'); sortBy = by; renderList();
+    },
+    togChip: function (el) { el.classList.toggle('on'); },
+    reset: function () {
+      lvFilter = []; catFilter = null; sortBy = 'cd';
+      document.querySelectorAll('.jc-lvs .lb, .ct-i, .ft-chip').forEach(function (n) { n.classList.remove('on'); });
+      renderList(); PMS.toast('筛选条件已重置');
+    },
+    jumpLive: function () { $('liveBar').style.display = 'none'; pick(0); }
+  };
+})();
+</script>
+</body>
+</html>

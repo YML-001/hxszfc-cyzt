@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>房源真实性智能核验 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="jb" data-active="listing-verify" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>智能应用</span>
+      <span class="sep">/</span><span>智能核验</span>
+      <span class="sep">/</span><span class="cur">房源真实性智能核验</span>
+    </div>
+    <div class="page-actions">
+      <span class="node-tag"><i class="fa-solid fa-user-shield"></i>业务经办人</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-clipboard-check"></i>智能核验 wsai-07</span>
+    <a class="active" href="listing-verify.html?role=jb">房源真实性核验</a>
+    <a href="quality-verify.html?role=jb">好房子品质核验</a>
+    <a href="archive-catalog.html?role=jb">档案影像编目</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-house-circle-check"></i>
+    <span>模型对房源图片做<b>指纹重复性识别</b>、对描述与权属登记做<b>一致性比对</b>，辅助识别虚假房源。
+      认定为虚假后会自动生成<b>待确认</b>的信用扣分线索，人工确认后才推送预警督办 —— AI 不直接给机构定性。</span>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon ai"><i class="fa-solid fa-list"></i></div>
+      <div><div class="s-label">在核房源</div><div class="s-value" id="kAll">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><div class="s-label">疑似虚假</div><div class="s-value" id="kSus">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">已核验通过</div><div class="s-value" id="kPass">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">待人工确认</div><div class="s-value" id="kPend">—</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>房源核验清单</h3>
+      <span class="sub">一致性得分越低、重复性得分越高，虚假可能性越大</span>
+      <div class="head-actions">
+        <select id="fSus" style="width:170px" onchange="paint()">
+          <option value="">全部房源</option>
+          <option value="1">仅疑似虚假</option>
+          <option value="0">仅正常房源</option>
+        </select>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="grid-2" id="cards"></div>
+    </div>
+  </div>
+
+  <div id="aiPushHint" class="mt-16"></div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  function paintKpi() {
+    var ls = AI.get('listings');
+    document.getElementById('kAll').textContent = ls.length;
+    document.getElementById('kSus').textContent = ls.filter(function (l) { return l.suspect; }).length;
+    document.getElementById('kPass').textContent = ls.filter(function (l) { return l.qrzt === '3'; }).length;
+    document.getElementById('kPend').textContent = ls.filter(function (l) {
+      return l.outputId && l.qrzt === '0';
+    }).length;
+  }
+
+  window.paint = function () {
+    var f = document.getElementById('fSus').value;
+    var ls = AI.get('listings').filter(function (l) {
+      if (f === '1' && !l.suspect) return false;
+      if (f === '0' && l.suspect) return false;
+      return true;
+    });
+    document.getElementById('cards').innerHTML = ls.length ? ls.map(function (l) {
+      var o = l.outputId ? AI.byId('outputs', l.outputId) : null;
+      var cLv = l.consist >= 85 ? 'blue' : (l.consist >= 60 ? 'yellow' : 'red');
+      var dLv = l.dup <= 15 ? 'blue' : (l.dup <= 40 ? 'yellow' : 'red');
+      return '<div class="card" style="box-shadow:none">' +
+        '<div class="card-head"><h3 style="font-size:14px">' + AI.esc(l.title) + '</h3>' +
+          (l.suspect ? '<span class="badge red">疑似虚假</span>' : '<span class="badge green">未见异常</span>') + '</div>' +
+        '<div class="card-body">' +
+          '<div class="flex gap-12" style="align-items:flex-start">' +
+            '<img src="' + l.img + '" alt="房源图片" style="width:120px;height:90px;object-fit:cover;' +
+              'border-radius:8px;border:1px solid var(--border);flex-shrink:0">' +
+            '<div style="flex:1;min-width:0">' +
+              '<div class="text-3 text-sm mb-8">挂牌机构：' + AI.esc(l.org) + '</div>' +
+              '<div class="factor-row" style="padding:3px 0">' +
+                '<span class="fr-n" style="width:78px">描述一致性</span>' +
+                '<span class="fr-bar"><span style="width:' + l.consist + '%;background:var(--lv-' + cLv + ')"></span></span>' +
+                '<span class="fr-v">' + l.consist + '</span></div>' +
+              '<div class="factor-row" style="padding:3px 0">' +
+                '<span class="fr-n" style="width:78px">图片重复性</span>' +
+                '<span class="fr-bar"><span style="width:' + l.dup + '%;background:var(--lv-' + dLv + ')"></span></span>' +
+                '<span class="fr-v">' + l.dup + '</span></div>' +
+            '</div>' +
+          '</div>' +
+          (l.note ? '<div class="is-note mt-16" style="color:var(--danger)"><i class="fa-solid fa-circle-exclamation"></i> ' +
+            AI.esc(l.note) + '</div>' : '') +
+          (o
+            ? '<div class="mt-16">' + AI.aiMark(l.qrzt) + '<div class="mt-8">' + AI.aiSource(o) + '</div></div>'
+            : '<div class="text-3 text-sm mt-16">尚未执行智能核验</div>') +
+          (l.conclusion
+            ? '<div class="alert ' + (l.qrzt === '1' ? 'alert-danger' : 'alert-success') + ' mt-16">' +
+              '<i class="fa-solid fa-gavel"></i><span>' + AI.esc(l.conclusion) +
+              '<br><span class="text-3">' + AI.esc(l.hrBy) + ' 于 ' + AI.fmt.time(l.hrAt) + ' 确认</span></span></div>'
+            : '') +
+          '<div class="mt-16 btn-row">' +
+            (!o
+              ? '<button class="btn btn-primary btn-sm" onclick="AI.act.verifyListing(\'' + l.id + '\')">' +
+                '<i class="fa-solid fa-wand-magic-sparkles"></i> 智能核验</button>'
+              : (l.qrzt === '0'
+                  ? '<button class="btn btn-danger btn-sm" onclick="AI.act.concludeListing(\'' + l.id + '\',true)">' +
+                    '<i class="fa-solid fa-ban"></i> 认定虚假并生成线索</button>' +
+                    '<button class="btn btn-adopt btn-sm" onclick="AI.act.concludeListing(\'' + l.id + '\',false)">' +
+                    '<i class="fa-solid fa-check"></i> 核验通过</button>'
+                  : '<span class="badge ' + (l.qrzt === '1' ? 'red' : 'green') + '">已' + AI.dict('qrzt', l.qrzt) + '</span>')) +
+          '</div>' +
+        '</div></div>';
+    }).join('') : '<div class="empty" style="grid-column:1/-1"><i class="fa-regular fa-house"></i><div>没有符合条件的房源</div></div>';
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () { paintKpi(); paint(); });
+  });
+})();
+</script>
+</body>
+</html>

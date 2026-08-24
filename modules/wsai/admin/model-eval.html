@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>模型效果评估 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="pt" data-active="model-library" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>模型底座</span>
+      <span class="sep">/</span><span>模型管理</span>
+      <span class="sep">/</span><span class="cur">模型效果评估</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-microchip"></i>模型管理 wsai-02</span>
+    <a href="model-library.html?role=pt">算法模型库</a>
+    <a href="model-deploy.html?role=pt">本地化部署</a>
+    <a href="model-version.html?role=pt">版本管理</a>
+    <a class="active" href="model-eval.html?role=pt">效果评估</a>
+    <a href="compute-resource.html?role=pt">算力纳管</a>
+    <a href="agent-orchestrate.html?role=pt">智能体编排</a>
+    <a href="upstream-model.html?role=pt">上级模型复用</a>
+    <a href="corpus-manage.html?role=pt">行业语料</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-flask"></i>
+    <span>待调优样本来自各智能场景的<b>人工修正与驳回</b>：修正记为纠错样本、驳回记为误报样本。
+      点「样本回流重训」会消费样本池并生成新的小版本，准确率上升、误报率下降 —— 这是 AI 输出治理闭环的最后一环。</span>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-flask"></i></div>
+      <div><div class="s-label">待调优样本总数</div><div class="s-value" id="kSamp">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-thumbs-up"></i></div>
+      <div><div class="s-label">采纳样本</div><div class="s-value" id="kAdopt">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-pen"></i></div>
+      <div><div class="s-label">修正样本</div><div class="s-value" id="kFix">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-ban"></i></div>
+      <div><div class="s-label">驳回样本</div><div class="s-value" id="kRej">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon ai"><i class="fa-solid fa-arrows-rotate"></i></div>
+      <div><div class="s-label">已回流样本</div><div class="s-value" id="kPushed">—</div></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head"><h3>各模型调用量</h3><span class="sub">累计推理次数</span></div>
+      <div class="card-body"><div id="chCalls"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>准确率与误报率</h3><span class="sub">仅统计已发布与灰度中的模型</span></div>
+      <div class="card-body"><div id="accList"></div></div>
+    </div>
+  </div>
+
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3>模型评估与样本回流</h3>
+      <span class="sub">调用量 / 准确率 / 误报率 / 待调优样本</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tEval" data-static>
+        <thead><tr>
+          <th>模型名称</th><th>版本</th><th>状态</th><th class="num">调用量</th>
+          <th>准确率</th><th class="num">误报率</th><th class="num">待调优样本</th>
+          <th class="cell-lg">样本构成</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  function fbOf(modelId, action) {
+    return AI.where('feedbacks', function (f) {
+      return f.modelId === modelId && (action == null || f.action === action);
+    });
+  }
+
+  function paintKpi() {
+    document.getElementById('kSamp').textContent = AI.stat('samples');
+    document.getElementById('kAdopt').textContent = AI.where('feedbacks', function (f) { return f.action === '1'; }).length;
+    document.getElementById('kFix').textContent = AI.where('feedbacks', function (f) { return f.action === '2'; }).length;
+    document.getElementById('kRej').textContent = AI.where('feedbacks', function (f) { return f.action === '3'; }).length;
+    document.getElementById('kPushed').textContent = AI.where('feedbacks', function (f) { return f.pushed; }).length;
+
+    /* 调用量柱状图：取前 6 名 */
+    var top = AI.get('models').slice().sort(function (a, b) { return b.calls - a.calls; }).slice(0, 6);
+    document.getElementById('chCalls').innerHTML = AI.barChart(top.map(function (m) {
+      return { l: m.mc.replace(/（.*?）/g, '').slice(0, 8), v: m.calls };
+    }));
+
+    /* 准确率 / 误报率对比条 */
+    var on = AI.where('models', function (m) { return (m.mxzt === '3' || m.mxzt === '2') && m.acc > 0; })
+      .sort(function (a, b) { return b.acc - a.acc; });
+    document.getElementById('accList').innerHTML = on.map(function (m) {
+      return '<div class="factor-row">' +
+        '<span class="fr-n" title="' + AI.esc(m.mc) + '">' + AI.esc(m.mc.replace(/（.*?）/g, '').slice(0, 12)) + '</span>' +
+        '<span class="fr-bar"><span style="width:' + m.acc + '%"></span></span>' +
+        '<span class="fr-v text-success">' + m.acc + '%</span>' +
+        '<span class="fr-d text-danger">误 ' + m.fpr + '%</span>' +
+        '</div>';
+    }).join('');
+  }
+
+  AI.table({
+    id: 'tEval', pageSize: 20,
+    rows: function () {
+      return AI.get('models').slice().sort(function (a, b) { return b.samples - a.samples; });
+    },
+    cells: function (m) {
+      var fix = fbOf(m.id, '2').length, rej = fbOf(m.id, '3').length;
+      return [
+        '<td>' + AI.esc(m.mc) + '</td>',
+        '<td>' + AI.esc(m.ver) + '</td>',
+        '<td>' + AI.mxBadge(m.mxzt) + '</td>',
+        '<td class="num">' + AI.num(m.calls) + '</td>',
+        '<td>' + (m.acc ? AI.confidence(m.acc) : '<span class="text-3">未评估</span>') + '</td>',
+        '<td class="num">' + (m.fpr ? m.fpr + '%' : '—') + '</td>',
+        '<td class="num">' + (m.samples ? '<span class="text-danger fw-600">' + m.samples + '</span>' : '0') + '</td>',
+        '<td class="cell-lg">' + (fix || rej
+          ? '修正 ' + fix + ' 条 · 驳回 ' + rej + ' 条'
+          : '<span class="text-3">暂无人工反馈</span>') + '</td>',
+        '<td class="col-ops">' +
+          (m.samples
+            ? '<button class="btn btn-success btn-sm" onclick="AI.act.retrain(\'' + m.id + '\')">' +
+              '<i class="fa-solid fa-flask"></i> 样本回流重训</button>'
+            : '<button class="btn btn-sm" onclick="AI.toast(\'暂无待调优样本，先在智能应用页对 AI 结论做修正或驳回\',\'error\')">' +
+              '<i class="fa-solid fa-flask"></i> 无样本</button>') +
+        '</td>'
+      ];
+    },
+    empty: '暂无模型'
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () { paintKpi(); AI.repaintAll(); });
+  });
+})();
+</script>
+</body>
+</html>

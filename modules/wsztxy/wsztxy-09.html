@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>信用信息管理 · 从业主体与信用监管系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<link rel="stylesheet" href="../../assets/css/wsztxy.css">
+</head>
+<body data-role="reviewer" data-active="wsztxy-09">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 从业主体与信用监管系统
+        <span class="sep">/</span> 信用管理
+        <span class="sep">/</span> <span class="cur">信用信息管理</span>
+      </div>
+      <div class="page-title">信用信息管理</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-primary" onclick="ZT.exportAsync('信用信息管理')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="gj">信用信息归集</div>
+      <div class="tab" data-tab="pj">公众评价</div>
+    </div>
+
+    <!-- ===================== 页签一 · 信用信息归集 ===================== -->
+    <div class="tab-panel active" data-panel="gj">
+        <div class="card-body">
+          <div class="alert alert-warning">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <div>
+              <b>两类需要人工处置的归集异常</b>：待匹配池 <b>12</b> 条（主体标识匹配不到，已保留不丢弃）、无对应指标 <b>5</b> 条（有失信行为但不影响得分，须补配指标）。
+              <span class="link" onclick="PMS.openModal('dppModal')">处理待匹配池</span>
+              <span class="link" onclick="filterNoZb()">查看无对应指标记录</span>
+              <span class="link" onclick="ZT.todo('外部推送来源「税务推送」心跳中断 3 天，已标注数据源异常；本期评价结果将标注「本期部分来源数据不完整」')">数据源状态</span>
+            </div>
+          </div>
+
+          <div class="filter-bar">
+            <div class="filter-item"><label>数据范围（said）</label><select data-dict="said" data-selected="450200" data-ph=""></select></div>
+            <div class="filter-item"><label>对象名称 / 证件号</label><input type="text" placeholder="企业名称、人员姓名或证件号"></div>
+            <div class="filter-item"><label>信息类别</label>
+              <select id="gjLb"><option>全部</option><option>基础信息</option><option>良好信息</option><option>失信信息</option><option>警示信息</option></select>
+            </div>
+            <div class="filter-item"><label>信息类型（ZD6 · 24 类）</label>
+              <select><option>全部</option><option>01 行政处罚</option><option>11 挪用监管资金</option><option>13 违规发布虚假房源</option><option>18 逾期未年报</option><option>21 市级以上表彰</option><option>23 拖欠工程款或农民工工资</option><option>25 投诉核实属实</option></select>
+            </div>
+            <div class="filter-item"><label>信息来源（ZD7 · 11 类）</label>
+              <select><option>全部</option><option>01 平台自动归集</option><option>02 人工录入</option><option>05 法院推送</option><option>06 市场监管推送</option><option>07 税务推送</option><option>08 市级信用平台</option></select>
+            </div>
+            <div class="filter-item"><label>核实状态</label>
+              <select><option>全部</option><option>待核实</option><option>已核实</option></select>
+            </div>
+            <div class="filter-item"><label>记录状态</label>
+              <select><option>有效</option><option>全部</option><option>已过期</option><option>已撤销</option><option>已修复</option></select>
+            </div>
+            <button class="btn btn-primary" onclick="PMS.toast('已按所选条件检索信用信息流水','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="PMS.toast('已重置为默认条件：本级区划、有效记录')">重置</button>
+            <button class="btn" data-open-drawer="lrDrawer"><i class="fa-solid fa-pen"></i> 手工录入</button>
+            <button class="btn" onclick="PMS.openModal('drModal')"><i class="fa-solid fa-file-import"></i> 批量导入</button>
+          </div>
+
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr>
+                <th>信息编号</th><th>对象</th><th>信息类别</th><th>信息类型</th>
+                <th>事项发生时间</th><th>来源</th><th>关联指标 / 预计分值</th>
+                <th>影响有效期</th><th>公示</th><th>核实状态</th><th>操作</th>
+              </tr></thead>
+              <tbody id="gjBody">
+                <tr>
+                  <td>XY20260728-0413</td>
+                  <td class="cell-lg">XXXX市恒大置业有限公司 <span class="muted">J2M08T</span></td>
+                  <td><span class="badge red">失信信息</span></td>
+                  <td>11 挪用监管资金</td>
+                  <td>2026-07-20</td>
+                  <td>01 平台自动归集 <span class="muted">wsszjjg</span></td>
+                  <td>KF-03-02 资金监管违规 <span class="text-danger">−20</span></td>
+                  <td>2026-07-20 至 2028-07-19 <span class="muted">24 个月</span></td>
+                  <td><span class="badge blue">应公示</span></td>
+                  <td><span class="badge yellow">待核实</span></td>
+                  <td>
+                    <span class="link" onclick="openHs(this)">复核</span>
+                    <span class="link" onclick="openLy('XY20260728-0413')">来源追溯</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td>XY20260726-0407</td>
+                  <td class="cell-lg">XXXX市安居房地产经纪有限公司 <span class="muted">P3R64F</span><br><span class="muted">责任人 梁××（经纪人 桂 JJ 2021 1187）</span></td>
+                  <td><span class="badge red">失信信息</span></td>
+                  <td>13 违规发布虚假房源</td>
+                  <td>2026-07-18</td>
+                  <td>01 平台自动归集 <span class="muted">wscwb</span></td>
+                  <td>KF-02-01 房源发布违规 <span class="text-danger">−8</span></td>
+                  <td>2026-07-18 至 2028-07-17</td>
+                  <td><span class="badge blue">应公示</span></td>
+                  <td><span class="badge green">已核实</span></td>
+                  <td>
+                    <span class="link" onclick="openLy('XY20260726-0407')">来源追溯</span>
+                    <span class="link" onclick="openGz(this)">修正</span>
+                    <span class="link danger" onclick="openZx(this)">作废</span>
+                  </td>
+                </tr>
+                <tr class="row-warn">
+                  <td>XY20260724-0401</td>
+                  <td class="cell-lg">XXXX市宏信房地产估价有限公司 <span class="muted">Q1H52K</span></td>
+                  <td><span class="badge red">失信信息</span></td>
+                  <td>19 估价报告严重失实</td>
+                  <td>2026-07-15</td>
+                  <td>02 人工录入 <span class="muted">陆志明</span></td>
+                  <td><span class="badge red">无对应指标</span> <span class="link" onclick="ZT.tab('zb');PMS.toast('已跳转指标配置，请为「估价报告严重失实」补配指标后重新匹配')">配置指标</span></td>
+                  <td>2026-07-15 至 2028-07-14</td>
+                  <td><span class="badge blue">应公示</span></td>
+                  <td><span class="badge green">已核实</span></td>
+                  <td>
+                    <span class="link" onclick="openLy('XY20260724-0401')">来源追溯</span>
+                    <span class="link" onclick="openGz(this)">修正</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td>XY20260720-0388</td>
+                  <td class="cell-lg">XXXX市荣和房地产开发有限公司 <span class="muted">X8Q71D</span></td>
+                  <td><span class="badge green">良好信息</span></td>
+                  <td>21 市级以上表彰</td>
+                  <td>2026-07-08</td>
+                  <td>02 人工录入 <span class="muted">蒙丽华</span></td>
+                  <td>JF-01-02 表彰与荣誉 <span class="text-success">+6</span></td>
+                  <td>2026-07-08 至 2027-07-07 <span class="muted">12 个月</span></td>
+                  <td><span class="badge blue">应公示</span></td>
+                  <td><span class="badge green">已核实</span></td>
+                  <td>
+                    <span class="link" onclick="openLy('XY20260720-0388')">来源追溯</span>
+                    <span class="link" onclick="openGz(this)">修正</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td>XY20260715-0369</td>
+                  <td class="cell-lg">XXXX市信达物业服务有限公司 <span class="muted">R7T29M</span></td>
+                  <td><span class="badge red">失信信息</span></td>
+                  <td>25 投诉核实属实</td>
+                  <td>2026-07-02</td>
+                  <td>01 平台自动归集 <span class="muted">本系统 投诉核实</span></td>
+                  <td>KF-04-03 服务质量投诉 <span class="text-danger">−5</span></td>
+                  <td>2026-07-02 至 2028-07-01</td>
+                  <td><span class="badge gray">不公示</span></td>
+                  <td><span class="badge green">已核实</span></td>
+                  <td>
+                    <span class="link" onclick="openLy('XY20260715-0369')">来源追溯</span>
+                    <span class="link" onclick="ZT.tab('ts');PMS.toast('已跳转投诉举报核实页签，定位至投诉编号 TS20260620-0186')">关联投诉</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td>XY20260710-0352</td>
+                  <td class="cell-lg">XXXX市恒大置业有限公司 <span class="muted">J2M08T</span></td>
+                  <td><span class="badge red">失信信息</span></td>
+                  <td>23 拖欠工程款或农民工工资</td>
+                  <td>2026-06-28</td>
+                  <td>08 市级信用平台 <span class="muted">人社推送</span></td>
+                  <td>KF-03-04 拖欠款项 <span class="text-danger">−15</span></td>
+                  <td>2026-06-28 至 2028-06-27</td>
+                  <td><span class="badge blue">应公示</span></td>
+                  <td><span class="badge green">已核实</span></td>
+                  <td>
+                    <span class="link" onclick="openLy('XY20260710-0352')">来源追溯</span>
+                    <span class="link" onclick="ZT.tab('md');PMS.toast('已跳转红黑榜页签：该情形已作为黑名单认定 ZD9 rdlx=17 的关联证据')">关联名单</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td>XY20260705-0331</td>
+                  <td class="cell-lg">XXXX市广建工程监理有限公司 <span class="muted">N4B18P</span></td>
+                  <td><span class="badge yellow">警示信息</span></td>
+                  <td>17 资质即将到期</td>
+                  <td>2026-06-20</td>
+                  <td>01 平台自动归集 <span class="muted">本系统 FR-001</span></td>
+                  <td>KF-01-05 备案合规 <span class="text-danger">−2</span></td>
+                  <td>2026-06-20 至 2026-12-19 <span class="muted">6 个月</span></td>
+                  <td><span class="badge gray">不公示</span></td>
+                  <td><span class="badge green">已核实</span></td>
+                  <td><span class="link" onclick="openLy('XY20260705-0331')">来源追溯</span></td>
+                </tr>
+                <tr class="row-off">
+                  <td>XY20240612-0164</td>
+                  <td class="cell-lg">XXXX市安居房地产经纪有限公司 <span class="muted">P3R64F</span></td>
+                  <td><span class="badge red">失信信息</span></td>
+                  <td>14 超收或乱收中介费</td>
+                  <td>2024-06-05</td>
+                  <td>01 平台自动归集 <span class="muted">wscwb</span></td>
+                  <td>KF-02-03 收费违规 <span class="muted">−6（已失效）</span></td>
+                  <td>2024-06-05 至 2026-06-04 <span class="badge gray">已过期</span></td>
+                  <td><span class="badge gray">公示期满</span></td>
+                  <td><span class="badge green">已核实</span></td>
+                  <td><span class="link" onclick="ZT.todo('已过期记录不再参与计分，但档案中永久保留可查（G9）；不提供删除入口')">查看</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="zt-srcbar">
+            <span><b>本年归集</b> 9,842 条（自动 71.4% · 人工 18.2% · 外部推送 10.4%）</span>
+            <span><b>归集及时率</b> 96.8%<i class="zt-meta" title="自动归集 5 分钟内落库、人工录入 5 个工作日内录入视为及时">?</i></span>
+            <span><b>待核实</b> 6 条（挪用监管资金、违规预售两类须人工复核后方可生效）</span>
+            <span><b>数据截止</b> 2026-07-31 08:00</span>
+          </div>
+          <p class="hint">
+            <i class="fa-solid fa-circle-info"></i>
+            信息类别由信息类型自动带出，<b>不允许人工修改</b>；影响期起始取「事项发生时间」而非归集时间，归集滞后不延长企业被影响的期限；过期记录置灰保留，不参与计分也不删除。
+          </p>
+        </div>
+
+      <!-- ===================== 页签二 · 投诉举报核实 ===================== -->
+  
+    </div>
+
+    <!-- ===================== 页签二 · 公众评价 ===================== -->
+    <div class="tab-panel" data-panel="pj">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>评价对象</label><input type="text" placeholder="企业或人员名称"></div>
+          <div class="filter-item"><label>评价来源</label>
+            <select><option>全部</option><option>门户服务评价</option><option>办事满意度</option><option>投诉关联评价</option></select>
+          </div>
+          <div class="filter-item"><label>星级</label>
+            <select><option>全部</option><option>5 星</option><option>4 星</option><option>3 星</option><option>2 星及以下</option></select>
+          </div>
+          <div class="filter-item"><label>审核状态</label>
+            <select><option>全部</option><option>待审核</option><option>已采纳</option><option>已驳回</option></select>
+          </div>
+          <button class="btn btn-primary" onclick="PMS.toast('已检索公众评价','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>评价编号</th><th>评价对象</th><th>来源</th><th>星级</th>
+              <th>评价摘要</th><th>评价时间</th><th>状态</th><th>操作</th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td>PJ20260728-0186</td><td class="cell-lg">安居房地产经纪</td><td>门户服务评价</td>
+                <td>★★★★★</td><td class="cell-lg">经纪人服务耐心，网签指导清楚</td>
+                <td>2026-07-28</td><td><span class="badge green">已采纳</span></td>
+                <td><span class="link" onclick="ZT.todo('已计入良好信息归集')">归集说明</span></td>
+              </tr>
+              <tr>
+                <td>PJ20260730-0203</td><td class="cell-lg">正信房地产评估</td><td>投诉关联评价</td>
+                <td>★★</td><td class="cell-lg">估价报告出具拖延，沟通不及时</td>
+                <td>2026-07-30</td><td><span class="badge blue">待审核</span></td>
+                <td>
+                  <span class="link" onclick="ZT.todo('已采纳并转信用信息归集')">采纳</span>
+                  <span class="link" onclick="ZT.todo('已驳回：与投诉核实结论不一致')">驳回</span>
+                </td>
+              </tr>
+              <tr>
+                <td>PJ20260725-0161</td><td class="cell-lg">荣和房地产开发</td><td>办事满意度</td>
+                <td>★★★★</td><td class="cell-lg">预售公示信息齐全</td>
+                <td>2026-07-25</td><td><span class="badge green">已采纳</span></td>
+                <td><span class="link" onclick="ZT.todo('已查看评价原文')">查看</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+  
+    </div>
+  </div>
+</main>
+
+<!-- ========== 抽屉一 · 手工录入信用信息（证据必填，失信类无文书不得录入） ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="lrDrawer">
+  <div class="drawer-head"><h3>手工录入信用信息</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-warning">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div><b>手工录入的信用信息必须上传证明材料。</b>失信类信息没有认定文书<b>一律不得录入</b>（防止无依据的信用惩戒），良好类信息可凭表彰文件录入。页面不提供跳过通道。</div>
+    </div>
+
+    <h4 class="section-title" data-icon="fa-user-tag">评价对象</h4>
+    <div class="form-grid form-align">
+      <div class="form-item"><label>对象类型 <span class="req">*</span></label>
+        <select><option>企业</option><option>从业人员</option><option>门店</option></select></div>
+      <div class="form-item"><label>主体名称 <span class="req">*</span></label><input type="text" placeholder="输入名称检索已备案主体，不允许手工新建主体"></div>
+      <div class="form-item"><label>统一社会信用代码</label><input type="text" placeholder="选定主体后自动带出" readonly></div>
+      <div class="form-item"><label>所属区划（said）</label><select data-dict="said" data-selected="450204"></select></div>
+      <div class="form-item col-full"><label>责任人（可归责到具体从业人员时必填）</label>
+        <input type="text" placeholder="姓名 + 证件号检索在职人员；未指定责任人的机构失信不计入任何个人">
+        <div class="hint">同一条记录可同时登记企业与责任人，评价时按指标的评价对象类型分别取用。</div></div>
+    </div>
+
+    <h4 class="section-title" data-icon="fa-tags">信息内容</h4>
+    <div class="form-grid form-align">
+      <div class="form-item"><label>信息类型 <span class="req">*</span></label>
+        <select id="lrType" onchange="onLrType(this)">
+          <option value="">请选择（信息类别由类型自动带出）</option>
+          <option value="ss|01">01 行政处罚（失信）</option>
+          <option value="ss|19">19 估价报告严重失实（失信）</option>
+          <option value="ss|23">23 拖欠工程款或农民工工资（失信）</option>
+          <option value="lh|21">21 市级以上表彰（良好）</option>
+          <option value="lh|22">22 公益贡献与保障房参与（良好）</option>
+          <option value="js|17">17 资质即将到期（警示）</option>
+        </select></div>
+      <div class="form-item"><label>信息类别</label>
+        <input type="text" id="lrLb" value="（由信息类型自动带出，不允许人工修改）" readonly></div>
+      <div class="form-item col-full"><label>信息标题 <span class="req">*</span></label><input type="text" placeholder="一句话说明事项，将用于档案与公示展示"></div>
+      <div class="form-item col-full"><label>信息内容 <span class="req">*</span></label><textarea rows="3" placeholder="写明事实、依据与处理情况"></textarea></div>
+      <div class="form-item"><label>事项发生时间 <span class="req">*</span></label><input type="date" value="2026-07-20">
+        <div class="hint">影响期起始取事项发生时间而非归集时间；晚于当前时间的阻断提交。</div></div>
+      <div class="form-item"><label>认定机构 <span class="req">*</span></label><input type="text" placeholder="如 XXXX市住房和城乡建设局"></div>
+      <div class="form-item"><label>认定文书号 <span class="req">*</span></label><input type="text" id="lrWsh" placeholder="如 柳住建罚〔2026〕18 号"></div>
+      <div class="form-item"><label>认定日期 <span class="req">*</span></label><input type="date"></div>
+      <div class="form-item col-full"><label>认定文书（材料） <span class="req">*</span></label>
+        <input type="text" data-upload="1" id="lrFile">
+        <div class="hint" id="lrFileTip">失信类信息未上传认定文书时提交按钮置灰，无跳过选项。</div></div>
+    </div>
+
+    <h4 class="section-title" data-icon="fa-calculator">指标匹配与影响期（系统自动带出，可核对）</h4>
+    <div class="form-grid form-align">
+      <div class="form-item"><label>关联指标</label><input type="text" id="lrZb" value="（按信息类型自动匹配当前启用版本 V2026.1 的指标）" readonly></div>
+      <div class="form-item"><label>预计分值</label><input type="text" id="lrJf" value="—" readonly></div>
+      <div class="form-item"><label>影响有效期（月）</label><input type="text" value="24" readonly>
+        <div class="hint">优先取指标配置值，未配置的取参数默认值；参数取不到时中止归集，不使用代码兜底值。</div></div>
+      <div class="form-item"><label>是否公示</label>
+        <select><option>应公示（行政处罚类默认 3 年）</option><option>不公示</option></select></div>
+      <div class="form-item"><label>是否可修复</label>
+        <select><option>可修复</option><option>不可修复（挪用监管资金、法院失信被执行未结案、重大虚假宣传欺诈）</option></select></div>
+      <div class="form-item"><label>核实状态</label><input type="text" value="人工录入即已核实" readonly></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" id="lrSubmit" disabled onclick="ZT.denied('请先选择信息类型并上传认定文书')"><i class="fa-solid fa-paper-plane"></i> 提交归集</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉二 · 来源追溯 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="lyDrawer">
+  <div class="drawer-head"><h3>来源追溯 · <span data-fill="no">—</span></h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <p class="hint">
+      <i class="fa-solid fa-circle-info"></i>
+      每条信用信息都能回答「从哪来、依据什么、影响多久、算进了哪次评价」。凡是回溯不到原始记录的明细项，都会计入台账统计的异常清单（该项应恒为 0）。
+    </p>
+    <div class="timeline">
+      <div class="tl-item done">
+        <div class="tl-dot"></div>
+        <div class="tl-title">业务行为发生 <span class="badge gray">原始事实</span></div>
+        <div class="tl-meta">2026-07-20 · 来源系统 预售资金监管（wsszjjg）· 业务单据 ZJ20260720-0316</div>
+        <div class="tl-desc">监管账户拨付审核发现「工程款」用途与形象进度不匹配，金额 620.00 万元，经资金核查认定为挪用。<a href="javascript:ZT.drill('预售资金监管','定位至拨付单 ZJ20260720-0316')">查看原始单据</a></div>
+      </div>
+      <div class="tl-item done">
+        <div class="tl-dot"></div>
+        <div class="tl-title">事件消息推送 <span class="badge blue">自动归集</span></div>
+        <div class="tl-meta">2026-07-28 09:12:06 · 消息号 MQ-ZJ-20260728-000341 · 去重校验通过</div>
+        <div class="tl-desc">按「来源 + 来源系统 + 关联业务编号」判重未命中重复；主体以统一社会信用代码匹配成功，未进入待匹配池。</div>
+      </div>
+      <div class="tl-item done">
+        <div class="tl-dot"></div>
+        <div class="tl-title">归集落库 <span class="badge red">失信信息</span></div>
+        <div class="tl-meta">2026-07-28 09:12:41 · 用时 35 秒（要求 5 分钟内）· 信息编号 XY20260728-0413</div>
+        <div class="tl-desc">信息类别由类型自动带出为「失信信息」；匹配指标 KF-03-02 挪用监管资金（一票否决），预计分值 −20；影响期 2026-07-20 至 2028-07-19（24 个月，起点取事项发生时间）。</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot"></div>
+        <div class="tl-title">人工复核 <span class="badge yellow">待核实</span></div>
+        <div class="tl-meta">挪用监管资金、违规预售两类后果严重，自动归集后仍须人工复核方可生效</div>
+        <div class="tl-desc">待核实状态的信用信息<b>不参与评价计分</b>；复核通过后方进入计分口径。</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot"></div>
+        <div class="tl-title">下游使用</div>
+        <div class="tl-meta">评价计分 · 名单认定 · 公示 · 对外推送</div>
+        <div class="tl-desc">
+          已作为 2026 年度评价（PJ2026-Y-001）一票否决依据 <a href="javascript:PMS.closeDrawer();ZT.tab('pj')">查看评价结果</a>；
+          已作为黑名单认定（ZD9 rdlx=18）关联证据 <a href="javascript:PMS.closeDrawer();ZT.tab('md')">查看名单</a>；
+          公示中（全市，至 2027-07-27）；已推送市级信用平台与信用中国。
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn" onclick="ZT.exportAsync('信用信息来源追溯单')"><i class="fa-solid fa-download"></i> 导出追溯单</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉三 · 信用信息修正（前后对照 + 复核） ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="gzDrawer">
+  <div class="drawer-head"><h3>信用信息修正 · <span data-fill="no">—</span></h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div>修正只用于记载错误（文书号、时间、内容笔误）。<b>撤销归集有误的记录走「作废」</b>，须经科室负责人复核；已参与已发布评价的记录被作废时不重算历史结果，只在下一期不再计入并在原结果备注中注明。</div>
+    </div>
+    <table class="zt-diff">
+      <thead><tr><th>字段</th><th>修正前</th><th>修正后</th></tr></thead>
+      <tbody>
+        <tr class="chg"><td class="fld">认定文书号</td><td class="old">柳住建罚〔2026〕1 号</td><td class="new"><input type="text" value="柳住建罚〔2026〕11 号" style="width:100%"></td></tr>
+        <tr class="chg"><td class="fld">事项发生时间</td><td class="old">2026-07-18</td><td class="new"><input type="date" value="2026-07-16" style="width:100%"></td></tr>
+        <tr><td class="fld">信息类型</td><td>13 违规发布虚假房源</td><td>13 违规发布虚假房源 <span class="muted">（类型不允许在修正中变更，须作废重录）</span></td></tr>
+        <tr><td class="fld">影响期</td><td>2026-07-18 至 2028-07-17</td><td>2026-07-16 至 2028-07-15 <span class="muted">（随事项发生时间自动重算）</span></td></tr>
+      </tbody>
+    </table>
+    <div class="form-grid form-align" style="margin-top:12px">
+      <div class="form-item col-full"><label>修正理由 <span class="req">*</span></label><textarea rows="2" placeholder="写明原记载错误与依据，不少于 10 字"></textarea></div>
+      <div class="form-item col-full"><label>依据材料 <span class="req">*</span></label><input type="text" data-upload="1"></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="PMS.confirm({title:'修正提交确认',message:'确认提交本条信用信息的修正？',detail:'修正前后值、修正人、修正时间与依据材料全程留痕；影响期随事项发生时间自动重算，公示内容同步更新。',type:'warning',okText:'提交修正',onOk:function(){PMS.closeDrawer();PMS.toast('已提交修正并写入留痕','success');}})"><i class="fa-solid fa-check"></i> 提交修正</button>
+  </div>
+</div>
+
+<!-- ========== 弹窗一 · 待匹配池 ========== -->
+<div class="modal-mask" id="dppModal">
+  <div class="modal">
+    <div class="modal-head">待匹配池 · 12 条</div>
+    <div class="modal-body">
+      <div class="alert alert-info">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>外部推送与业务事件中主体标识匹配不到本系统主体的记录进入待匹配池，<b>不丢弃、不自动创建主体</b>。积压超过 50 条时告警。</div>
+      </div>
+      <div class="zt-tw">
+        <table class="data-table">
+          <thead><tr><th>来源</th><th>推送主体名称</th><th>推送标识</th><th>信息类型</th><th>推送时间</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>06 市场监管推送</td><td>柳州××置业有限公司</td><td>91450200MA5K****9F</td><td>01 行政处罚</td><td>2026-07-29</td>
+              <td>
+                <span class="link" onclick="ZT.todo('已打开主体检索：按信用代码后 6 位模糊检索到 2 家相近主体，请人工确认后匹配')">人工匹配</span>
+                <span class="link" onclick="ZT.todo('已标记为「非本行业主体」并归档，记录保留可查')">非本行业</span>
+              </td>
+            </tr>
+            <tr>
+              <td>05 法院推送</td><td>XXXX市××建设工程有限公司</td><td>无信用代码，仅有企业名称</td><td>12 法院失信被执行</td><td>2026-07-28</td>
+              <td>
+                <span class="link" onclick="ZT.todo('已打开主体检索')">人工匹配</span>
+                <span class="link" onclick="ZT.todo('已标记为「非本行业主体」并归档')">非本行业</span>
+              </td>
+            </tr>
+            <tr>
+              <td>07 税务推送</td><td>××物业管理有限责任公司柳州分公司</td><td>91450200MA5K****2T</td><td>24 欠税</td><td>2026-07-26</td>
+              <td>
+                <span class="link" onclick="ZT.todo('已打开主体检索：分支机构须匹配到其总机构 qyzj')">人工匹配</span>
+                <span class="link" onclick="ZT.todo('已标记为「非本行业主体」并归档')">非本行业</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close-modal>关闭</button>
+      <button class="btn btn-primary" onclick="ZT.exportAsync('待匹配池清单')"><i class="fa-solid fa-download"></i> 导出清单</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 弹窗二 · 批量导入 ========== -->
+<div class="modal-mask" id="drModal">
+  <div class="modal">
+    <div class="modal-head">批量导入信用信息</div>
+    <div class="modal-body">
+      <div class="alert alert-warning">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>批量导入同样受证据要求约束：<b>失信类记录必须在导入包中附对应认定文书文件</b>，文书缺失的行整行拒收并在校验报告中列出，不做部分导入。</div>
+      </div>
+      <div class="form-grid form-align">
+        <div class="form-item col-full"><label>导入模板</label>
+          <div><span class="link" onclick="ZT.todo('已下载模板：信用信息批量导入模板 V2.xlsx（含信息类型、来源字典校验与文书文件命名规则说明）')">下载导入模板</span></div></div>
+        <div class="form-item col-full"><label>数据文件（Excel） <span class="req">*</span></label><input type="text" data-upload="1"></div>
+        <div class="form-item col-full"><label>认定文书压缩包（材料）</label><input type="text" data-upload="1"></div>
+        <div class="form-item"><label>导入来源</label>
+          <select><option>02 人工录入（窗口批量）</option><option>09 上级转办</option><option>10 纸质函件</option></select></div>
+        <div class="form-item"><label>重复处理</label>
+          <select><option>疑似重复只提示不合并</option><option>跳过疑似重复行</option></select>
+          <div class="hint">按「信息类型 + 主体 + 发生时间 + 文书号」做疑似重复提示，不自动合并。</div></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close-modal>取消</button>
+      <button class="btn btn-primary" onclick="PMS.closeModal();PMS.toast('已提交导入任务，校验完成后在顶栏消息区提示校验报告','success')"><i class="fa-solid fa-upload"></i> 校验并导入</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/wsztxy.js"></script>
+<script>
+  function filterNoZb() {
+    document.querySelectorAll('#gjBody tr').forEach(function (tr) {
+      var hit = tr.innerHTML.indexOf('无对应指标') >= 0;
+      tr.style.display = hit ? '' : 'none';
+    });
+    PMS.toast('已筛选出 1 条「无对应指标」记录：这类记录有失信行为但不影响得分，须补配指标后重新匹配', 'error');
+  }
+  function onLrType(sel) {
+    var v = sel.value, lb = document.getElementById('lrLb');
+    var map = { ss: '失信信息', lh: '良好信息', js: '警示信息' };
+    var zbMap = {
+      '01': ['KF-01-02 行政处罚', '−12'],
+      '19': ['（无对应指标，归集后须补配）', '—'],
+      '23': ['KF-03-04 拖欠款项', '−15'],
+      '21': ['JF-01-02 市级以上表彰', '+6'],
+      '22': ['JF-01-04 公益贡献与保障房参与', '+1 — +5（人工评定）'],
+      '17': ['KF-01-05 资质到期未延续', '−2']
+    };
+    if (!v) { lb.value = '（由信息类型自动带出，不允许人工修改）'; return; }
+    var parts = v.split('|'), cls = parts[0], code = parts[1];
+    lb.value = map[cls] + '（由类型自动带出，不可修改）';
+    var zb = zbMap[code] || ['—', '—'];
+    document.getElementById('lrZb').value = zb[0];
+    document.getElementById('lrJf').value = zb[1];
+    var needFile = cls === 'ss';
+    document.getElementById('lrFileTip').innerHTML = needFile
+      ? '<b>失信类信息必须上传认定文书</b>，无文书不得录入，页面不提供跳过通道。'
+      : '良好类信息可凭表彰文件录入；建议同时上传文件以便档案与公示核对。';
+    checkLr();
+    if (code === '19') PMS.toast('该信息类型在当前启用版本中无对应指标：可以归集，但不会影响得分，请在「评价指标与模型」页签补配后重新匹配', 'error');
+  }
+  function checkLr() {
+    var type = document.getElementById('lrType').value;
+    var file = document.getElementById('lrFile');
+    var hasFile = !!(file && (file.value || '').trim());
+    var ok = !!type && (type.indexOf('ss|') !== 0 || hasFile);
+    var btn = document.getElementById('lrSubmit');
+    btn.disabled = !ok;
+    btn.setAttribute('onclick', ok
+      ? "PMS.confirm({title:'信用信息归集确认',message:'确认提交本条信用信息？',detail:'归集后即进入档案与计分口径（人工录入视为已核实）；影响期起点取事项发生时间，公示与可修复性按类型与参数带出。录入人、时间与材料全程留痕。',type:'warning',okText:'提交归集',onOk:function(){PMS.closeDrawer();PMS.toast('已归集 1 条信用信息并完成指标匹配','success');}})"
+      : "ZT.denied('请先选择信息类型并上传认定文书')");
+  }
+  function openLy(no) {
+    PMS.fill('lyDrawer', { no: no });
+    PMS.openDrawer('lyDrawer');
+  }
+  function openGz(el) {
+    var tr = el.closest('tr');
+    PMS.fill('gzDrawer', { no: tr.querySelector('td').textContent.trim() });
+    PMS.openDrawer('gzDrawer');
+  }
+  function openHs(el) {
+    var tr = el.closest('tr');
+    PMS.confirm({
+      title: '待核实信息复核',
+      message: '确认复核通过「' + tr.children[3].textContent.trim() + '」？',
+      detail: '挪用监管资金、违规预售两类因后果严重，自动归集后须人工复核方可生效。待核实状态的信用信息不参与评价计分；复核通过后进入计分口径，复核人与时间留痕。',
+      type: 'warning',
+      okText: '复核通过',
+      onOk: function () { PMS.toast('已复核通过，该条信息进入计分口径', 'success'); }
+    });
+  }
+  function openZx(el) {
+    var tr = el.closest('tr');
+    PMS.confirm({
+      title: '作废信用信息',
+      message: '确认作废「' + tr.querySelector('td').textContent.trim() + '」？',
+      detail: '作废须填写理由并经科室负责人复核。已参与已发布评价的记录被作废时不重算历史结果，只在下一期不再计入，并在原评价结果备注中注明；若该主体因该信息被列入名单，须另行评估是否撤销名单认定（系统不自动撤销）。',
+      type: 'danger',
+      okText: '提交作废',
+      onOk: function () { PMS.toast('已提交作废申请，等待科室负责人复核', 'success'); }
+    });
+  }
+
+  /* ---------- 当前登录人：双人授权的比对基准 ---------- */
+  
+  /* ================= 页签一 · 信用信息归集 ================= */
+
+
+
+
+  document.addEventListener('change', function (e) {
+    if (e.target.closest && e.target.closest('#lrDrawer')) checkLr();
+  });
+
+
+
+
+
+
+
+
+  /* ================= 页签四 · 评价结果 ================= */
+  var lastName = '';
+  document.addEventListener('input', function (e) {
+    if (e.target && e.target.id === 'tfWhy') {
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var t = ZT.param('tab');
+    if (t) ZT.tab(t);
+  });
+</script>
+</body>
+</html>

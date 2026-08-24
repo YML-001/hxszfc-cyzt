@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>企业详情与信用画像 · 统一服务门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  .ad-hero {
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card);
+    padding: 24px 26px; display: flex; gap: 26px; align-items: flex-start;
+  }
+  .ad-hero .ah-l { flex: 1; min-width: 0; }
+  .ad-hero .ah-n { font-size: 24px; font-weight: 700; line-height: 1.4; }
+  .ad-hero .ah-tags { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .ad-hero .ah-m { font-size: 13px; color: var(--text-3); margin-top: 12px; line-height: 1.9; }
+  .score-box {
+    width: 190px; flex: none; text-align: center; border-left: 1px solid var(--border); padding-left: 24px;
+  }
+  .score-box .sb-v { font-size: 52px; font-weight: 700; line-height: 1; font-family: "DIN Alternate", var(--font); }
+  .score-box .sb-l { font-size: 12.5px; color: var(--text-3); margin-top: 6px; }
+  .score-box .sb-dj {
+    display: inline-flex; width: 40px; height: 40px; border-radius: 50%; align-items: center;
+    justify-content: center; font-size: 20px; font-weight: 700; color: #fff; margin-top: 10px;
+  }
+  .ad-main { display: grid; grid-template-columns: 1fr 330px; gap: 20px; align-items: start; }
+  .star-row { display: flex; align-items: center; gap: 4px; }
+  .star-row i { color: #f3c14b; font-size: 15px; }
+  .star-row i.off { color: var(--border-strong); }
+  .star-pick i { font-size: 28px; cursor: pointer; }
+  .dist-row { display: flex; align-items: center; gap: 10px; font-size: 13px; padding: 5px 0; }
+  .dist-row .dr-l { width: 46px; flex: none; color: var(--text-2); }
+  .dist-row .dr-t { flex: 1; height: 9px; background: var(--bg-soft); border-radius: 5px; overflow: hidden; }
+  .dist-row .dr-f { height: 100%; background: #f3c14b; border-radius: 5px; }
+  .dist-row .dr-v { width: 52px; text-align: right; color: var(--text-3); font-family: "DIN Alternate", var(--font); }
+</style>
+</head>
+<body data-nav="agency">
+
+<div class="wrap"><div class="crumb"><a href="home.html">首页</a><i class="fa-solid fa-angle-right"></i><a href="agency-public.html">从业主体</a><i class="fa-solid fa-angle-right"></i><a href="agency-list.html">企业名录</a><i class="fa-solid fa-angle-right"></i>企业详情</div></div>
+
+<div class="wrap" id="ad-body"></div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+var A = null;
+
+function pageInit() {
+  var id = UI.param('id');
+  A = PORTAL.agency(id) || PORTAL.agencies({ pub: 1 })[0];
+  if (!A) {
+    document.getElementById('ad-body').innerHTML = UI.empty('未找到该主体',
+      '该主体可能尚未入网或已注销，未入网主体不进入名录公示',
+      '<a class="btn btn-primary btn-sm" href="agency-list.html">返回企业名录</a>');
+    return;
+  }
+  render();
+  PORTAL.on(function () { A = PORTAL.agency(A.id); render(); });
+}
+
+function render() {
+  var a = A;
+  var djColor = { A: 'var(--success)', B: 'var(--primary)', C: 'var(--warning)', D: 'var(--accent)' }[a.dj] || 'var(--text-3)';
+  var isRent = a.lx === '住房租赁企业';
+  var isDev = a.lx === '房地产开发企业';
+
+  /* 关联项目 / 房源 */
+  var projects = PORTAL.projects().filter(function (p) { return p.kfqy === a.mc; });
+  var houses = PORTAL.houses({ all: 1 }).filter(function (h) { return h.wtjg === a.mc; });
+  var staffs = PORTAL.staffs({ jg: a.mc });
+  var rates = PORTAL.ratings({ lx: '机构' }).filter(function (r) { return r.dx === a.mc; });
+
+  /* 信用分构成（按评价依据权重推导） */
+  var parts = [
+    ['办件合规', 40, Math.round(a.score * 0.4)],
+    ['投诉处置', 25, Math.round(a.score * 0.25)],
+    ['服务评价', 25, Math.round((a.pjscore === '—' ? 4 : Number(a.pjscore)) / 5 * 25)],
+    ['违规扣分', 10, a.lyqk.indexOf('违规') >= 0 ? 2 : 10]
+  ];
+
+  var html = '';
+
+  /* 头部 */
+  html += '<div class="ad-hero"><div class="ah-l">'
+    + '<div class="ah-n">' + UI.esc(a.mc) + '</div>'
+    + '<div class="ah-tags">'
+    + '<span class="badge blue">' + UI.esc(a.lx) + '</span>'
+    + PORTAL.agBadge(a)
+    + (a.zzdj !== '—' ? '<span class="badge cyan">资质 ' + UI.esc(a.zzdj) + '</span>' : '')
+    + (a.hb ? '<span class="badge red"><i class="fa-solid fa-award"></i> 信用红榜</span>' : '')
+    + (a.heb ? '<span class="badge gray"><i class="fa-solid fa-triangle-exclamation"></i> 信用黑榜</span>' : '')
+    + (a.rwzt === '2' ? '<span class="badge red"><i class="fa-solid fa-circle-exclamation"></i> 异常主体，交易前请谨慎核实</span>' : '')
+    + '</div>'
+    + '<div class="ah-m">统一社会信用代码 ' + UI.esc(a.tyshxydm) + '　|　法定代表人 ' + UI.esc(a.fddbr)
+    + '<br>注册区域 ' + UI.esc(a.qx) + '　|　办公地址 ' + UI.esc(a.dz) + '　|　联系电话 ' + UI.esc(a.tel)
+    + '<br>入网日期 ' + (a.rwrq || '—') + '　|　备案有效期至 ' + (a.yxq || '—') + '</div>'
+    + '</div>'
+    + '<div class="score-box">'
+    + '<div class="sb-v" style="color:' + djColor + '">' + a.score + '</div>'
+    + '<div class="sb-l">信用评分（满分 100）</div>'
+    + '<div class="sb-dj" style="background:' + djColor + '">' + a.dj + '</div>'
+    + '<div class="sb-l">信用等级</div>'
+    + '<div class="mt-12"><span class="badge ' + (a.lyqk.indexOf('违规') >= 0 ? 'orange' : 'green') + '">'
+    + UI.esc(a.lyqk) + '</span></div>'
+    + '</div></div>';
+
+  /* 异常提示 */
+  if (a.rwzt === '2') {
+    html += '<div class="alert alert-danger mt-16"><i class="fa-solid fa-triangle-exclamation"></i>'
+      + '<span><b>该主体当前为异常状态。</b>' + UI.esc(a.lyqk)
+      + ' 与其发生交易前请核实其经营资质与在办业务情况，必要时可通过咨询投诉渠道向主管部门核实。</span></div>';
+  }
+
+  html += '<div class="ad-main mt-16"><div>';
+
+  /* 备案信息 */
+  html += '<div class="card mb-16"><div class="card-head"><h3><i class="fa-solid fa-id-card-clip text-primary"></i> 工商与备案信息</h3>'
+    + '<span class="sub">数据来源：从业主体与信用监管</span></div>'
+    + '<div class="card-body np"><div class="desc-list c2" style="border:0;border-radius:0"><dl>'
+    + '<dt>主体名称</dt><dd class="strong">' + UI.esc(a.mc) + '</dd>'
+    + '<dt>主体类型</dt><dd>' + UI.esc(a.lx) + '</dd>'
+    + '<dt>统一社会信用代码</dt><dd class="num">' + UI.esc(a.tyshxydm) + '</dd>'
+    + '<dt>法定代表人</dt><dd>' + UI.esc(a.fddbr) + '</dd>'
+    + '<dt>注册区域</dt><dd>' + UI.esc(a.qx) + '</dd>'
+    + '<dt>办公地址</dt><dd>' + UI.esc(a.dz) + '</dd>'
+    + '<dt>联系电话</dt><dd>' + UI.esc(a.tel) + '</dd>'
+    + '<dt>资质等级</dt><dd>' + UI.esc(a.zzdj) + '</dd>'
+    + '<dt>入网备案日期</dt><dd>' + (a.rwrq || '—') + '</dd>'
+    + '<dt>备案有效期</dt><dd>' + (a.yxq || '—') + '</dd>'
+    + '<dt>备案状态</dt><dd>' + PORTAL.agBadge(a) + '</dd>'
+    + '<dt>履约情况</dt><dd>' + UI.esc(a.lyqk) + '</dd>'
+    + '</dl></div></div></div>';
+
+  /* 信用画像 */
+  html += '<div class="card mb-16"><div class="card-head"><h3><i class="fa-solid fa-chart-pie text-primary"></i> 信用画像</h3>'
+    + '<span class="sub">评价周期 2026 年上半年</span>'
+    + '<div class="ca"><a class="btn btn-sm" href="credit-rank.html">信用排行与红黑榜</a></div></div>'
+    + '<div class="card-body">'
+    + '<div class="text-3 text-xs mb-12">评价依据：办件合规 40% + 投诉处置 25% + 服务评价 25% + 违规扣分 10%。信用分随服务评价与违规记录实时变化。</div>'
+    + parts.map(function (p) {
+      return '<div class="mini-bar"><span class="mb-l">' + p[0] + '</span>'
+        + '<span class="mb-t"><span class="mb-f' + (p[0] === '违规扣分' && p[2] < 10 ? ' red' : '') + '" style="width:' + (p[2] / p[1] * 100) + '%"></span></span>'
+        + '<span class="mb-v">' + p[2] + ' / ' + p[1] + '</span></div>';
+    }).join('')
+    + '<div class="alert alert-info mt-16" style="margin-bottom:0"><i class="fa-solid fa-circle-info"></i>'
+    + '<span>' + (a.lyqk.indexOf('违规') >= 0
+      ? '该主体存在违规记录，违规扣分项已扣减。虚假房源经核实后会自动扣减信用分并影响红黑榜位次。'
+      : '该主体当前无违规记录。如发现虚假房源或违规行为，可在房源详情页举报，核实后将扣减其信用分。') + '</span></div>'
+    + '</div></div>';
+
+  /* 在售在租 */
+  if (isDev && projects.length) {
+    html += '<div class="card mb-16"><div class="card-head"><h3><i class="fa-solid fa-building text-primary"></i> 在售项目</h3>'
+      + '<span class="sub">' + projects.length + ' 个项目</span></div><div class="card-body np">'
+      + '<table class="pub-table"><thead><tr><th>项目名称</th><th style="width:96px">区域</th>'
+      + '<th style="width:170px">预售许可证号</th><th style="width:88px">总套数</th><th style="width:88px">可售套数</th>'
+      + '<th style="width:120px">备案均价</th><th style="width:88px">风险</th><th style="width:110px">操作</th></tr></thead><tbody>'
+      + projects.map(function (p) {
+        return '<tr><td class="strong">' + UI.esc(p.xmmc) + '</td><td>' + p.qx + '</td>'
+          + '<td class="num">' + p.yszh + '</td><td class="num">' + p.zts + '</td><td class="num">' + p.ksts + '</td>'
+          + '<td class="num">' + UI.money(p.junjia, 0) + ' 元/㎡</td>'
+          + '<td>' + (p.risk ? '<span class="lv ' + (p.risk === 3 ? 'red' : 'orange') + '"><i></i>' + (p.risk === 3 ? '严重' : '预警') + '</span>'
+            : '<span class="lv blue"><i></i>正常</span>') + '</td>'
+          + '<td class="acts"><a href="new-house-detail.html?id=' + p.id + '">查看楼盘</a></td></tr>';
+      }).join('') + '</tbody></table>'
+      + '<div class="table-note">均价为备案（拟售）价格，实际成交以合同为准。数据来源：商品房交易管理　|　更新时间 ' + UI.today() + '</div>'
+      + '</div></div>';
+  }
+  if (!isDev && houses.length) {
+    html += '<div class="card mb-16"><div class="card-head"><h3><i class="fa-solid fa-house text-primary"></i> 在售在租房源</h3>'
+      + '<span class="sub">' + houses.length + ' 套（含已下架）</span></div><div class="card-body np">'
+      + '<table class="pub-table"><thead><tr><th>房源</th><th style="width:96px">类型</th>'
+      + '<th style="width:150px">核验码</th><th style="width:110px">核验有效期</th>'
+      + '<th style="width:110px">价格</th><th style="width:96px">状态</th><th style="width:96px">操作</th></tr></thead><tbody>'
+      + houses.slice(0, 10).map(function (h) {
+        return '<tr><td class="strong">' + UI.esc(h.bt) + '</td><td>' + h.lxmc + '</td>'
+          + '<td class="num">' + h.hym + '</td><td>' + h.hyyxq + '</td>'
+          + '<td class="num">' + (h.lx === '3' ? UI.money(h.zj, 0) + ' 元/月' : h.zj + ' 万元') + '</td>'
+          + '<td>' + PORTAL.houseBadge(h) + '</td>'
+          + '<td class="acts"><a href="' + (h.lx === '3' ? 'rent-house.html?id=' : 'second-house-detail.html?id=') + h.id + '">查看</a></td></tr>';
+      }).join('') + '</tbody></table>'
+      + '<div class="table-note">只展示核验通过房源；一律不展示权利人姓名、身份证号与联系方式，房号按规定截断。</div>'
+      + '</div></div>';
+  }
+
+  /* 门店公示（wsmh-19-03） */
+  if (isRent) {
+    html += '<div class="card mb-16"><div class="card-head"><h3><i class="fa-solid fa-store text-primary"></i> 门店信息公示</h3>'
+      + '<span class="sub">方便承租人识别正规门店</span></div><div class="card-body np">'
+      + (a.mendian && a.mendian.length
+        ? '<table class="pub-table"><thead><tr><th>门店名称</th><th>门店地址</th>'
+          + '<th style="width:110px">备案状态</th><th style="width:140px">投诉处理情况</th></tr></thead><tbody>'
+          + a.mendian.map(function (m) {
+            return '<tr><td class="strong">' + UI.esc(m.n) + '</td><td>' + UI.esc(m.dz) + '</td>'
+              + '<td>' + PORTAL.badge(m.zt, 'green') + '</td>'
+              + '<td>' + (m.ts ? '<span class="badge orange">' + m.ts + ' 件已办结</span>' : '<span class="badge green">无投诉</span>') + '</td></tr>';
+          }).join('') + '</tbody></table>'
+          + '<div class="table-note">门店名录、备案状态与投诉处理情况由企业在工作台维护，变更后公示内容同步更新。</div>'
+        : '<div style="padding:18px">' + UI.empty('该企业暂未备案门店') + '</div>')
+      + '</div></div>';
+  }
+
+  /* 从业人员 */
+  if (staffs.length) {
+    html += '<div class="card mb-16"><div class="card-head"><h3><i class="fa-solid fa-users text-primary"></i> 在册从业人员</h3>'
+      + '<span class="sub">' + staffs.length + ' 人</span>'
+      + '<div class="ca"><a class="btn btn-sm" href="agency-list.html?tab=al-staff">人员名录公示</a></div></div>'
+      + '<div class="card-body np"><table class="pub-table"><thead><tr>'
+      + '<th style="width:110px">姓名</th><th style="width:150px">岗位</th><th>执业证书编号</th>'
+      + '<th style="width:110px">登记日期</th><th style="width:88px">评价分</th><th style="width:88px">状态</th></tr></thead><tbody>'
+      + staffs.map(function (s) {
+        return '<tr><td class="strong">' + UI.esc(s.xm) + '</td><td>' + UI.esc(s.gw) + '</td>'
+          + '<td class="num">' + UI.esc(s.zsbh) + '</td><td>' + s.djrq + '</td>'
+          + '<td class="num">' + s.pjscore + '</td>'
+          + '<td>' + PORTAL.badge(s.ztmc, s.zt === '1' ? 'green' : s.zt === '2' ? 'orange' : 'gray') + '</td></tr>';
+      }).join('') + '</tbody></table>'
+      + '<div class="table-note">人员姓名已按规定脱敏。被注销或受限人员在人员名录公示页单独列示。</div></div></div>';
+  }
+
+  /* 服务评价（wsmh-25-06） */
+  var dist = [5, 4, 3, 2, 1].map(function (s) {
+    return [s, rates.filter(function (r) { return Number(r.star) === s; }).length];
+  });
+  var maxd = Math.max(1, Math.max.apply(null, dist.map(function (d) { return d[1]; })));
+  html += '<div class="card"><div class="card-head"><h3><i class="fa-solid fa-star text-primary"></i> 服务评价公示</h3>'
+    + '<span class="sub">评价须与实名办件绑定，本期不公示逐条评语</span>'
+    + '<div class="ca"><button class="btn btn-sm btn-primary" id="btn-rate" data-fp="wsmh-25-06">我要评价</button>'
+    + '<button class="btn btn-sm" id="btn-appeal">申诉</button></div></div>'
+    + '<div class="card-body"><div class="grid-2">'
+    + '<div><div class="flex items-center gap-12">'
+    + '<div style="font-size:42px;font-weight:700;color:var(--accent);font-family:\'DIN Alternate\'">'
+    + (a.pjscore === '—' ? '—' : a.pjscore) + '</div>'
+    + '<div><div class="star-row">' + stars(a.pjscore === '—' ? 0 : Number(a.pjscore)) + '</div>'
+    + '<div class="text-3 text-xs mt-8">共 ' + a.pjnum + ' 条评价　签约评价占比 '
+    + Math.round((rates.filter(function (r) { return r.bh; }).length / Math.max(1, rates.length)) * 100) + '%</div></div>'
+    + '</div>'
+    + '<div class="alert alert-info mt-16" style="margin-bottom:0;font-size:12.5px">'
+    + '<i class="fa-solid fa-shield-halved"></i><span>评价与实名办件绑定，一人一件一评，防止刷评。'
+    + '被评价方对评价有异议可提交申诉，核查后处理。</span></div></div>'
+    + '<div>' + dist.map(function (d) {
+      return '<div class="dist-row"><span class="dr-l">' + d[0] + ' 星</span>'
+        + '<span class="dr-t"><span class="dr-f" style="width:' + (d[1] / maxd * 100) + '%"></span></span>'
+        + '<span class="dr-v">' + d[1] + ' 条</span></div>';
+    }).join('') + '</div>'
+    + '</div></div></div>';
+
+  html += '</div>';
+
+  /* 右侧 */
+  html += '<div>';
+  html += '<div class="card mb-16"><div class="card-head"><h3><i class="fa-solid fa-chart-simple text-primary"></i> 经营概况</h3></div>'
+    + '<div class="card-body">'
+    + [['在售在租项目', isDev ? projects.length : houses.length, isDev ? '个' : '套'],
+      ['在册从业人员', staffs.length, '人'],
+      ['服务评价数量', a.pjnum, '条'],
+      ['信用评分', a.score, '分']].map(function (x) {
+        return '<div class="flex between" style="padding:9px 0;border-bottom:1px dashed var(--row-line);font-size:13.5px">'
+          + '<span class="text-2">' + x[0] + '</span>'
+          + '<span class="bold num" style="color:var(--accent)">' + x[1] + ' <span class="text-3" style="font-size:12px;font-weight:400">' + x[2] + '</span></span></div>';
+      }).join('') + '</div></div>';
+
+  /* 双随机 + 诚信承诺 */
+  html += '<div class="card mb-16"><div class="card-head"><h3><i class="fa-solid fa-clipboard-check text-primary"></i> 监管与承诺</h3></div>'
+    + '<div class="card-body">'
+    + '<div class="text-2 text-sm" style="line-height:2">'
+    + '<b>双随机一公开抽查</b><br>'
+    + (a.ssjc ? UI.esc(a.ssjc.pc) + '　' + UI.esc(a.ssjc.jg) + '<br><span class="text-3 text-xs">抽查日期 ' + a.ssjc.d + '</span>'
+      : '<span class="text-3">本周期未被抽查</span>')
+    + '<div class="mt-12"><b>诚信承诺</b><br>' + UI.esc(a.cnlx) + '　签署 ' + a.cnsj
+    + '<br><span class="' + (a.lyqk.indexOf('违规') >= 0 ? 'text-warning' : 'text-success') + '">' + UI.esc(a.lyqk) + '</span></div>'
+    + '</div>'
+    + '<div class="flex gap-8 mt-16" style="flex-wrap:wrap">'
+    + '<a class="btn btn-sm" href="credit-rank.html?tab=cr-random">双随机公示</a>'
+    + '<a class="btn btn-sm" href="credit-rank.html?tab=cr-promise">承诺公示</a>'
+    + '</div></div></div>';
+
+  html += '<div class="card"><div class="card-head"><h3><i class="fa-solid fa-flag text-accent"></i> 举报与投诉</h3></div>'
+    + '<div class="card-body"><div class="text-2 text-sm" style="line-height:1.9">'
+    + '发现该主体存在虚假房源、违规收费、服务承诺不履行等情形，可在线投诉举报。核实后将记入信用记录并影响红黑榜位次。</div>'
+    + '<button class="btn btn-accent btn-block mt-16" id="btn-report"><i class="fa-solid fa-flag"></i> 投诉举报该主体</button>'
+    + '<a class="btn btn-block mt-8" href="agency-list.html"><i class="fa-solid fa-list"></i> 返回企业名录</a>'
+    + '</div></div>';
+  html += '</div></div>';
+
+  html += UI.sourceNote('主体信息与信用评价数据来源于从业主体与信用监管，评价周期为半年度，'
+    + '法定代表人与从业人员姓名已按规定脱敏。');
+
+  document.getElementById('ad-body').innerHTML = html;
+  bind();
+}
+
+function stars(v) {
+  var h = '';
+  for (var i = 1; i <= 5; i++) h += '<i class="fa-solid fa-star' + (i <= Math.round(v) ? '' : ' off') + '"></i>';
+  return h;
+}
+
+function bind() {
+  document.getElementById('btn-rate').onclick = function () {
+    if (!UI.needLogin('对机构提交服务评价')) return;
+    var picked = 0;
+    UI.modal('<i class="fa-solid fa-star text-primary"></i> 评价 ' + UI.esc(A.mc),
+      '<div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>'
+      + '<span>评价须与实名办件绑定，一人一件一评。评价提交后会计入该机构的信用评价，'
+      + '影响其信用分与红黑榜位次，请客观评价。</span></div>'
+      + '<div class="form-grid c1">'
+      + '<div class="form-item"><label><span class="req">*</span>综合评分</label>'
+      + '<div class="star-row star-pick" id="sp">' + stars(0) + '</div>'
+      + '<div class="tip" id="sp-t">请点击星星评分</div></div>'
+      + '<div class="form-item"><label>关联办件（可选）</label>'
+      + '<select class="select" id="rt-bh"><option value="">不关联办件</option>'
+      + PORTAL.cases().map(function (c) { return '<option value="' + c.bh + '">' + c.bh + ' ' + UI.esc(c.sxmc) + '</option>'; }).join('')
+      + '</select></div>'
+      + '<div class="form-item"><label>评价内容</label>'
+      + '<textarea class="textarea" id="rt-tx" placeholder="请客观描述服务体验（本期不对外公示逐条评语，仅用于信用评价计算）"></textarea></div>'
+      + '</div>',
+      '<button class="btn" data-act="close-modal">取消</button>'
+      + '<button class="btn btn-primary" id="rt-ok">提交评价</button>');
+    document.querySelectorAll('#sp i').forEach(function (el, i) {
+      el.onclick = function () {
+        picked = i + 1;
+        document.getElementById('sp').innerHTML = stars(picked);
+        document.getElementById('sp-t').textContent = '已选 ' + picked + ' 星';
+        bindStar();
+      };
+    });
+    function bindStar() {
+      document.querySelectorAll('#sp i').forEach(function (el, i) {
+        el.onclick = function () {
+          picked = i + 1;
+          document.getElementById('sp').innerHTML = stars(picked);
+          document.getElementById('sp-t').textContent = '已选 ' + picked + ' 星';
+          bindStar();
+        };
+      });
+    }
+    document.getElementById('rt-ok').onclick = function () {
+      if (!picked) { UI.toast('请先点击星星评分', 'warning'); return; }
+      var before = A.score, beforeDj = A.dj;
+      PORTAL.act('rating.agency', {
+        id: A.id, mc: A.mc, star: picked,
+        text: document.getElementById('rt-tx').value, bh: document.getElementById('rt-bh').value
+      });
+      UI.closeModal();
+      var after = PORTAL.agency(A.id);
+      UI.toast('评价已提交，已计入信用评价：信用分 ' + before + ' → ' + after.score
+        + '，等级 ' + beforeDj + ' → ' + after.dj, 'success');
+    };
+  };
+
+  document.getElementById('btn-appeal').onclick = function () {
+    if (!UI.needLogin('提交评价申诉')) return;
+    UI.drawer('<i class="fa-solid fa-scale-balanced text-primary"></i> 评价申诉',
+      '<div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>'
+      + '<span>被评价方对评价内容有异议可提交申诉，主管部门核查后处理。核查期间该条评价仍参与统计。</span></div>'
+      + '<div class="form-grid c1">'
+      + '<div class="form-item"><label>申诉对象</label><input class="input" value="' + UI.esc(A.mc) + '" readonly></div>'
+      + '<div class="form-item"><label><span class="req">*</span>申诉理由</label>'
+      + '<textarea class="textarea" id="ap-r" placeholder="请说明认为评价不实的具体理由，并提供相关证据"></textarea></div>'
+      + '<div class="form-item"><label>证据材料</label>'
+      + '<div class="file-up" onclick="UI.toast(\'演示环境不实际上传文件\',\'info\')">'
+      + '<i class="fa-solid fa-cloud-arrow-up"></i>上传办件回执、沟通记录等证据材料</div></div>'
+      + '</div>',
+      '<button class="btn" data-act="close-drawer">取消</button>'
+      + '<button class="btn btn-primary" id="ap-ok">提交申诉</button>');
+    document.getElementById('ap-ok').onclick = function () {
+      var r = document.getElementById('ap-r').value.trim();
+      if (!r) { UI.toast('请填写申诉理由', 'warning'); return; }
+      PORTAL.act('rating.appeal', { dx: A.mc, reason: r });
+      UI.closeDrawer();
+      UI.toast('申诉已受理，主管部门将在 5 个工作日内核查并反馈', 'success');
+    };
+  };
+
+  document.getElementById('btn-report').onclick = function () {
+    if (!UI.needLogin('投诉举报从业主体')) return;
+    UI.drawer('<i class="fa-solid fa-flag text-accent"></i> 投诉举报 ' + UI.esc(A.mc),
+      '<div class="form-grid c1">'
+      + '<div class="form-item"><label><span class="req">*</span>投诉类别</label>'
+      + '<select class="select" id="rp-lb"><option>中介服务</option><option>房源信息</option>'
+      + '<option>住房租赁</option><option>交易备案</option><option>其他</option></select></div>'
+      + '<div class="form-item"><label><span class="req">*</span>投诉标题</label>'
+      + '<input class="input" id="rp-bt" placeholder="一句话说明问题"></div>'
+      + '<div class="form-item"><label><span class="req">*</span>问题描述</label>'
+      + '<textarea class="textarea" id="rp-desc" placeholder="请详细描述发生时间、地点、经过与诉求"></textarea></div>'
+      + '<div class="form-item"><label>联系人与电话</label><div class="flex gap-8">'
+      + '<input class="input" id="rp-nm" placeholder="联系人" value="' + UI.esc(UI.user().name) + '">'
+      + '<input class="input" id="rp-tel" placeholder="联系电话" value="137****2856"></div></div>'
+      + '</div>'
+      + '<div class="alert alert-warning mt-12" style="margin-bottom:0"><i class="fa-solid fa-triangle-exclamation"></i>'
+      + '<span>投诉将按类别自动分派到责任科室，承诺 10 个工作日内反馈。请如实反映情况。</span></div>',
+      '<button class="btn" data-act="close-drawer">取消</button>'
+      + '<button class="btn btn-accent" id="rp-ok">提交投诉</button>');
+    document.getElementById('rp-ok').onclick = function () {
+      var bt = document.getElementById('rp-bt').value.trim();
+      var desc = document.getElementById('rp-desc').value.trim();
+      if (!bt || !desc) { UI.toast('请填写投诉标题与问题描述', 'warning'); return; }
+      var c = PORTAL.act('complaint.add', {
+        lb: document.getElementById('rp-lb').value, bt: bt, dx: A.mc, qx: A.qx, desc: desc,
+        lxr: document.getElementById('rp-nm').value, tel: document.getElementById('rp-tel').value
+      });
+      UI.closeDrawer();
+      UI.toast('投诉已受理，编号 ' + c.bh + '，承办单位' + c.dept + '，可在咨询投诉页查询处置进度', 'success');
+    };
+  };
+}
+</script>
+</body>
+</html>

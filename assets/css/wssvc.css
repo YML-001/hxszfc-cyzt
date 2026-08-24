@@ -1,0 +1,379 @@
+/* ==========================================================================
+   统一应用服务平台（wssvc）专用复合组件
+   基线：《前端原型设计规范-政务蓝基线v1.0》。只新增 svc- 前缀的复合组件，
+   不覆盖 app.css 的任何设计令牌与组件规则；色值一律引用既有令牌。
+   适用范围：modules/wssvc/ 下的 49 张页面。
+
+   本平台的页面形态高度同构——每个服务都有「概览 / 业务页 / 应用配置 /
+   参数配置 / 调用日志 / 接口调试」六类，所以这里按类别抽组件，而不是按服务：
+   一、服务总览（hero / 服务卡 / 图表容器 / 排行 / 热力）
+   二、应用配置（服务商卡 + 接口清单的两级结构）
+   三、参数配置（参数分组表单）
+   四、调用日志（流水表 + 报文抽屉）
+   五、接口调试（左选接口 / 中填参数 / 右看报文的三栏调试台）
+   ========================================================================== */
+
+:root {
+  /* 状态四色的浅底与深墨，浅底上要能压住文字 */
+  --svc-ok-bg: var(--success-light);
+  --svc-ok-line: #cfe9bd;
+  --svc-ok-ink: #4a8a22;
+  --svc-warn-bg: var(--warning-light);
+  --svc-warn-line: #f2d3a8;
+  --svc-warn-ink: #b45309;
+  --svc-bad-bg: var(--danger-light);
+  --svc-bad-line: #f0bdbd;
+  --svc-bad-ink: #991b1b;
+  --svc-off-bg: var(--bg-soft);
+  --svc-off-line: var(--border);
+  /* 报文与代码块 */
+  --svc-code-bg: #1f2733;
+  --svc-code-ink: #d7e2ef;
+  --svc-code-key: #7fb2ff;
+  --svc-code-str: #a3d99b;
+  --svc-code-num: #e8b96a;
+}
+
+/* --------------------------------------------------------------------------
+   一、渐变头条：平台与各服务概览页共用，右侧挂 2~4 个体量数
+   -------------------------------------------------------------------------- */
+.svc-hero {
+  display: flex; align-items: center; justify-content: space-between; gap: 20px;
+  padding: 18px 22px; margin-bottom: 14px; border-radius: var(--radius-lg);
+  background: linear-gradient(100deg, var(--primary) 0%, #3f74d6 52%, #5b93e8 100%);
+  color: #fff; box-shadow: var(--shadow-sm);
+}
+.svc-hero .sh-title { font-size: 19px; font-weight: 700; letter-spacing: .3px; }
+.svc-hero .sh-sub { margin-top: 6px; font-size: 12.5px; opacity: .88; line-height: 1.7; }
+.svc-hero .sh-r { display: flex; align-items: center; gap: 18px; flex: none; }
+.svc-hero .sh-s { text-align: center; min-width: 78px; }
+.svc-hero .sh-v { font-size: 25px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.svc-hero .sh-lb { margin-top: 3px; font-size: 12px; opacity: .85; }
+.svc-hero .sh-div { width: 1px; height: 34px; background: rgba(255, 255, 255, .28); }
+@media (max-width: 1100px) {
+  .svc-hero { flex-direction: column; align-items: flex-start; }
+  .svc-hero .sh-r { flex-wrap: wrap; }
+}
+
+/* --------------------------------------------------------------------------
+   二、服务卡：首页上五个服务各一张，点进各自的服务概览
+   -------------------------------------------------------------------------- */
+.svc-cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 14px; }
+@media (max-width: 1400px) { .svc-cards { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 860px) { .svc-cards { grid-template-columns: repeat(2, 1fr); } }
+.svc-card {
+  display: block; padding: 14px 16px; background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); text-decoration: none; color: inherit; transition: all .16s;
+}
+.svc-card:hover { border-color: var(--primary-soft); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
+.svc-card .sc-h { display: flex; align-items: center; gap: 9px; }
+.svc-card .sc-i {
+  width: 30px; height: 30px; border-radius: var(--radius); display: grid; place-items: center;
+  font-size: 14px; color: #fff; flex: none; background: var(--primary);
+}
+.svc-card .sc-i.green { background: #5ba832; }
+.svc-card .sc-i.cyan { background: var(--info); }
+.svc-card .sc-i.orange { background: var(--lv-orange); }
+.svc-card .sc-i.purple { background: #7c5cd6; }
+.svc-card .sc-n { font-size: 14px; font-weight: 600; color: var(--text-1); }
+.svc-card .sc-dot { margin-left: auto; width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
+.svc-card .sc-dot.warn { background: var(--warning); }
+.svc-card .sc-dot.bad { background: var(--danger); }
+.svc-card .sc-m { display: flex; gap: 14px; margin-top: 11px; }
+.svc-card .sc-m div { flex: 1; }
+.svc-card .sc-mv { font-size: 17px; font-weight: 700; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.svc-card .sc-ml { margin-top: 2px; font-size: 11.5px; color: var(--text-3); }
+.svc-card .sc-f { margin-top: 10px; padding-top: 9px; border-top: 1px dashed var(--border); font-size: 12px; color: var(--text-3); }
+
+/* --------------------------------------------------------------------------
+   三、图表容器：SVG 由 wssvc.js 画，这里只管尺寸与坐标轴文字
+   -------------------------------------------------------------------------- */
+.svc-chart svg { width: 100%; display: block; }
+.svc-chart .grid line { stroke: var(--border); stroke-width: 1; }
+.svc-chart .axis { fill: var(--text-3); font-size: 11px; }
+.svc-chart .axis.x { text-anchor: middle; }
+.svc-chart .axis.y { text-anchor: end; }
+.svc-chart .line { fill: none; stroke: var(--primary); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
+.svc-chart .line2 { fill: none; stroke: var(--success); stroke-width: 2; stroke-dasharray: 5 3; }
+.svc-chart .dot { fill: #fff; stroke: var(--primary); stroke-width: 2; }
+.svc-chart .bar { fill: var(--primary); }
+.svc-chart .bar.b2 { fill: #7ea6e8; }
+.svc-chart .bar.b3 { fill: var(--info); }
+.svc-chart .bar.b4 { fill: var(--lv-orange); }
+.svc-chart .val { fill: var(--text-2); font-size: 11px; text-anchor: middle; font-weight: 600; }
+.svc-chart .ref { stroke: var(--danger); stroke-width: 1; stroke-dasharray: 4 3; }
+.svc-chart .ref-t { fill: var(--danger); font-size: 10.5px; }
+
+/* 图例 */
+.svc-lg { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 8px; font-size: 12px; color: var(--text-2); }
+.svc-lg i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+
+/* 横向条形排行：占比 / 排名两用 */
+.svc-rank { display: flex; flex-direction: column; gap: 10px; }
+.svc-rank .rk {
+  display: grid; grid-template-columns: 22px 1fr 74px 52px; align-items: center; gap: 9px;
+}
+.svc-rank .rk-i {
+  width: 20px; height: 20px; border-radius: var(--radius-sm); background: var(--bg-soft);
+  color: var(--text-3); font-size: 11.5px; font-weight: 700; display: grid; place-items: center;
+}
+.svc-rank .rk:nth-child(1) .rk-i { background: var(--primary); color: #fff; }
+.svc-rank .rk:nth-child(2) .rk-i { background: #7ea6e8; color: #fff; }
+.svc-rank .rk:nth-child(3) .rk-i { background: var(--primary-soft); color: var(--primary-dark); }
+.svc-rank .rk-b { min-width: 0; }
+.svc-rank .rk-n {
+  font-size: 12.5px; color: var(--text-2); margin-bottom: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.svc-rank .rk-t { height: 8px; border-radius: 4px; background: var(--bg-soft); overflow: hidden; }
+.svc-rank .rk-f { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--primary), #6ea8ff); }
+.svc-rank .rk-f.warn { background: linear-gradient(90deg, var(--lv-orange), #f7a866); }
+.svc-rank .rk-v { font-size: 12.5px; color: var(--text-1); text-align: right; font-variant-numeric: tabular-nums; }
+.svc-rank .rk-d { font-size: 11.5px; text-align: right; }
+.svc-rank .rk-d.up { color: var(--danger); }
+.svc-rank .rk-d.down { color: var(--success); }
+.svc-rank .rk-d.flat { color: var(--text-3); }
+
+/* 7×24 调用热力图 */
+.svc-heat { display: grid; grid-template-columns: 34px repeat(24, 1fr); gap: 3px; }
+.svc-heat .hh { font-size: 10px; color: var(--text-3); text-align: center; line-height: 14px; }
+.svc-heat .hr { font-size: 11px; color: var(--text-3); line-height: 18px; }
+.svc-heat .hc { height: 18px; border-radius: 2px; background: var(--bg-soft); cursor: pointer; }
+.svc-heat .hc:hover { outline: 2px solid var(--primary); }
+.svc-heat .h1 { background: #e7eefb; }
+.svc-heat .h2 { background: #c5d8f5; }
+.svc-heat .h3 { background: #92b5ea; }
+.svc-heat .h4 { background: #5a8bdb; }
+.svc-heat .h5 { background: var(--primary); }
+
+/* 健康度四宫格，与政银直连监控页同一套观感 */
+.svc-health { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
+@media (max-width: 1100px) { .svc-health { grid-template-columns: repeat(2, 1fr); } }
+.svc-hb { border: 1px solid var(--border); border-radius: var(--radius); padding: 13px 15px; background: #fff; }
+.svc-hb.ok { border-color: var(--svc-ok-line); background: var(--svc-ok-bg); }
+.svc-hb.warn { border-color: var(--svc-warn-line); background: var(--svc-warn-bg); }
+.svc-hb.bad { border-color: var(--svc-bad-line); background: var(--svc-bad-bg); }
+.svc-hb .hb-h { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--text-2); }
+.svc-hb .hb-v { font-size: 25px; font-weight: 700; margin: 6px 0 2px; font-variant-numeric: tabular-nums; }
+.svc-hb .hb-x { font-size: 12px; color: var(--text-3); }
+
+/* 服务商 × 接口 健康度矩阵 */
+.svc-mx { border-collapse: separate; border-spacing: 4px; width: 100%; }
+.svc-mx th { font-size: 12px; color: var(--text-3); font-weight: 500; padding: 4px 6px; text-align: center; white-space: nowrap; }
+.svc-mx th.rowh { text-align: left; }
+.svc-mx td { text-align: center; padding: 0; }
+.svc-mx .cell { display: block; border-radius: 4px; padding: 7px 4px; font-size: 12px; font-weight: 600; color: #fff; cursor: pointer; }
+.svc-mx .c-ok { background: var(--lv-blue); }
+.svc-mx .c-good { background: #6fae4f; }
+.svc-mx .c-warn { background: var(--lv-yellow); color: #6b5300; }
+.svc-mx .c-bad { background: var(--lv-orange); }
+.svc-mx .c-err { background: var(--lv-red); }
+.svc-mx .c-na { background: var(--bg-soft); color: var(--text-3); }
+
+/* --------------------------------------------------------------------------
+   四、应用配置：一家服务商一张卡，卡内是这家的接口清单
+   这是本平台最核心的一屏——「一个应用下面挂多个接口」的两级结构，
+   服务商卡负责放接入方式与凭证，接口行负责放地址、报文与超时重试。
+   -------------------------------------------------------------------------- */
+.svc-vendor {
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  background: var(--bg-card); margin-bottom: 12px; overflow: hidden;
+}
+.svc-vendor.off { opacity: .72; }
+.svc-vendor > .vd-h {
+  display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+  background: var(--primary-light-2); border-bottom: 1px solid var(--border);
+}
+.svc-vendor > .vd-h .vd-i {
+  width: 34px; height: 34px; border-radius: var(--radius); display: grid; place-items: center;
+  background: var(--primary); color: #fff; font-size: 15px; flex: none;
+}
+.svc-vendor > .vd-h .vd-i.gray { background: var(--text-3); }
+.svc-vendor .vd-n { font-size: 14.5px; font-weight: 600; color: var(--text-1); }
+.svc-vendor .vd-m { margin-top: 3px; font-size: 12px; color: var(--text-3); }
+.svc-vendor .vd-m b { color: var(--text-2); font-weight: 600; }
+.svc-vendor .vd-a { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; }
+.svc-vendor .vd-body { padding: 0; }
+.svc-vendor .vd-foot {
+  padding: 9px 16px; border-top: 1px dashed var(--border); background: var(--bg-soft);
+  font-size: 12px; color: var(--text-3);
+}
+/* 接口清单表：贴着服务商卡内壁，不再套一层 card */
+.svc-vendor .data-table { border-radius: 0; }
+.svc-vendor .data-table thead th { background: #fff; border-bottom: 1px solid var(--border); }
+
+/* 接口方向标 */
+.svc-dir { font-size: 11.5px; padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
+.svc-dir.out { background: var(--primary-light); color: var(--primary-dark); }
+.svc-dir.in { background: var(--info-light); color: var(--info); }
+
+/* --------------------------------------------------------------------------
+   五、参数配置：左边参数组导航，右边分组表单
+   -------------------------------------------------------------------------- */
+.svc-param { display: grid; grid-template-columns: 190px 1fr; gap: 0; align-items: stretch; }
+@media (max-width: 900px) { .svc-param { grid-template-columns: 1fr; } }
+.svc-param .pm-nav { border-right: 1px solid var(--border); padding: 10px 0; background: var(--bg-soft); }
+.svc-param .pm-nav a {
+  display: flex; align-items: center; gap: 8px; padding: 9px 16px; font-size: 13px;
+  color: var(--text-2); text-decoration: none; border-left: 3px solid transparent; cursor: pointer;
+}
+.svc-param .pm-nav a:hover { background: #fff; color: var(--primary); }
+.svc-param .pm-nav a.on { background: #fff; color: var(--primary); border-left-color: var(--primary); font-weight: 600; }
+.svc-param .pm-body { padding: 16px 18px; min-width: 0; }
+.svc-param .pm-sec { margin-bottom: 22px; }
+.svc-param .pm-sec:last-child { margin-bottom: 0; }
+.svc-param .pm-t {
+  font-size: 14px; font-weight: 600; color: var(--text-1); padding-bottom: 8px;
+  border-bottom: 1px solid var(--border); margin-bottom: 13px;
+  display: flex; align-items: center; gap: 8px;
+}
+.svc-param .pm-t .sub { font-size: 12px; font-weight: 400; color: var(--text-3); }
+
+/* 参数行：名称 + 说明 + 取值控件，右侧留市县差异标记 */
+.svc-pr { display: grid; grid-template-columns: 220px 1fr 88px; gap: 12px; align-items: start; padding: 10px 0; border-bottom: 1px dashed var(--border); }
+.svc-pr:last-child { border-bottom: none; }
+@media (max-width: 900px) { .svc-pr { grid-template-columns: 1fr; } }
+.svc-pr .pr-n { font-size: 13px; color: var(--label); font-weight: 600; padding-top: 6px; }
+.svc-pr .pr-n .pr-d { display: block; margin-top: 3px; font-size: 11.5px; color: var(--text-3); font-weight: 400; line-height: 1.6; }
+.svc-pr .pr-v { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.svc-pr .pr-v input[type="text"], .svc-pr .pr-v input[type="number"], .svc-pr .pr-v select { max-width: 210px; }
+.svc-pr .pr-u { font-size: 12.5px; color: var(--text-3); }
+.svc-pr .pr-s { padding-top: 6px; text-align: right; }
+
+/* 开关：原型阶段用纯 CSS 的假开关，点一下换 on 类 */
+.svc-sw {
+  display: inline-flex; align-items: center; width: 42px; height: 22px; padding: 2px;
+  border-radius: 11px; background: var(--border-strong); cursor: pointer; transition: background .16s; flex: none;
+}
+.svc-sw::after { content: ""; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .16s; box-shadow: var(--shadow-sm); }
+.svc-sw.on { background: var(--primary); }
+.svc-sw.on::after { transform: translateX(20px); }
+
+/* 多选标签组（渠道开关、核验方式这类） */
+.svc-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.svc-chips span {
+  padding: 4px 11px; border: 1px solid var(--border-strong); border-radius: 13px;
+  font-size: 12.5px; color: var(--text-2); cursor: pointer; user-select: none; background: #fff;
+}
+.svc-chips span:hover { border-color: var(--primary-hover); color: var(--primary); }
+.svc-chips span.on { background: var(--primary-light); border-color: var(--primary-soft); color: var(--primary-dark); font-weight: 600; }
+
+/* --------------------------------------------------------------------------
+   六、调用日志的报文抽屉：请求 / 响应 / 重试链
+   -------------------------------------------------------------------------- */
+.svc-code {
+  background: var(--svc-code-bg); color: var(--svc-code-ink); border-radius: var(--radius);
+  padding: 12px 14px; font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 12px; line-height: 1.75; overflow: auto; max-height: 320px; white-space: pre;
+}
+.svc-code .k { color: var(--svc-code-key); }
+.svc-code .s { color: var(--svc-code-str); }
+.svc-code .n { color: var(--svc-code-num); }
+.svc-code .c { color: #7d8a99; }
+
+/* 耗时分解条：网络 / 三方处理 / 平台回写 */
+.svc-span { display: flex; height: 20px; border-radius: var(--radius-sm); overflow: hidden; margin: 8px 0 6px; }
+.svc-span i { display: block; height: 100%; }
+.svc-span .s1 { background: var(--primary); }
+.svc-span .s2 { background: var(--info); }
+.svc-span .s3 { background: #7ea6e8; }
+.svc-span .s4 { background: var(--lv-orange); }
+
+/* 重试链 */
+.svc-retry { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
+.svc-retry .rt { padding: 2px 9px; border-radius: 11px; border: 1px solid var(--border-strong); background: #fff; color: var(--text-2); }
+.svc-retry .rt.ok { border-color: var(--svc-ok-line); background: var(--svc-ok-bg); color: var(--svc-ok-ink); }
+.svc-retry .rt.bad { border-color: var(--svc-bad-line); background: var(--svc-bad-bg); color: var(--svc-bad-ink); }
+.svc-retry .sep { color: var(--text-3); }
+
+/* --------------------------------------------------------------------------
+   七、接口调试台：左选接口 / 中填参数 / 右看报文
+   -------------------------------------------------------------------------- */
+.svc-debug { display: grid; grid-template-columns: 248px minmax(0, 1fr) minmax(0, 1.05fr); gap: 12px; align-items: start; }
+@media (max-width: 1400px) { .svc-debug { grid-template-columns: 230px minmax(0, 1fr); } .svc-debug .dbg-out { grid-column: 1 / -1; } }
+@media (max-width: 900px) { .svc-debug { grid-template-columns: 1fr; } .svc-debug .dbg-out { grid-column: auto; } }
+.svc-api-tree { max-height: 620px; overflow: auto; }
+.svc-api-tree .at-g {
+  padding: 8px 14px; font-size: 12px; color: var(--text-3); background: var(--bg-soft);
+  border-bottom: 1px solid var(--border); position: sticky; top: 0;
+}
+.svc-api-tree .at-i {
+  display: block; padding: 9px 14px; border-bottom: 1px solid var(--row-line);
+  cursor: pointer; border-left: 3px solid transparent;
+}
+.svc-api-tree .at-i:hover { background: var(--row-hover); }
+.svc-api-tree .at-i.on { background: var(--primary-light); border-left-color: var(--primary); }
+.svc-api-tree .at-n { font-size: 13px; color: var(--text-1); font-weight: 600; }
+.svc-api-tree .at-m { margin-top: 3px; font-size: 11.5px; color: var(--text-3); word-break: break-all; }
+
+/* 调试台的环境条 */
+.svc-env {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 14px;
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-soft); margin-bottom: 12px;
+}
+.svc-env .ev-l { font-size: 12.5px; color: var(--text-3); }
+.svc-env .ev-t { display: flex; gap: 4px; }
+.svc-env .ev-t span {
+  padding: 3px 12px; border-radius: var(--radius-sm); font-size: 12.5px;
+  border: 1px solid var(--border-strong); background: #fff; color: var(--text-2); cursor: pointer;
+}
+.svc-env .ev-t span.on { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }
+.svc-env .ev-warn { margin-left: auto; font-size: 12px; color: var(--lv-orange); }
+
+/* 响应状态条 */
+.svc-resp {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 9px 13px;
+  border-radius: var(--radius); font-size: 12.5px; margin-bottom: 10px;
+}
+.svc-resp.ok { background: var(--svc-ok-bg); border: 1px solid var(--svc-ok-line); color: var(--svc-ok-ink); }
+.svc-resp.warn { background: var(--svc-warn-bg); border: 1px solid var(--svc-warn-line); color: var(--svc-warn-ink); }
+.svc-resp.bad { background: var(--svc-bad-bg); border: 1px solid var(--svc-bad-line); color: var(--svc-bad-ink); }
+.svc-resp b { font-variant-numeric: tabular-nums; }
+
+/* --------------------------------------------------------------------------
+   八、零散件
+   -------------------------------------------------------------------------- */
+/* 页内胶囊子导航：把同一个服务的兄弟页串起来，避免菜单膨胀 */
+.svc-subnav { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
+.svc-subnav a {
+  padding: 5px 13px; border-radius: 15px; font-size: 12.5px; text-decoration: none;
+  border: 1px solid var(--border-strong); background: #fff; color: var(--text-2);
+}
+.svc-subnav a:hover { border-color: var(--primary-hover); color: var(--primary); }
+.svc-subnav a.on { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }
+
+/* 概览页里的表：不能用 .table-wrap，那会被 app.js 认成列表页主表，
+   给整页套上定高锁滚的列表布局并自动加序号列与分页。概览页要的是随内容
+   自然长高的普通表，所以另起一个容器类。 */
+.svc-tbl { overflow: auto; }
+.svc-tbl > table { width: 100%; }
+
+/* 图表区里跨两列的宽图：app.css 的 .span-2 只作用于 .desc-list，这里补 grid-2 的 */
+.grid-2 > .span-2, .grid-3 > .span-2 { grid-column: 1 / -1; }
+@media (max-width: 1200px) { .grid-2 > .span-2, .grid-3 > .span-2 { grid-column: auto; } }
+
+/* 上传占位框：验签、批量导入这类页面用 */
+.upload-box {
+  border: 1px dashed var(--border-strong); border-radius: var(--radius);
+  background: var(--bg-soft); padding: 22px 16px; text-align: center; cursor: pointer;
+  color: var(--text-2); font-size: 13px; transition: all .16s;
+}
+.upload-box:hover { border-color: var(--primary); background: var(--primary-light); color: var(--primary-dark); }
+.upload-box > i { display: block; font-size: 24px; color: var(--primary); margin-bottom: 8px; }
+.upload-box .up-hint { margin-top: 5px; font-size: 12px; color: var(--text-3); }
+
+/* 键值清单：详情抽屉里成对展示 */
+.svc-kv { display: grid; grid-template-columns: 104px 1fr; gap: 7px 12px; font-size: 13px; }
+.svc-kv dt { color: var(--text-3); }
+.svc-kv dd { margin: 0; color: var(--text-1); word-break: break-all; }
+
+/* 仪表：可用率对承诺值 */
+.svc-gauge { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.svc-gauge .gg { text-align: center; padding: 12px 8px; border: 1px solid var(--border); border-radius: var(--radius); }
+.svc-gauge .gg-n { font-size: 12.5px; color: var(--text-2); }
+.svc-gauge .gg-v { font-size: 22px; font-weight: 700; margin: 6px 0 3px; font-variant-numeric: tabular-nums; }
+.svc-gauge .gg-x { font-size: 11.5px; color: var(--text-3); }
+.svc-gauge .gg-t { height: 6px; border-radius: 3px; background: var(--bg-soft); overflow: hidden; margin-top: 8px; }
+.svc-gauge .gg-f { display: block; height: 100%; background: var(--success); }
+.svc-gauge .gg-f.warn { background: var(--warning); }
+.svc-gauge .gg-f.bad { background: var(--danger); }

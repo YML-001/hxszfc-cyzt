@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>委托代理管理 · 存量房交易网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：授权范围徽章组与委托书影像占位 */
+  .scope-set { display: flex; gap: 4px; flex-wrap: wrap; }
+  .scope-set .badge { font-size: 11.5px; padding: 1px 8px; }
+  .img-view {
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-soft);
+    height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; color: var(--text-3); font-size: 12.5px;
+  }
+  .img-view i { font-size: 34px; color: var(--primary-soft); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wscwb-13">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 存量房交易网签备案管理系统
+        <span class="sep">/</span> <a class="link" href="contract-list.html">合同签约</a>
+        <span class="sep">/</span> <span class="cur">委托代理管理</span>
+      </div>
+      <div class="page-title">委托代理管理</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" data-open-drawer="dwNew"><i class="fa-solid fa-plus"></i> 新增委托登记</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《委托代理台账》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-file-signature"></i></div>
+      <div><div class="s-label">有效委托</div><div class="s-value">186</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">待核验</div><div class="s-value">12</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-file-circle-xmark"></i></div>
+      <div><div class="s-label">已失效</div><div class="s-value">43</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-user-plus"></i></div>
+      <div><div class="s-label">本月新增</div><div class="s-value">28</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-danger">
+    <i class="fa-solid fa-user-lock"></i>
+    <div>授权范围不含「签署买卖合同」的委托，系统在签约环节强制拦截，不得代签；委托期限届满或已失效的委托同样不得用于签约。</div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>关键词</label>
+        <input type="text" placeholder="委托人 / 代理人 / 合同编号">
+      </div>
+      <div class="filter-item">
+        <label>授权范围</label>
+        <select><option value="">全部</option><option>签署买卖合同</option><option>收取房款</option><option>办理过户</option><option>领取证照</option></select>
+      </div>
+      <div class="filter-item">
+        <label>核验状态</label>
+        <select><option value="">全部</option><option>待核验</option><option>核验通过</option><option>核验不通过</option><option>已失效</option></select>
+      </div>
+      <div class="filter-item">
+        <label>是否公证</label>
+        <select><option value="">全部</option><option>已公证</option><option>未公证</option></select>
+      </div>
+      <div class="filter-item">
+        <label>委托期限止</label>
+        <input type="date" value="2026-12-31">
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 241 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="wait">待核验 <span class="badge orange">12</span></div>
+      <div class="tab" data-tab="ok">有效</div>
+      <div class="tab" data-tab="dead">已失效</div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblAgent" data-static>
+        <thead>
+          <tr>
+            <th>委托编号</th>
+            <th>委托人</th>
+            <th>委托人证件号</th>
+            <th>代理人</th>
+            <th>代理人证件号</th>
+            <th>代理人电话</th>
+            <th>授权范围</th>
+            <th>委托期限起止</th>
+            <th>是否公证</th>
+            <th>核验状态</th>
+            <th>关联合同</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">WT20260731016</td>
+            <td class="nowrap">吴俊霖</td>
+            <td class="nowrap">4502**********7412</td>
+            <td class="nowrap">吴建国</td>
+            <td class="nowrap">4502**********5138</td>
+            <td class="nowrap">139****2208</td>
+            <td><div class="scope-set"><span class="badge blue">签署买卖合同</span><span class="badge blue">办理过户</span></div></td>
+            <td class="nowrap">2026-07-20 至 2027-07-19</td>
+            <td class="nowrap"><span class="badge green">已公证</span></td>
+            <td class="nowrap"><span class="badge orange">待核验</span></td>
+            <td class="nowrap"><a class="link" href="contract-detail.html">CLF…0318</a></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('WT20260731016','吴俊霖','吴建国')">查看</span>
+              <span class="link" onclick="verify(this,'WT20260731016')">核验</span>
+            </td>
+          </tr>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">WT20260730015</td>
+            <td class="nowrap">陈美玲</td>
+            <td class="nowrap">4502**********3021</td>
+            <td class="nowrap">XXXX市优居房地产经纪有限公司</td>
+            <td class="nowrap">91450200MA5NX8**7K</td>
+            <td class="nowrap">0772-388****</td>
+            <td><div class="scope-set"><span class="badge blue">办理过户</span><span class="badge blue">领取证照</span></div></td>
+            <td class="nowrap">2026-07-18 至 2026-12-31</td>
+            <td class="nowrap"><span class="badge gray">未公证</span></td>
+            <td class="nowrap"><span class="badge orange">待核验</span></td>
+            <td class="nowrap"><a class="link" href="contract-detail.html">CLF…0301</a></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('WT20260730015','陈美玲','XXXX市优居房地产经纪有限公司')">查看</span>
+              <span class="link" onclick="verify(this,'WT20260730015')">核验</span>
+            </td>
+          </tr>
+          <tr data-st="ok">
+            <td class="nowrap fw-600">WT20260726012</td>
+            <td class="nowrap">李婉婷</td>
+            <td class="nowrap">4502**********2246</td>
+            <td class="nowrap">李国华</td>
+            <td class="nowrap">4502**********0819</td>
+            <td class="nowrap">137****5566</td>
+            <td><div class="scope-set"><span class="badge blue">签署买卖合同</span><span class="badge blue">收取房款</span><span class="badge blue">办理过户</span><span class="badge blue">领取证照</span></div></td>
+            <td class="nowrap">2026-06-15 至 2027-06-14</td>
+            <td class="nowrap"><span class="badge green">已公证</span></td>
+            <td class="nowrap"><span class="badge green">核验通过</span></td>
+            <td class="nowrap"><a class="link" href="contract-detail.html">CLF…0294</a></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('WT20260726012','李婉婷','李国华')">查看</span>
+              <span class="link danger" onclick="expire(this,'WT20260726012')">失效处理</span>
+            </td>
+          </tr>
+          <tr data-st="ok">
+            <td class="nowrap fw-600">WT20260718009</td>
+            <td class="nowrap">黄志文</td>
+            <td class="nowrap">4502**********6633</td>
+            <td class="nowrap">黄小雅</td>
+            <td class="nowrap">4502**********7788</td>
+            <td class="nowrap">135****9012</td>
+            <td><div class="scope-set"><span class="badge orange">仅办理过户</span></div></td>
+            <td class="nowrap">2026-07-01 至 2026-10-31</td>
+            <td class="nowrap"><span class="badge gray">未公证</span></td>
+            <td class="nowrap"><span class="badge green">核验通过</span></td>
+            <td class="nowrap text-3">—</td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('WT20260718009','黄志文','黄小雅')">查看</span>
+              <span class="link danger" onclick="expire(this,'WT20260718009')">失效处理</span>
+            </td>
+          </tr>
+          <tr data-st="ok">
+            <td class="nowrap fw-600">WT20260712006</td>
+            <td class="nowrap">XXXX市城市投资建设发展有限公司</td>
+            <td class="nowrap">91450200MA5K9**2XN</td>
+            <td class="nowrap">覃海波</td>
+            <td class="nowrap">4502**********4417</td>
+            <td class="nowrap">136****3344</td>
+            <td><div class="scope-set"><span class="badge blue">签署买卖合同</span><span class="badge blue">办理过户</span></div></td>
+            <td class="nowrap">2026-01-01 至 2026-12-31</td>
+            <td class="nowrap"><span class="badge green">已公证</span></td>
+            <td class="nowrap"><span class="badge green">核验通过</span></td>
+            <td class="nowrap"><a class="link" href="contract-detail.html">CLF…0276</a></td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('WT20260712006','XXXX市城市投资建设发展有限公司','覃海波')">查看</span>
+              <span class="link danger" onclick="expire(this,'WT20260712006')">失效处理</span>
+            </td>
+          </tr>
+          <tr data-st="dead">
+            <td class="nowrap fw-600">WT20260416002</td>
+            <td class="nowrap">周雅琴</td>
+            <td class="nowrap">4502**********1155</td>
+            <td class="nowrap">周立成</td>
+            <td class="nowrap">4502**********9922</td>
+            <td class="nowrap">138****7700</td>
+            <td><div class="scope-set"><span class="badge gray">签署买卖合同</span><span class="badge gray">收取房款</span></div></td>
+            <td class="nowrap text-danger">2025-07-15 至 2026-07-14</td>
+            <td class="nowrap"><span class="badge green">已公证</span></td>
+            <td class="nowrap"><span class="badge red">已失效（期限届满）</span></td>
+            <td class="nowrap text-3">—</td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('WT20260416002','周雅琴','周立成')">查看</span>
+            </td>
+          </tr>
+          <tr data-st="dead">
+            <td class="nowrap fw-600">WT20260602004</td>
+            <td class="nowrap">罗建军</td>
+            <td class="nowrap">4502**********2277</td>
+            <td class="nowrap">罗晓东</td>
+            <td class="nowrap">4502**********3388</td>
+            <td class="nowrap">159****1188</td>
+            <td><div class="scope-set"><span class="badge gray">领取证照</span></div></td>
+            <td class="nowrap">2026-06-02 至 2026-12-01</td>
+            <td class="nowrap"><span class="badge gray">未公证</span></td>
+            <td class="nowrap"><span class="badge red">核验不通过</span></td>
+            <td class="nowrap text-3">—</td>
+            <td class="col-ops">
+              <span class="link" onclick="openView('WT20260602004','罗建军','罗晓东')">查看</span>
+              <span class="link" onclick="PMS.toast('不通过原因：委托书签名与身份证签名笔迹差异较大，且未办理公证','error')">不通过原因</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 查看委托 -->
+  <div class="drawer-mask"></div>
+  <div class="drawer drawer-lg" id="dwView">
+    <div class="drawer-head">
+      <h3>委托代理详情</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <dl class="desc-list">
+        <div class="desc-item"><dt>委托编号</dt><dd id="vwNo">—</dd></div>
+        <div class="desc-item"><dt>委托人</dt><dd id="vwFrom">—</dd></div>
+        <div class="desc-item"><dt>代理人</dt><dd id="vwTo">—</dd></div>
+        <div class="desc-item"><dt>委托期限</dt><dd>2026-07-20 至 2027-07-19</dd></div>
+        <div class="desc-item"><dt>是否公证</dt><dd>已公证</dd></div>
+        <div class="desc-item"><dt>公证机构</dt><dd>XXXX市公证处</dd></div>
+        <div class="desc-item"><dt>公证书编号</dt><dd>（2026）桂柳证民字第 1682 号</dd></div>
+        <div class="desc-item"><dt>授权范围</dt><dd>签署买卖合同、办理过户</dd></div>
+        <div class="desc-item"><dt>登记时间</dt><dd>2026-07-20 14:38</dd></div>
+      </dl>
+
+      <div class="section-title mt-16">委托书影像</div>
+      <div class="grid-2">
+        <div class="img-view"><i class="fa-regular fa-file-image"></i><span>授权委托书（第 1 页）.jpg</span></div>
+        <div class="img-view"><i class="fa-regular fa-file-image"></i><span>公证书.jpg</span></div>
+      </div>
+
+      <div class="section-title mt-16">授权范围核验</div>
+      <table class="data-table compact">
+        <thead><tr><th>核验项</th><th>核验方式</th><th>核验结果</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>委托人身份真实性</td><td>公安人口库比对</td><td><span class="badge green">通过</span></td><td>姓名与证件号一致</td></tr>
+          <tr><td>代理人身份真实性</td><td>公安人口库比对</td><td><span class="badge green">通过</span></td><td>姓名与证件号一致</td></tr>
+          <tr><td>委托期限有效性</td><td>系统自动比对</td><td><span class="badge green">通过</span></td><td>在有效期内，剩余 353 天</td></tr>
+          <tr><td>公证书真实性</td><td>公证信息共享平台核验</td><td><span class="badge green">通过</span></td><td>与公证处备案信息一致</td></tr>
+          <tr><td>授权范围完整性</td><td>系统自动比对</td><td><span class="badge green">通过</span></td><td>含「签署买卖合同」，可用于签约</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+      <button type="button" class="btn" onclick="PMS.toast('委托书影像已下载（PDF）')"><i class="fa-solid fa-download"></i> 下载委托书</button>
+    </div>
+  </div>
+
+  <!-- 新增委托登记 -->
+  <div class="drawer drawer-lg" id="dwNew">
+    <div class="drawer-head">
+      <h3>新增委托登记</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-info">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>委托人与代理人身份将自动与公安人口库、市场监管登记库比对；已公证的委托同步核验公证书真实性。</div>
+      </div>
+
+      <div class="section-title mt-16">委托人</div>
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>委托人名称<span class="req">*</span></label>
+          <input type="text" placeholder="自然人姓名或法人名称">
+        </div>
+        <div class="form-item">
+          <label>证件类型<span class="req">*</span></label>
+          <select><option>居民身份证</option><option>统一社会信用代码</option><option>港澳居民来往内地通行证</option><option>护照</option></select>
+        </div>
+        <div class="form-item">
+          <label>证件号码<span class="req">*</span></label>
+          <input type="text" placeholder="请输入证件号码">
+        </div>
+      </div>
+
+      <div class="section-title mt-16">代理人</div>
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>代理人名称<span class="req">*</span></label>
+          <input type="text" placeholder="自然人姓名或机构名称">
+        </div>
+        <div class="form-item">
+          <label>证件类型<span class="req">*</span></label>
+          <select><option>居民身份证</option><option>统一社会信用代码</option><option>港澳居民来往内地通行证</option><option>护照</option></select>
+        </div>
+        <div class="form-item">
+          <label>证件号码<span class="req">*</span></label>
+          <input type="text" placeholder="请输入证件号码">
+        </div>
+        <div class="form-item">
+          <label>联系电话<span class="req">*</span></label>
+          <input type="text" placeholder="11 位手机号">
+        </div>
+      </div>
+
+      <div class="section-title mt-16">授权信息</div>
+      <div class="form-grid form-align">
+        <div class="form-item col-full">
+          <label>授权范围<span class="req">*</span></label>
+          <div class="flex gap-16" style="flex-wrap:wrap;padding-top:6px">
+            <label class="flex items-center gap-8"><input type="checkbox" checked> 签署买卖合同</label>
+            <label class="flex items-center gap-8"><input type="checkbox"> 收取房款</label>
+            <label class="flex items-center gap-8"><input type="checkbox" checked> 办理过户</label>
+            <label class="flex items-center gap-8"><input type="checkbox"> 领取证照</label>
+          </div>
+        </div>
+        <div class="form-item">
+          <label>委托期限起<span class="req">*</span></label>
+          <input type="date" value="2026-07-31">
+        </div>
+        <div class="form-item">
+          <label>委托期限止<span class="req">*</span></label>
+          <input type="date" value="2027-07-30">
+        </div>
+        <div class="form-item">
+          <label>是否公证<span class="req">*</span></label>
+          <select id="ntSel" onchange="toggleNotary()"><option value="y">已公证</option><option value="n">未公证</option></select>
+        </div>
+        <div class="form-item nt-only">
+          <label>公证机构</label>
+          <select><option>XXXX市公证处</option><option>XXXX市柳北公证处</option><option>柳江区公证处</option><option>外地公证机构</option></select>
+        </div>
+        <div class="form-item nt-only">
+          <label>公证书编号</label>
+          <input type="text" placeholder="（2026）桂柳证民字第 ____ 号">
+        </div>
+        <div class="form-item col-full">
+          <label>委托书附件<span class="req">*</span></label>
+          <div class="file-up">
+            <input type="hidden" class="file-up-val" value="授权委托书.pdf,公证书.pdf">
+            <div class="file-up-grid">
+              <div class="file-up-tile file-up-add" title="添加文件（可多选）">
+                <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png">
+                <i class="fa-solid fa-plus"></i><span>上传</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="form-item col-full">
+          <label>备注</label>
+          <textarea placeholder="如：委托人常年在外地工作，无法到场办理"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn" onclick="PMS.toast('委托登记草稿已保存','success')"><i class="fa-regular fa-floppy-disk"></i> 保存草稿</button>
+      <button type="button" class="btn btn-primary" onclick="submitNew()"><i class="fa-solid fa-paper-plane"></i> 提交并核验</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  var table = document.getElementById('tblAgent');
+  document.getElementById('stTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var name = tab.getAttribute('data-tab');
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.style.display = (name === 'all' || tr.getAttribute('data-st') === name) ? '' : 'none';
+    });
+  });
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 241,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+
+function openView(no, from, to) {
+  document.getElementById('vwNo').textContent = no;
+  document.getElementById('vwFrom').textContent = from;
+  document.getElementById('vwTo').textContent = to;
+  PMS.openDrawer('dwView');
+}
+
+function verify(el, no) {
+  var tr = el.closest('tr');
+  PMS.confirm({
+    title: '委托核验',
+    message: '确认核验通过委托 ' + no + '？',
+    detail: '身份比对、期限有效性、公证书真实性、授权范围完整性四项均已通过。',
+    okText: '核验通过',
+    onOk: function () {
+      tr.setAttribute('data-st', 'ok');
+      tr.children[9].innerHTML = '<span class="badge green">核验通过</span>';
+      tr.querySelector('.col-ops').innerHTML =
+        '<span class="link" onclick="openView(\'' + no + '\',\'—\',\'—\')">查看</span>' +
+        '<span class="link danger" onclick="expire(this,\'' + no + '\')">失效处理</span>';
+      PMS.toast('委托 ' + no + ' 核验通过，可用于签约', 'success');
+    }
+  });
+}
+
+function expire(el, no) {
+  var tr = el.closest('tr');
+  PMS.confirm({
+    title: '委托失效处理',
+    message: '确认将委托 ' + no + ' 置为失效？',
+    detail: '失效后该委托不得再用于签约、过户与领证，已办结业务不受影响。',
+    type: 'danger',
+    okText: '确认失效',
+    onOk: function () {
+      tr.setAttribute('data-st', 'dead');
+      tr.children[9].innerHTML = '<span class="badge red">已失效</span>';
+      tr.querySelectorAll('.scope-set .badge').forEach(function (b) { b.className = 'badge gray'; });
+      tr.querySelector('.col-ops').innerHTML =
+        '<span class="link" onclick="openView(\'' + no + '\',\'—\',\'—\')">查看</span>';
+      PMS.toast('委托 ' + no + ' 已失效', 'success');
+    }
+  });
+}
+
+function toggleNotary() {
+  var on = document.getElementById('ntSel').value === 'y';
+  document.querySelectorAll('#dwNew .nt-only').forEach(function (el) {
+    el.style.display = on ? '' : 'none';
+  });
+}
+
+function submitNew() {
+  PMS.closeDrawer('dwNew');
+  PMS.toast('委托登记已提交，身份与公证信息核验中', 'success');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>预警线索智能生成 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="fx" data-active="risk-judge" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>智能应用</span>
+      <span class="sep">/</span><span>智能风险研判</span>
+      <span class="sep">/</span><span class="cur">预警线索智能生成</span>
+    </div>
+    <div class="page-actions">
+      <span class="node-tag"><i class="fa-solid fa-user-shield"></i>监管分析人员</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-shield-halved"></i>智能风险研判 wsai-10</span>
+    <a href="risk-judge.html?role=fx">风险智能研判</a>
+    <a href="risk-weight.html?role=fx">风险权重模型</a>
+    <a class="active" href="risk-clue.html?role=fx">预警线索池</a>
+    <a href="dq-attribution.html?role=fx">数据质量归因</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-flag"></i>
+    <span>这是硬约束三的执行页：模型识别的风险线索<b>只进「待确认」池，不直接成案</b>。
+      人工确认后才推送到综合预警与督办闭环中心（wsyjdb）进入正式预警与督办流程；
+      排除线索需填理由，理由会回流用于因子权重优化。可以试着对未确认线索点「推送督办」看拦截效果。</span>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">待确认线索</div><div class="s-value" id="kPend">—</div>
+        <div class="s-trend text-danger">未确认不得推送</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-paper-plane"></i></div>
+      <div><div class="s-label">已确认推送</div><div class="s-value" id="kPush">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon gray"><i class="fa-solid fa-circle-minus"></i></div>
+      <div><div class="s-label">已排除（误报）</div><div class="s-value" id="kEx">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-fire"></i></div>
+      <div><div class="s-label">高分线索（≥80）</div><div class="s-value" id="kHigh">—</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>线索池</h3>
+      <span class="sub">来源：风险研判超阈值 / 图谱传导路径 / 高级别舆情 / 虚假房源认定</span>
+      <div class="head-actions">
+        <select id="fZt" data-dict="xszt" style="width:160px" onchange="paint()"></select>
+      </div>
+    </div>
+    <div class="card-body">
+      <div id="clueList"></div>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  function paintKpi() {
+    var cs = AI.get('clues');
+    document.getElementById('kPend').textContent = cs.filter(function (c) { return c.xszt === '0'; }).length;
+    document.getElementById('kPush').textContent = cs.filter(function (c) { return c.xszt === '1'; }).length;
+    document.getElementById('kEx').textContent = cs.filter(function (c) { return c.xszt === '2'; }).length;
+    document.getElementById('kHigh').textContent = cs.filter(function (c) { return c.score >= 80; }).length;
+  }
+
+  window.paint = function () {
+    var f = document.getElementById('fZt').value;
+    var cs = AI.where('clues', function (c) { return !f || c.xszt === f; })
+      .sort(function (a, b) {
+        if (a.xszt !== b.xszt) return a.xszt < b.xszt ? -1 : 1;
+        return b.score - a.score;
+      });
+    document.getElementById('clueList').innerHTML = cs.length ? cs.map(function (c) {
+      var lv = c.score >= 80 ? 'red' : (c.score >= 65 ? 'orange' : 'yellow');
+      var cls = c.xszt === '0' ? 'pending' : (c.xszt === '1' ? 'adopt' : 'reject');
+      return '<div class="issue ' + cls + '">' +
+        '<div class="is-h">' +
+          '<span class="is-f">' + AI.esc(c.subject) + '</span>' +
+          AI.badge(c.stlx === '1' ? '企业' : '项目', 'blue') +
+          '<span class="risk-score lv-' + lv + '"><span class="rs-v">' + c.score + '</span>' +
+            '<span class="rs-m">/100</span></span>' +
+          AI.xsBadge(c.xszt) +
+          '<span style="margin-left:auto">' + AI.aiMark(c.xszt === '0' ? '0' : (c.xszt === '1' ? '1' : '3')) + '</span>' +
+        '</div>' +
+        '<div class="is-note">' + AI.esc(c.reason) + '</div>' +
+        '<div class="ai-source mt-8">' +
+          '<span class="as-model"><i class="fa-solid fa-microchip"></i>' + AI.esc(c.mxmc || '—') + '</span>' +
+          '<span class="as-sep"></span><span>版本 ' + AI.esc(c.ver || '—') + '</span>' +
+          '<span class="as-sep"></span>' + AI.confidence(c.conf) +
+          '<span class="as-sep"></span><span>生成于 ' + AI.fmt.time(c.at) + '</span>' +
+        '</div>' +
+        (c.xszt === '1'
+          ? '<div class="alert alert-success mt-16"><i class="fa-solid fa-paper-plane"></i>' +
+            '<span>已由 <b>' + AI.esc(c.confirmBy) + '</b> 于 ' + AI.fmt.time(c.pushAt) +
+            ' 确认并推送至综合预警与督办闭环中心（wsyjdb），进入正式预警与督办流程。</span></div>'
+          : '') +
+        (c.xszt === '2'
+          ? '<div class="alert alert-info mt-16"><i class="fa-solid fa-circle-minus"></i>' +
+            '<span>已由 <b>' + AI.esc(c.confirmBy) + '</b> 排除，理由：' + AI.esc(c.excludeReason || '') +
+            '。该误报已回流用于因子权重优化。</span></div>'
+          : '') +
+        (c.xszt === '0'
+          ? '<div class="mt-16 btn-row">' +
+              '<button class="btn btn-primary btn-sm" onclick="AI.act.confirmClue(\'' + c.id + '\')">' +
+                '<i class="fa-solid fa-check"></i> 人工确认并推送督办</button>' +
+              '<button class="btn btn-danger btn-sm" onclick="AI.act.excludeClue(\'' + c.id + '\')">' +
+                '<i class="fa-solid fa-xmark"></i> 排除（误报）</button>' +
+              '<button class="btn btn-sm" onclick="AI.act.pushClue(\'' + c.id + '\')" ' +
+                'title="演示硬约束三：未确认不得推送">' +
+                '<i class="fa-solid fa-triangle-exclamation"></i> 试直接推送督办</button>' +
+            '</div>'
+          : '') +
+        '</div>';
+    }).join('') : '<div class="empty"><i class="fa-regular fa-flag"></i><div>没有符合条件的线索</div></div>';
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () { paintKpi(); paint(); });
+  });
+})();
+</script>
+</body>
+</html>

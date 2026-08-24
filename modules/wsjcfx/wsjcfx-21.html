@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>房产一张图 · 房地产市场监管监测系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/vendor/leaflet.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<link rel="stylesheet" href="../../assets/css/wsjcfx.css">
+</head>
+<body data-role="leader" data-active="wsjcfx-21">
+<main class="app-main list-layout">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房地产市场监管监测系统
+        <span class="sep">/</span> 综合驾驶舱
+        <span class="sep">/</span> <span class="cur">房产一张图</span>
+      </div>
+      <div class="page-title">房产一张图</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="shareView()"><i class="fa-solid fa-share-nodes"></i> 分享视图</button>
+      <button class="btn" onclick="exportPng()"><i class="fa-solid fa-image"></i> 导出图片</button>
+    </div>
+  </div>
+
+  <div class="jc-split">
+    <!-- ===================== 左栏：视野内项目清单 ===================== -->
+    <aside class="card jc-side-list" id="listPanel">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-list-ul"></i> 视野内项目 <span class="badge" id="vCount">—</span></h3>
+        <div class="head-actions">
+          <select id="vSort" class="sel-sm" onchange="renderList()" style="font-size:12px;padding:2px 4px">
+            <option value="lv">风险降序</option>
+            <option value="qh">去化周期降序</option>
+            <option value="ta">总套数降序</option>
+          </select>
+        </div>
+      </div>
+      <div class="dc-scroll tight" id="vList"><div class="jc-vempty">地图加载中…</div></div>
+      <div class="jc-vfoot">
+        <i class="fa-solid fa-circle-info"></i>
+        <span class="link" onclick="PMS.openModal('mNoGeo')">缺坐标 <b id="nNoGeo">6</b> 个</span>
+        <span class="link danger" onclick="PMS.openModal('mBadGeo')">坐标异常 <b id="nBadGeo">2</b> 个</span>
+        <span style="margin-left:auto">不上图但可进档案</span>
+      </div>
+    </aside>
+
+    <!-- ===================== 中间：真实地图 ===================== -->
+    <div class="jc-pane">
+      <div class="jc-map" id="mapBox" style="flex:1 1 auto;min-height:0">
+
+        <!-- Leaflet 画布（高德栅格瓦片，GCJ-02） -->
+        <div class="jc-mapcv" id="jcMap"></div>
+
+        <!-- 左上角检索（FR-034 R1 / R2） -->
+        <div class="jc-map-search">
+          <input type="text" id="kw" placeholder="项目名称 / 项目编号 / 开发企业 / 坐落地址" oninput="doSearch(this.value)" autocomplete="off">
+          <button class="btn btn-primary" onclick="doSearch(document.getElementById('kw').value,true)"><i class="fa-solid fa-magnifying-glass"></i></button>
+          <div class="jc-sug" id="sug" style="display:none"></div>
+        </div>
+
+        <!-- 右上角工具条 -->
+        <div class="jc-map-tools">
+          <div class="tb" title="放大" onclick="JCMap.zoom(1)"><i class="fa-solid fa-plus"></i></div>
+          <div class="tb" title="缩小" onclick="JCMap.zoom(-1)"><i class="fa-solid fa-minus"></i></div>
+          <div class="tb" title="圈选查询：在地图上拖出矩形" onclick="beginLasso()"><i class="fa-solid fa-draw-polygon"></i></div>
+          <div class="tb" title="周边查询：先选中一个项目" onclick="openNear()"><i class="fa-solid fa-circle-nodes"></i></div>
+          <div class="tb" title="复位至全市" onclick="JCMap.fitCity();PMS.toast('视野已复位至柳州市域')"><i class="fa-solid fa-crosshairs"></i></div>
+        </div>
+
+        <!-- 左侧浮层：保交楼态势汇总（FR-033 R4），数值由本图当前口径实时汇总 -->
+        <div class="jc-float" id="bjlPanel">
+          <div class="fl-h"><i class="fa-solid fa-house-circle-check"></i> 保交楼态势 <span class="fl-x" onclick="this.closest('.jc-float').style.display='none'">&times;</span></div>
+          <div class="fl-b">
+            <div class="dc-mini" id="bjlMini" style="grid-template-columns:repeat(2,1fr)"></div>
+            <p class="hint" style="margin-top:6px">
+              <i class="fa-solid fa-circle-info"></i>
+              滞后判定取自保交楼专项监测（FR-078），本图层<b>只呈现不判定</b>（M4）。
+            </p>
+          </div>
+        </div>
+
+        <!-- 项目概况卡片：FR-034 R3 统一六组定义 -->
+        <div class="jc-card" id="mapCard" style="display:none;width:312px">
+          <span class="jc-card-x" onclick="closeCard()">&times;</span>
+          <div id="cardBody"></div>
+          <div class="btn-row mt-8">
+            <button class="btn btn-sm btn-primary" style="flex:1" onclick="location.href='wsjcfx-17-view.html'"><i class="fa-solid fa-folder-open"></i> 项目档案</button>
+            <button class="btn btn-sm" title="风险评级详情" onclick="JC.drill('项目风险评级','本项目评分卡')"><i class="fa-solid fa-gauge-high"></i></button>
+            <button class="btn btn-sm" title="预警与督办" onclick="JC.drill('预警督办','按本项目筛选')"><i class="fa-solid fa-triangle-exclamation"></i></button>
+          </div>
+        </div>
+
+        <!-- 右下角图例（R6：图例必须常显）与当前视图层级 -->
+        <div class="jc-map-legend" id="legendBox"></div>
+        <div class="jc-map-lvtip" id="lvTip">—</div>
+
+        <!-- 底部提示：坐标来源与缺坐标（E1 / E2 / E3） -->
+        <div class="jc-map-hint" title="底图为高德栅格瓦片（GCJ-02），行政区划取 450200 标准边界；底图地址由运维在配置项统一维护，不硬编码。坐标一律取数据中心空间坐落基础库，本系统不维护坐标也不做地址解析。">
+          <i class="fa-solid fa-circle-info"></i>
+          高德栅格底图（GCJ-02）· 坐标取数据中心基础库
+          <span class="link" onclick="PMS.openModal('mNoGeo')">缺坐标 6 个</span>
+          <span class="link danger" onclick="PMS.openModal('mBadGeo')">坐标异常 2 个</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 右侧图层面板 ===================== -->
+    <aside class="card jc-side3" id="layerPanel" style="display:flex;flex-direction:column">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-layer-group"></i> 图层控制</h3>
+        <div class="head-actions"><span class="link" onclick="togglePanel()"><i class="fa-solid fa-angles-right"></i> 收起</span></div>
+      </div>
+      <div class="dc-scroll tight">
+
+        <div class="jc-layers">
+          <div class="lyg">底图（三选一）</div>
+          <div class="jc-layer on" data-grp="base" onclick="pickBase(this,'road','标准地图')">
+            <span class="lg-color" style="background:#eef0f4;border:1px solid var(--border-strong)"></span>
+            <span class="ly-n">标准地图</span><span class="ly-m">高德栅格</span>
+          </div>
+          <div class="jc-layer" data-grp="base" onclick="pickBase(this,'img','影像地图')">
+            <span class="lg-color" style="background:#dde5d8;border:1px solid var(--border-strong)"></span>
+            <span class="ly-n">影像地图</span><span class="ly-m">影像 + 注记</span>
+          </div>
+          <div class="jc-layer" data-grp="base" onclick="pickBase(this,'dark','深色地图')">
+            <span class="lg-color" style="background:#16233c"></span>
+            <span class="ly-n">深色地图</span><span class="ly-m">供大屏用</span>
+          </div>
+
+          <div class="lyg">项目点图层（同类互斥，同时只开一个）</div>
+          <div class="jc-layer" data-grp="dot" onclick="pickDot(this,'st','项目状态图层')">
+            <span class="lg-color" style="background:var(--primary)"></span>
+            <span class="ly-n">项目状态</span><span class="ly-m" data-cnt="all"></span>
+          </div>
+          <div class="jc-layer on" data-grp="dot" onclick="pickDot(this,'lv','风险等级图层')">
+            <span class="lg-color" style="background:var(--lv-red)"></span>
+            <span class="ly-n">风险等级</span><span class="ly-m" data-cnt="all"></span>
+          </div>
+          <div class="jc-layer" data-grp="dot" onclick="pickDot(this,'kc','库存分布图层')">
+            <span class="lg-color" style="background:var(--info)"></span>
+            <span class="ly-n">库存分布</span><span class="ly-m" data-cnt="kc"></span>
+          </div>
+
+          <div class="lyg">可叠加图层</div>
+          <div class="jc-layer" onclick="toggleLayer(this,'boundary','行政区划边界')">
+            <span class="lg-color" style="background:var(--primary);opacity:.3"></span>
+            <span class="ly-n">行政区划边界</span><span class="ly-m">10 个 · 分级设色</span>
+          </div>
+          <div class="jc-layer" onclick="toggleLayer(this,'heat','销售热度热力')">
+            <span class="lg-color" style="background:linear-gradient(90deg,#fde68a,#ef4444)"></span>
+            <span class="ly-n">销售热度热力</span><span class="ly-m">按累计已售</span>
+          </div>
+
+          <div class="lyg">专题图层（FR-033）</div>
+          <div class="jc-layer on" onclick="toggleTheme(this,'bjl','保交楼专题')">
+            <span class="lg-color" style="background:#fff;border:2px dashed var(--lv-red)"></span>
+            <span class="ly-n">保交楼专题</span><span class="ly-m" data-cnt="bjl"></span>
+          </div>
+          <div class="jc-layer" onclick="toggleTheme(this,'hfz','好房子专题')">
+            <span class="lg-color" style="background:var(--success)"></span>
+            <span class="ly-n">好房子专题</span><span class="ly-m" data-cnt="hfz"></span>
+          </div>
+          <div class="jc-layer" onclick="toggleTheme(this,'cross','交集视图')">
+            <span class="lg-color" style="background:var(--success);border:2px solid var(--lv-red)"></span>
+            <span class="ly-n">交集视图</span><span class="ly-m" data-cnt="cross"></span>
+          </div>
+        </div>
+
+        <div class="jc-block" style="margin-top:10px">
+          <div class="jc-block-h"><i class="fa-solid fa-sliders"></i> 图层参数</div>
+          <div class="jc-block-b">
+            <div class="form-item"><label>快捷筛选</label>
+              <label class="ck" style="font-size:12.5px;display:flex;align-items:center;gap:6px">
+                <input type="checkbox" id="zsOnly" onchange="onZsOnly(this.checked)"> 仅看在售项目
+              </label>
+              <div class="hint">销售状态与建设状态是两条线：形状表建设状态，在售与否单独看。</div>
+            </div>
+            <div class="form-item"><label>图层透明度</label>
+              <input type="range" min="20" max="100" value="85" oninput="document.getElementById('opv').textContent=this.value+'%';JCMap.setOpacity(+this.value)">
+              <div class="hint">当前 <b id="opv">85%</b></div>
+            </div>
+            <div class="form-item"><label>历史时点</label>
+              <input type="month" value="2026-07" onchange="pickMonth(this.value)">
+              <div class="hint">切换月份查看历史时点的项目分布与状态（FR-032 R7）。</div>
+            </div>
+            <div class="form-item"><label>区划范围</label>
+              <select id="saidSel" data-dict="said" data-selected="450200" data-ph="" onchange="onQx(this)"></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="jc-block">
+          <div class="jc-block-h"><i class="fa-solid fa-filter"></i> 专题筛选</div>
+          <div class="jc-block-b">
+            <div class="form-item"><label>保交楼滞后程度</label>
+              <select onchange="JCMap.setFilter({bjlSt:this.value});PMS.toast('已按「'+(this.value||'全部')+'」筛选，地图、清单与态势面板同步更新')">
+                <option value="">全部</option><option>已交付</option><option>按期推进</option><option>轻度滞后</option><option>严重滞后</option><option>停工</option>
+              </select></div>
+            <div class="form-item"><label>责任单位</label>
+              <select onchange="PMS.toast('已按责任单位筛选')">
+                <option>全部</option><option>柳南区住建局</option><option>柳北区住建局</option><option>柳江区住建局</option><option>融安县住建局</option>
+              </select></div>
+            <div class="form-item"><label>开发企业 / 项目名</label>
+              <input type="text" placeholder="输入关键字后回车" onchange="JCMap.setFilter({qy:this.value.trim()})"></div>
+          </div>
+        </div>
+
+        <p class="hint" style="padding:0 2px 8px">
+          <i class="fa-solid fa-circle-info"></i>
+          图层的数据量与更新时点标注在各图层行右侧，避免看着一张不知何时的图做判断。县区账号进入时地图自动定位并限定到本区划（P1），其他区划项目不加载。
+        </p>
+      </div>
+    </aside>
+
+    <!-- 收起后的浮出按钮 -->
+    <div class="jc-panel-toggle" id="panelBtn" style="display:none" onclick="togglePanel()" title="展开图层面板">
+      <i class="fa-solid fa-layer-group"></i>
+    </div>
+  </div>
+</main>
+
+<!-- 缺坐标项目清单 -->
+<div class="modal-mask" id="mNoGeo">
+  <div class="modal">
+    <div class="modal-head">无坐标项目清单 · <span id="noGeoN">6</span> 个</div>
+    <div class="modal-body">
+      <p class="hint">
+        <i class="fa-solid fa-circle-info"></i>
+        坐标一律取数据中心空间坐落基础库，本系统不维护坐标、不做地址解析（FR-032 R4）。缺坐标项目不上图，但<b>仍可通过本清单进入项目档案</b>，功能不因缺坐标而中断。
+      </p>
+      <div class="jc-tw">
+        <table class="data-table">
+          <thead><tr><th>项目</th><th>区划</th><th>开发企业</th><th>状态</th><th>风险</th><th>专题</th><th>缺失原因</th><th class="col-ops">操作</th></tr></thead>
+          <tbody id="noGeoBody"></tbody>
+        </table>
+      </div>
+      <div class="alert alert-danger" style="margin-top:10px">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div><b>「三江·侗乡新苑」为保交楼项目且缺坐标，属不可接受的数据缺失</b>（FR-033 E3），须限期补齐。已置红并单独标注。</div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close-modal>关闭</button>
+      <button class="btn btn-primary" onclick="PMS.closeModal('mNoGeo');PMS.toast('已推送数据中心补齐 6 个项目坐标，保交楼项目标为限期件','success')">
+        <i class="fa-solid fa-paper-plane"></i> 推送数据中心补齐</button>
+    </div>
+  </div>
+</div>
+
+<!-- 坐标异常清单 -->
+<div class="modal-mask" id="mBadGeo">
+  <div class="modal modal-sm">
+    <div class="modal-head">坐标异常清单 · <span id="badGeoN">2</span> 个</div>
+    <div class="modal-body">
+      <p class="hint">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        坐标落在柳州市域范围之外的项目<b>不在地图显示，也不强行拉回市域内</b>（FR-032 E3），已置红推送数据中心核查。
+      </p>
+      <div class="jc-tw">
+        <table class="data-table">
+          <thead><tr><th>项目</th><th>登记坐标</th><th>落点</th><th>推送状态</th></tr></thead>
+          <tbody id="badGeoBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn" data-close-modal>关闭</button></div>
+  </div>
+</div>
+
+<!-- 圈选查询：内容由实际拖出的矩形范围实时统计 -->
+<div class="modal-mask" id="mLasso">
+  <div class="modal">
+    <div class="modal-head" id="lassoHead">圈选查询</div>
+    <div class="modal-body">
+      <p class="hint">
+        <i class="fa-solid fa-circle-info"></i>
+        统计范围为您在地图上拖出的矩形，指标由范围内项目实时汇总（FR-034 R6）。县区账号跨区圈选时只返回本区划部分并提示（R7）。
+      </p>
+      <div class="stat-grid mb-16" id="lassoStat"></div>
+      <div class="jc-tw">
+        <table class="data-table">
+          <thead><tr><th>项目</th><th>开发企业</th><th>状态</th><th class="num">套数</th><th class="num">可售</th><th class="num">进度</th><th>风险</th><th class="col-ops">操作</th></tr></thead>
+          <tbody id="lassoBody"></tbody>
+        </table>
+      </div>
+      <p class="hint" id="lassoNote"></p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close-modal>关闭</button>
+      <button class="btn btn-primary" onclick="JC.exportAsync('圈选范围内项目清单')"><i class="fa-solid fa-download"></i> 导出清单</button>
+    </div>
+  </div>
+</div>
+
+<!-- 周边查询：以选中项目为中心画真实圆并按实测距离排序 -->
+<div class="modal-mask" id="mNear">
+  <div class="modal modal-sm">
+    <div class="modal-head" id="nearHead">周边查询</div>
+    <div class="modal-body">
+      <div class="filter-bar mb-16">
+        <div class="filter-item"><label>半径</label>
+          <select id="nearR" onchange="runNear()">
+            <option value="500">500 m</option><option value="1000" selected>1 km</option><option value="3000">3 km</option>
+          </select></div>
+        <button class="btn btn-sm btn-primary" onclick="runNear()">查询</button>
+      </div>
+      <div class="jc-tw">
+        <table class="data-table">
+          <thead><tr><th>项目</th><th class="num">距离</th><th class="num">成交均价</th><th class="num">去化周期</th><th>风险</th></tr></thead>
+          <tbody id="nearBody"></tbody>
+        </table>
+      </div>
+      <p class="hint" id="nearNote"></p>
+    </div>
+    <div class="modal-foot"><button class="btn" data-close-modal>关闭</button></div>
+  </div>
+</div>
+
+<script src="../../assets/vendor/leaflet.js"></script>
+<script src="../../assets/vendor/leaflet-heat.js"></script>
+<script src="../../assets/geo/liuzhou-geo.js"></script>
+<script src="../../assets/js/jc-map-data.js"></script>
+<script src="../../assets/js/jc-map.js"></script>
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/wsjcfx.js"></script>
+<script>
+  var D = window.JCDATA, P = D.projects;
+  var BS = D.BS_NAME, SS = D.SS_NAME, LVN = D.LV_NAME, LVD = D.LV_DESC;
+  var LVC = { red: 'var(--lv-red)', orange: 'var(--lv-orange)', yellow: 'var(--lv-yellow)', blue: 'var(--info)' };
+  var BSC = { wdg: 'var(--text-3)', zj: 'var(--primary)', tg: 'var(--lv-red)', jgws: 'var(--lv-orange)', yjf: 'var(--success)' };
+  var VIEW = [], DOT = 'lv';
+
+  function num(v) { return (v == null ? '—' : v.toLocaleString('zh-CN')); }
+  function cnt(list, fn) { return list.filter(fn).length; }
+  function byName(n) { return P.filter(function (x) { return x.n === n; })[0]; }
+
+  /* ---------------- 图例：条目数由当前数据实时统计，不写死 ---------------- */
+  function legend() {
+    var L = JCMap.all(), rows, t;
+    if (DOT === 'st') {
+      t = '图例 · 项目状态图层（颜色＝建设状态）';
+      rows = ['wdg', 'zj', 'tg', 'jgws', 'yjf'].map(function (k) {
+        return [BSC[k], BS[k] + ' ' + cnt(L, function (p) { return p.bs === k; })];
+      });
+    } else if (DOT === 'lv') {
+      t = '图例 · 风险等级图层（颜色＝四色风险）';
+      rows = [['red', '红色（≥75 或一票红）'], ['orange', '橙色（55—75）'], ['yellow', '黄色（30—55）'], ['blue', '蓝色（&lt;30）']]
+        .map(function (r) { return [LVC[r[0]], r[1] + ' ' + cnt(L, function (p) { return p.lv === r[0]; })]; });
+    } else {
+      t = '图例 · 库存分布图层（颜色＝去化周期）';
+      var f = [['var(--success)', '≤ 12 月', function (p) { return p.qh != null && p.qh <= 12; }],
+      ['var(--lv-yellow)', '12—18 月', function (p) { return p.qh > 12 && p.qh <= 18; }],
+      ['var(--lv-orange)', '18—24 月', function (p) { return p.qh > 18 && p.qh <= 24; }],
+      ['var(--lv-red)', '&gt; 24 月', function (p) { return p.qh > 24; }],
+      ['var(--text-3)', '未取证无去化', function (p) { return p.qh == null; }]];
+      rows = f.map(function (r) { return [r[0], r[1] + ' ' + cnt(L, r[2])]; });
+    }
+    document.getElementById('legendBox').innerHTML =
+      '<div class="lg-t">' + t + '</div>' +
+      rows.map(function (r) { return '<div class="lg-item"><span class="lg-color" style="background:' + r[0] + '"></span> ' + r[1] + '</div>'; }).join('') +
+      '<div class="lg-t" style="margin-top:6px">形状＝建设状态 ｜ 大小＝总套数 ｜ 虚线环＝保交楼</div>';
+  }
+
+  /* ---------------- 左栏清单：严格等于当前视野内的项目 ---------------- */
+  function renderList() {
+    var sort = document.getElementById('vSort').value;
+    var list = VIEW.slice().sort(function (a, b) {
+      if (sort === 'qh') return (b.qh || -1) - (a.qh || -1);
+      if (sort === 'ta') return b.ta - a.ta;
+      return (D.LV_RANK[b.lv] - D.LV_RANK[a.lv]) || (b.sc - a.sc);
+    });
+    document.getElementById('vCount').textContent = list.length + ' 个';
+    var box = document.getElementById('vList');
+    if (!list.length) {
+      box.innerHTML = '<div class="jc-vempty">当前视野内没有符合条件的项目。<br/>缩小地图或清除筛选后再看。</div>';
+      return;
+    }
+    var sel = JCMap.selected();
+    box.innerHTML = '<div class="jc-vlist">' + list.map(function (p) {
+      return '<div class="jc-vi' + (sel && sel.n === p.n ? ' on' : '') + '" data-n="' + p.n + '">'
+        + '<div class="vi-h"><span class="vi-n">' + p.n + '</span>'
+        + '<span class="badge ' + p.lv + '">' + LVN[p.lv] + ' ' + p.sc + '</span></div>'
+        + '<div class="vi-s"><span class="jc-chip ' + (p.bs === 'tg' ? 'tg' : '') + '">' + BS[p.bs] + '</span>'
+        + '<span class="jc-chip ' + p.ss + '">' + SS[p.ss] + '</span>'
+        + '<b>可售 ' + num(p.av) + ' 套</b>'
+        + '<b' + (p.qh > 24 ? ' class="danger"' : '') + '>' + (p.qh == null ? '未取证' : '去化 ' + p.qh + ' 月') + '</b></div>'
+        + '<div class="vi-s">' + p.qy + '</div></div>';
+    }).join('') + '</div>';
+    box.querySelectorAll('.jc-vi').forEach(function (el) {
+      var n = el.getAttribute('data-n');
+      el.onmouseenter = function () { JCMap.highlight(n, true); };
+      el.onmouseleave = function () { JCMap.highlight(n, false); };
+      el.onclick = function () { JCMap.locate(n); };
+    });
+  }
+
+  /* ---------------- 项目概况卡片：六组（FR-034 R3） ---------------- */
+  function g(t) { return '<div class="cd-g">' + t + '</div>'; }
+  function r(k, v, danger) { return '<div class="cd-r"><span>' + k + '</span><span' + (danger ? ' class="danger"' : '') + '>' + v + '</span></div>'; }
+
+  function fillCard(p) {
+    if (!p) return;
+    var hs = p.bjl ? (p.hs == null ? '<span class="badge orange">户数待核实</span>' : '<b>' + num(p.hs) + ' 户</b>') : '—';
+    var html =
+      '<div class="cd-h"><span class="cd-n">' + p.n + '</span>'
+      + '<span class="badge ' + p.lv + '">' + LVN[p.lv] + ' ' + p.sc + '</span>'
+      + '<span class="jc-chip ' + (p.bs === 'tg' ? 'tg' : '') + '">' + BS[p.bs] + '</span>'
+      + '<span class="jc-chip ' + p.ss + '">' + SS[p.ss] + '</span></div>'
+      + '<div class="jc-rows" style="max-height:300px;overflow:auto">'
+      + g('一、基本')
+      + r('项目编号', p.no) + r('开发企业', p.qy) + r('区划坐落', p.ad) + r('预售许可', p.ys)
+      + g('二、规模')
+      + r('总建面 / 总套数', num(p.ar) + ' ㎡ / ' + num(p.ta) + ' 套')
+      + r('已售 / 可售', num(p.sd) + ' / ' + num(p.av) + ' 套')
+      + r('去化周期', p.qh == null ? '— （未取证无销售）' : p.qh + ' 月', p.qh > 24)
+      + g('三、进度')
+      + r('形象进度', p.jd + '%')
+      + r('进度偏差', (p.dv > 0 ? '+' : '') + p.dv + ' pct', p.dv <= -15)
+      + r('计划竣工 / 交付', p.pc + ' / ' + p.pd, p.pd === '已逾期')
+      + g('四、资金')
+      + r('账户余额', p.bal ? num(p.bal) + ' 万元' : '未开户 / 已销户')
+      + r('缴存率 / 使用率', p.jcl + '% / ' + p.syl + '%')
+      + r('监管缺口', p.gap ? num(p.gap) + ' 万元（' + p.gapr + '%）' : '无缺口', p.gapr > 30)
+      + g('五、风险')
+      + r('四色等级', '<span class="badge ' + p.lv + '">' + LVD[p.lv] + '</span>')
+      + r('未办结预警 / 督办', p.yj + ' 条 / ' + p.db + ' 单', p.yj >= 4)
+      + (p.hit ? '<div class="cd-hit"><i class="fa-solid fa-circle-exclamation"></i> 一票红：' + p.hit + '</div>' : '')
+      + g('六、专题')
+      + r('保交楼', p.bjl ? '<b class="text-danger">是</b> · ' + p.bjlSt : '否')
+      + (p.bjl ? r('涉及户数', hs) : '')
+      + r('好房子', p.hfz ? '是 · ' + p.hfz + ' 级' : '否')
+      + '</div>';
+    document.getElementById('cardBody').innerHTML = html;
+
+    var card = document.getElementById('mapCard');
+    card.style.display = '';
+    var box = document.getElementById('mapBox');
+    var pt = JCMap.map().latLngToContainerPoint([p.lat, p.lng]);
+    var w = card.offsetWidth, h = card.offsetHeight;
+    card.style.left = Math.min(Math.max(pt.x + 22, 8), Math.max(8, box.clientWidth - w - 8)) + 'px';
+    card.style.top = Math.min(Math.max(pt.y - 60, 8), Math.max(8, box.clientHeight - h - 8)) + 'px';
+
+    var el = document.querySelector('.jc-vi[data-n="' + p.n + '"]');
+    document.querySelectorAll('.jc-vi.on').forEach(function (x) { x.classList.remove('on'); });
+    if (el) { el.classList.add('on'); el.scrollIntoView({ block: 'nearest' }); }
+  }
+  function closeCard() { document.getElementById('mapCard').style.display = 'none'; }
+
+  /* ---------------- 保交楼态势：按当前筛选口径实时汇总 ---------------- */
+  function bjlPanel() {
+    var all = JCMap.all().filter(function (p) { return p.bjl; });
+    var noGeoBjl = D.nogeo.filter(function (x) { return x.zt === '保交楼'; }).length;
+    var hs = all.reduce(function (s, p) { return s + (p.hs || 0); }, 0);
+    var unk = cnt(all, function (p) { return p.hs == null; });
+    var bad = cnt(all, function (p) { return p.bjlSt === '严重滞后' || p.bjlSt === '停工'; });
+    var ok = cnt(all, function (p) { return p.bjlSt === '按期推进' || p.bjlSt === '已交付'; });
+    document.getElementById('bjlMini').innerHTML =
+      '<div class="mi"><div class="ml">在图项目</div><div class="mv">' + all.length + '</div><div class="ml">另缺坐标 ' + noGeoBjl + ' 个</div></div>'
+      + '<div class="mi"><div class="ml">涉及户数</div><div class="mv">' + num(hs) + '</div><div class="ml">' + (unk ? unk + ' 个待核实' : '口径完整') + '</div></div>'
+      + '<div class="mi ok"><div class="ml">按期推进</div><div class="mv">' + ok + '</div></div>'
+      + '<div class="mi warn"><div class="ml">轻度滞后</div><div class="mv">' + cnt(all, function (p) { return p.bjlSt === '轻度滞后'; }) + '</div></div>'
+      + '<div class="mi bad"><div class="ml">严重滞后 / 停工</div><div class="mv">' + bad + '</div></div>'
+      + '<div class="mi"><div class="ml">数据截止</div><div class="mv" style="font-size:13px">' + D.meta.cut.slice(5, 10) + '</div><div class="ml">' + D.meta.ver + '</div></div>';
+  }
+
+  /* ---------------- 图层面板回调 ---------------- */
+  /* 组内单选：只清同组的 on，别把互不相干的图层一起熄灭 */
+  function pickOne(el) {
+    var grp = el.getAttribute('data-grp');
+    document.querySelectorAll('.jc-layer[data-grp="' + grp + '"]').forEach(function (n) { n.classList.remove('on'); });
+    el.classList.add('on');
+  }
+  function pickBase(el, kind, name) {
+    pickOne(el);
+    JCMap.setBase(kind);
+    PMS.toast('底图已切换为「' + name + '」');
+  }
+  function pickDot(el, mode, name) {
+    var prev = document.querySelector('.jc-layer.on[data-grp="dot"]');
+    pickOne(el);
+    DOT = mode;
+    JCMap.setDotLayer(mode);
+    legend();
+    if (prev && prev !== el) PMS.toast('已关闭「' + prev.querySelector('.ly-n').textContent + '」图层，同类图层同时只能显示一个');
+    else PMS.toast('已切换为「' + name + '」');
+  }
+  function toggleLayer(el, key, name) {
+    el.classList.toggle('on');
+    var on = el.classList.contains('on');
+    JCMap.setOverlay(key, on);
+    PMS.toast('「' + name + '」图层已' + (on ? '开启' : '关闭'));
+  }
+  function toggleTheme(el, key, name) {
+    el.classList.toggle('on');
+    var on = el.classList.contains('on');
+    JCMap.setTheme(key, on);
+    if (key === 'bjl') document.getElementById('bjlPanel').style.display = on ? '' : 'none';
+    if (key === 'cross' && on) {
+      var n = cnt(JCMap.all(), function (p) { return p.bjl && p.hfz; });
+      PMS.toast('交集视图：' + n + ' 个项目既是保交楼又是好房子，已加红色描边优先标注');
+      return;
+    }
+    PMS.toast('「' + name + '」已' + (on ? '开启' : '关闭'));
+  }
+  function onZsOnly(on) {
+    JCMap.setFilter({ zsOnly: on });
+    legend(); bjlPanel();
+    PMS.toast(on ? '已只保留在售项目（销售状态维度，与建设状态互不替代）' : '已恢复全部销售状态');
+  }
+  function onQx(sel) {
+    var name = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+    if (!name || name.indexOf('柳州市') > -1) { JCMap.setFilter({ qx: '' }); JCMap.fitCity(); PMS.toast('视野已复位至柳州市域'); return; }
+    JCMap.setFilter({ qx: name });
+    JCMap.fitQx(name);
+    PMS.toast('视野已定位至「' + name + '」并按该区划过滤');
+  }
+  function pickMonth(v) {
+    if (v < '2024-01') PMS.toast('该时点历史数据不完整，已有部分照常渲染（覆盖率 64%）', 'error');
+    else PMS.toast('已切换至 ' + v + ' 时点的项目分布与状态');
+  }
+  function togglePanel() {
+    var p = document.getElementById('layerPanel'), b = document.getElementById('panelBtn');
+    var hide = p.style.display !== 'none';
+    p.style.display = hide ? 'none' : 'flex';
+    b.style.display = hide ? 'flex' : 'none';
+    setTimeout(function () { JCMap.map().invalidateSize(); }, 60);
+  }
+
+  /* ---------------- 检索（FR-034 R1 / R2） ---------------- */
+  function doSearch(kw, enter) {
+    var box = document.getElementById('sug');
+    kw = (kw || '').trim();
+    if (!kw) { box.style.display = 'none'; return; }
+    /* 项目名普遍带间隔号，用户多半不会输，检索前两边都抹掉 */
+    var k = kw.toLowerCase().replace(/[·・\s]/g, '');
+    var flat = function (s) { return s.toLowerCase().replace(/[·・\s]/g, ''); };
+    var hits = P.filter(function (p) { return flat(p.n + p.qy + p.ad + p.no).indexOf(k) > -1; });
+    if (!hits.length) {
+      var miss = D.nogeo.filter(function (x) { return flat(x.n + x.qy).indexOf(k) > -1; });
+      box.innerHTML = miss.length
+        ? '<div class="sg-empty">「' + miss[0].n + '」缺坐标不在图上，可从左栏底部清单进入项目档案。</div>'
+        : '<div class="sg-empty">无匹配项目。可按项目名称、项目编号、开发企业或坐落地址检索。</div>';
+      box.style.display = '';
+      return;
+    }
+    box.innerHTML = hits.slice(0, 8).map(function (p) {
+      return '<div class="sg-item" onclick="pickSug(\'' + p.n + '\')">'
+        + '<span class="sg-n">' + p.n + '</span>'
+        + '<span class="badge ' + p.lv + '">' + LVN[p.lv] + '</span>'
+        + '<div class="sg-s">' + p.ad + ' ｜ ' + p.qy + ' ｜ ' + BS[p.bs] + ' · ' + SS[p.ss] + '</div></div>';
+    }).join('');
+    box.style.display = '';
+    if (enter && hits.length === 1) pickSug(hits[0].n);
+  }
+  function pickSug(n) {
+    document.getElementById('sug').style.display = 'none';
+    document.getElementById('kw').value = n;
+    JCMap.locate(n);
+    PMS.toast('地图已定位至「' + n + '」');
+  }
+
+  /* ---------------- 圈选与周边：结果全部实时计算 ---------------- */
+  function beginLasso() {
+    closeCard();
+    JCMap.startLasso();
+    PMS.toast('请在地图上按住左键拖出矩形范围');
+  }
+  function onLasso(list, b) {
+    var ta = list.reduce(function (s, p) { return s + p.ta; }, 0);
+    var ar = list.reduce(function (s, p) { return s + p.ar; }, 0);
+    var av = list.reduce(function (s, p) { return s + p.av; }, 0);
+    var red = cnt(list, function (p) { return p.lv === 'red'; });
+    var org = cnt(list, function (p) { return p.lv === 'orange'; });
+    var qhs = list.filter(function (p) { return p.qh != null; });
+    var qh = qhs.length ? (qhs.reduce(function (s, p) { return s + p.qh; }, 0) / qhs.length).toFixed(1) : '—';
+    var allN = P.length;
+    document.getElementById('lassoHead').textContent = '圈选查询 · 范围内 ' + list.length + ' 个项目';
+    document.getElementById('lassoStat').innerHTML = list.length ? [
+      ['blue', 'fa-diagram-project', '范围内项目（个）', list.length, '占在图项目 ' + (list.length / allN * 100).toFixed(1) + '%'],
+      ['cyan', 'fa-ruler-combined', '总规模（万 ㎡）', (ar / 10000).toFixed(1), num(ta) + ' 套'],
+      ['orange', 'fa-warehouse', '可售库存（套）', num(av), '平均去化周期 ' + qh + ' 月'],
+      ['red', 'fa-triangle-exclamation', '风险分布', '红 ' + red + ' / 橙 ' + org,
+        list.length ? '红橙占 ' + ((red + org) / list.length * 100).toFixed(1) + '%' : '—']
+    ].map(function (s) {
+      return '<div class="stat-card"><div class="s-icon ' + s[0] + '"><i class="fa-solid ' + s[1] + '"></i></div><div>'
+        + '<div class="s-label">' + s[2] + '</div><div class="s-value">' + s[3] + '</div><div class="s-trend text-2">' + s[4] + '</div></div></div>';
+    }).join('') : '';
+    document.getElementById('lassoBody').innerHTML = list.length ? list.sort(function (a, b2) { return D.LV_RANK[b2.lv] - D.LV_RANK[a.lv]; }).map(function (p) {
+      return '<tr><td>' + p.n + '</td><td>' + p.qy + '</td><td>' + BS[p.bs] + '</td>'
+        + '<td class="num">' + num(p.ta) + '</td><td class="num">' + num(p.av) + '</td><td class="num">' + p.jd + '%</td>'
+        + '<td><span class="badge ' + p.lv + '">' + LVN[p.lv] + ' ' + p.sc + '</span></td>'
+        + '<td class="col-ops"><a href="wsjcfx-17-view.html">档案</a></td></tr>';
+    }).join('') : '<tr><td colspan="8" class="text-3" style="text-align:center;padding:18px">所选范围内没有项目</td></tr>';
+    var cityQh = (function () { var a = P.filter(function (p) { return p.qh != null; }); return (a.reduce(function (s, p) { return s + p.qh; }, 0) / a.length).toFixed(1); })();
+    var cityRo = ((cnt(P, function (p) { return p.lv === 'red' || p.lv === 'orange'; }) / P.length) * 100).toFixed(1);
+    document.getElementById('lassoNote').innerHTML = list.length
+      ? '<i class="fa-solid fa-lightbulb"></i> 本范围红橙占 ' + ((red + org) / list.length * 100).toFixed(1) + '%（全市 ' + cityRo + '%），平均去化周期 ' + qh + ' 月（全市 ' + cityQh + ' 月）。'
+      + '范围经纬度 ' + b.getWest().toFixed(3) + '—' + b.getEast().toFixed(3) + '，' + b.getSouth().toFixed(3) + '—' + b.getNorth().toFixed(3) + '。'
+      : '<i class="fa-solid fa-circle-info"></i> 换个范围再试，或先关闭「仅看在售」等筛选条件。';
+    PMS.openModal('mLasso');
+  }
+
+  function openNear() {
+    if (!JCMap.selected()) { PMS.toast('请先在地图上点选一个项目，再做周边查询', 'error'); return; }
+    runNear();
+    PMS.openModal('mNear');
+  }
+  function runNear() {
+    var rad = +document.getElementById('nearR').value;
+    var res = JCMap.nearby(rad);
+    if (!res) return;
+    var c = res.center;
+    document.getElementById('nearHead').textContent = '周边查询 · 以「' + c.n + '」为中心 ' + (rad >= 1000 ? rad / 1000 + ' km' : rad + ' m');
+    document.getElementById('nearBody').innerHTML = res.list.length ? res.list.map(function (p) {
+      return '<tr><td>' + p.n + '</td><td class="num">' + (p._dist >= 1000 ? (p._dist / 1000).toFixed(2) + ' km' : p._dist + ' m') + '</td>'
+        + '<td class="num">' + (p.pr ? num(p.pr) : '—') + '</td>'
+        + '<td class="num">' + (p.qh == null ? '—' : p.qh + ' 月') + '</td>'
+        + '<td><span class="badge ' + p.lv + '">' + LVN[p.lv] + '</span></td></tr>';
+    }).join('') : '<tr><td colspan="5" class="text-3" style="text-align:center;padding:18px">该半径内没有其他在图项目</td></tr>';
+    var ps = res.list.filter(function (p) { return p.pr; }).map(function (p) { return p.pr; });
+    document.getElementById('nearNote').innerHTML = ps.length
+      ? '<i class="fa-solid fa-lightbulb"></i> 半径内 ' + res.list.length + ' 个项目均价 ' + num(Math.min.apply(null, ps)) + '—' + num(Math.max.apply(null, ps))
+      + ' 元/㎡，本项目 ' + (c.pr ? num(c.pr) : '未取证') + ' 元/㎡、去化周期 ' + (c.qh == null ? '—' : c.qh + ' 月')
+      + '，可据此判断是个案还是片区性问题。'
+      : '<i class="fa-solid fa-circle-info"></i> 半径内无可比项目，可放大半径再查。';
+  }
+
+  /* ---------------- 缺坐标 / 坐标异常清单 ---------------- */
+  function renderMiss() {
+    document.getElementById('noGeoBody').innerHTML = D.nogeo.map(function (x) {
+      return '<tr><td>' + x.n + '</td><td>' + x.qx + '</td><td>' + x.qy + '</td><td>' + x.bs + '</td>'
+        + '<td><span class="badge ' + x.lv + '">' + LVN[x.lv] + '</span></td>'
+        + '<td' + (x.urgent ? ' class="text-danger"><b>' + x.zt + '</b>' : '>' + (x.zt || '—')) + '</td>'
+        + '<td' + (x.urgent ? ' class="text-danger"' : '') + '>' + x.why + '</td>'
+        + '<td class="col-ops"><a href="wsjcfx-17-view.html">档案</a></td></tr>';
+    }).join('');
+    document.getElementById('badGeoBody').innerHTML = D.badgeo.map(function (x) {
+      return '<tr><td>' + x.n + '</td><td>' + x.geo + '</td><td class="text-danger">' + x.fall + '</td>'
+        + '<td><span class="badge orange">' + x.st + '</span></td></tr>';
+    }).join('');
+    document.getElementById('noGeoN').textContent = D.nogeo.length;
+    document.getElementById('badGeoN').textContent = D.badgeo.length;
+    document.getElementById('nNoGeo').textContent = D.nogeo.length;
+    document.getElementById('nBadGeo').textContent = D.badgeo.length;
+  }
+
+  /* ---------------- 导出与分享 ---------------- */
+  function exportPng() {
+    PMS.toast('已导出当前视图 PNG（含图例、比例尺、数据截止 ' + D.meta.cut + ' 与「XXXX市住建局」水印）', 'success');
+  }
+  function shareView() {
+    PMS.confirm({
+      title: '分享视图', message: '生成包含当前视野、图层与选中项目的分享链接？',
+      detail: '链接不绕过权限：接收方按自身 said 范围与脱敏规则查看，看到的内容可能与您不同（FR-034 R8）。',
+      type: 'info', okText: '生成链接',
+      onOk: function () { PMS.toast('分享链接已复制到剪贴板', 'success'); }
+    });
+  }
+
+  /* ---------------- 初始化 ---------------- */
+  document.addEventListener('DOMContentLoaded', function () {
+    renderMiss();
+    document.querySelectorAll('[data-cnt]').forEach(function (el) {
+      var k = el.getAttribute('data-cnt'), n;
+      if (k === 'kc') n = cnt(P, function (p) { return p.qh != null; });
+      else if (k === 'bjl') n = cnt(P, function (p) { return p.bjl; }) + D.nogeo.filter(function (x) { return x.zt === '保交楼'; }).length;
+      else if (k === 'hfz') n = cnt(P, function (p) { return p.hfz; });
+      else if (k === 'cross') n = cnt(P, function (p) { return p.bjl && p.hfz; });
+      else n = P.length;
+      el.textContent = n + ' 个 · ' + D.meta.cut.slice(5, 10);
+    });
+
+    JCMap.init('jcMap', {
+      onView: function (list, info) {
+        VIEW = list;
+        renderList();
+        legend();
+        bjlPanel();
+        document.getElementById('lvTip').innerHTML =
+          '<b>' + info.levelName + '</b> · z' + info.zoom + ' · 视野内 ' + list.length + ' / 在图 ' + info.total;
+      },
+      onSelect: fillCard,
+      onLasso: onLasso
+    });
+    legend();
+    bjlPanel();
+    setTimeout(function () { JCMap.map().invalidateSize(); }, 120);
+    window.addEventListener('resize', function () { closeCard(); });
+  });
+</script>
+</body>
+</html>

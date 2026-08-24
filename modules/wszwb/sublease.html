@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>转租备案 · 房屋租赁网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：三方关系图、加价校验卡 */
+  .card.list-card > .tab-panel.active > .card-body { flex: 1 1 auto; min-height: 0; overflow: auto; }
+
+  .tri {
+    display: grid; grid-template-columns: 1fr 168px 1fr 168px 1fr; align-items: center;
+    padding: 6px 0 2px;
+  }
+  .tri .node {
+    border: 1px solid var(--border); border-radius: var(--radius); background: #fff;
+    padding: 13px 15px; text-align: center;
+  }
+  .tri .node.mid { border-color: #bfdbfe; background: #f5f9ff; }
+  .tri .node .nd-r { font-size: 12px; color: var(--text-3); }
+  .tri .node .nd-n { font-size: 15px; font-weight: 700; color: var(--text-1); margin: 5px 0 4px; }
+  .tri .node .nd-d { font-size: 12px; color: var(--text-3); line-height: 1.6; }
+  .tri .conn { position: relative; text-align: center; padding: 0 6px; }
+  .tri .conn::before {
+    content: ""; position: absolute; left: 6px; right: 6px; top: 50%; height: 2px; background: var(--border-strong);
+  }
+  .tri .conn::after {
+    content: ""; position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+    border-left: 7px solid var(--border-strong); border-top: 5px solid transparent; border-bottom: 5px solid transparent;
+  }
+  .tri .conn .cn-lb {
+    position: relative; display: inline-block; background: var(--bg); padding: 0 7px;
+    font-size: 12px; color: var(--text-3); line-height: 1.6;
+  }
+  .tri .conn .cn-top {
+    position: relative; display: inline-block; margin-bottom: 4px; font-size: 12px; font-weight: 600; color: #d97706;
+  }
+
+  .rule-card { border: 1px solid var(--border); border-radius: var(--radius); background: #fff; padding: 14px 16px; }
+  .rule-card .rc-r { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-2); padding: 6px 0; }
+  .rule-card .rc-r b { color: var(--text-1); }
+  .rule-card .rc-line { height: 1px; background: var(--border); margin: 8px 0; }
+
+  .file-card {
+    display: flex; align-items: center; gap: 11px; border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 11px 13px; background: #fff; font-size: 13px; color: var(--text-2);
+  }
+  .file-card i { font-size: 20px; color: #dc2626; }
+
+  .up { color: #d97706; font-weight: 600; }
+  .data-table tbody tr.is-warn > td { background: #fff8ed; }
+  .data-table tbody tr.is-warn:hover > td { background: #fdf0d9; }
+  .radio-line { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; min-height: 32px; }
+  .radio-line label { font-size: 14px; color: var(--text-2); font-weight: 400; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+  .dc2 { display: grid; grid-template-columns: 1fr 320px; gap: 16px; align-items: start; }
+  @media (max-width: 1200px) { .dc2 { grid-template-columns: 1fr; } .tri { grid-template-columns: 1fr; gap: 8px; } }
+</style>
+</head>
+<body data-role="reviewer" data-active="wszwb-03">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋租赁网签备案管理系统
+        <span class="sep">/</span> 合同网签备案
+        <span class="sep">/</span> <span class="cur">转租备案</span>
+      </div>
+      <div class="page-title">转租备案</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn btn-primary" href="contract-list.html"><i class="fa-solid fa-plus"></i> 新增转租备案</a>
+      <button type="button" class="btn" onclick="PMS.toast('已导出《转租备案台账》Excel','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">待审</div><div class="s-value">8</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-people-arrows"></i></div>
+      <div><div class="s-label">本月备案</div><div class="s-value">62</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-arrow-trend-up"></i></div>
+      <div><div class="s-label">加价超限</div><div class="s-value">5</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      转租须取得原出租人书面同意，且原租赁合同须约定允许转租；转租期限不得超过原租赁合同剩余期限；加价幅度超过限制阈值的须说明理由并转人工审核。
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="tabs" data-tabs-scope>
+      <div class="tab active" data-tab="list">转租备案台账</div>
+      <div class="tab" data-tab="do">转租审核办理</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="list">
+      <div class="filter-bar">
+        <div class="filter-item"><label>关键词</label><input type="text" placeholder="转租备案编号 / 原合同编号 / 转租人 / 次承租人"></div>
+        <div class="filter-item">
+          <label>原出租人同意状态</label>
+          <select><option value="">全部</option><option>待确认</option><option>已同意</option><option>已拒绝</option></select>
+        </div>
+        <div class="filter-item">
+          <label>是否超过限制幅度</label>
+          <select><option value="">全部</option><option>是</option><option>否</option></select>
+        </div>
+        <div class="filter-item">
+          <label>审核结果</label>
+          <select><option value="">全部</option><option>待审</option><option>通过</option><option>不予备案</option></select>
+        </div>
+        <div class="filter-item"><label>备案时间起</label><input type="date" value="2026-07-01"></div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 70 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table" id="tblZz" data-static>
+          <thead>
+            <tr>
+              <th>转租备案编号</th><th>原租赁合同编号</th><th>转租合同编号</th><th>转租人</th><th>次承租人</th>
+              <th>原出租人同意</th><th>转租期限</th><th class="num">原租金</th><th class="num">转租租金</th>
+              <th class="num">加价幅度</th><th>是否超限</th><th>审核结果</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="nowrap fw-600">ZZ2026000062</td>
+              <td class="nowrap">ZLHT450200202600512</td>
+              <td class="nowrap">ZLHT450200202600603</td>
+              <td class="nowrap">黄某某</td>
+              <td class="nowrap">白某某</td>
+              <td class="nowrap"><span class="badge green">已同意</span></td>
+              <td class="nowrap">2026-10-01 至 2027-07-31</td>
+              <td class="num">2,300.00</td>
+              <td class="num">2,480.00</td>
+              <td class="num up">+7.83%</td>
+              <td class="nowrap"><span class="badge green">未超限</span></td>
+              <td class="nowrap"><span class="badge orange">待审</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openDo('ZZ2026000062')">审核</span>
+                <a class="link" href="contract-detail.html">查看原合同</a>
+              </td>
+            </tr>
+            <tr class="is-warn">
+              <td class="nowrap fw-600">ZZ2026000058</td>
+              <td class="nowrap">ZLHT450200202500342</td>
+              <td class="nowrap">ZLHT450200202600588</td>
+              <td class="nowrap">陆某某</td>
+              <td class="nowrap">吴某某</td>
+              <td class="nowrap"><span class="badge orange">待确认</span></td>
+              <td class="nowrap">2026-09-01 至 2027-02-28</td>
+              <td class="num">2,650.00</td>
+              <td class="num">3,180.00</td>
+              <td class="num up">+20.00%</td>
+              <td class="nowrap"><span class="badge red">超限</span></td>
+              <td class="nowrap"><span class="badge orange">待审</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openDo('ZZ2026000058')">审核</span>
+                <a class="link" href="contract-detail.html">查看原合同</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">ZZ2026000051</td>
+              <td class="nowrap">ZLHT450200202500268</td>
+              <td class="nowrap">ZLHT450200202600542</td>
+              <td class="nowrap">柳州安居住房租赁有限公司</td>
+              <td class="nowrap">梁某某</td>
+              <td class="nowrap"><span class="badge green">已同意</span></td>
+              <td class="nowrap">2026-08-01 至 2027-05-31</td>
+              <td class="num">1,380.00</td>
+              <td class="num">1,480.00</td>
+              <td class="num up">+7.25%</td>
+              <td class="nowrap"><span class="badge green">未超限</span></td>
+              <td class="nowrap"><span class="badge green">通过</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openDo('ZZ2026000051')">查看</span>
+                <a class="link" href="contract-detail.html">查看原合同</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">ZZ2026000046</td>
+              <td class="nowrap">ZLHT450200202500186</td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap">梁某某</td>
+              <td class="nowrap">覃某某</td>
+              <td class="nowrap"><span class="badge red">已拒绝</span></td>
+              <td class="nowrap">2026-08-15 至 2026-12-31</td>
+              <td class="num">2,100.00</td>
+              <td class="num">2,400.00</td>
+              <td class="num up">+14.29%</td>
+              <td class="nowrap"><span class="badge red">超限</span></td>
+              <td class="nowrap"><span class="badge red">不予备案</span><br><span class="text-3 text-sm">未取得原出租人同意</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openDo('ZZ2026000046')">查看</span>
+                <a class="link" href="contract-detail.html">查看原合同</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">ZZ2026000038</td>
+              <td class="nowrap">ZLHT450200202500097</td>
+              <td class="nowrap">ZLHT450200202600497</td>
+              <td class="nowrap">韦某某</td>
+              <td class="nowrap">刘某某</td>
+              <td class="nowrap"><span class="badge green">已同意</span></td>
+              <td class="nowrap">2026-07-01 至 2027-06-30</td>
+              <td class="num">3,100.00</td>
+              <td class="num">3,200.00</td>
+              <td class="num up">+3.23%</td>
+              <td class="nowrap"><span class="badge green">未超限</span></td>
+              <td class="nowrap"><span class="badge green">通过</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openDo('ZZ2026000038')">查看</span>
+                <a class="link" href="contract-detail.html">查看原合同</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="do">
+      <div class="card-body">
+        <div class="section-title">转租关系 · <span id="doNo">ZZ2026000062</span></div>
+        <div class="tri">
+          <div class="node">
+            <div class="nd-r">原出租人</div>
+            <div class="nd-n">陈某某</div>
+            <div class="nd-d">房屋产权人<br>4502**********0518</div>
+          </div>
+          <div class="conn">
+            <span class="cn-lb">原租赁合同 ZLHT…512<br>2,300 元/月</span>
+          </div>
+          <div class="node mid">
+            <div class="nd-r">转租人（原承租人）</div>
+            <div class="nd-n">黄某某</div>
+            <div class="nd-d">原备案 ZLBA…478<br>剩余期限至 2027-07-31</div>
+          </div>
+          <div class="conn">
+            <div class="cn-top">加价 +7.83% <span class="badge green">未超限</span></div>
+            <div><span class="cn-lb">转租合同 ZLHT…603<br>2,480 元/月</span></div>
+          </div>
+          <div class="node">
+            <div class="nd-r">次承租人</div>
+            <div class="nd-n">白某某</div>
+            <div class="nd-d">已实名认证<br>139****6608</div>
+          </div>
+        </div>
+
+        <div class="dc2 mt-16">
+          <div>
+            <div class="section-title">原出租人同意确认</div>
+            <div class="form-grid form-align">
+              <div class="form-item">
+                <label>同意状态<span class="req">*</span></label>
+                <select id="agree" onchange="checkAgree()"><option>待确认</option><option selected>已同意</option><option>已拒绝</option></select>
+              </div>
+              <div class="form-item"><label>同意时间</label><input type="datetime-local" value="2026-07-28T10:26"></div>
+              <div class="form-item"><label>确认方式</label><select><option selected>书面同意书</option><option>平台在线确认</option><option>合同中已明确约定允许转租</option></select></div>
+              <div class="form-item"><label>原合同是否约定允许转租</label><div class="radio-line"><span class="badge green">已约定允许</span></div></div>
+            </div>
+            <div class="file-card mt-16">
+              <i class="fa-regular fa-file-pdf"></i>
+              <div>
+                <div class="fw-600">原出租人转租同意书.pdf</div>
+                <div class="text-3 text-sm">1.4MB · 上传于 2026-07-28 10:31 · 含出租人签名与身份证复印件</div>
+              </div>
+              <span class="link" style="margin-left:auto" onclick="PMS.toast('已打开文件预览（演示）')">预览</span>
+            </div>
+
+            <div id="noAgree" style="display:none">
+              <div class="alert alert-error mt-16">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <div>
+                  未取得原出租人书面同意，不予备案。可通过平台向原出租人发送在线确认邀请，或由申请人补充提交书面同意书。
+                  <button type="button" class="btn btn-sm" style="margin-left:8px" onclick="proxyAgree()">代原出租人确认</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="section-title mt-16">转租合同要素</div>
+            <div class="form-grid form-align">
+              <div class="form-item"><label>转租合同编号</label><input type="text" readonly value="ZLHT450200202600603"></div>
+              <div class="form-item"><label>次承租人</label><input type="text" readonly value="白某某"></div>
+              <div class="form-item"><label>转租起始日期<span class="req">*</span></label><input type="date" value="2026-10-01"></div>
+              <div class="form-item"><label>转租终止日期<span class="req">*</span></label><input type="date" value="2027-07-31"></div>
+              <div class="form-item"><label>原合同剩余期限止</label><input type="text" readonly value="2027-07-31"></div>
+              <div class="form-item"><label>期限校验</label><div class="radio-line"><span class="badge green">未超过原合同剩余期限</span></div></div>
+              <div class="form-item"><label>转租租金(元/月)<span class="req">*</span></label><input type="number" id="subRent" value="2480" oninput="calcUp()"></div>
+              <div class="form-item"><label>押金(元)</label><input type="number" value="2480"></div>
+              <div class="form-item col-full">
+                <label>超限理由（加价超过限制幅度时必填）</label>
+                <textarea id="reason" rows="2" placeholder="如：转租人对房屋进行了软装改造并配齐家电，经三方协商确认"></textarea>
+              </div>
+            </div>
+
+            <div class="section-title mt-16">审核意见</div>
+            <div class="form-grid form-align">
+              <div class="form-item"><label>审核人</label><input type="text" readonly value="韦国强"></div>
+              <div class="form-item"><label>审核时间</label><input type="datetime-local" value="2026-07-31T16:40"></div>
+              <div class="form-item col-full">
+                <label>审核意见</label>
+                <textarea rows="3">原出租人已出具书面同意书，原合同约定允许转租，转租期限未超过原合同剩余期限，加价幅度 7.83% 未超过本市 10% 限制阈值，同意办理转租备案。</textarea>
+              </div>
+            </div>
+
+            <div class="flex gap-8 mt-16">
+              <button type="button" class="btn btn-primary" onclick="pass()"><i class="fa-solid fa-check"></i> 审核通过并备案</button>
+              <button type="button" class="btn btn-danger" onclick="reject()"><i class="fa-solid fa-ban"></i> 不予备案</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="section-title">加价幅度校验</div>
+            <div class="rule-card">
+              <div class="rc-r"><span>原租金</span><b>2,300.00 元/月</b></div>
+              <div class="rc-r"><span>转租租金</span><b id="rcNew">2,480.00 元/月</b></div>
+              <div class="rc-r"><span>加价金额</span><b id="rcDiff">180.00 元/月</b></div>
+              <div class="rc-line"></div>
+              <div class="rc-r"><span>加价幅度</span><b class="up" id="rcRate">+7.83%</b></div>
+              <div class="rc-r"><span>本市限制幅度阈值</span><b>10%</b></div>
+              <div class="rc-line"></div>
+              <div class="rc-r"><span>校验结论</span><span id="rcConc"><span class="badge green">未超限，可直接备案</span></span></div>
+              <div class="text-3 text-sm mt-16" style="line-height:1.7">
+                超限的转租申请须填写理由并强制转人工审核；连续两次超限加价转租的主体纳入重点关注名单。
+              </div>
+            </div>
+
+            <div class="section-title mt-16">关联信息</div>
+            <div class="rule-card">
+              <div class="rc-r"><span>原备案编号</span><b>ZLBA450200202600478</b></div>
+              <div class="rc-r"><span>原备案状态</span><span class="badge green">有效</span></div>
+              <div class="rc-r"><span>房屋坐落</span><b style="text-align:right;max-width:190px">城中区文昌路 66 号阳光 100 城市广场 3-2-1602</b></div>
+              <div class="rc-r"><span>转租备案类型</span><b>4 转租备案</b></div>
+              <div class="rc-r"><span>是否企业转租</span><span class="badge gray">否</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function openDo(no) {
+  document.getElementById('doNo').textContent = no;
+  document.querySelectorAll('[data-tabs-scope] .tab')[1].click();
+}
+
+function checkAgree() {
+  var v = document.getElementById('agree').value;
+  document.getElementById('noAgree').style.display = (v === '已同意') ? 'none' : '';
+}
+
+function proxyAgree() {
+  document.getElementById('agree').value = '已同意';
+  checkAgree();
+  PMS.toast('原出租人已在线确认同意转租（演示）', 'success');
+}
+
+function calcUp() {
+  var n = parseFloat(document.getElementById('subRent').value || '0');
+  var old = 2300;
+  var diff = n - old;
+  var r = diff / old * 100;
+  var f = function (x) { return x.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+  document.getElementById('rcNew').textContent = f(n) + ' 元/月';
+  document.getElementById('rcDiff').textContent = f(diff) + ' 元/月';
+  var rate = document.getElementById('rcRate');
+  rate.textContent = (r >= 0 ? '+' : '') + r.toFixed(2) + '%';
+  rate.className = r > 10 ? 'text-danger' : 'up';
+  document.getElementById('rcConc').innerHTML = r > 10
+    ? '<span class="badge red">超过 10% 阈值，须说明理由并转人工审核</span>'
+    : '<span class="badge green">未超限，可直接备案</span>';
+}
+
+function pass() {
+  var r = (parseFloat(document.getElementById('subRent').value || '0') - 2300) / 2300 * 100;
+  if (document.getElementById('agree').value !== '已同意') {
+    PMS.toast('未取得原出租人书面同意，不得备案', 'error');
+    return;
+  }
+  if (r > 10 && !document.getElementById('reason').value.trim()) {
+    PMS.toast('加价幅度超过限制阈值，请先填写超限理由', 'error');
+    return;
+  }
+  PMS.confirm({
+    title: '审核通过并备案',
+    message: '通过本次转租备案申请？',
+    detail: '备案通过后生成转租备案编号，备案类型标记为「4 转租备案」，原备案继续有效。',
+    type: 'info',
+    okText: '通过并备案',
+    onOk: function () { PMS.toast('转租备案完成，备案编号 ZLBA450200202600512', 'success'); }
+  });
+}
+
+function reject() {
+  PMS.confirm({
+    title: '不予备案',
+    message: '对本次转租申请出具「不予备案」结论？',
+    detail: '系统短信告知申请人不予备案原因，可在补充材料后重新申请。',
+    type: 'danger',
+    okText: '不予备案',
+    onOk: function () { PMS.toast('已出具不予备案结论并告知申请人', 'success'); }
+  });
+}
+
+(function () {
+  PMS.renderPager(document.getElementById('tblZz'), {
+    pageNum: 1, pageSize: 20, total: 70,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+</script>
+</body>
+</html>

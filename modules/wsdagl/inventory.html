@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>实体档案盘点 · 房屋交易档案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  .no-code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; }
+  /* 本页特有：卡片式单选 */
+  .pick-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 8px; }
+  .pick {
+    border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; cursor: pointer;
+    display: flex; align-items: center; gap: 9px; font-size: 13px; background: #fff; transition: .15s;
+  }
+  .pick:hover { border-color: var(--primary); }
+  .pick.on { border-color: var(--primary); background: var(--primary-bg); color: var(--primary); font-weight: 600; }
+  .pick i { font-size: 15px; }
+  .pick small { display: block; font-weight: 400; color: var(--text-3); font-size: 11.5px; margin-top: 1px; }
+  .pick.on small { color: var(--primary); opacity: .8; }
+  /* 本页特有：盘点实时进度 */
+  .pg-wrap {
+    display: grid; grid-template-columns: 210px 1fr 168px; gap: 18px; align-items: center;
+    padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-soft);
+  }
+  @media (max-width: 1080px) { .pg-wrap { grid-template-columns: 1fr; } }
+  .pg-ring {
+    width: 180px; height: 180px; border-radius: 50%; margin: 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    background: conic-gradient(var(--primary) 0 89.9%, #dbe3ee 89.9% 100%);
+  }
+  .pg-ring > i {
+    width: 142px; height: 142px; border-radius: 50%; background: #fff; font-style: normal;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .pg-ring .pv { font-size: 30px; font-weight: 700; color: var(--primary); line-height: 1; font-variant-numeric: tabular-nums; }
+  .pg-ring .pn { font-size: 12.5px; color: var(--text-2); margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .pg-ring .pl { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
+  .rs-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  @media (max-width: 760px) { .rs-row { grid-template-columns: repeat(2, 1fr); } }
+  .rs {
+    background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 12px 10px; text-align: center;
+  }
+  .rs i { font-size: 17px; }
+  .rs .rv { font-size: 24px; font-weight: 700; line-height: 1.15; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .rs .rl { font-size: 12.5px; color: var(--text-3); }
+  .rs.ok { border-color: #bbf0cd; } .rs.ok i, .rs.ok .rv { color: var(--success); }
+  .rs.miss { border-color: #f6c9c9; } .rs.miss i, .rs.miss .rv { color: var(--danger); }
+  .rs.wrong { border-color: #f4d39a; } .rs.wrong i, .rs.wrong .rv { color: var(--warning); }
+  .rs.lent { border-color: #bfdbfe; } .rs.lent i, .rs.lent .rv { color: var(--primary); }
+  .rs.bad { border-color: #f4d39a; } .rs.bad i, .rs.bad .rv { color: #c2410c; }
+  .acc-box { text-align: center; background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 16px 10px; }
+  .acc-box .av { font-size: 30px; font-weight: 700; color: var(--success); line-height: 1; font-variant-numeric: tabular-nums; }
+  .acc-box .al { font-size: 12.5px; color: var(--text-3); margin-top: 6px; }
+  /* 本页特有：RFID 实时扫描流水 */
+  .scan-box { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .scan-h {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #0f2942; color: #cfe4ff; font-size: 13px;
+  }
+  .scan-h .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; animation: bl 1.1s infinite; }
+  @keyframes bl { 0%, 100% { opacity: 1 } 50% { opacity: .25 } }
+  .scan-body {
+    height: 168px; overflow: hidden; background: #0b2035; padding: 6px 12px;
+    font-family: Consolas, "Courier New", monospace; font-size: 12.5px;
+  }
+  .scan-line { padding: 3px 0; color: #a8c6e8; white-space: nowrap; animation: sl .35s ease-out; }
+  @keyframes sl { from { opacity: 0; transform: translateY(-6px) } to { opacity: 1; transform: none } }
+  .scan-line .t { color: #5f89b5; }
+  .scan-line .c { color: #e2ecf7; }
+  .scan-line .ok { color: #4ade80; }
+  .scan-line .er { color: #f87171; }
+  .scan-line .wr { color: #fbbf24; }
+  .scan-line .bl { color: #60a5fa; }
+  /* 本页特有：错架对照 */
+  .loc-diff { display: flex; align-items: center; gap: 8px; }
+  .loc-diff .lo { background: #f1f5f9; border-radius: 5px; padding: 2px 7px; }
+  .loc-diff .ln { background: #fff4e6; color: #b45309; border-radius: 5px; padding: 2px 7px; font-weight: 600; }
+  /* 本页特有：破损照片占位 */
+  .ph-ph {
+    width: 60px; height: 44px; border: 1px solid var(--border); border-radius: 5px; background: #f8fafc;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    color: var(--text-3); font-size: 10.5px; cursor: pointer;
+  }
+  .ph-ph:hover { border-color: var(--primary); color: var(--primary); }
+  /* 本页特有：A4 报告 */
+  .rpt-a4 {
+    width: 100%; max-width: 780px; margin: 0 auto; background: #fff; border: 1px solid var(--border);
+    border-radius: 6px; padding: 34px 44px; box-shadow: var(--shadow-sm);
+  }
+  .rpt-a4 h2 { text-align: center; font-size: 20px; margin: 0 0 4px; letter-spacing: 2px; }
+  .rpt-a4 .rpt-sub { text-align: center; color: var(--text-3); font-size: 12.5px; margin-bottom: 18px; }
+  .rpt-tb { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .rpt-tb th, .rpt-tb td { border: 1px solid #c9d3e0; padding: 7px 9px; }
+  .rpt-tb th { background: #f4f7fb; font-weight: 600; width: 118px; text-align: left; }
+  .sign-row { display: flex; gap: 40px; margin-top: 26px; font-size: 13px; }
+  .sign-row .sg { flex: 1; }
+  .sign-row .sg .ln { border-bottom: 1px solid #96a5b8; height: 30px; margin-top: 4px; }
+  .form-static { display: flex; align-items: center; gap: 8px; min-height: 34px; font-size: 13.5px; }
+  .form-static input[type="checkbox"] { width: auto; height: auto; }
+  .empty-ico { font-size: 34px; color: var(--border-strong); margin-bottom: 8px; }
+  .empty-txt { font-size: 14px; font-weight: 600; color: var(--text-2); margin-bottom: 4px; }
+  .mt-12 { margin-top: 12px; }
+  .mt-4 { margin-top: 4px; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdagl-11">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> <a class="link" href="index.html">房屋交易档案管理系统</a>
+        <span class="sep">/</span> 档案保管利用
+        <span class="sep">/</span> <span class="cur">实体档案盘点</span>
+      </div>
+      <div class="page-title">
+        实体档案盘点
+        <span class="badge blue">PD2026008 进行中</span>
+      </div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="PMS.toast('已暂停盘点，扫描流水停止推送','warning')"><i class="fa-solid fa-pause"></i> 暂停盘点</button>
+      <button type="button" class="btn" onclick="document.querySelector('.tabs .tab[data-tab=\'rpt\']').click()"><i class="fa-solid fa-file-lines"></i> 生成盘点报告</button>
+      <a class="btn" href="warehouse.html"><i class="fa-solid fa-warehouse"></i> 返回库房</a>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      本次盘点已发现 <b>缺失 2 卷、错架 3 卷、破损 5 卷</b>，共 10 项异常待处理。
+      缺失档案状态自动置为「缺失」并启动核查；错架自动生成库位调整任务；已借出 186 卷单独统计，不计入缺失。
+    </div>
+  </div>
+
+  <div class="card mb-16">
+    <div class="card-head"><h3><i class="fa-solid fa-sliders"></i> 盘点任务配置</h3><span class="badge gray no-code">PD2026008</span></div>
+    <div class="card-body">
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>盘点编号</label>
+          <input type="text" class="no-code" value="PD2026008" readonly>
+        </div>
+        <div class="form-item col-2">
+          <label>盘点名称<span class="req">*</span></label>
+          <input type="text" value="2026 年第三季度一号档案库全面盘点">
+        </div>
+        <div class="form-item col-full">
+          <label>盘点类型<span class="req">*</span></label>
+          <div class="pick-row">
+            <div class="pick on" onclick="pick(this)"><i class="fa-solid fa-list-check"></i><span>全面盘点<small>库房全部实体案卷</small></span></div>
+            <div class="pick" onclick="pick(this)"><i class="fa-solid fa-dice"></i><span>抽样盘点<small>按比例随机抽取</small></span></div>
+            <div class="pick" onclick="pick(this)"><i class="fa-solid fa-crosshairs"></i><span>专项盘点<small>指定分类或年度</small></span></div>
+            <div class="pick" onclick="pick(this)"><i class="fa-solid fa-shoe-prints"></i><span>日常巡检<small>抽查若干货架</small></span></div>
+          </div>
+        </div>
+        <div class="form-item">
+          <label>盘点库房<span class="req">*</span></label>
+          <select><option>KF01 一号档案库</option><option>KF02 二号密集库</option><option>KF03 三号特藏库</option><option>KF04 中转库</option></select>
+        </div>
+        <div class="form-item col-2">
+          <label>盘点范围说明</label>
+          <input type="text" value="一号档案库全部货架 J01 ~ J32，含双套与纯纸质案卷，不含纯电子档案">
+        </div>
+        <div class="form-item col-full">
+          <label>盘点方式<span class="req">*</span></label>
+          <div class="pick-row">
+            <div class="pick" onclick="pick(this)"><i class="fa-solid fa-user-check"></i><span>人工核对<small>逐盒点数</small></span></div>
+            <div class="pick on" onclick="pick(this)"><i class="fa-solid fa-tower-broadcast"></i><span>RFID 扫描<small>手持终端批量识读</small></span></div>
+            <div class="pick" onclick="pick(this)"><i class="fa-solid fa-qrcode"></i><span>二维码扫描<small>逐卷扫码</small></span></div>
+            <div class="pick" onclick="pick(this)"><i class="fa-solid fa-robot"></i><span>盘点机器人<small>自动巡架识读</small></span></div>
+          </div>
+        </div>
+        <div class="form-item">
+          <label>计划盘点数量</label>
+          <input type="text" value="14,286 卷">
+        </div>
+        <div class="form-item">
+          <label>盘点负责人<span class="req">*</span></label>
+          <input type="text" value="覃永明">
+        </div>
+        <div class="form-item">
+          <label>盘点人员<span class="req">*</span></label>
+          <input type="text" value="蒙丽华、韦国强、莫晓东（3 人）">
+        </div>
+        <div class="form-item">
+          <label>计划开始时间</label>
+          <input type="date" value="2026-07-28">
+        </div>
+        <div class="form-item">
+          <label>计划结束时间</label>
+          <input type="date" value="2026-08-02">
+        </div>
+        <div class="form-item">
+          <label>盘点状态</label>
+          <div class="form-static"><span class="badge blue">进行中</span> <span class="text-3">已执行 4 天 · 剩余 1 天</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-16">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-gauge-high"></i> 盘点实时进度</h3>
+      <span class="text-3 text-sm">数据每 30 秒自动刷新 · 最近更新 08-01 19:12</span>
+    </div>
+    <div class="card-body">
+      <div class="pg-wrap">
+        <div>
+          <div class="pg-ring">
+            <i>
+              <span class="pv">89.9%</span>
+              <span class="pn">12,846 / 14,286</span>
+              <span class="pl">已盘 / 计划（卷）</span>
+            </i>
+          </div>
+        </div>
+        <div>
+          <div class="rs-row">
+            <div class="rs ok"><i class="fa-solid fa-circle-check"></i><div class="rv">12,686</div><div class="rl">正常在架</div></div>
+            <div class="rs miss"><i class="fa-solid fa-circle-xmark"></i><div class="rv">2</div><div class="rl">缺失</div></div>
+            <div class="rs wrong"><i class="fa-solid fa-shuffle"></i><div class="rv">3</div><div class="rl">错架</div></div>
+            <div class="rs lent"><i class="fa-solid fa-hand-holding-hand"></i><div class="rv">186</div><div class="rl">已借出</div></div>
+            <div class="rs bad"><i class="fa-solid fa-bandage"></i><div class="rv">5</div><div class="rl">破损</div></div>
+          </div>
+          <div class="progress mt-12"><span style="width:89.9%"></span></div>
+          <p class="text-3 text-sm mt-8">
+            <i class="fa-solid fa-circle-info"></i>
+            剩余 1,440 卷位于货架 J26 ~ J32，预计 08-02 上午完成；已借出案卷凭借阅记录核销，不计入缺失。
+          </p>
+        </div>
+        <div>
+          <div class="acc-box">
+            <div class="av">99.94%</div>
+            <div class="al">盘点准确率</div>
+            <div class="text-3 text-sm mt-8" style="border-top:1px dashed var(--border);padding-top:8px">目标 ≥ 99%</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title mt-16">RFID 实时扫描流水</div>
+      <div class="scan-box">
+        <div class="scan-h">
+          <span class="dot"></span>
+          <span>手持终端 RFID-A03 · 操作员 蒙丽华 · 当前货架 J26 第 J2 节</span>
+          <span style="margin-left:auto">识读速率 42 卷 / 分</span>
+        </div>
+        <div class="scan-body" id="scanBody"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="miss">缺失 <span class="badge red">2</span></div>
+      <div class="tab" data-tab="wrong">错架 <span class="badge orange">3</span></div>
+      <div class="tab" data-tab="bad">破损 <span class="badge orange">5</span></div>
+      <div class="tab" data-tab="oth">其他 <span class="badge gray">0</span></div>
+      <div class="tab" data-tab="rpt">盘点报告</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="miss">
+      <div class="card-body">
+        <div class="table-wrap">
+          <table class="data-table" data-static>
+            <thead>
+              <tr>
+                <th>档案号</th>
+                <th>档案名称</th>
+                <th>登记库位</th>
+                <th>最后盘点</th>
+                <th>最后借阅记录</th>
+                <th>当前档案状态</th>
+                <th style="width:150px">处理措施</th>
+                <th>处理说明</th>
+                <th style="width:120px">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="nowrap no-code"><a class="link" href="archive-detail.html">DA450205201800386</a></td>
+                <td class="cell-lg">柳州市白云路 26 号 3 单元 502 公有住房出售档案</td>
+                <td class="nowrap no-code">KF01-J12-J5-C7-G3-H208</td>
+                <td class="nowrap">2025-09-18<br><span class="badge green">在架</span></td>
+                <td class="nowrap">JY2025000286<br><span class="text-3 text-sm">2025-10-12 已归还</span></td>
+                <td class="nowrap"><span class="badge red">缺失</span></td>
+                <td>
+                  <select onchange="PMS.toast('已选择处理措施：' + this.value)">
+                    <option>转入核查</option><option>确认丢失</option><option>已找到</option>
+                  </select>
+                </td>
+                <td><input type="text" placeholder="填写处理说明" value="已通知借阅部门协查，同步排查相邻库位"></td>
+                <td class="col-ops">
+                  <a class="link" onclick="PMS.toast('已保存处理措施','success')">保存</a>
+                  <a class="link" href="archive-detail.html">查看</a>
+                </td>
+              </tr>
+              <tr>
+                <td class="nowrap no-code"><a class="link" href="archive-detail.html">DA450202201900642</a></td>
+                <td class="cell-lg">柳州市桂中大道 88 号 12 栋 1 单元 301 房改房产权登记档案</td>
+                <td class="nowrap no-code">KF01-J18-J2-C3-G6-H142</td>
+                <td class="nowrap">2025-09-18<br><span class="badge green">在架</span></td>
+                <td class="nowrap text-3">无借阅记录</td>
+                <td class="nowrap"><span class="badge red">缺失</span></td>
+                <td>
+                  <select onchange="PMS.toast('已选择处理措施：' + this.value)">
+                    <option>转入核查</option><option>确认丢失</option><option>已找到</option>
+                  </select>
+                </td>
+                <td><input type="text" placeholder="填写处理说明"></td>
+                <td class="col-ops">
+                  <a class="link" onclick="PMS.toast('已保存处理措施','success')">保存</a>
+                  <a class="link" href="archive-detail.html">查看</a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="text-3 text-sm mt-8">
+          <i class="fa-solid fa-circle-info"></i>
+          「确认丢失」须经档案审核人审批，档案状态置为缺失并在一房一档中标注；若该卷已数字化，电子副本仍可正常调阅。
+        </p>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="wrong">
+      <div class="card-body">
+        <div class="table-wrap">
+          <table class="data-table" data-static>
+            <thead>
+              <tr>
+                <th>档案号</th>
+                <th>档案名称</th>
+                <th>登记库位 vs 实际扫描库位</th>
+                <th>扫描时间</th>
+                <th style="width:170px">处理措施</th>
+                <th style="width:150px">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="nowrap no-code"><a class="link" href="archive-detail.html">DA450204202400186</a></td>
+                <td class="cell-lg">彰泰滨江学府 8 栋 1 单元 1102 存量房买卖合同网签备案</td>
+                <td>
+                  <div class="loc-diff">
+                    <span class="lo no-code">KF01-J12-J3-C4-G2-H066</span>
+                    <i class="fa-solid fa-arrow-right text-3"></i>
+                    <span class="ln no-code">KF01-J12-J3-C5-G2-H078</span>
+                  </div>
+                  <div class="text-3 text-sm mt-4">差异：层号 C4 → C5、盒号 H066 → H078</div>
+                </td>
+                <td class="nowrap">07-30 10:26</td>
+                <td>
+                  <select><option>归位（放回登记库位）</option><option>更新登记库位</option></select>
+                </td>
+                <td class="col-ops">
+                  <a class="link" onclick="PMS.toast('已生成库位调整任务，指派库房管理员归位','success')">生成调整任务</a>
+                </td>
+              </tr>
+              <tr>
+                <td class="nowrap no-code"><a class="link" href="archive-detail.html">DA450202202200518</a></td>
+                <td class="cell-lg">荣和公园大道 3 栋 2 单元 602 商品房买卖合同备案</td>
+                <td>
+                  <div class="loc-diff">
+                    <span class="lo no-code">KF01-J16-J1-C2-G8-H104</span>
+                    <i class="fa-solid fa-arrow-right text-3"></i>
+                    <span class="ln no-code">KF01-J16-J1-C2-G9-H112</span>
+                  </div>
+                  <div class="text-3 text-sm mt-4">差异：格号 G8 → G9、盒号 H104 → H112</div>
+                </td>
+                <td class="nowrap">07-30 15:04</td>
+                <td>
+                  <select><option>归位（放回登记库位）</option><option>更新登记库位</option></select>
+                </td>
+                <td class="col-ops">
+                  <a class="link" onclick="PMS.toast('已生成库位调整任务，指派库房管理员归位','success')">生成调整任务</a>
+                </td>
+              </tr>
+              <tr>
+                <td class="nowrap no-code"><a class="link" href="archive-detail.html">DA450206202300094</a></td>
+                <td class="cell-lg">柳东新区花岭路 6 号 A 栋 1808 房屋租赁备案档案</td>
+                <td>
+                  <div class="loc-diff">
+                    <span class="lo no-code">KF01-J22-J4-C1-G3-H018</span>
+                    <i class="fa-solid fa-arrow-right text-3"></i>
+                    <span class="ln no-code">KF01-J23-J1-C1-G3-H018</span>
+                  </div>
+                  <div class="text-3 text-sm mt-4">差异：货架 J22 → J23、节号 J4 → J1（跨货架错架）</div>
+                </td>
+                <td class="nowrap">07-31 09:41</td>
+                <td>
+                  <select><option>归位（放回登记库位）</option><option>更新登记库位</option></select>
+                </td>
+                <td class="col-ops">
+                  <a class="link" onclick="PMS.toast('已生成库位调整任务，指派库房管理员归位','success')">生成调整任务</a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="btn-row mt-12">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已批量生成 3 条库位调整任务','success')"><i class="fa-solid fa-list-check"></i> 批量生成调整任务</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="bad">
+      <div class="card-body">
+        <div class="table-wrap">
+          <table class="data-table" data-static>
+            <thead>
+              <tr>
+                <th>档案号</th>
+                <th>档案名称</th>
+                <th>库位</th>
+                <th>破损部位与程度</th>
+                <th>发现人 / 时间</th>
+                <th style="width:78px">照片</th>
+                <th style="width:170px">处理措施</th>
+                <th style="width:100px">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="nowrap no-code"><a class="link" href="archive-detail.html">DA450202199800126</a></td>
+                <td class="cell-lg">1998 年度房改售房登记档案（第一卷）</td>
+                <td class="nowrap no-code">KF01-J28-J1-C1-G1-H002</td>
+                <td>卷皮撕裂、内页边缘霉变　<span class="badge red">严重</span></td>
+                <td class="nowrap">蒙丽华<br><span class="text-3 text-sm">07-29 11:02</span></td>
+                <td><div class="ph-ph" onclick="PMS.toast('已打开破损照片查看')"><i class="fa-solid fa-image"></i>2 张</div></td>
+                <td><select><option>数字化后封存</option><option>修复</option><option>更换卷盒</option></select></td>
+                <td class="col-ops"><a class="link" href="digitize-batch.html">转数字化</a></td>
+              </tr>
+              <tr>
+                <td class="nowrap no-code"><a class="link" href="archive-detail.html">DA450202199900208</a></td>
+                <td class="cell-lg">1999 年度公有住房出售档案（第三卷）</td>
+                <td class="nowrap no-code">KF01-J28-J2-C3-G4-H046</td>
+                <td>装订线断裂，内页散落　<span class="badge orange">中度</span></td>
+                <td class="nowrap">韦国强<br><span class="text-3 text-sm">07-29 14:36</span></td>
+                <td><div class="ph-ph" onclick="PMS.toast('已打开破损照片查看')"><i class="fa-solid fa-image"></i>1 张</div></td>
+                <td><select><option>修复</option><option>数字化后封存</option><option>更换卷盒</option></select></td>
+                <td class="col-ops"><a class="link" onclick="PMS.toast('已登记修复任务，转交装订修复岗','success')">登记修复</a></td>
+              </tr>
+              <tr>
+                <td class="nowrap no-code"><a class="link" href="archive-detail.html">DA450202200500462</a></td>
+                <td class="cell-lg">2005 年度商品房买卖合同备案档案（第八卷）</td>
+                <td class="nowrap no-code">KF01-J24-J3-C2-G7-H088</td>
+                <td>卷盒受潮变形　<span class="badge orange">轻微</span></td>
+                <td class="nowrap">莫晓东<br><span class="text-3 text-sm">07-30 09:18</span></td>
+                <td><div class="ph-ph" onclick="PMS.toast('已打开破损照片查看')"><i class="fa-solid fa-image"></i>1 张</div></td>
+                <td><select><option>更换卷盒</option><option>修复</option><option>数字化后封存</option></select></td>
+                <td class="col-ops"><a class="link" onclick="PMS.toast('已登记换盒任务','success')">登记换盒</a></td>
+              </tr>
+              <tr>
+                <td class="nowrap no-code"><a class="link" href="archive-detail.html">DA450202201200318</a></td>
+                <td class="cell-lg">2012 年度存量房买卖合同备案档案（第五卷）</td>
+                <td class="nowrap no-code">KF01-J20-J2-C4-G2-H052</td>
+                <td>第 12 ~ 15 页折角磨损　<span class="badge gray">轻微</span></td>
+                <td class="nowrap">蒙丽华<br><span class="text-3 text-sm">07-30 16:22</span></td>
+                <td><div class="ph-ph" onclick="PMS.toast('已打开破损照片查看')"><i class="fa-solid fa-image"></i>1 张</div></td>
+                <td><select><option>修复</option><option>更换卷盒</option><option>数字化后封存</option></select></td>
+                <td class="col-ops"><a class="link" onclick="PMS.toast('已登记修复任务，转交装订修复岗','success')">登记修复</a></td>
+              </tr>
+              <tr>
+                <td class="nowrap no-code"><a class="link" href="archive-detail.html">DA450205200800154</a></td>
+                <td class="cell-lg">2008 年度公有住房租赁档案（第二卷）</td>
+                <td class="nowrap no-code">KF01-J26-J1-C5-G6-H120</td>
+                <td>内页字迹褪色，部分不可辨认　<span class="badge orange">中度</span></td>
+                <td class="nowrap">韦国强<br><span class="text-3 text-sm">07-31 10:08</span></td>
+                <td><div class="ph-ph" onclick="PMS.toast('已打开破损照片查看')"><i class="fa-solid fa-image"></i>3 张</div></td>
+                <td><select><option>数字化后封存</option><option>修复</option><option>更换卷盒</option></select></td>
+                <td class="col-ops"><a class="link" href="digitize-batch.html">转数字化</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="oth">
+      <div class="card-body">
+        <div class="empty">
+          <div class="empty-ico"><i class="fa-regular fa-face-smile"></i></div>
+          <div class="empty-txt">本次盘点未发现其他类型异常</div>
+          <div class="text-3 text-sm">其他异常包括：标签脱落无法识读、同一库位重复存放、超范围存放等</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="rpt">
+      <div class="card-body" style="background:#eef2f7">
+        <div class="btn-row mb-16" style="justify-content:center">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('盘点报告已生成并归入 PD2026008 任务附件','success')"><i class="fa-solid fa-file-circle-plus"></i> 生成盘点报告</button>
+          <button type="button" class="btn" onclick="window.print()"><i class="fa-solid fa-print"></i> 打印（A4 纵向）</button>
+          <button type="button" class="btn" onclick="PMS.toast('已导出 PDF')"><i class="fa-solid fa-file-pdf"></i> 导出 PDF</button>
+        </div>
+        <div class="rpt-a4">
+          <h2>实体档案盘点报告</h2>
+          <div class="rpt-sub">房屋交易档案管理系统　编号 PD2026008</div>
+          <table class="rpt-tb">
+            <tbody>
+              <tr><th>盘点名称</th><td colspan="3">2026 年第三季度一号档案库全面盘点</td></tr>
+              <tr>
+                <th>盘点类型</th><td>全面盘点</td>
+                <th style="width:100px">盘点方式</th><td>RFID 扫描</td>
+              </tr>
+              <tr>
+                <th>盘点库房</th><td>KF01 一号档案库</td>
+                <th>盘点范围</th><td>货架 J01 ~ J32 全部实体案卷</td>
+              </tr>
+              <tr>
+                <th>起止时间</th><td>2026-07-28 至 2026-08-02</td>
+                <th>实际用时</th><td>5 天（目标 ≤ 3 天）</td>
+              </tr>
+              <tr>
+                <th>计划数量</th><td>14,286 卷</td>
+                <th>实际盘点</th><td>12,846 卷（89.9%）</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="section-title mt-16">盘点结果统计</div>
+          <table class="rpt-tb">
+            <thead>
+              <tr>
+                <th style="width:auto;text-align:center">正常在架</th>
+                <th style="width:auto;text-align:center">缺失</th>
+                <th style="width:auto;text-align:center">错架</th>
+                <th style="width:auto;text-align:center">已借出</th>
+                <th style="width:auto;text-align:center">破损</th>
+                <th style="width:auto;text-align:center">盘点准确率</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="text-align:center;font-weight:600">
+                <td>12,686</td><td class="text-danger">2</td><td class="text-warning">3</td>
+                <td>186</td><td class="text-warning">5</td><td class="text-success">99.94%</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="section-title mt-16">异常处理措施汇总</div>
+          <table class="rpt-tb">
+            <tbody>
+              <tr><th>缺失 2 卷</th><td>DA450205201800386、DA450202201900642 均转入核查，已通知借阅部门协查并排查相邻库位；核查满 30 日仍未找到的报审确认丢失，档案状态置为「缺失」。</td></tr>
+              <tr><th>错架 3 卷</th><td>已生成 3 条库位调整任务，指派库房管理员于 08-03 前完成归位并复扫核验。</td></tr>
+              <tr><th>破损 5 卷</th><td>严重破损 1 卷、中度 2 卷转数字化后封存；轻微 2 卷登记修复与换盒，均于 08-10 前完成。</td></tr>
+              <tr><th>已借出 186 卷</th><td>凭借阅记录逐一核销，其中逾期未还 2 卷已发起催办。</td></tr>
+            </tbody>
+          </table>
+          <div class="sign-row">
+            <div class="sg">盘点人员：蒙丽华、韦国强、莫晓东<div class="ln"></div></div>
+            <div class="sg">盘点负责人：覃永明<div class="ln"></div></div>
+            <div class="sg">日期：2026 年 08 月 02 日<div class="ln"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function pick(el) {
+  el.parentNode.querySelectorAll('.pick').forEach(function (p) { p.classList.remove('on'); });
+  el.classList.add('on');
+}
+(function () {
+  var box = document.getElementById('scanBody');
+  var seed = [
+    ['DA450202202100862', 'KF01-J26-J2-C1-G1-H002', 'ok', '在架 ✓'],
+    ['DA450204202600862', 'KF01-J26-J2-C1-G2-H004', 'ok', '在架 ✓'],
+    ['DA450202202300186', 'KF01-J26-J2-C1-G3-H006', 'ok', '在架 ✓'],
+    ['DA450206202300094', 'KF01-J23-J1-C1-G3-H018', 'wr', '错架 ! 登记 KF01-J22-J4'],
+    ['DA450202202400628', 'KF01-J26-J2-C2-G1-H010', 'ok', '在架 ✓'],
+    ['DA450202201900642', 'KF01-J18-J2-C3-G6-H142', 'er', '缺失 × 未识读到标签'],
+    ['DA450205202300386', 'KF01-J26-J2-C2-G4-H016', 'ok', '在架 ✓'],
+    ['DA450202202101024', 'KF01-J26-J2-C3-G1-H018', 'bl', '已借出 · JY2026000286'],
+    ['DA450204202500742', 'KF01-J26-J2-C3-G3-H022', 'ok', '在架 ✓'],
+    ['DA450202199800126', 'KF01-J28-J1-C1-G1-H002', 'wr', '破损 ! 卷皮撕裂'],
+    ['DA450202202600186', 'KF01-J26-J2-C4-G2-H028', 'ok', '在架 ✓'],
+    ['DA450206202400218', 'KF01-J26-J2-C4-G5-H034', 'ok', '在架 ✓']
+  ];
+  var i = 0;
+  function tick() {
+    var s = seed[i % seed.length];
+    i++;
+    var t = new Date();
+    var hh = ('0' + t.getHours()).slice(-2) + ':' + ('0' + t.getMinutes()).slice(-2) + ':' + ('0' + t.getSeconds()).slice(-2);
+    var line = document.createElement('div');
+    line.className = 'scan-line';
+    line.innerHTML = '<span class="t">' + hh + '</span>　<span class="c">' + s[0] + '</span>　' + s[1] +
+      '　<span class="' + s[2] + '">' + s[3] + '</span>';
+    box.insertBefore(line, box.firstChild);
+    while (box.childNodes.length > 8) box.removeChild(box.lastChild);
+  }
+  for (var k = 0; k < 8; k++) tick();
+  setInterval(tick, 1800);
+})();
+(function () {
+  var pd = new URLSearchParams(location.search).get('pd');
+  if (pd) PMS.toast('已定位盘点任务 ' + pd + ' 的异常明细');
+})();
+</script>
+</body>
+</html>

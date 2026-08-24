@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>限售执行与解限 · 房屋交易备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：限售进度条与倒计时配色 */
+  .xs-bar { min-width: 168px; }
+  .xs-bar .bar {
+    height: 7px; border-radius: 4px; background: #e8edf5; overflow: hidden; position: relative;
+  }
+  .xs-bar .bar i { display: block; height: 100%; border-radius: 4px; background: var(--primary); }
+  .xs-bar .bar i.warn { background: var(--warning); }
+  .xs-bar .bar i.done { background: var(--success); }
+  .xs-bar .ends { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-3); margin-top: 3px; }
+  .cd { font-weight: 700; white-space: nowrap; }
+  .cd.g { color: #059669; } .cd.b { color: var(--primary); } .cd.o { color: #d97706; } .cd.done { color: #059669; }
+  .rule-lk { color: var(--primary); cursor: pointer; }
+  .rule-lk:hover { text-decoration: underline; }
+  .radio-line { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; min-height: 32px; }
+  .radio-line label { font-size: 14px; color: var(--text-2); font-weight: 400; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdwb-12">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易备案管理系统
+        <span class="sep">/</span> 交易限制管理
+        <span class="sep">/</span> <span class="cur">限售执行与解限</span>
+      </div>
+      <div class="page-title">限售执行与解限</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="location.href='limit-rule.html'"><i class="fa-solid fa-sliders"></i> 限售限购规则</button>
+      <button type="button" class="btn" onclick="PMS.toast('已重新扫描全市房源，命中限售规则 1,842 套，本次新增标记 6 套','success')"><i class="fa-solid fa-radar"></i> 重新执行规则扫描</button>
+      <button type="button" class="btn" onclick="PMS.toast('《限售房屋清单》Excel 已生成，正在下载','success')"><i class="fa-solid fa-download"></i> 导出清单</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">限售期内套数</div><div class="s-value">1,842</div><div class="s-trend text-3">占存量登记房源 2.1%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-bell"></i></div>
+      <div><div class="s-label">本月到期解限</div><div class="s-value">96</div><div class="s-trend text-warning">到期日自动解限</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-unlock"></i></div>
+      <div><div class="s-label">今年已解限</div><div class="s-value">642</div><div class="s-trend text-3">其中手动解限 18 套</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-file-circle-check"></i></div>
+      <div><div class="s-label">豁免记录</div><div class="s-value">37</div><div class="s-trend text-3">继承 19 · 离婚析产 12 · 其他 6</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>限售年限与起算节点由<a class="link" href="limit-rule.html">限售限购规则</a>配置，房屋命中规则即标记 <code>sfxs=1</code> 并回填限售截止日期。
+      <b>截止日期到达当日 00:00 自动解限</b>并刷新交易限制状态；规则停用不影响已标记房屋的既有限售期，历史业务按当时政策版本判定、不追溯。</div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item"><label>房屋坐落 / 不动产单元号</label><input type="text" placeholder="小区、房号或单元号"></div>
+      <div class="filter-item"><label>产权人</label><input type="text" placeholder="姓名或名称"></div>
+      <div class="filter-item">
+        <label>适用限售规则</label>
+        <select>
+          <option value="">全部</option>
+          <option>柳州市市区新建商品住房限售规则</option>
+          <option>柳州市市区存量住房限售规则</option>
+          <option>市区人才住房限售规则</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>限售起算节点</label>
+        <select><option value="">全部</option><option>0 网签备案</option><option>1 不动产登记</option><option>2 交房</option></select>
+      </div>
+      <div class="filter-item"><label>限售截止日期起</label><input type="date" value="2026-08-01"></div>
+      <div class="filter-item"><label>限售截止日期止</label><input type="date" value="2029-12-31"></div>
+      <div class="filter-item">
+        <label>行政区划</label>
+        <select><option value="">全部</option><option>城中区</option><option>鱼峰区</option><option>柳南区</option><option>柳北区</option><option>柳江区</option></select>
+      </div>
+      <div class="filter-item">
+        <label>房屋类型</label>
+        <select><option value="">全部</option><option>新建商品住房</option><option>存量住房</option><option>人才住房</option><option>商业办公</option></select>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 1,842 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="xsTabs">
+      <div class="tab active" data-tab="ing">限售中 <span class="badge blue">1,842</span></div>
+      <div class="tab" data-tab="near">本月到期 <span class="badge orange">96</span></div>
+      <div class="tab" data-tab="done">已解限</div>
+      <div class="tab" data-tab="free">豁免记录</div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblXs" data-static>
+        <thead>
+          <tr>
+            <th>房屋坐落</th>
+            <th>不动产单元号</th>
+            <th>产权人</th>
+            <th>房屋类型</th>
+            <th>适用限售规则</th>
+            <th>限售年限</th>
+            <th>起算节点</th>
+            <th>起算日期</th>
+            <th>限售进度</th>
+            <th>限售截止 / 倒计时</th>
+            <th>当前状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="near">
+            <td>万科城 5-2-803</td>
+            <td class="nowrap">450204001008GB00256F00020009</td>
+            <td class="nowrap">黄**</td>
+            <td class="nowrap">新建商品住房</td>
+            <td class="nowrap"><span class="rule-lk" onclick="showRule('XS001')">市区新建商品住房限售</span></td>
+            <td class="nowrap">3 年</td>
+            <td class="nowrap">不动产登记</td>
+            <td class="nowrap">2024-03-15</td>
+            <td>
+              <div class="xs-bar">
+                <div class="bar"><i style="width:79%"></i></div>
+                <div class="ends"><span>2024-03-15</span><span>2027-03-15</span></div>
+              </div>
+            </td>
+            <td class="nowrap">2027-03-15 <span class="cd o">剩 226 天</span></td>
+            <td class="nowrap"><span class="badge red">限售中</span></td>
+            <td class="col-ops">
+              <a class="link" href="restriction-status.html?code=B">详情</a>
+              <span class="link" onclick="openFree('万科城 5-2-803')">登记豁免</span>
+              <span class="link" onclick="openRelease('万科城 5-2-803','2027-03-15')">手动解限</span>
+            </td>
+          </tr>
+          <tr data-st="ing">
+            <td>华润万象天地 2-1-1802</td>
+            <td class="nowrap">450202001005GB00318F00010026</td>
+            <td class="nowrap">黄**</td>
+            <td class="nowrap">新建商品住房</td>
+            <td class="nowrap"><span class="rule-lk" onclick="showRule('XS001')">市区新建商品住房限售</span></td>
+            <td class="nowrap">3 年</td>
+            <td class="nowrap">不动产登记</td>
+            <td class="nowrap">2026-06-18</td>
+            <td>
+              <div class="xs-bar">
+                <div class="bar"><i style="width:4%"></i></div>
+                <div class="ends"><span>2026-06-18</span><span>2029-06-18</span></div>
+              </div>
+            </td>
+            <td class="nowrap">2029-06-18 <span class="cd g">剩 2 年 322 天</span></td>
+            <td class="nowrap"><span class="badge red">限售中</span></td>
+            <td class="col-ops">
+              <a class="link" href="restriction-status.html">详情</a>
+              <span class="link" onclick="openFree('华润万象天地 2-1-1802')">登记豁免</span>
+              <span class="link" onclick="openRelease('华润万象天地 2-1-1802','2029-06-18')">手动解限</span>
+            </td>
+          </tr>
+          <tr data-st="near">
+            <td>恒兴时代广场 A-2-1102</td>
+            <td class="nowrap">450202001005GB00412F00020018</td>
+            <td class="nowrap">韦**</td>
+            <td class="nowrap">存量住房</td>
+            <td class="nowrap"><span class="rule-lk" onclick="showRule('XS002')">市区存量住房限售</span></td>
+            <td class="nowrap">2 年</td>
+            <td class="nowrap">网签备案</td>
+            <td class="nowrap">2024-08-26</td>
+            <td>
+              <div class="xs-bar">
+                <div class="bar"><i class="warn" style="width:96%"></i></div>
+                <div class="ends"><span>2024-08-26</span><span>2026-08-26</span></div>
+              </div>
+            </td>
+            <td class="nowrap">2026-08-26 <span class="cd o">剩 25 天</span></td>
+            <td class="nowrap"><span class="badge orange">本月到期</span></td>
+            <td class="col-ops">
+              <a class="link" href="restriction-status.html">详情</a>
+              <span class="link" onclick="openFree('恒兴时代广场 A-2-1102')">登记豁免</span>
+              <span class="link" onclick="openRelease('恒兴时代广场 A-2-1102','2026-08-26')">手动解限</span>
+            </td>
+          </tr>
+          <tr data-st="ing">
+            <td>荣和公园大道 12-1-703</td>
+            <td class="nowrap">450202001005GB00266F00010012</td>
+            <td class="nowrap">覃**</td>
+            <td class="nowrap">新建商品住房</td>
+            <td class="nowrap"><span class="rule-lk" onclick="showRule('XS001')">市区新建商品住房限售</span></td>
+            <td class="nowrap">3 年</td>
+            <td class="nowrap">不动产登记</td>
+            <td class="nowrap">2025-11-08</td>
+            <td>
+              <div class="xs-bar">
+                <div class="bar"><i style="width:24%"></i></div>
+                <div class="ends"><span>2025-11-08</span><span>2028-11-08</span></div>
+              </div>
+            </td>
+            <td class="nowrap">2028-11-08 <span class="cd g">剩 2 年 99 天</span></td>
+            <td class="nowrap"><span class="badge red">限售中</span></td>
+            <td class="col-ops">
+              <a class="link" href="restriction-status.html">详情</a>
+              <span class="link" onclick="openFree('荣和公园大道 12-1-703')">登记豁免</span>
+              <span class="link" onclick="openRelease('荣和公园大道 12-1-703','2028-11-08')">手动解限</span>
+            </td>
+          </tr>
+          <tr data-st="ing">
+            <td>保利花园 3-1-1601</td>
+            <td class="nowrap">450203001006GB00188F00010031</td>
+            <td class="nowrap">梁**</td>
+            <td class="nowrap">人才住房</td>
+            <td class="nowrap"><span class="rule-lk" onclick="showRule('XS003')">市区人才住房限售</span></td>
+            <td class="nowrap">5 年</td>
+            <td class="nowrap">交房</td>
+            <td class="nowrap">2023-04-20</td>
+            <td>
+              <div class="xs-bar">
+                <div class="bar"><i style="width:66%"></i></div>
+                <div class="ends"><span>2023-04-20</span><span>2028-04-20</span></div>
+              </div>
+            </td>
+            <td class="nowrap">2028-04-20 <span class="cd b">剩 1 年 263 天</span></td>
+            <td class="nowrap"><span class="badge red">限售中</span></td>
+            <td class="col-ops">
+              <a class="link" href="restriction-status.html">详情</a>
+              <span class="link" onclick="openFree('保利花园 3-1-1601')">登记豁免</span>
+              <span class="link" onclick="openRelease('保利花园 3-1-1601','2028-04-20')">手动解限</span>
+            </td>
+          </tr>
+          <tr data-st="near">
+            <td>阳光100 6-2-1205</td>
+            <td class="nowrap">450205001003GB00147F00020022</td>
+            <td class="nowrap">周**</td>
+            <td class="nowrap">存量住房</td>
+            <td class="nowrap"><span class="rule-lk" onclick="showRule('XS002')">市区存量住房限售</span></td>
+            <td class="nowrap">2 年</td>
+            <td class="nowrap">网签备案</td>
+            <td class="nowrap">2024-08-12</td>
+            <td>
+              <div class="xs-bar">
+                <div class="bar"><i class="warn" style="width:98%"></i></div>
+                <div class="ends"><span>2024-08-12</span><span>2026-08-12</span></div>
+              </div>
+            </td>
+            <td class="nowrap">2026-08-12 <span class="cd o">剩 11 天</span></td>
+            <td class="nowrap"><span class="badge orange">本月到期</span></td>
+            <td class="col-ops">
+              <a class="link" href="restriction-status.html">详情</a>
+              <span class="link" onclick="openFree('阳光100 6-2-1205')">登记豁免</span>
+              <span class="link" onclick="openRelease('阳光100 6-2-1205','2026-08-12')">手动解限</span>
+            </td>
+          </tr>
+          <tr data-st="done">
+            <td>彰泰滨江学府 12-2-1802</td>
+            <td class="nowrap">450202001005GB00123F00020017</td>
+            <td class="nowrap">陈**</td>
+            <td class="nowrap">新建商品住房</td>
+            <td class="nowrap"><span class="rule-lk" onclick="showRule('XS001')">市区新建商品住房限售</span></td>
+            <td class="nowrap">3 年</td>
+            <td class="nowrap">不动产登记</td>
+            <td class="nowrap">2022-06-18</td>
+            <td>
+              <div class="xs-bar">
+                <div class="bar"><i class="done" style="width:100%"></i></div>
+                <div class="ends"><span>2022-06-18</span><span>2025-06-18</span></div>
+              </div>
+            </td>
+            <td class="nowrap">2025-06-18 <span class="cd done">已解限</span></td>
+            <td class="nowrap"><span class="badge green">已解限</span></td>
+            <td class="col-ops">
+              <a class="link" href="restriction-status.html?code=A">详情</a>
+              <span class="link" onclick="PMS.toast('解限方式：期限届满自动解限 · 解限时间 2025-06-18 00:00:12 · 触发方式 系统定时任务')">解限记录</span>
+            </td>
+          </tr>
+          <tr data-st="done">
+            <td>桂中海279 8-1-501</td>
+            <td class="nowrap">450202001005GB00092F00010008</td>
+            <td class="nowrap">吴**</td>
+            <td class="nowrap">存量住房</td>
+            <td class="nowrap"><span class="rule-lk" onclick="showRule('XS002')">市区存量住房限售</span></td>
+            <td class="nowrap">2 年</td>
+            <td class="nowrap">网签备案</td>
+            <td class="nowrap">2024-07-22</td>
+            <td>
+              <div class="xs-bar">
+                <div class="bar"><i class="done" style="width:100%"></i></div>
+                <div class="ends"><span>2024-07-22</span><span>2026-07-22</span></div>
+              </div>
+            </td>
+            <td class="nowrap">2026-07-22 <span class="cd done">已解限</span></td>
+            <td class="nowrap"><span class="badge green">已解限</span></td>
+            <td class="col-ops">
+              <a class="link" href="restriction-status.html">详情</a>
+              <span class="link" onclick="PMS.toast('解限方式：期限届满自动解限 · 解限时间 2026-07-22 00:00:08 · 限制状态已同步刷新为可交易')">解限记录</span>
+            </td>
+          </tr>
+          <tr data-st="free">
+            <td>南亚国际城 2-3-1103</td>
+            <td class="nowrap">450203001006GB00211F00030014</td>
+            <td class="nowrap">莫**</td>
+            <td class="nowrap">新建商品住房</td>
+            <td class="nowrap"><span class="rule-lk" onclick="showRule('XS001')">市区新建商品住房限售</span></td>
+            <td class="nowrap">3 年</td>
+            <td class="nowrap">不动产登记</td>
+            <td class="nowrap">2025-02-10</td>
+            <td>
+              <div class="xs-bar">
+                <div class="bar"><i class="done" style="width:100%"></i></div>
+                <div class="ends"><span>2025-02-10</span><span>豁免免于限售</span></div>
+              </div>
+            </td>
+            <td class="nowrap">— <span class="cd done">已豁免</span></td>
+            <td class="nowrap"><span class="badge purple">已豁免</span></td>
+            <td class="col-ops">
+              <a class="link" href="restriction-status.html">详情</a>
+              <span class="link" onclick="PMS.toast('豁免情形：法定继承 · 依据《柳州市限售政策实施细则》第九条第一项 · 证明文件 继承权公证书（2026）桂柳证字第 0286 号')">豁免依据</span>
+            </td>
+          </tr>
+          <tr data-st="free">
+            <td>东城华府 1-2-902</td>
+            <td class="nowrap">450202001005GB00305F00020007</td>
+            <td class="nowrap">秦**</td>
+            <td class="nowrap">存量住房</td>
+            <td class="nowrap"><span class="rule-lk" onclick="showRule('XS002')">市区存量住房限售</span></td>
+            <td class="nowrap">2 年</td>
+            <td class="nowrap">网签备案</td>
+            <td class="nowrap">2025-09-30</td>
+            <td>
+              <div class="xs-bar">
+                <div class="bar"><i class="done" style="width:100%"></i></div>
+                <div class="ends"><span>2025-09-30</span><span>豁免免于限售</span></div>
+              </div>
+            </td>
+            <td class="nowrap">— <span class="cd done">已豁免</span></td>
+            <td class="nowrap"><span class="badge purple">已豁免</span></td>
+            <td class="col-ops">
+              <a class="link" href="restriction-status.html">详情</a>
+              <span class="link" onclick="PMS.toast('豁免情形：离婚析产 · 依据 柳南区人民法院（2025）桂0204民初3182号民事调解书')">豁免依据</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 手动解限 -->
+  <div class="modal-mask" id="mdRelease">
+    <div class="modal">
+      <div class="modal-head">手动解限</div>
+      <div class="modal-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>解限后该房屋限售限制将<b>立即解除</b>，交易限制状态同步刷新。手动解限属特殊处置，全过程留痕并纳入审计。</div>
+        </div>
+        <div class="form-grid form-align">
+          <div class="form-item"><label>房屋坐落</label><input type="text" id="rlHouse" readonly></div>
+          <div class="form-item"><label>原限售截止日期</label><input type="text" id="rlDate" readonly></div>
+          <div class="form-item">
+            <label>解限原因<span class="req">*</span></label>
+            <select id="rlWhy"><option>政策调整</option><option>法院裁定</option><option>继承过户</option><option>其他</option></select>
+          </div>
+          <div class="form-item"><label>解限生效时间<span class="req">*</span></label><input type="date" value="2026-08-01"></div>
+          <div class="form-item" style="grid-column:span 2"><label>解限依据说明<span class="req">*</span></label><textarea rows="3" placeholder="请写明政策文号、裁定文书编号或其他依据"></textarea></div>
+          <div class="form-item" style="grid-column:span 2"><label>依据文件<span class="req">*</span></label><input type="text" data-upload="1" placeholder="点击上传政策文件或裁定文书扫描件"></div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="PMS.closeModal('mdRelease')">取消</button>
+        <button type="button" class="btn btn-primary" onclick="doRelease()">提交解限</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 登记豁免 -->
+  <div class="modal-mask" id="mdFree">
+    <div class="modal">
+      <div class="modal-head">登记限售豁免</div>
+      <div class="modal-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>命中豁免情形的房屋<b>免于限售</b>，须记录豁免依据并上传证明文件，豁免结果写入限制状态并可追溯。</div>
+        </div>
+        <div class="form-grid form-align">
+          <div class="form-item" style="grid-column:span 2"><label>房屋坐落</label><input type="text" id="frHouse" readonly></div>
+          <div class="form-item" style="grid-column:span 2">
+            <label>豁免情形<span class="req">*</span></label>
+            <div class="radio-line">
+              <label><input type="radio" name="frWhy" checked> 法定继承</label>
+              <label><input type="radio" name="frWhy"> 离婚析产</label>
+              <label><input type="radio" name="frWhy"> 法院裁定</label>
+              <label><input type="radio" name="frWhy"> 政策性住房回购</label>
+              <label><input type="radio" name="frWhy"> 其他</label>
+            </div>
+          </div>
+          <div class="form-item" style="grid-column:span 2"><label>豁免依据说明<span class="req">*</span></label><textarea rows="3" placeholder="请写明适用的政策条款或司法文书编号"></textarea></div>
+          <div class="form-item" style="grid-column:span 2"><label>证明文件<span class="req">*</span></label><input type="text" data-upload="1" placeholder="点击上传继承权公证书、调解书等证明材料"></div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="PMS.closeModal('mdFree')">取消</button>
+        <button type="button" class="btn btn-primary" onclick="doFree()">提交豁免</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+var RULES = {
+  XS001: '柳州市市区新建商品住房限售规则（XS001）：适用城中、鱼峰、柳南、柳北四城区新建商品住房，限售 3 年，起算节点为不动产登记，政策文号 柳政办〔2023〕18 号，生效 2023-04-01。',
+  XS002: '柳州市市区存量住房限售规则（XS002）：适用市区存量住房买卖，限售 2 年，起算节点为网签备案，政策文号 柳建房〔2024〕7 号，生效 2024-01-01。',
+  XS003: '柳州市区人才住房限售规则（XS003）：适用人才安居房，限售 5 年，起算节点为交房，政策文号 柳人才〔2022〕11 号，生效 2022-09-01。'
+};
+function showRule(code) { PMS.toast(RULES[code]); }
+
+function openRelease(house, date) {
+  document.getElementById('rlHouse').value = house;
+  document.getElementById('rlDate').value = date;
+  PMS.openModal('mdRelease');
+}
+function doRelease() {
+  var why = document.getElementById('rlWhy').value;
+  var house = document.getElementById('rlHouse').value;
+  PMS.closeModal('mdRelease');
+  PMS.confirm({
+    title: '确认手动解限',
+    message: '解限后该房屋限售限制将立即解除，交易限制状态同步刷新，是否确认？',
+    detail: house + ' · 解限原因：' + why + '。解限后仍按其他限制情形（抵押、查封、异议）重新判定可交易标识。',
+    type: 'warning',
+    okText: '确认解限',
+    onOk: function () { PMS.toast('已解限，限制状态已刷新：限售项由「限售中」变更为「已解限」', 'success'); }
+  });
+}
+
+function openFree(house) {
+  document.getElementById('frHouse').value = house;
+  PMS.openModal('mdFree');
+}
+function doFree() {
+  PMS.closeModal('mdFree');
+  PMS.toast('豁免登记成功，该房屋免于限售，豁免依据已归档', 'success');
+}
+
+(function () {
+  var table = document.getElementById('tblXs');
+  /* 本月到期的房屋仍处于限售中，故「限售中」页签同时包含 near */
+  function apply(name) {
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      var st = tr.getAttribute('data-st');
+      var show = name === 'ing' ? (st === 'ing' || st === 'near') : st === name;
+      tr.style.display = show ? '' : 'none';
+    });
+  }
+  document.getElementById('xsTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    apply(tab.getAttribute('data-tab'));
+  });
+  apply('ing');
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 1842,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+</script>
+</body>
+</html>

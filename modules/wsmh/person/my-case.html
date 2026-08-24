@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的办件 · 个人中心</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  /* 我的办件专属布局 */
+  .mc-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .mc-search { display: flex; gap: 8px; margin-left: auto; }
+  .mc-search .input { width: 240px; height: 32px; font-size: 13px; }
+  .st-card { cursor: pointer; transition: .16s; }
+  .st-card:hover { border-color: var(--primary); box-shadow: var(--shadow-sm); }
+  .st-card.on { border-color: var(--primary); background: var(--primary-light-2); }
+  .pub-table tbody tr.row-fix td { background: #fff7ec; }
+  .pub-table tbody tr.row-fix:hover td { background: #ffefd9; }
+  .prog-t { height: 6px; background: var(--bg-soft); border-radius: 4px; overflow: hidden; width: 108px; }
+  .prog-f { height: 100%; background: linear-gradient(90deg, #6b95e8, var(--primary)); border-radius: 4px; }
+  .prog-f.green { background: linear-gradient(90deg, #62cb8f, var(--success)); }
+  .prog-f.orange { background: linear-gradient(90deg, #f0b26b, #ea580c); }
+  .prog-f.red { background: linear-gradient(90deg, #e97a72, var(--accent)); }
+  .demo-btns { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .pub-table .acts { white-space: normal; }
+  .pub-table .acts a { display: inline-block; margin: 2px 10px 2px 0; }
+</style>
+</head>
+<body data-nav="home">
+
+<div class="wrap"><div class="crumb">
+  <a href="../web/home.html">首页</a><i class="fa-solid fa-angle-right"></i>
+  <a href="index.html">个人中心</a><i class="fa-solid fa-angle-right"></i>我的办件
+</div></div>
+
+<div class="wrap">
+  <div class="desk">
+    <aside class="side-menu" id="side"></aside>
+    <main class="desk-main" id="dmain">
+
+      <div class="alert alert-info">
+        <i class="fa-solid fa-circle-info"></i>
+        <span>本页汇总您通过门户、微信小程序、自助终端与窗口提交的<b>全部办件</b>，四个渠道同源同数据。
+          待补正办件整行标橙并显示剩余补正天数，<b>在线补交材料后办件立即回到「已受理」</b>，左侧菜单与首页提醒角标同步减一。</span>
+      </div>
+
+      <!-- 办件统计（点击筛选） -->
+      <div class="stat-grid c5 mb-16" id="mc-stat"></div>
+
+      <div class="desk-card">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-list-check text-primary"></i> 办件列表</h3>
+          <span class="sub" id="mc-count">—</span>
+        </div>
+        <div class="card-body" style="padding-bottom:12px">
+          <div class="mc-tools">
+            <div class="pill-tabs" id="mc-tabs"></div>
+            <div class="mc-search">
+              <input class="input" id="mc-kw" placeholder="办件编号 / 事项名称 / 房屋">
+              <button class="btn btn-sm btn-primary" id="mc-go" data-fp="wsmh-30-01"><i class="fa-solid fa-magnifying-glass"></i> 搜索</button>
+              <button class="btn btn-sm" id="mc-reset" data-fp="wsmh-30-01">重置</button>
+            </div>
+          </div>
+        </div>
+        <div class="card-body np">
+          <div class="table-wrap" style="border:0;border-radius:0">
+            <table class="pub-table">
+              <thead><tr>
+                <th style="width:118px">办件编号</th><th>事项名称</th><th style="width:148px">涉及房屋</th>
+                <th style="width:96px">承办科室</th><th style="width:98px">申请时间</th>
+                <th style="width:88px">状态</th><th style="width:104px">进度</th><th style="width:132px">操作</th>
+              </tr></thead>
+              <tbody id="mc-body"></tbody>
+            </table>
+          </div>
+          <div class="table-note">办结时限自受理之日起计算；需要补正的，补正时间不计入办理时限。办件数据与「查询中心 → 网签备案进度查询」同源。</div>
+        </div>
+        <div id="mc-pager"></div>
+      </div>
+
+      <!-- 演示辅助：模拟政府侧办理 -->
+      <div class="card mt-16">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-flask text-accent"></i> 演示：模拟政府侧办理</h3>
+          <span class="sub">仅用于原型联动验证，正式环境由业务系统驱动</span>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-warning" style="margin-bottom:14px">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span>原型用下面这几个按钮模拟政府侧推进办件状态，便于验证跨页联动：
+              状态变化后，左侧菜单角标、个人中心首页五类提醒、我的证照与我的评价都会同步刷新。</span>
+          </div>
+          <div class="demo-btns">
+            <span class="text-3 text-sm">选择办件：</span>
+            <select class="select" id="demo-sel" style="width:390px"></select>
+            <button class="btn btn-sm" data-to="2" data-fp="wsmh-30-01"><i class="fa-solid fa-inbox"></i> 受理</button>
+            <button class="btn btn-sm" data-to="3" data-fp="wsmh-30-01"><i class="fa-solid fa-file-circle-exclamation"></i> 要求补正</button>
+            <button class="btn btn-sm" data-to="4" data-fp="wsmh-30-01"><i class="fa-solid fa-circle-check"></i> 办结</button>
+            <button class="btn btn-sm" data-to="5" data-fp="wsmh-30-01"><i class="fa-solid fa-rotate-left"></i> 退件</button>
+          </div>
+          <div class="text-xs text-3 mt-12" id="demo-tip">状态流转遵循办件状态机：已提交 → 已受理 → 待补正 / 已办结 / 已退件；已办结与已退件为终态。</div>
+        </div>
+      </div>
+
+      <div id="src-note"></div>
+    </main>
+  </div>
+</div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+var ST = '', KW = '', PAGE = 1, SIZE = 8, FIXFILES = [], DEMO_ID = '';
+
+function pageInit() {
+  if (!deskGuard('case')) return;
+  ST = UI.param('zt') || '';
+  buildTabs();
+  bindSearch();
+  bindDemo();
+  renderAll();
+  document.getElementById('src-note').innerHTML = UI.sourceNote();
+  PORTAL.on(function () { renderSide('case'); renderAll(); });
+}
+
+function renderAll() { renderStat(); buildTabs(); renderList(); renderDemoSel(); }
+
+/* ============ 个人中心左侧菜单（各页统一） ============ */
+function renderSide(active) {
+  var u = UI.user(), login = UI.isLogin();
+  var c = PORTAL.todoCounts();
+  var M = [
+    ['idx', '个人中心首页', 'fa-gauge', 'index.html', 0, 'wsmh-02-06'],
+    ['case', '我的办件', 'fa-list-check', 'my-case.html', c.fix, 'wsmh-30-01'],
+    ['contract', '我的合同与交易', 'fa-file-contract', 'my-contract.html', 0, 'wsmh-30-02'],
+    ['pay', '我的缴款与贷款', 'fa-money-bill-transfer', 'my-payment.html', c.pay, 'wsmh-30-04'],
+    ['listing', '我的房源与预约', 'fa-house-circle-check', 'my-listing.html', 0, 'wsmh-30-06'],
+    ['cert', '我的证照与消息', 'fa-file-shield', 'my-cert.html', PORTAL.unread(), 'wsmh-30-08'],
+    ['rating', '我的评价与授权', 'fa-star', 'my-rating.html', c.rate, 'wsmh-30-10']
+  ];
+  document.getElementById('side').innerHTML =
+    '<div class="sm-head"><div class="sm-n"><i class="fa-solid fa-circle-user"></i> '
+    + UI.esc(login ? u.name : '未登录') + '</div>'
+    + '<div class="sm-r">' + (login ? '个人用户 · 已实名（等级 ' + u.realname + '）' : '登录后查看办件、合同与证照') + '</div></div>'
+    + '<div class="sm-g"><div class="sm-gt">我的服务</div>'
+    + M.map(function (m) {
+      return '<a href="' + m[3] + '" class="' + (m[0] === active ? 'on' : '') + '" data-fp="' + m[5] + '">'
+        + '<i class="fa-solid ' + m[2] + '"></i>' + m[1]
+        + (login && m[4] ? '<span class="sm-b">' + m[4] + '</span>' : '') + '</a>';
+    }).join('')
+    + '</div><div class="sm-g" style="border-top:1px solid var(--border)">'
+    + '<a href="../web/home.html" data-fp="wsmh-34-01"><i class="fa-solid fa-arrow-left"></i>返回门户首页</a>'
+    + '</div>';
+}
+
+function deskGuard(active) {
+  renderSide(active);
+  if (UI.isLogin()) return true;
+  document.getElementById('dmain').innerHTML =
+    '<div class="desk-card"><div class="empty"><i class="fa-solid fa-user-lock"></i>'
+    + '<div class="em-t">个人中心需要登录后访问</div>'
+    + '<div class="em-d">门户配置的未登录浏览范围为「房源列表与详情、信息公示、办事指南」，我的办件属于需登录实名的范围。</div>'
+    + '<div class="em-a"><a class="btn btn-primary" href="../web/login.html?from=person" data-fp="wsmh-34-06">立即登录</a>'
+    + '<button class="btn" style="margin-left:10px" onclick="demoLogin()" data-fp="wsmh-34-06">演示：一键登录个人用户</button>'
+    + '</div></div></div>';
+  UI.needLogin('我的办件');
+  return false;
+}
+
+/* 演示用：保留当前页参数并以个人用户身份登录 */
+function demoLogin() {
+  var parts = location.search.replace(/^\?/, '').split('&').filter(function (x) {
+    return x && x.indexOf('user=') !== 0;
+  });
+  parts.push('user=person');
+  location.href = location.pathname + '?' + parts.join('&');
+}
+
+/* ============ 统计与筛选 ============ */
+function counts() {
+  var all = PORTAL.cases();
+  var c = { all: all.length, ing: 0, fix: 0, done: 0, back: 0 };
+  all.forEach(function (x) {
+    if (x.zt === '1' || x.zt === '2') c.ing++;
+    if (x.zt === '3') c.fix++;
+    if (x.zt === '4') c.done++;
+    if (x.zt === '5') c.back++;
+  });
+  return c;
+}
+
+function renderStat() {
+  var c = counts();
+  var S = [
+    ['全部办件', c.all, 'fa-folder-open', 'blue', ''],
+    ['在办', c.ing, 'fa-spinner', 'cyan', 'ing'],
+    ['待补正', c.fix, 'fa-file-circle-exclamation', 'orange', '3'],
+    ['已办结', c.done, 'fa-circle-check', 'green', '4'],
+    ['已退件', c.back, 'fa-rotate-left', 'red', '5']
+  ];
+  document.getElementById('mc-stat').innerHTML = S.map(function (x) {
+    return '<div class="stat-card st-card' + (ST === x[4] ? ' on' : '') + '" data-st="' + x[4] + '" data-fp="wsmh-30-01">'
+      + '<span class="s-ico ' + x[3] + '"><i class="fa-solid ' + x[2] + '"></i></span>'
+      + '<span><span class="s-value">' + x[1] + '<em>件</em></span>'
+      + '<span class="s-label" style="display:block">' + x[0] + '</span></span></div>';
+  }).join('');
+  document.getElementById('mc-stat').querySelectorAll('[data-st]').forEach(function (el) {
+    el.onclick = function () { ST = el.getAttribute('data-st'); PAGE = 1; renderAll(); };
+  });
+}
+
+function buildTabs() {
+  var T = [['', '全部'], ['1', '已提交'], ['2', '已受理'], ['3', '待补正'], ['4', '已办结'], ['5', '已退件']];
+  document.getElementById('mc-tabs').innerHTML = T.map(function (t) {
+    return '<a class="' + (ST === t[0] ? 'on' : '') + '" data-zt="' + t[0] + '" data-fp="wsmh-30-01">' + t[1] + '</a>';
+  }).join('');
+  document.getElementById('mc-tabs').querySelectorAll('[data-zt]').forEach(function (a) {
+    a.onclick = function () { ST = a.getAttribute('data-zt'); PAGE = 1; renderAll(); };
+  });
+}
+
+function bindSearch() {
+  document.getElementById('mc-go').onclick = function () {
+    KW = document.getElementById('mc-kw').value.trim(); PAGE = 1; renderList();
+    if (KW) UI.toast('已按关键词「' + UI.esc(KW) + '」筛选办件', 'info');
+  };
+  document.getElementById('mc-reset').onclick = function () {
+    KW = ''; ST = ''; PAGE = 1; document.getElementById('mc-kw').value = '';
+    renderAll(); UI.toast('已重置筛选条件', 'info');
+  };
+  document.getElementById('mc-kw').onkeydown = function (e) {
+    if (e.key === 'Enter') document.getElementById('mc-go').click();
+  };
+}
+
+function query() {
+  var arr = PORTAL.cases({ kw: KW });
+  if (ST === 'ing') arr = arr.filter(function (c) { return c.zt === '1' || c.zt === '2'; });
+  else if (ST) arr = arr.filter(function (c) { return c.zt === ST; });
+  return arr;
+}
+
+function prog(c) {
+  var done = 0;
+  c.steps.forEach(function (s) { if (s.s === 1) done++; });
+  return Math.round(done / c.steps.length * 100);
+}
+
+/* ============ 列表 ============ */
+function renderList() {
+  var arr = query();
+  document.getElementById('mc-count').innerHTML = '共 ' + arr.length + ' 件'
+    + (ST || KW ? '（已筛选）' : '') + '　待补正 ' + counts().fix + ' 件';
+  var body = document.getElementById('mc-body');
+  if (!arr.length) {
+    body.innerHTML = '<tr><td colspan="8" style="padding:0">'
+      + UI.empty('没有符合条件的办件', '可以切换状态筛选或清空关键词后重试。',
+        '<a class="btn btn-primary" href="../web/service-hall.html" data-fp="wsmh-30-01">去网上办事大厅申报</a>')
+      + '</td></tr>';
+    document.getElementById('mc-pager').innerHTML = '';
+    return;
+  }
+  var start = (PAGE - 1) * SIZE;
+  body.innerHTML = arr.slice(start, start + SIZE).map(rowHtml).join('');
+  bindRows();
+  UI.pager(document.getElementById('mc-pager'), arr.length, PAGE, SIZE, function (p) {
+    PAGE = p; renderList(); window.scrollTo({ top: 200, behavior: 'smooth' });
+  });
+}
+
+function rowHtml(c) {
+  var p = prog(c);
+  var pc = c.zt === '4' ? ' green' : (c.zt === '3' ? ' orange' : (c.zt === '5' ? ' red' : ''));
+  var acts = '<a href="my-case-detail.html?id=' + c.id + '" data-fp="wsmh-30-01">查看详情</a>';
+  if (c.zt === '3') acts += '<a href="javascript:;" data-fix="' + c.id + '" data-fp="wsmh-30-01"><b>在线补交</b></a>';
+  if (c.zt === '4') {
+    acts += '<a href="javascript:;" data-cert="' + c.id + '" data-fp="wsmh-30-08">获取证明</a>';
+    acts += c.pj === 0
+      ? '<a href="my-rating.html" data-fp="wsmh-30-10">去评价</a>'
+      : '<a href="my-rating.html?tab=mr-mine" data-fp="wsmh-30-10">看评价</a>';
+  }
+  if (c.zt === '5') acts += '<a href="../web/service-hall.html" data-fp="wsmh-30-01">重新申报</a>';
+  return '<tr class="' + (c.zt === '3' ? 'row-fix' : '') + '">'
+    + '<td class="strong">' + c.bh + '</td>'
+    + '<td class="strong">' + UI.esc(c.sxmc) + (c.pkg ? ' <span class="badge purple">一件事</span>' : '')
+    + '<div class="text-xs text-3">来源：' + UI.esc(c.source) + '</div></td>'
+    + '<td>' + UI.esc(c.fw) + '</td>'
+    + '<td>' + UI.esc(c.dept) + '</td>'
+    + '<td>' + String(c.sqrq).slice(0, 10)
+    + '<div class="text-xs text-3">' + String(c.sqrq).slice(11) + '</div></td>'
+    + '<td>' + PORTAL.caseBadge(c)
+    + (c.zt === '3' ? '<div class="text-xs text-warning" style="margin-top:3px">剩余 ' + c.xqts + ' 天</div>' : '') + '</td>'
+    + '<td><div class="prog-t"><span class="prog-f' + pc + '" style="display:block;width:' + p + '%"></span></div>'
+    + '<span class="text-xs text-3">' + p + '%</span></td>'
+    + '<td class="acts">' + acts + '</td></tr>';
+}
+
+function bindRows() {
+  document.querySelectorAll('[data-fix]').forEach(function (a) {
+    a.onclick = function () { openFix(a.getAttribute('data-fix')); };
+  });
+  document.querySelectorAll('[data-cert]').forEach(function (a) {
+    a.onclick = function () { issueCert(a.getAttribute('data-cert')); };
+  });
+}
+
+/* ============ 在线补交材料（wsmh-30-01 关键闭环） ============ */
+function openFix(id) {
+  var c = PORTAL.caseOf(id);
+  if (!c) { UI.toast('未找到该办件', 'error'); return; }
+  FIXFILES = [];
+  UI.drawer('<i class="fa-solid fa-file-circle-exclamation text-warning"></i> 在线补交材料',
+    '<div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation"></i>'
+    + '<span>本办件已被要求补正，请在 <b>' + c.xqts + '</b> 天内一次性补齐材料。'
+    + '补正期间不计入承诺办结时限，提交后办件将<b>重新进入审核</b>。</span></div>'
+    + '<div class="desc-list mb-16"><dl>'
+    + '<dt>办件编号</dt><dd>' + c.bh + '</dd>'
+    + '<dt>事项名称</dt><dd>' + UI.esc(c.sxmc) + '</dd>'
+    + '<dt>涉及房屋</dt><dd>' + UI.esc(c.fw) + '</dd>'
+    + '<dt>承办科室</dt><dd>' + UI.esc(c.dept) + '</dd>'
+    + '</dl></div>'
+    + '<div class="form-item full mb-12"><label>补正要求（一次性告知）</label>'
+    + '<div class="alert alert-danger" style="margin:0"><i class="fa-solid fa-circle-exclamation"></i>'
+    + '<span>' + UI.esc(c.bzyq) + '</span></div></div>'
+    + '<div class="form-item full"><label><span class="req">*</span>补交材料</label>'
+    + '<div class="file-up" id="fx-up"><i class="fa-solid fa-cloud-arrow-up"></i>'
+    + '点击选择需要补交的材料文件（支持 PDF、JPG、PNG，单个不超过 20MB）</div>'
+    + '<input type="file" id="fx-file" multiple style="display:none">'
+    + '<div class="file-list" id="fx-list"></div>'
+    + '<div class="tip">演示环境不上传真实文件，仅记录文件名。'
+    + '<a href="javascript:;" id="fx-demo" data-fp="wsmh-30-01">使用示例材料快速演示</a></div></div>'
+    + '<div class="form-item full mt-16"><label>补正说明（选填）</label>'
+    + '<textarea class="textarea" id="fx-note" placeholder="可说明补交材料的情况，便于审核人员核对"></textarea></div>',
+    '<button class="btn" data-act="close-drawer">取消</button>'
+    + '<button class="btn btn-primary" id="fx-ok" data-fp="wsmh-30-01"><i class="fa-solid fa-paper-plane"></i> 提交补正材料</button>');
+
+  var input = document.getElementById('fx-file');
+  document.getElementById('fx-up').onclick = function () { input.click(); };
+  input.onchange = function () {
+    for (var i = 0; i < input.files.length; i++) {
+      if (FIXFILES.indexOf(input.files[i].name) < 0) FIXFILES.push(input.files[i].name);
+    }
+    drawFixFiles();
+  };
+  document.getElementById('fx-demo').onclick = function () {
+    ['契税完税凭证.pdf', '补正情况说明.pdf'].forEach(function (f) {
+      if (FIXFILES.indexOf(f) < 0) FIXFILES.push(f);
+    });
+    drawFixFiles();
+    UI.toast('已加入 2 份示例材料', 'info');
+  };
+  document.getElementById('fx-ok').onclick = function () {
+    if (!FIXFILES.length) { UI.toast('请先选择需要补交的材料', 'warning'); return; }
+    var note = document.getElementById('fx-note').value.trim();
+    var files = FIXFILES.slice();
+    if (note) files.push('补正说明：' + note);
+    var r = PORTAL.act('case.supplement', { id: id, files: files });
+    if (!r) return;
+    UI.closeDrawer();
+    UI.toast('补正材料已提交，办件已重新进入审核，待补正提醒 -1', 'success');
+  };
+  drawFixFiles();
+}
+
+function drawFixFiles() {
+  var box = document.getElementById('fx-list');
+  if (!box) return;
+  box.innerHTML = FIXFILES.map(function (f, i) {
+    var pdf = /\.pdf$/i.test(f);
+    return '<div class="file-chip"><i class="fa-solid ' + (pdf ? 'fa-file-pdf' : 'fa-file-image') + '"></i>'
+      + '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + UI.esc(f) + '</span>'
+      + '<span class="fx" data-rm="' + i + '"><i class="fa-solid fa-xmark"></i></span></div>';
+  }).join('');
+  box.querySelectorAll('[data-rm]').forEach(function (x) {
+    x.onclick = function () { FIXFILES.splice(Number(x.getAttribute('data-rm')), 1); drawFixFiles(); };
+  });
+}
+
+/* ============ 办结件获取证明 ============ */
+function issueCert(id) {
+  var c = PORTAL.caseOf(id);
+  if (!c) return;
+  UI.confirm('获取办件结果证明',
+    '将为办件 <b>' + c.bh + '</b>（' + UI.esc(c.sxmc) + '）出具电子证明，'
+    + '证明带二维码与验真码，可在「我的证照与票据」查看、下载与打印。是否继续？',
+    function () {
+      var ct = PORTAL.act('cert.issue', {
+        lx: c.sxmc.indexOf('备案') >= 0 ? c.sxmc.replace('申请', '') + '证明' : c.sxmc + '结果证明',
+        fw: c.fw, yt: '办理后续手续'
+      });
+      UI.toast('证明已出具，编号 ' + ct.bh + '，验真码 ' + ct.yzm + '，已进入我的证照与票据', 'success');
+    }, '出具证明');
+}
+
+/* ============ 演示：模拟政府侧办理 ============ */
+function renderDemoSel() {
+  var arr = PORTAL.cases();
+  var sel = document.getElementById('demo-sel');
+  if (!arr.length) { sel.innerHTML = '<option value="">暂无办件</option>'; return; }
+  if (!DEMO_ID || !PORTAL.caseOf(DEMO_ID)) DEMO_ID = arr[0].id;
+  sel.innerHTML = arr.map(function (c) {
+    return '<option value="' + c.id + '"' + (c.id === DEMO_ID ? ' selected' : '') + '>'
+      + c.bh + '　' + UI.esc(c.sxmc) + '（当前：' + c.ztmc + '）</option>';
+  }).join('');
+}
+
+function bindDemo() {
+  document.getElementById('demo-sel').onchange = function () { DEMO_ID = this.value; };
+  var MSG = {
+    '2': '已受理：办件进入业务审核环节，进度时间轴与首页「待办事项」同步更新。',
+    '3': '已要求补正：办件转为「待补正」，整行标橙，左侧菜单与首页「待补正」角标 +1，可点「在线补交」上传材料。',
+    '4': '已办结：自动出具备案证明并进入「我的证照与票据」，同时触发「待评价」，可到「我的评价与授权」提交评价。',
+    '5': '已退件：详情页展示退件原因，可修改后重新申报。'
+  };
+  document.querySelectorAll('[data-to]').forEach(function (b) {
+    b.onclick = function () {
+      if (!DEMO_ID) { UI.toast('请先选择一条办件', 'warning'); return; }
+      var to = b.getAttribute('data-to');
+      var r = PORTAL.act('case.next', { id: DEMO_ID, to: to });
+      if (!r) return;
+      UI.toast(MSG[to], 'success');
+    };
+  });
+}
+</script>
+</body>
+</html>

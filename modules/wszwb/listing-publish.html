@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>房源发布审核与授权 · 房屋租赁网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：审核抽屉左右分栏、校验清单、图片宫格预览 */
+  .rv-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .rv-pics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .rv-pics .pic { aspect-ratio: 4 / 3; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
+  .rv-pics .pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  .vf-row {
+    display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: var(--radius); background: #fff;
+  }
+  .vf-row + .vf-row { margin-top: 8px; }
+  .vf-row .vf-ico {
+    width: 26px; height: 26px; border-radius: 7px; flex-shrink: 0; font-size: 12px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .vf-row .vf-ico.ok { background: var(--success-light); color: var(--success); }
+  .vf-row .vf-ico.warn { background: var(--warning-light); color: var(--warning); }
+  .vf-row .vf-ico.na { background: var(--bg-soft); color: var(--text-3); }
+  .vf-row .vf-t { font-size: 13.5px; font-weight: 600; }
+  .vf-row .vf-d { font-size: 12.5px; color: var(--text-3); margin-top: 3px; line-height: 1.6; }
+
+  .hy-code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; }
+  .hy-code.expired { color: var(--danger); text-decoration: line-through; }
+  .data-table tbody tr.is-warn > td { background: #fff8ed; }
+  .data-table tbody tr.is-warn:hover > td { background: #fdf0d9; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wszwb-09">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋租赁网签备案管理系统
+        <span class="sep">/</span> 租赁房源管理
+        <span class="sep">/</span> <span class="cur">发布审核与授权</span>
+      </div>
+      <div class="page-title">房源发布审核与授权</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" onclick="batchPass()"><i class="fa-solid fa-check-double"></i> 批量通过</button>
+      <button type="button" class="btn" onclick="PMS.confirm({title:'批量下架',message:'将勾选的房源批量下架？',detail:'下架后房源不再对外展示，核验码保持有效。',type:'warning',okText:'下架',onOk:function(){PMS.toast('已批量下架 3 套房源','success');}})"><i class="fa-solid fa-eye-slash"></i> 批量下架</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《房源发布审核台账》Excel','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">待审核</div><div class="s-value">128</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-bullhorn"></i></div>
+      <div><div class="s-label">已发布</div><div class="s-value">21,436</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-circle-xmark"></i></div>
+      <div><div class="s-label">审核不通过</div><div class="s-value">36</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-box-archive"></i></div>
+      <div><div class="s-label">已下架</div><div class="s-value">1,204</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      未核验或核验失效的房源一律不得对外发布；保障性租赁住房发布租金高于指导租金标准的，审核直接不通过。
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>关键词</label>
+        <input type="text" placeholder="发布编号 / 发布标题 / 坐落 / 发布者">
+      </div>
+      <div class="filter-item">
+        <label>所属行政区</label>
+        <select>
+          <option value="">全部</option>
+          <option>城中区</option><option>鱼峰区</option><option>柳南区</option><option>柳北区</option><option>柳江区</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>发布渠道</label>
+        <select><option value="">全部</option><option>官网</option><option>微信小程序</option><option>租赁服务平台</option><option>经纪机构</option></select>
+      </div>
+      <div class="filter-item">
+        <label>发布状态</label>
+        <select><option value="">全部</option><option>待审核</option><option>已发布</option><option>审核不通过</option><option>已下架</option></select>
+      </div>
+      <div class="filter-item">
+        <label>租赁房屋类型</label>
+        <select><option value="">全部</option><option>商品住房出租</option><option>保障性租赁住房</option><option>宿舍型租赁住房</option></select>
+      </div>
+      <div class="filter-item">
+        <label>是否保租房</label>
+        <select><option value="">全部</option><option>是</option><option>否</option></select>
+      </div>
+      <div class="filter-item">
+        <label>发布时间起</label>
+        <input type="date" value="2026-07-01">
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 22,804 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="wait">待审核 <span class="badge orange">128</span></div>
+      <div class="tab" data-tab="on">已发布</div>
+      <div class="tab" data-tab="no">审核不通过</div>
+      <div class="tab" data-tab="off">已下架</div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblFb" data-static>
+        <thead>
+          <tr>
+            <th style="width:38px"><input type="checkbox" id="ckAll"></th>
+            <th>发布编号</th>
+            <th>发布标题</th>
+            <th>坐落</th>
+            <th>租赁方式</th>
+            <th class="num">发布租金(元/月)</th>
+            <th>押金方式</th>
+            <th>可租日期</th>
+            <th class="num">最短租期</th>
+            <th>发布渠道</th>
+            <th>核验码 / 有效期止</th>
+            <th>发布状态</th>
+            <th class="num">浏览</th>
+            <th class="num">预约</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="wait">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600">FB2026003914</td>
+            <td class="cell-lg">阳光 100 城市广场 精装两房 南向 拎包入住</td>
+            <td class="cell-lg">城中区文昌路 66 号阳光 100 城市广场 3-2-1602</td>
+            <td class="nowrap">整租</td>
+            <td class="num">2,300</td>
+            <td class="nowrap">押一付三</td>
+            <td class="nowrap">2026-08-01</td>
+            <td class="num">12 个月</td>
+            <td class="nowrap">租房超市 / 小程序</td>
+            <td class="nowrap"><span class="hy-code">ZLHY-450200-2026-000386</span><br><span class="text-3 text-sm">2026-10-27</span></td>
+            <td class="nowrap"><span class="badge orange">待审核</span></td>
+            <td class="num">0</td>
+            <td class="num">0</td>
+            <td class="col-ops">
+              <span class="link" onclick="openReview('ok')">审核</span>
+              <a class="link" href="listing-detail.html">查看房源</a>
+            </td>
+          </tr>
+          <tr data-st="wait" class="is-warn">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600">FB2026003908</td>
+            <td class="cell-lg">碧桂园十里江湾 三房两厅 采光好 近学校</td>
+            <td class="cell-lg">鱼峰区静兰路 66 号碧桂园十里江湾 11-3-1203</td>
+            <td class="nowrap">整租</td>
+            <td class="num">2,980</td>
+            <td class="nowrap">押一付三</td>
+            <td class="nowrap">2026-08-05</td>
+            <td class="num">12 个月</td>
+            <td class="nowrap">经纪机构</td>
+            <td class="nowrap"><span class="hy-code expired">ZLHY-450200-2026-000097</span><br><span class="text-danger text-sm">2026-07-18 已失效</span></td>
+            <td class="nowrap"><span class="badge orange">待审核</span></td>
+            <td class="num">0</td>
+            <td class="num">0</td>
+            <td class="col-ops">
+              <span class="link" onclick="openReview('expired')">审核</span>
+              <a class="link" href="listing-verify.html">重新核验</a>
+            </td>
+          </tr>
+          <tr data-st="wait">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600">FB2026003902</td>
+            <td class="cell-lg">天湖国际 保障性租赁住房 一房一厅 人才优先</td>
+            <td class="cell-lg">城中区解放北路 41 号天湖国际 2-1-1508</td>
+            <td class="nowrap">整租</td>
+            <td class="num">1,420</td>
+            <td class="nowrap">押一付一</td>
+            <td class="nowrap">2026-08-08</td>
+            <td class="num">12 个月</td>
+            <td class="nowrap">租房超市</td>
+            <td class="nowrap"><span class="hy-code">ZLHY-450200-2026-000214</span><br><span class="text-3 text-sm">2026-09-06</span></td>
+            <td class="nowrap"><span class="badge orange">待审核</span><span class="badge green" style="margin-left:6px">保租房</span></td>
+            <td class="num">0</td>
+            <td class="num">0</td>
+            <td class="col-ops">
+              <span class="link" onclick="openReview('overprice')">审核</span>
+              <a class="link" href="affordable-housing.html">指导租金</a>
+            </td>
+          </tr>
+          <tr data-st="wait">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600">FB2026003897</td>
+            <td class="cell-lg">桂中华府 分间 B 独卫带阳台 押一付一</td>
+            <td class="cell-lg">柳北区跃进路 33 号桂中华府 6-2-1104 分间 B</td>
+            <td class="nowrap">分间合租</td>
+            <td class="num">1,380</td>
+            <td class="nowrap">押一付一</td>
+            <td class="nowrap">2026-08-10</td>
+            <td class="num">6 个月</td>
+            <td class="nowrap">小程序</td>
+            <td class="nowrap"><span class="hy-code">ZLHY-450200-2026-000358</span><br><span class="text-3 text-sm">2026-10-11</span></td>
+            <td class="nowrap"><span class="badge orange">待审核</span></td>
+            <td class="num">0</td>
+            <td class="num">0</td>
+            <td class="col-ops">
+              <span class="link" onclick="openReview('ok')">审核</span>
+              <a class="link" href="listing-detail.html">查看房源</a>
+            </td>
+          </tr>
+          <tr data-st="on">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600">FB2026003846</td>
+            <td class="cell-lg">万科城 三房两厅 品质小区 电梯房</td>
+            <td class="cell-lg">鱼峰区屏山大道 118 号万科城 7-1-902</td>
+            <td class="nowrap">整租</td>
+            <td class="num">3,200</td>
+            <td class="nowrap">押一付一</td>
+            <td class="nowrap">2026-08-05</td>
+            <td class="num">24 个月</td>
+            <td class="nowrap">租房超市 / 小程序</td>
+            <td class="nowrap"><span class="hy-code">ZLHY-450200-2026-000371</span><br><span class="text-3 text-sm">2026-10-18</span></td>
+            <td class="nowrap"><span class="badge blue">已发布</span></td>
+            <td class="num">862</td>
+            <td class="num">14</td>
+            <td class="col-ops">
+              <a class="link" href="listing-detail.html">查看房源</a>
+              <span class="link" onclick="offShelf('FB2026003846')">下架</span>
+            </td>
+          </tr>
+          <tr data-st="off">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600">FB2026003821</td>
+            <td class="cell-lg">华润幸福里 两房 特价 1580 元 拎包入住</td>
+            <td class="cell-lg">柳北区白露大道 77 号华润幸福里 3-2-1701</td>
+            <td class="nowrap">整租</td>
+            <td class="num">1,580</td>
+            <td class="nowrap">押一付一</td>
+            <td class="nowrap">2026-07-28</td>
+            <td class="num">12 个月</td>
+            <td class="nowrap">经纪机构</td>
+            <td class="nowrap"><span class="hy-code">ZLHY-450200-2026-000389</span><br><span class="text-3 text-sm">2026-10-28</span></td>
+            <td class="nowrap"><span class="badge orange">已下架</span><br><span class="text-danger text-sm">图片查重命中</span></td>
+            <td class="num">1,286</td>
+            <td class="num">2</td>
+            <td class="col-ops">
+              <a class="link" href="publisher-verify.html">虚假房源处置</a>
+              <a class="link" href="listing-detail.html">查看房源</a>
+            </td>
+          </tr>
+          <tr data-st="no">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600">FB2026003788</td>
+            <td class="cell-lg">彰泰滨江学府 床位出租 学生优先 每床 480</td>
+            <td class="cell-lg">城中区中山东路 15 号彰泰滨江学府 8-1-501</td>
+            <td class="nowrap">床位</td>
+            <td class="num">480</td>
+            <td class="nowrap">押一付一</td>
+            <td class="nowrap">2026-08-15</td>
+            <td class="num">6 个月</td>
+            <td class="nowrap">小程序</td>
+            <td class="nowrap"><span class="text-3">—</span></td>
+            <td class="nowrap"><span class="badge red">审核不通过</span><br><span class="text-danger text-sm">房源未取得核验码</span></td>
+            <td class="num">0</td>
+            <td class="num">0</td>
+            <td class="col-ops">
+              <a class="link" href="listing-verify.html">发起核验</a>
+              <a class="link" href="listing-detail.html">查看房源</a>
+            </td>
+          </tr>
+          <tr data-st="on">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600">FB2026003742</td>
+            <td class="cell-lg">保利大江郡 两房两厅 高层视野 精装</td>
+            <td class="cell-lg">柳南区潭中西路 5 号保利大江郡 9-2-1802</td>
+            <td class="nowrap">整租</td>
+            <td class="num">2,650</td>
+            <td class="nowrap">年付</td>
+            <td class="nowrap">2026-07-28</td>
+            <td class="num">12 个月</td>
+            <td class="nowrap">租房超市</td>
+            <td class="nowrap"><span class="hy-code">ZLHY-450200-2026-000341</span><br><span class="text-3 text-sm">2026-10-04</span></td>
+            <td class="nowrap"><span class="badge blue">已发布</span></td>
+            <td class="num">486</td>
+            <td class="num">8</td>
+            <td class="col-ops">
+              <a class="link" href="listing-detail.html">查看房源</a>
+              <span class="link" onclick="offShelf('FB2026003742')">下架</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 发布审核抽屉 -->
+  <div class="drawer-mask" data-close-drawer></div>
+  <div class="drawer drawer-lg" id="drReview">
+    <div class="drawer-head">
+      <span>发布信息审核 · <span id="rvNo">FB2026003914</span></span>
+      <i class="fa-solid fa-xmark" data-close-drawer></i>
+    </div>
+    <div class="drawer-body">
+      <div class="rv-layout">
+
+        <div>
+          <div class="section-title">发布信息</div>
+          <dl class="desc-list" style="grid-template-columns:1fr">
+            <div class="desc-item full"><dt>发布标题</dt><dd class="fw-600" id="rvTitle">阳光 100 城市广场 精装两房 南向 拎包入住</dd></div>
+            <div class="desc-item full"><dt>房屋坐落</dt><dd id="rvAddr">城中区文昌路 66 号阳光 100 城市广场 3 栋 2 单元 1602 室</dd></div>
+            <div class="desc-item full"><dt>发布租金</dt><dd id="rvRent">2,300 元/月（参考租金 2,300 元/月）</dd></div>
+            <div class="desc-item full"><dt>押金 / 支付</dt><dd>押一付三 · 押金 2,300 元 · 季付</dd></div>
+            <div class="desc-item full"><dt>可租日期 / 最短租期</dt><dd>2026-08-01 · 12 个月</dd></div>
+            <div class="desc-item full"><dt>发布渠道</dt><dd>租房超市 / 微信小程序</dd></div>
+            <div class="desc-item full"><dt>VR 看房链接</dt><dd><span class="link" onclick="PMS.toast('已打开 VR 看房预览')">https://vr.lzfc.gov.cn/zl/386</span></dd></div>
+            <div class="desc-item full"><dt>房源描述</dt><dd>南向精装两房，家具家电齐全，拎包入住，近地铁与商圈，物业管理规范，随时看房。</dd></div>
+          </dl>
+
+          <div class="section-title mt-16">房源图片</div>
+          <div class="rv-pics">
+            <div class="pic"><img src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=360&q=60" alt="客厅"></div>
+            <div class="pic"><img src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=360&q=60" alt="主卧"></div>
+            <div class="pic"><img src="https://images.unsplash.com/photo-1556911220-bff31c812dba?w=360&q=60" alt="厨房"></div>
+            <div class="pic"><img src="https://images.unsplash.com/photo-1620626011761-996317b8d101?w=360&q=60" alt="卫生间"></div>
+            <div class="pic"><img src="https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=360&q=60" alt="次卧"></div>
+            <div class="pic"><img src="https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=360&q=60" alt="阳台"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="section-title">发布校验结果</div>
+          <div id="rvChecks"></div>
+
+          <div class="section-title mt-16">审核意见</div>
+          <div class="form-grid form-align">
+            <div class="form-item col-full">
+              <label>审核意见</label>
+              <textarea id="rvOpinion" rows="4">发布信息与核验档案一致，图片真实，租金处于合理区间，同意发布。</textarea>
+            </div>
+          </div>
+          <div class="flex items-center gap-8 mt-16">
+            <button type="button" class="btn btn-primary" id="rvPass" onclick="passReview()"><i class="fa-solid fa-check"></i> 通过并发布</button>
+            <button type="button" class="btn btn-danger" onclick="failReview()"><i class="fa-solid fa-ban"></i> 不通过</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+var CASES = {
+  ok: {
+    no: 'FB2026003914',
+    title: '阳光 100 城市广场 精装两房 南向 拎包入住',
+    addr: '城中区文昌路 66 号阳光 100 城市广场 3 栋 2 单元 1602 室',
+    rent: '2,300 元/月（参考租金 2,300 元/月）',
+    opinion: '发布信息与核验档案一致，图片真实，租金处于合理区间，同意发布。',
+    pass: true,
+    checks: [
+      ['ok', '核验码有效性', 'ZLHY-450200-2026-000386 有效，剩余 88 天到期（2026-10-27）。'],
+      ['ok', '发布租金与参考租金偏离度', '发布租金 2,300 元/月，与备案参考租金一致，偏离 0.0%。'],
+      ['na', '保租房指导租金校验', '本房源非保障性租赁住房，不适用。'],
+      ['ok', '房源图片查重', '6 张图片全部为首次使用，未在其他房源中出现。'],
+      ['ok', '联系电话复用校验', '138****6721 关联 1 套在售房源，未超过 5 套阈值。']
+    ]
+  },
+  expired: {
+    no: 'FB2026003908',
+    title: '碧桂园十里江湾 三房两厅 采光好 近学校',
+    addr: '鱼峰区静兰路 66 号碧桂园十里江湾 11 栋 3 单元 1203 室',
+    rent: '2,980 元/月（参考租金 2,980 元/月）',
+    opinion: '该房源核验码已失效，不具备发布条件，退回并告知出租人重新申请核验。',
+    pass: false,
+    checks: [
+      ['warn', '核验码有效性', 'ZLHY-450200-2026-000097 已于 2026-07-18 失效，不得对外发布。'],
+      ['ok', '发布租金与参考租金偏离度', '发布租金 2,980 元/月，偏离 0.0%。'],
+      ['na', '保租房指导租金校验', '本房源非保障性租赁住房，不适用。'],
+      ['ok', '房源图片查重', '5 张图片未发现重复使用。'],
+      ['ok', '联系电话复用校验', '该号码关联 2 套房源，未超过阈值。']
+    ]
+  },
+  overprice: {
+    no: 'FB2026003902',
+    title: '天湖国际 保障性租赁住房 一房一厅 人才优先',
+    addr: '城中区解放北路 41 号天湖国际 2 栋 1 单元 1508 室',
+    rent: '1,420 元/月（指导租金标准 1,120 元/月）',
+    opinion: '保障性租赁住房发布租金 1,420 元/月，高于指导租金标准 1,120 元/月，超出 26.8%，审核不通过。',
+    pass: false,
+    checks: [
+      ['ok', '核验码有效性', 'ZLHY-450200-2026-000214 有效，2026-09-06 到期。'],
+      ['warn', '发布租金与参考租金偏离度', '发布租金 1,420 元/月，高于备案参考租金 1,120 元/月，偏离 +26.8%。'],
+      ['warn', '保租房指导租金校验', '指导租金标准 19.93 元/㎡·月（1,120 元/月），发布租金超出 300 元，直接不通过。'],
+      ['ok', '房源图片查重', '4 张图片未发现重复使用。'],
+      ['ok', '联系电话复用校验', '该号码关联 3 套房源，未超过阈值。']
+    ]
+  }
+};
+
+function openReview(key) {
+  var d = CASES[key];
+  if (key === 'expired') {
+    PMS.confirm({
+      title: '无法发布',
+      message: '该房源核验码已于 2026-07-18 失效，不得发布。',
+      detail: '请先前往「租赁房源核验办理」重新申请核验，取得有效核验码后再提交发布。',
+      type: 'warning',
+      okText: '仍要查看审核详情',
+      onOk: function () { fillReview(d); }
+    });
+    return;
+  }
+  fillReview(d);
+}
+
+function fillReview(d) {
+  document.getElementById('rvNo').textContent = d.no;
+  document.getElementById('rvTitle').textContent = d.title;
+  document.getElementById('rvAddr').textContent = d.addr;
+  document.getElementById('rvRent').textContent = d.rent;
+  document.getElementById('rvOpinion').value = d.opinion;
+  document.getElementById('rvChecks').innerHTML = d.checks.map(function (c) {
+    var icon = c[0] === 'ok' ? 'fa-check' : c[0] === 'warn' ? 'fa-exclamation' : 'fa-minus';
+    var badge = c[0] === 'ok' ? '<span class="badge green">通过</span>'
+      : c[0] === 'warn' ? '<span class="badge red">不通过</span>' : '<span class="badge gray">不适用</span>';
+    return '<div class="vf-row"><div class="vf-ico ' + c[0] + '"><i class="fa-solid ' + icon + '"></i></div>' +
+      '<div><div class="vf-t">' + c[1] + ' ' + badge + '</div><div class="vf-d">' + c[2] + '</div></div></div>';
+  }).join('');
+  var btn = document.getElementById('rvPass');
+  btn.disabled = !d.pass;
+  btn.title = d.pass ? '' : '存在不通过的校验项，无法发布';
+  PMS.openDrawer('drReview');
+}
+
+function passReview() {
+  PMS.confirm({
+    title: '通过并发布',
+    message: '审核通过并将房源发布至租房超市？',
+    detail: '发布后房源对外展示，承租人可预约看房；核验码到期时自动下架。',
+    type: 'info',
+    okText: '通过并发布',
+    onOk: function () {
+      PMS.closeDrawer();
+      PMS.toast('审核通过，房源已发布至租房超市与微信小程序', 'success');
+    }
+  });
+}
+
+function failReview() {
+  PMS.confirm({
+    title: '审核不通过',
+    message: '出具「审核不通过」结论？',
+    detail: '系统将短信告知发布者不通过原因，房源不对外展示。',
+    type: 'danger',
+    okText: '确认不通过',
+    onOk: function () {
+      PMS.closeDrawer();
+      PMS.toast('已出具审核不通过结论并告知发布者', 'success');
+    }
+  });
+}
+
+function offShelf(no) {
+  PMS.confirm({
+    title: '下架房源',
+    message: '将发布记录「' + no + '」下架？',
+    detail: '下架后房源不再对外展示，核验码保持有效，可随时重新发布。',
+    type: 'warning',
+    okText: '下架',
+    onOk: function () { PMS.toast('已下架，租房超市同步更新', 'success'); }
+  });
+}
+
+function batchPass() {
+  var n = document.querySelectorAll('#tblFb tbody .ck:checked').length;
+  if (!n) { PMS.toast('请先勾选待审核的发布记录', 'error'); return; }
+  PMS.confirm({
+    title: '批量通过',
+    message: '批量通过并发布已勾选的 ' + n + ' 条发布记录？',
+    detail: '批量操作仍会逐条执行五项校验，存在不通过项的记录将被跳过并单独列出。',
+    type: 'info',
+    okText: '批量通过',
+    onOk: function () { PMS.toast('已通过 ' + n + ' 条，跳过 0 条', 'success'); }
+  });
+}
+
+(function () {
+  var table = document.getElementById('tblFb');
+  var tabs = document.getElementById('stTabs');
+  tabs.addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var name = tab.getAttribute('data-tab');
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.style.display = (name === 'all' || tr.getAttribute('data-st') === name) ? '' : 'none';
+    });
+  });
+  document.getElementById('ckAll').addEventListener('change', function () {
+    var on = this.checked;
+    table.querySelectorAll('tbody .ck').forEach(function (c) {
+      if (c.closest('tr').style.display !== 'none') c.checked = on;
+    });
+  });
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 22804,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+</script>
+</body>
+</html>

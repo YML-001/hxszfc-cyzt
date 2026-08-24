@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>风险智能研判 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="fx" data-active="risk-judge" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>智能应用</span>
+      <span class="sep">/</span><span>智能风险研判</span>
+      <span class="sep">/</span><span class="cur">风险智能研判</span>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-primary" onclick="AI.act.judgeAll()"><i class="fa-solid fa-bolt"></i> 批量研判全部主体</button>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-shield-halved"></i>智能风险研判 wsai-10</span>
+    <a class="active" href="risk-judge.html?role=fx">风险智能研判</a>
+    <a href="risk-weight.html?role=fx">风险权重模型</a>
+    <a href="risk-clue.html?role=fx">预警线索池</a>
+    <a href="dq-attribution.html?role=fx">数据质量归因</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-shield-halved"></i>
+    <span>综合多源数据对企业与项目做风险打分并给出监管建议，<b>逐项说明因子贡献度</b>。
+      风险分超过 <b id="thTip">—</b> 分自动生成<b>待确认</b>预警线索 —— AI 不直接立案，人工确认后才推送预警督办中心。</span>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon ai"><i class="fa-solid fa-building-shield"></i></div>
+      <div><div class="s-label">监管主体</div><div class="s-value" id="kAll">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-fire"></i></div>
+      <div><div class="s-label">严重（≥80）</div><div class="s-value" id="kRed">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><div class="s-label">预警（65~79）</div><div class="s-value" id="kOrange">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">已研判</div><div class="s-value" id="kJudged">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-flag"></i></div>
+      <div><div class="s-label">待确认线索</div><div class="s-value" id="kClue">—</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>主体风险清单</h3>
+      <span class="sub">点主体名称查看因子贡献度与监管建议</span>
+      <div class="head-actions">
+        <select id="fLx" style="width:150px" onchange="AI.paint('tSub')">
+          <option value="">全部类型</option>
+          <option value="1">企业</option>
+          <option value="2">项目</option>
+        </select>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tSub" data-static>
+        <thead><tr>
+          <th>主体名称</th><th>类型</th><th>风险分</th><th>等级</th>
+          <th class="cell-lg">监管建议</th><th>研判状态</th><th>线索</th><th>更新时间</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<div class="drawer-mask" data-close-drawer></div>
+<div class="drawer" id="dSub">
+  <div class="drawer-head"><h3>风险研判详情</h3><span class="sub text-3" id="dName"></span>
+    <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span></div>
+  <div class="drawer-body" id="dBody"></div>
+  <div class="drawer-foot" id="dFoot"></div>
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var LV_TEXT = { red: '严重', orange: '预警', yellow: '提示', blue: '正常' };
+
+  function paintKpi() {
+    var ss = AI.get('subjects');
+    document.getElementById('thTip').textContent = AI.act.clueThreshold();
+    document.getElementById('kAll').textContent = ss.length;
+    document.getElementById('kRed').textContent = ss.filter(function (s) { return s.score >= 80; }).length;
+    document.getElementById('kOrange').textContent = ss.filter(function (s) {
+      return s.score >= 65 && s.score < 80;
+    }).length;
+    document.getElementById('kJudged').textContent = ss.filter(function (s) { return s.judged; }).length;
+    document.getElementById('kClue').textContent = AI.stat('cluePending');
+  }
+
+  AI.table({
+    id: 'tSub', pageSize: 10,
+    rows: function () {
+      var lx = document.getElementById('fLx').value;
+      return AI.where('subjects', function (s) { return !lx || s.stlx === lx; })
+        .sort(function (a, b) { return (b.score || 0) - (a.score || 0); });
+    },
+    cells: function (s) {
+      var clue = AI.where('clues', function (c) { return c.subject === s.mc; })[0];
+      return [
+        '<td><a class="link" onclick="openSub(\'' + s.id + '\')">' + AI.esc(s.mc) + '</a></td>',
+        '<td>' + (s.stlx === '1' ? '企业' : '项目') + '</td>',
+        '<td>' + (s.judged
+          ? '<span class="risk-score lv-' + s.lv + '"><span class="rs-v">' + s.score + '</span><span class="rs-m">/100</span></span>'
+          : '<span class="text-3">未研判</span>') + '</td>',
+        '<td>' + (s.judged ? AI.lv(s.lv, LV_TEXT[s.lv]) : '<span class="text-3">—</span>') + '</td>',
+        '<td class="cell-lg">' + (s.advice ? AI.esc(s.advice) : '<span class="text-3">研判后生成</span>') + '</td>',
+        '<td>' + (s.judged ? '<span class="badge green">已研判</span>' : '<span class="badge gray">未研判</span>') + '</td>',
+        '<td>' + (clue ? AI.xsBadge(clue.xszt) : '<span class="text-3">—</span>') + '</td>',
+        '<td>' + AI.fmt.date(s.updatedAt) + '</td>',
+        '<td class="col-ops">' +
+          '<button class="btn btn-primary btn-sm" onclick="AI.act.judgeRisk(\'' + s.id + '\')">' +
+            '<i class="fa-solid fa-wand-magic-sparkles"></i> ' + (s.judged ? '重新研判' : '智能研判') + '</button>' +
+          (s.judged ? ' <button class="btn btn-sm" onclick="openSub(\'' + s.id + '\')">' +
+            '<i class="fa-solid fa-chart-simple"></i> 因子贡献</button>' : '') +
+        '</td>'
+      ];
+    },
+    empty: '暂无监管主体'
+  });
+
+  window.openSub = function (id) {
+    var s = AI.byId('subjects', id);
+    if (!s) return;
+    var r = AI.act.scoreOf(s, AI.get('factors'));
+    var o = s.outputId ? AI.byId('outputs', s.outputId) : null;
+    var clue = AI.where('clues', function (c) { return c.subject === s.mc; })[0];
+    var maxC = 1;
+    r.contrib.forEach(function (c) { if (c.contrib > maxC) maxC = c.contrib; });
+
+    document.getElementById('dName').textContent = s.mc + ' · ' + (s.stlx === '1' ? '企业' : '项目');
+    document.getElementById('dBody').innerHTML =
+      '<div class="grp-card"><div class="grp-head"><span class="gi"><i class="fa-solid fa-gauge-high"></i></span>' +
+        '风险评分' + (s.judged ? ' ' + AI.lv(s.lv, LV_TEXT[s.lv]) : '') + '</div>' +
+        '<div class="flex items-center gap-16" style="flex-wrap:wrap">' +
+          '<span class="risk-score lv-' + (s.lv || 'blue') + '"><span class="rs-v">' +
+            (s.judged ? r.score : '—') + '</span><span class="rs-m">/100</span></span>' +
+          '<div class="text-2" style="flex:1;min-width:200px">阈值 ' + AI.act.clueThreshold() +
+            ' 分；' + (r.score >= AI.act.clueThreshold()
+              ? '<span class="text-danger fw-600">已超阈值，会生成待确认预警线索</span>'
+              : '未超阈值，暂不生成线索') + '</div>' +
+        '</div>' +
+        (o ? '<div class="mt-16">' + AI.aiMark(o.qrzt) + '<div class="mt-8">' + AI.aiSource(o) + '</div></div>' : '') +
+      '</div>' +
+      '<div class="grp-card"><div class="grp-head"><span class="gi"><i class="fa-solid fa-chart-simple"></i></span>' +
+        '因子贡献度（按贡献从高到低）</div>' +
+        r.contrib.map(function (c) {
+          return '<div class="factor-row">' +
+            '<span class="fr-n">' + AI.esc(c.mc) + '</span>' +
+            '<span class="fr-bar"><span style="width:' + Math.round(c.contrib / maxC * 100) + '%"></span></span>' +
+            '<span class="fr-v">' + c.contrib + '</span>' +
+            '<span class="fr-d text-3">权重 ' + c.weight + '%' + (c.dir < 0 ? ' 反向' : '') + '</span>' +
+            '</div>';
+        }).join('') +
+        '<div class="text-3 text-sm mt-16">反向因子（如信用等级、维修资金缴存及时率）取值越好，对风险分的贡献越低。</div>' +
+      '</div>' +
+      '<div class="grp-card"><div class="grp-head"><span class="gi"><i class="fa-solid fa-lightbulb"></i></span>监管建议</div>' +
+        '<div style="font-size:14px;line-height:1.8">' +
+          (s.advice ? AI.esc(s.advice) : '<span class="text-3">请先执行智能研判</span>') + '</div>' +
+        (clue
+          ? '<div class="alert ' + (clue.xszt === '1' ? 'alert-success' : 'alert-warning') + ' mt-16">' +
+            '<i class="fa-solid fa-flag"></i><span>已生成预警线索，当前状态：' +
+            AI.dict('xszt', clue.xszt) + '。' +
+            (clue.xszt === '0' ? '需到<a class="link" href="risk-clue.html?role=fx">预警线索池</a>人工确认后才推送督办中心。' : '') +
+            '</span></div>'
+          : '') +
+      '</div>';
+    document.getElementById('dFoot').innerHTML =
+      '<button class="btn btn-primary" onclick="AI.act.judgeRisk(\'' + s.id + '\')">' +
+        '<i class="fa-solid fa-rotate"></i> 重新研判</button>' +
+      (o && o.qrzt === '0'
+        ? '<button class="btn btn-success" onclick="AI.act.adopt(\'' + o.id + '\')">' +
+          '<i class="fa-solid fa-check"></i> 采纳研判结论</button>'
+        : '') +
+      '<button class="btn" data-close-drawer>关闭</button>';
+    PMS.openDrawer('dSub');
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () { paintKpi(); AI.repaintAll(); });
+  });
+})();
+</script>
+</body>
+</html>

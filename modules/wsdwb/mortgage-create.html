@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>抵押备案申请 · 房屋交易备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：限制校验结果面板与四项分结果卡 */
+  .ck-panel { border-radius: var(--radius-lg); border: 1px solid; padding: 16px 18px; }
+  .ck-panel.pass { background: #f0fdf4; border-color: #bbf7d0; }
+  .ck-panel.block { background: #fef2f2; border-color: #fecaca; }
+  .ck-head { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 700; }
+  .ck-panel.pass .ck-head { color: #059669; }
+  .ck-panel.block .ck-head { color: #dc2626; }
+  .ck-head .ck-ico { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 15px; }
+  .ck-panel.pass .ck-ico { background: #10b981; }
+  .ck-panel.block .ck-ico { background: #dc2626; }
+  .ck-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-top: 14px; }
+  .ck-item { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; }
+  .ck-item .ci-t { font-size: 12.5px; color: var(--text-3); }
+  .ck-item .ci-v { font-size: 14px; font-weight: 600; margin-top: 4px; display: flex; align-items: center; gap: 6px; }
+  .ck-item.ok .ci-v { color: #059669; }
+  .ck-item.no .ci-v { color: #dc2626; }
+  .ck-item.na .ci-v { color: var(--text-3); }
+  .ck-item .ci-d { font-size: 12px; color: var(--text-3); margin-top: 3px; line-height: 1.5; }
+  .house-card {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0;
+    border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: #fff;
+  }
+  .house-card .hc { padding: 11px 14px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .house-card .hc .hk { font-size: 12.5px; color: var(--text-3); }
+  .house-card .hc .hv { font-size: 13.5px; font-weight: 600; margin-top: 3px; word-break: break-all; }
+  .wz-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdwb-19">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易备案管理系统
+        <span class="sep">/</span> <a class="link" href="mortgage-list.html">抵押备案总台账</a>
+        <span class="sep">/</span> <span class="cur">抵押备案申请</span>
+      </div>
+      <div class="page-title">抵押备案申请</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="PMS.toast('申请草稿已保存','success')"><i class="fa-regular fa-floppy-disk"></i> 保存草稿</button>
+      <button type="button" class="btn" onclick="location.href='mortgage-list.html'"><i class="fa-solid fa-arrow-left"></i> 返回台账</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <div class="wizard" id="wz">
+        <div class="w-step active" data-step="1"><span class="w-num">1</span><span class="w-label">抵押物核验</span></div>
+        <div class="w-line"></div>
+        <div class="w-step" data-step="2"><span class="w-num">2</span><span class="w-label">当事人信息</span></div>
+        <div class="w-line"></div>
+        <div class="w-step" data-step="3"><span class="w-num">3</span><span class="w-label">债权与合同要素</span></div>
+        <div class="w-line"></div>
+        <div class="w-step" data-step="4"><span class="w-num">4</span><span class="w-label">材料与提交</span></div>
+      </div>
+
+      <!-- 第 1 步 抵押物核验 -->
+      <div class="wz-panel active" data-panel="1">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-shield-halved"></i>
+          <div>输入不动产单元号或产权证号查询房屋后，系统<b>自动调用限制校验服务</b>，同步返回房源限制、限购、限售、限贷四项分结果与在先抵押情况，响应 ≤ 1 秒。</div>
+        </div>
+
+        <div class="form-grid form-align mt-16">
+          <div class="form-item">
+            <label>查询方式<span class="req">*</span></label>
+            <select><option>不动产单元号</option><option>产权证号</option><option>房屋坐落</option></select>
+          </div>
+          <div class="form-item" style="grid-column:span 2">
+            <label>查询内容<span class="req">*</span></label>
+            <div class="flex gap-8">
+              <input type="text" id="unitNo" style="flex:1" value="450202001005GB00123F00020017">
+              <button type="button" class="btn btn-primary" onclick="doCheck()"><i class="fa-solid fa-magnifying-glass"></i> 查询并校验</button>
+              <button type="button" class="btn" onclick="switchDemo()"><i class="fa-solid fa-repeat"></i> 切换示例房源</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title mt-16">房屋信息</div>
+        <div class="house-card" id="houseCard"></div>
+
+        <div class="section-title mt-16" style="margin-top:18px">限制校验结果</div>
+        <div id="ckWrap"></div>
+
+        <div class="wz-foot">
+          <button type="button" class="btn" disabled id="btnPrev">上一步</button>
+          <button type="button" class="btn btn-primary" id="btnNext" onclick="nextStep()">下一步</button>
+        </div>
+      </div>
+
+      <!-- 第 2 步 当事人信息 -->
+      <div class="wz-panel" data-panel="2">
+        <div class="grp-card">
+          <div class="grp-head"><span class="gi"><i class="fa-solid fa-user"></i></span> 抵押人</div>
+          <div class="form-grid form-align">
+            <div class="form-item"><label>姓名 / 名称<span class="req">*</span></label><input type="text" value="陈**"></div>
+            <div class="form-item"><label>证件类型<span class="req">*</span></label><select><option>居民身份证</option><option>统一社会信用代码</option><option>护照</option></select></div>
+            <div class="form-item"><label>证件号码<span class="req">*</span></label><input type="text" value="450***********0028"></div>
+            <div class="form-item"><label>联系电话<span class="req">*</span></label><input type="text" value="138****6286"></div>
+            <div class="form-item" style="grid-column:span 2"><label>通讯地址</label><input type="text" value="柳州市城中区滨江东路 8 号彰泰滨江学府 12 栋 2 单元 1802"></div>
+          </div>
+        </div>
+
+        <div class="grp-card">
+          <div class="grp-head"><span class="gi"><i class="fa-solid fa-building-columns"></i></span> 抵押权人</div>
+          <div class="form-grid form-align">
+            <div class="form-item">
+              <label>名称<span class="req">*</span></label>
+              <select><option>中国建设银行柳州分行</option><option>中国银行柳州分行</option><option>中国工商银行柳州分行</option><option>柳州银行</option><option>XXXX市住房公积金管理中心</option></select>
+            </div>
+            <div class="form-item"><label>统一社会信用代码<span class="req">*</span></label><input type="text" value="91450200MA5K***28X"></div>
+            <div class="form-item"><label>金融机构代码<span class="req">*</span></label><input type="text" value="B0002S345020001"></div>
+            <div class="form-item"><label>法定代表人</label><input type="text" value="梁**"></div>
+            <div class="form-item"><label>经办人</label><input type="text" value="李**"></div>
+            <div class="form-item"><label>联系电话</label><input type="text" value="0772-283****"></div>
+          </div>
+        </div>
+
+        <div class="grp-card">
+          <div class="grp-head"><span class="gi"><i class="fa-solid fa-user-tie"></i></span> 债务人</div>
+          <div class="form-grid form-align">
+            <div class="form-item"><label>是否与抵押人一致</label><select onchange="PMS.toast('已' + (this.value==='是'?'同步抵押人信息':'切换为独立录入'))"><option>是</option><option>否</option></select></div>
+            <div class="form-item"><label>姓名 / 名称</label><input type="text" value="陈**"></div>
+            <div class="form-item"><label>证件号码</label><input type="text" value="450***********0028"></div>
+          </div>
+        </div>
+
+        <div class="grp-card">
+          <div class="grp-head">
+            <span class="gi"><i class="fa-solid fa-users"></i></span> 共有人
+            <label class="flex items-center gap-8" style="margin-left:auto;font-size:13px;font-weight:400">
+              <input type="checkbox" id="hasCo" onchange="toggleCo()" checked> 存在共有人
+            </label>
+          </div>
+          <div id="coBox">
+            <div class="alert alert-warning">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <div>共有房屋须取得<b>全体共有人同意</b>并上传同意抵押文件，未全部同意的不予备案。</div>
+            </div>
+            <table class="data-table compact" data-static>
+              <thead>
+                <tr><th>姓名</th><th>证件号码</th><th>共有方式</th><th>共有份额</th><th>是否同意抵押</th><th>同意抵押文件</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>陈**</td><td>450***********0028</td><td>共同共有</td><td>50%</td>
+                  <td><select class="co-agree" onchange="checkCo()"><option>同意</option><option>不同意</option></select></td>
+                  <td><span class="badge green"><i class="fa-solid fa-paperclip"></i> 已上传</span></td>
+                </tr>
+                <tr>
+                  <td>韦**</td><td>450***********0416</td><td>共同共有</td><td>50%</td>
+                  <td><select class="co-agree" onchange="checkCo()"><option>同意</option><option>不同意</option></select></td>
+                  <td><span class="badge green"><i class="fa-solid fa-paperclip"></i> 已上传</span></td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="alert alert-success mt-16" id="coBox2">
+              <i class="fa-solid fa-circle-check"></i>
+              <div id="coTxt">全体共有人（2 人）均已同意抵押并上传同意抵押文件，共有人校验通过。</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grp-card">
+          <div class="grp-head">
+            <span class="gi"><i class="fa-solid fa-user-shield"></i></span> 保证人
+            <span class="text-3 text-sm" style="margin-left:auto;font-weight:400">非必填，存在第三方保证时录入</span>
+          </div>
+          <div class="form-grid form-align">
+            <div class="form-item"><label>姓名 / 名称</label><input type="text" placeholder="无保证人时留空"></div>
+            <div class="form-item"><label>证件号码</label><input type="text" placeholder="—"></div>
+            <div class="form-item"><label>保证方式</label><select><option>无</option><option>一般保证</option><option>连带责任保证</option></select></div>
+          </div>
+        </div>
+
+        <div class="wz-foot">
+          <button type="button" class="btn" onclick="goto(1)">上一步</button>
+          <button type="button" class="btn btn-primary" onclick="nextStep()">下一步</button>
+        </div>
+      </div>
+
+      <!-- 第 3 步 债权与合同要素 -->
+      <div class="wz-panel" data-panel="3">
+        <div class="grp-card">
+          <div class="grp-head"><span class="gi"><i class="fa-solid fa-file-contract"></i></span> 合同与抵押要素</div>
+          <div class="form-grid form-align">
+            <div class="form-item"><label>抵押合同编号<span class="req">*</span></label><input type="text" value="DY450200202600186"></div>
+            <div class="form-item">
+              <label>抵押类型<span class="req">*</span></label>
+              <select id="dylx" onchange="toggleType()">
+                <option value="01">01 一般抵押</option>
+                <option value="02">02 最高额抵押</option>
+                <option value="06">06 组合抵押</option>
+                <option value="07">07 转按揭抵押</option>
+              </select>
+            </div>
+            <div class="form-item"><label>抵押方式<span class="req">*</span></label><select><option>0 单独抵押</option><option>1 组合抵押</option><option>2 最高额抵押</option></select></div>
+            <div class="form-item"><label>债务类型<span class="req">*</span></label><select><option>0 一般债务</option><option>1 最高额债务</option></select></div>
+            <div class="form-item"><label>被担保债权种类<span class="req">*</span></label><select><option>个人住房按揭贷款</option><option>个人经营性贷款</option><option>企业流动资金贷款</option><option>其他</option></select></div>
+            <div class="form-item"><label>被担保债权金额（元）<span class="req">*</span></label><input type="text" value="486,000.00"></div>
+            <div class="form-item hidden" id="maxBox"><label>最高债权额（元）<span class="req">*</span></label><input type="text" placeholder="最高额抵押必填"></div>
+            <div class="form-item hidden" id="maxBox2"><label>债权确定期间</label><input type="text" placeholder="如 2026-08-01 至 2031-07-31"></div>
+            <div class="form-item hidden" id="oldBox"><label>原抵押权人</label><input type="text" placeholder="转按揭必填"></div>
+            <div class="form-item hidden" id="oldBox2"><label>原备案编号</label><input type="text" placeholder="转按揭必填"></div>
+            <div class="form-item"><label>债务履行期限起<span class="req">*</span></label><input type="date" value="2026-08-01"></div>
+            <div class="form-item"><label>债务履行期限止<span class="req">*</span></label><input type="date" value="2046-07-31"></div>
+            <div class="form-item" style="grid-column:span 2"><label>担保范围<span class="req">*</span></label><input type="text" value="主债权本金、利息、罚息、复利、违约金、损害赔偿金及实现债权的费用"></div>
+            <div class="form-item"><label>关联主债权合同编号<span class="req">*</span></label><input type="text" value="JK450200202607280186"></div>
+            <div class="form-item"><label>关联交易合同编号</label><input type="text" value="CF450200202600512"></div>
+          </div>
+        </div>
+
+        <div class="grp-card">
+          <div class="grp-head"><span class="gi"><i class="fa-solid fa-house-lock"></i></span> 抵押物与评估</div>
+          <table class="data-table compact" data-static>
+            <thead>
+              <tr><th>抵押物类型</th><th>坐落</th><th>建筑面积（㎡）</th><th>抵押面积（㎡）</th><th>评估价值（元）</th><th>抵押价值（元）</th><th>抵押率</th><th>抵押顺位</th><th>是否已出租</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>1 房屋房间</td>
+                <td>彰泰滨江学府 12-2-1802</td>
+                <td class="num">118.65</td>
+                <td class="num">118.65</td>
+                <td class="num">1,486,000.00</td>
+                <td class="num">1,486,000.00</td>
+                <td><span class="badge orange">54.2%</span></td>
+                <td><span class="badge orange">第 2 顺位</span></td>
+                <td>否</td>
+              </tr>
+              <tr>
+                <td>5 车位</td>
+                <td>彰泰滨江学府地下车库 B-186</td>
+                <td class="num">12.60</td>
+                <td class="num">12.60</td>
+                <td class="num">126,000.00</td>
+                <td class="num">126,000.00</td>
+                <td><span class="badge green">38.6%</span></td>
+                <td><span class="badge blue">第 1 顺位</span></td>
+                <td>否</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="alert alert-warning mt-16">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <div>本次抵押合计评估价值 1,612,000.00 元，抵押价值 1,612,000.00 元，平均抵押率 <b>52.9%</b>，未超过配置阈值 70%。抵押率超阈值时仅橙色提示，不阻断备案。</div>
+          </div>
+        </div>
+
+        <div class="wz-foot">
+          <button type="button" class="btn" onclick="goto(2)">上一步</button>
+          <button type="button" class="btn btn-primary" onclick="nextStep()">下一步</button>
+        </div>
+      </div>
+
+      <!-- 第 4 步 材料与提交 -->
+      <div class="wz-panel" data-panel="4">
+        <div class="grp-card">
+          <div class="grp-head"><span class="gi"><i class="fa-solid fa-folder-open"></i></span> 材料清单</div>
+          <table class="data-table compact" data-static>
+            <thead><tr><th>材料名称</th><th>必要性</th><th>上传状态</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td>抵押合同（双方签署件）</td><td><span class="badge red">必要</span></td><td><span class="badge green">已上传</span></td><td><span class="link" onclick="PMS.toast('预览：抵押合同 DY450200202600186.pdf')">预览</span> <span class="link" onclick="PMS.toast('已开始下载')">下载</span></td></tr>
+              <tr><td>主债权合同（借款合同）</td><td><span class="badge red">必要</span></td><td><span class="badge green">已上传</span></td><td><span class="link" onclick="PMS.toast('预览：借款合同 JK450200202607280186.pdf')">预览</span> <span class="link" onclick="PMS.toast('已开始下载')">下载</span></td></tr>
+              <tr><td>不动产权证书</td><td><span class="badge red">必要</span></td><td><span class="badge green">已上传</span></td><td><span class="link" onclick="PMS.toast('预览：桂(2023)柳州市不动产权第 0086421 号.pdf')">预览</span> <span class="link" onclick="PMS.toast('已开始下载')">下载</span></td></tr>
+              <tr><td>抵押人与抵押权人身份证明</td><td><span class="badge red">必要</span></td><td><span class="badge green">已上传</span></td><td><span class="link" onclick="PMS.toast('预览：身份证明材料.pdf')">预览</span> <span class="link" onclick="PMS.toast('已开始下载')">下载</span></td></tr>
+              <tr><td>共有人同意抵押文件</td><td><span class="badge red">必要</span></td><td><span class="badge green">已上传（2 份）</span></td><td><span class="link" onclick="PMS.toast('预览：共有人同意抵押声明.pdf')">预览</span> <span class="link" onclick="PMS.toast('已开始下载')">下载</span></td></tr>
+              <tr><td>房地产评估报告</td><td><span class="badge gray">可选</span></td><td><span class="badge green">已上传</span></td><td><span class="link" onclick="PMS.toast('预览：PG20260728086 评估报告.pdf')">预览</span> <span class="link" onclick="PMS.toast('已开始下载')">下载</span></td></tr>
+              <tr><td>委托代办授权书</td><td><span class="badge gray">可选</span></td><td><span class="badge gray">未上传</span></td><td><span class="link" onclick="PMS.toast('已打开上传窗口')">上传</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="grp-card">
+          <div class="grp-head"><span class="gi"><i class="fa-solid fa-list-check"></i></span> 信息确认</div>
+          <dl class="desc-list">
+            <div class="desc-item"><dt>抵押合同编号</dt><dd>DY450200202600186</dd></div>
+            <div class="desc-item"><dt>抵押类型</dt><dd id="sType">01 一般抵押</dd></div>
+            <div class="desc-item"><dt>抵押方式</dt><dd>0 单独抵押</dd></div>
+            <div class="desc-item"><dt>抵押人</dt><dd>陈**（450***********0028）</dd></div>
+            <div class="desc-item"><dt>抵押权人</dt><dd>中国建设银行柳州分行</dd></div>
+            <div class="desc-item"><dt>债务人</dt><dd>陈**</dd></div>
+            <div class="desc-item"><dt>被担保债权金额</dt><dd class="fw-700">486,000.00 元</dd></div>
+            <div class="desc-item"><dt>债务履行期限</dt><dd>2026-08-01 至 2046-07-31</dd></div>
+            <div class="desc-item"><dt>抵押物</dt><dd>2 项（住宅 1 套 + 车位 1 个）</dd></div>
+            <div class="desc-item"><dt>抵押顺位</dt><dd><span class="badge orange">住宅第 2 顺位</span><span class="badge blue">车位第 1 顺位</span></dd></div>
+            <div class="desc-item"><dt>平均抵押率</dt><dd>52.9%</dd></div>
+            <div class="desc-item"><dt>限制校验结果</dt><dd id="sCheck"><span class="badge green">通过</span></dd></div>
+            <div class="desc-item full"><dt>担保范围</dt><dd>主债权本金、利息、罚息、复利、违约金、损害赔偿金及实现债权的费用</dd></div>
+          </dl>
+        </div>
+
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>提交后进入备案审核队列（银行端线上申请与窗口申请合并同一队列）。审核通过后生成备案编号与备案证明，并推送不动产登记机构办理抵押登记，回传登记证明号后刷新房屋交易限制状态。</div>
+        </div>
+
+        <div class="wz-foot">
+          <button type="button" class="btn" onclick="goto(3)">上一步</button>
+          <button type="button" class="btn btn-primary" onclick="submitApply()"><i class="fa-solid fa-paper-plane"></i> 提交备案申请</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+/* 两个演示房源：默认房源校验通过，切换后的房源因查封被拦截 */
+var DEMO = {
+  pass: {
+    unit: '450202001005GB00123F00020017',
+    house: [
+      ['房屋坐落', '柳州市城中区滨江东路 8 号彰泰滨江学府 12 栋 2 单元 1802'],
+      ['不动产单元号', '450202001005GB00123F00020017'],
+      ['产权证号', '桂(2023)柳州市不动产权第 0086421 号'],
+      ['产权人', '陈**（共有人韦**）'],
+      ['建筑面积', '118.65 ㎡'],
+      ['房屋用途', '成套住宅'],
+      ['房屋状态', '已办证 · 已交付'],
+      ['数据来源', 'wsshare 楼盘表']
+    ],
+    pass: true
+  },
+  block: {
+    unit: '450204001008GB00256F00020009',
+    house: [
+      ['房屋坐落', '柳州市柳南区航生路 26 号万科城 5 栋 2 单元 803'],
+      ['不动产单元号', '450204001008GB00256F00020009'],
+      ['产权证号', '桂(2022)柳州市不动产权第 0043158 号'],
+      ['产权人', '黄**'],
+      ['建筑面积', '96.40 ㎡'],
+      ['房屋用途', '成套住宅'],
+      ['房屋状态', '已办证 · 已交付'],
+      ['数据来源', 'wsshare 楼盘表']
+    ],
+    pass: false
+  }
+};
+var cur = 'pass';
+var step = 1;
+
+document.getElementById('wz').addEventListener('click', function (e) {
+  var s = e.target.closest('.w-step');
+  if (s) goto(parseInt(s.getAttribute('data-step'), 10));
+});
+
+function goto(n) {
+  if (n < 1 || n > 4) return;
+  if (n > 1 && !DEMO[cur].pass) { PMS.toast('限制校验不通过，该房屋当前不可办理抵押备案', 'error'); return; }
+  step = n;
+  document.querySelectorAll('.w-step').forEach(function (s) {
+    var i = parseInt(s.getAttribute('data-step'), 10);
+    s.classList.toggle('active', i === n);
+    s.classList.toggle('done', i < n);
+  });
+  document.querySelectorAll('.wz-panel').forEach(function (p) {
+    p.classList.toggle('active', p.getAttribute('data-panel') === String(n));
+  });
+  window.scrollTo(0, 0);
+}
+function nextStep() { goto(step + 1); }
+
+function renderHouse() {
+  var d = DEMO[cur];
+  document.getElementById('unitNo').value = d.unit;
+  document.getElementById('houseCard').innerHTML = d.house.map(function (r) {
+    return '<div class="hc"><div class="hk">' + r[0] + '</div><div class="hv">' + r[1] + '</div></div>';
+  }).join('');
+  document.getElementById('ckWrap').innerHTML = d.pass ? passHTML() : blockHTML();
+  document.getElementById('btnNext').disabled = !d.pass;
+  document.getElementById('sCheck').innerHTML = d.pass
+    ? '<span class="badge green">通过</span>'
+    : '<span class="badge red">不通过</span>';
+}
+
+function passHTML() {
+  return '<div class="ck-panel pass">' +
+    '<div class="ck-head"><span class="ck-ico"><i class="fa-solid fa-check"></i></span>' +
+    '校验通过，该房屋可办理抵押备案<span class="text-3 text-sm" style="margin-left:auto;font-weight:400">校验编号 JY202608010926001 · 耗时 0.38 秒 · 结果有效期至 2026-08-02 09:26</span></div>' +
+    '<div class="ck-grid">' +
+      '<div class="ck-item ok"><div class="ci-t">房源限制校验</div><div class="ci-v"><i class="fa-solid fa-circle-check"></i> 通过</div><div class="ci-d">无查封、无预查封、无异议登记，无在建工程抵押未解除</div></div>' +
+      '<div class="ck-item na"><div class="ci-t">限购校验</div><div class="ci-v"><i class="fa-solid fa-minus"></i> 免校验</div><div class="ci-d">抵押备案业务不涉及限购判定</div></div>' +
+      '<div class="ck-item ok"><div class="ci-t">限售校验</div><div class="ci-v"><i class="fa-solid fa-circle-check"></i> 通过</div><div class="ci-d">已过限售期，2025-06-18 自动解限</div></div>' +
+      '<div class="ck-item ok"><div class="ci-t">限贷校验</div><div class="ci-v"><i class="fa-solid fa-circle-check"></i> 通过</div><div class="ci-d">首付比例与贷款成数符合现行限贷规则</div></div>' +
+    '</div>' +
+    '<div class="alert alert-warning" style="margin:14px 0 0">' +
+      '<i class="fa-solid fa-layer-group"></i>' +
+      '<div>该房屋已有<b> 1 笔 </b>有效抵押（中国银行柳州分行 320,000 元，第 1 顺位，备案编号 DYBA450200202300742），' +
+      '本次备案为<b>第 2 顺位抵押</b>，请确认抵押权人已知悉在先抵押情况。' +
+      '<span class="link" onclick="PMS.toast(\'第 1 顺位抵押：DYBA450200202300742 · 中国银行柳州分行 · 320,000 元 · 2023-03-20 备案\')">查看在先抵押</span></div>' +
+    '</div></div>';
+}
+
+function blockHTML() {
+  return '<div class="ck-panel block">' +
+    '<div class="ck-head"><span class="ck-ico"><i class="fa-solid fa-xmark"></i></span>' +
+    '校验不通过，该房屋当前不可办理抵押备案<span class="text-3 text-sm" style="margin-left:auto;font-weight:400">校验编号 JY202608010931002 · 耗时 0.41 秒</span></div>' +
+    '<div class="ck-grid">' +
+      '<div class="ck-item no"><div class="ci-t">房源限制校验</div><div class="ci-v"><i class="fa-solid fa-circle-xmark"></i> 不通过</div><div class="ci-d">该房屋已被法院查封</div></div>' +
+      '<div class="ck-item na"><div class="ci-t">限购校验</div><div class="ci-v"><i class="fa-solid fa-minus"></i> 免校验</div><div class="ci-d">抵押备案业务不涉及限购判定</div></div>' +
+      '<div class="ck-item no"><div class="ci-t">限售校验</div><div class="ci-v"><i class="fa-solid fa-circle-xmark"></i> 不通过</div><div class="ci-d">限售中，限售至 2027-03-15</div></div>' +
+      '<div class="ck-item ok"><div class="ci-t">限贷校验</div><div class="ci-v"><i class="fa-solid fa-circle-check"></i> 通过</div><div class="ci-d">符合现行限贷规则</div></div>' +
+    '</div>' +
+    '<div class="alert alert-danger" style="margin:14px 0 0">' +
+      '<i class="fa-solid fa-ban"></i>' +
+      '<div><b>不通过项清单</b><br>' +
+      '① 房源限制：该房屋已被<b>XXXX市柳南区人民法院</b>查封（查封编号 CF45020420260126，查封期限 2026-07-28 至 2029-07-27），查封期间不得新增抵押。' +
+      '<a class="link" href="seal-list.html">查看查封详情</a><br>' +
+      '② 限售校验：该房屋处于限售期内，限售至 2027-03-15（规则 XS-CL-002 存量住房限售 2 年）。' +
+      '<a class="link" href="sale-limit.html">查看限售详情</a></div>' +
+    '</div></div>';
+}
+
+function doCheck() {
+  var v = document.getElementById('unitNo').value.trim();
+  if (!v) { PMS.toast('请输入查询内容', 'error'); return; }
+  cur = /450204001008|万科城|803|0043158/.test(v) ? 'block' : 'pass';
+  renderHouse();
+  PMS.toast(DEMO[cur].pass ? '查询完成，限制校验通过' : '查询完成，限制校验不通过', DEMO[cur].pass ? 'success' : 'error');
+}
+
+function switchDemo() {
+  cur = cur === 'pass' ? 'block' : 'pass';
+  renderHouse();
+  PMS.toast('已切换到' + (cur === 'pass' ? '「校验通过」' : '「查封拦截」') + '示例房源');
+}
+
+function toggleCo() {
+  document.getElementById('coBox').classList.toggle('hidden', !document.getElementById('hasCo').checked);
+}
+
+/* 共有人须全部同意，任一不同意则提交拦截 */
+function checkCo() {
+  var all = Array.prototype.every.call(document.querySelectorAll('.co-agree'), function (s) { return s.value === '同意'; });
+  var box = document.getElementById('coBox2'), txt = document.getElementById('coTxt');
+  if (all) {
+    box.className = 'alert alert-success mt-16';
+    txt.innerHTML = '全体共有人（2 人）均已同意抵押并上传同意抵押文件，共有人校验通过。';
+  } else {
+    box.className = 'alert alert-danger mt-16';
+    txt.innerHTML = '存在<b>未同意抵押</b>的共有人，共有房屋未取得全体共有人同意的<b>不予备案</b>，请补充同意抵押文件后再提交。';
+  }
+  return all;
+}
+
+function toggleType() {
+  var v = document.getElementById('dylx').value;
+  document.getElementById('maxBox').classList.toggle('hidden', v !== '02');
+  document.getElementById('maxBox2').classList.toggle('hidden', v !== '02');
+  document.getElementById('oldBox').classList.toggle('hidden', v !== '07');
+  document.getElementById('oldBox2').classList.toggle('hidden', v !== '07');
+  document.getElementById('sType').textContent = document.getElementById('dylx').selectedOptions[0].text;
+}
+
+function submitApply() {
+  if (document.getElementById('hasCo').checked && !checkCo()) {
+    PMS.toast('存在未同意抵押的共有人，不予备案', 'error');
+    goto(2);
+    return;
+  }
+  PMS.confirm({
+    title: '提交抵押备案申请',
+    message: '确认提交抵押合同 DY450200202600186 的备案申请？',
+    detail: '提交后进入备案审核队列，审核通过即生成备案编号并推送不动产登记机构办理抵押登记。',
+    type: 'info',
+    okText: '确认提交',
+    onOk: function () {
+      PMS.toast('备案申请已提交，备案编号 DYBA450200202600186', 'success');
+      setTimeout(function () { location.href = 'mortgage-detail.html'; }, 1000);
+    }
+  });
+}
+
+renderHouse();
+toggleType();
+</script>
+</body>
+</html>

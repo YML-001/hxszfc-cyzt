@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数据安全审计 · 应用支撑平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+</head>
+<body data-role="admin" data-active="wspt-33">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 应用支撑平台
+        <span class="sep">/</span> 数据安全
+        <span class="sep">/</span> <span class="cur">数据安全审计</span>
+      </div>
+      <div class="page-title">数据安全审计</div>
+    </div>
+    <div class="ph-r">
+      <button class="btn" onclick="PMS.toast('已导出审计日志，导出行为本身同样记入审计')"><i class="fa-solid fa-download"></i> 导出审计日志</button>
+      <button class="btn btn-primary" onclick="go('yj')"><i class="fa-solid fa-triangle-exclamation"></i> 应急处置</button>
+    </div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="card-head">
+      <h3><i class="fa-solid fa-clipboard-list"></i> 数据访问审计与应急处置</h3>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" data-tab="ov">审计总览</div>
+      <div class="tab" data-tab="fw">访问审计</div>
+      <div class="tab" data-tab="dc">导出审批</div>
+      <div class="tab" data-tab="hg">合规核查</div>
+      <div class="tab" data-tab="yj">应急处置</div>
+    </div>
+
+    <!-- 页签一 审计总览 -->
+    <div class="tab-panel active" data-panel="ov">
+      <div class="dc-scroll">
+        <div class="alert alert-warning"><i class="fa-solid fa-satellite-dish"></i><div><b>审计采集异常提示</b>：2026-07-30 02:12—02:48 期间 wsswb 子系统审计采集中断 36 分钟，<b>该时段行为可能未记录</b>。本页不将该时段显示为「无异常」，已生成补采工单 BC-20260730-001。</div></div>
+
+        <div class="stat-grid mt-16">
+          <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-user-secret"></i></div><div><div class="s-label">今日敏感数据访问</div><div class="s-value">12,486 次</div></div></div>
+          <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-file-export"></i></div><div><div class="s-label">今日导出次数</div><div class="s-value">42 次</div></div></div>
+          <div class="stat-card"><div class="s-icon orange"><i class="fa-solid fa-stamp"></i></div><div><div class="s-label">待审批导出申请</div><div class="s-value">5 件</div></div></div>
+          <div class="stat-card"><div class="s-icon red"><i class="fa-solid fa-bell"></i></div><div><div class="s-label">未处理安全告警</div><div class="s-value">3 条</div><div class="s-trend text-danger">1 条超 30 分钟未确认</div></div></div>
+          <div class="stat-card"><div class="s-icon purple"><i class="fa-solid fa-shield-halved"></i></div><div><div class="s-label">本月安全事件</div><div class="s-value">2 起</div><div class="s-trend text-3">1 起处置中</div></div></div>
+        </div>
+
+        <div class="card mt-16">
+          <div class="card-head"><h3><i class="fa-solid fa-radar"></i> 异常行为监测</h3></div>
+          <div class="card-body">
+            <table class="data-table compact" data-static>
+              <thead><tr><th>异常类型</th><th class="num">今日检出</th><th class="cell-lg">最新一条</th><th>发现时间</th><th class="num">未确认</th><th>状态</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td class="nowrap"><span class="badge red">非工作时间访问</span></td><td class="num">18</td>
+                  <td class="cell-lg">某商业银行柳州分行账号 <code>bank_lz_01</code> 于 02:16 查询买受人证件号码 4,286 次</td>
+                  <td class="nowrap">2026-07-31 02:16</td><td class="num text-danger">1</td>
+                  <td><span class="badge red">已升级</span></td>
+                  <td class="nowrap"><span class="link" onclick="go('yj')">应急处置</span></td>
+                </tr>
+                <tr>
+                  <td class="nowrap"><span class="badge orange">超量查询</span></td><td class="num">6</td>
+                  <td class="cell-lg">柳江区住建局账号 <code>ljq_wei</code> 单日查询 18,624 次，超日均 5 倍</td>
+                  <td class="nowrap">2026-07-31 10:42</td><td class="num">2</td>
+                  <td><span class="badge orange">待确认</span></td>
+                  <td class="nowrap"><span class="link" onclick="confirmAb()">确认</span> <span class="link" onclick="go('fw')">查审计</span></td>
+                </tr>
+                <tr>
+                  <td class="nowrap"><span class="badge orange">批量导出</span></td><td class="num">3</td>
+                  <td class="cell-lg">市住建局账号 <code>qinhy</code> 申请导出柳江区 2026-07 合同 4,862 条</td>
+                  <td class="nowrap">2026-07-31 09:26</td><td class="num">0</td>
+                  <td><span class="badge green">已确认</span></td>
+                  <td class="nowrap"><span class="link" onclick="go('dc')">查导出</span></td>
+                </tr>
+                <tr>
+                  <td class="nowrap"><span class="badge orange">异常 IP</span></td><td class="num">2</td>
+                  <td class="cell-lg">IP <code>10.86.42.186</code> 不在任何授权白名单内，鉴权失败 386 次</td>
+                  <td class="nowrap">2026-07-31 08:26</td><td class="num">0</td>
+                  <td><span class="badge green">已阻断</span></td>
+                  <td class="nowrap"><span class="link" onclick="PMS.toast('该 IP 已加入阻断名单，已推送安全责任人')">处置记录</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card mt-16">
+          <div class="card-head"><h3><i class="fa-solid fa-chart-column"></i> 近 30 日敏感数据访问量趋势</h3></div>
+          <div class="card-body">
+            <div class="bar-chart">
+              <div class="bar-col"><div class="bar-val">8,624</div><div class="bar" style="height:56%"></div><div class="bar-label">07-14</div></div>
+              <div class="bar-col"><div class="bar-val">9,120</div><div class="bar" style="height:59%"></div><div class="bar-label">07-16</div></div>
+              <div class="bar-col"><div class="bar-val">4,286</div><div class="bar" style="height:28%"></div><div class="bar-label">07-18 六</div></div>
+              <div class="bar-col"><div class="bar-val">9,862</div><div class="bar" style="height:64%"></div><div class="bar-label">07-20</div></div>
+              <div class="bar-col"><div class="bar-val">10,246</div><div class="bar" style="height:66%"></div><div class="bar-label">07-22</div></div>
+              <div class="bar-col"><div class="bar-val text-danger">18,624</div><div class="bar" style="height:100%;background:linear-gradient(180deg,var(--danger) 0%,#f87171 100%)"></div><div class="bar-label text-danger">07-24 异常</div></div>
+              <div class="bar-col"><div class="bar-val">10,862</div><div class="bar" style="height:70%"></div><div class="bar-label">07-26</div></div>
+              <div class="bar-col"><div class="bar-val">11,204</div><div class="bar" style="height:72%"></div><div class="bar-label">07-28</div></div>
+              <div class="bar-col"><div class="bar-val">11,862</div><div class="bar" style="height:76%"></div><div class="bar-label">07-30</div></div>
+              <div class="bar-col"><div class="bar-val text-danger">12,486</div><div class="bar" style="height:80%;background:linear-gradient(180deg,var(--danger) 0%,#f87171 100%)"></div><div class="bar-label text-danger">07-31 异常</div></div>
+            </div>
+            <p class="hint mt-16"><i class="fa-solid fa-circle-info"></i> 07-24 与 07-31 两个异常时段均由同一账号的非工作时间批量查询导致，已关联到安全事件 SE-20260731-002。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 页签二 访问审计 FR-066 -->
+    <div class="tab-panel" data-panel="fw">
+      <div class="dc-list">
+        <div class="alert alert-info"><i class="fa-solid fa-lock"></i><div><b>审计记录只读</b>，本页无任何编辑与删除入口。支持按<b>人员、数据对象、时间</b>三个维度做多维分析以发现异常模式。审计日志可导出作为等保测评材料，<b>导出行为本身同样记审计</b>。</div></div>
+        <div class="filter-bar">
+          <div class="filter-item"><label>操作人</label><input type="text" placeholder="姓名 / 账号"></div>
+          <div class="filter-item"><label>操作类型</label><select><option value="">全部</option><option>查询</option><option>导出</option><option>修改</option><option>删除</option><option>解除脱敏</option></select></div>
+          <div class="filter-item"><label>数据对象</label><input type="text" placeholder="表名 / 字段名"></div>
+          <div class="filter-item"><label>时间范围</label><input type="date"></div>
+          <div class="filter-item"><label>IP</label><input type="text" placeholder="访问 IP"></div>
+          <div class="filter-item"><label>是否异常</label><select><option value="">全部</option><option>仅看异常</option><option>仅看正常</option></select></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按条件查询')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="PMS.toast('已重置查询条件')">重置</button>
+            <button class="btn" onclick="PMS.openDrawer('dimDrawer')"><i class="fa-solid fa-chart-pie"></i> 多维分析</button>
+            <button class="btn" onclick="PMS.toast('已导出审计日志，本次导出已记入审计')"><i class="fa-solid fa-download"></i> 导出</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>时间</th><th>操作人</th><th class="cell-lg">所属单位</th><th>操作类型</th><th class="cell-lg">数据对象</th><th class="num">涉及记录数</th><th>访问方式</th><th>IP</th><th>结果</th><th>异常标记</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="nowrap">2026-07-31 02:16:08</td><td class="nowrap">bank_lz_01</td><td class="cell-lg">某商业银行柳州分行</td><td class="nowrap">查询</td>
+                <td class="cell-lg">ODS_HT_HTXX.msrzjhm 买受人证件号码</td><td class="num">4,286</td><td class="nowrap">接口 SVC-0018</td><td class="nowrap">203.86.***.42</td>
+                <td><span class="badge green">成功</span></td><td><span class="badge red">非工作时间 + 超量</span></td>
+                <td class="nowrap"><span class="link" onclick="PMS.openDrawer('logDrawer')">详情</span> <span class="link" onclick="go('yj')">应急处置</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">2026-07-31 11:26:42</td><td class="nowrap">陆志明</td><td class="cell-lg">信息中心</td><td class="nowrap">解除脱敏</td>
+                <td class="cell-lg">ODS_ZJ_ZHXX.zhhm 监管账户账号</td><td class="num">3</td><td class="nowrap">页面详情</td><td class="nowrap">10.86.12.42</td>
+                <td><span class="badge green">成功</span></td><td><span class="badge gray">正常</span></td>
+                <td class="nowrap"><span class="link" onclick="PMS.openDrawer('logDrawer')">详情</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">2026-07-31 10:42:18</td><td class="nowrap">ljq_wei</td><td class="cell-lg">柳江区住房和城乡建设局</td><td class="nowrap">查询</td>
+                <td class="cell-lg">DIM_FW_LPB 房屋楼盘基础库（8 字段）</td><td class="num">18,624</td><td class="nowrap">接口 SVC-0012</td><td class="nowrap">10.86.24.16</td>
+                <td><span class="badge green">成功</span></td><td><span class="badge orange">超量查询</span></td>
+                <td class="nowrap"><span class="link" onclick="PMS.openDrawer('logDrawer')">详情</span> <span class="link" onclick="confirmAb()">确认</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">2026-07-31 09:26:06</td><td class="nowrap">覃海燕</td><td class="cell-lg">市住建局 · 房产市场监管科</td><td class="nowrap">导出</td>
+                <td class="cell-lg">DWS_JY_HTKB 交易主题宽表（柳江区 2026-07）</td><td class="num">4,862</td><td class="nowrap">导出任务</td><td class="nowrap">10.86.8.28</td>
+                <td><span class="badge green">成功</span></td><td><span class="badge orange">批量导出</span></td>
+                <td class="nowrap"><span class="link" onclick="PMS.openDrawer('logDrawer')">详情</span> <span class="link" onclick="go('dc')">查申请</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">2026-07-31 09:12:06</td><td class="nowrap">蒙丽华</td><td class="cell-lg">市房产交易所 · 网签科</td><td class="nowrap">修改</td>
+                <td class="cell-lg">ODS_HT_HTXX 合同 LZHT202600012345 状态</td><td class="num">1</td><td class="nowrap">业务办理</td><td class="nowrap">10.86.8.16</td>
+                <td><span class="badge green">成功</span></td><td><span class="badge gray">正常</span></td>
+                <td class="nowrap"><span class="link" onclick="PMS.openDrawer('logDrawer')">详情</span> <a class="link" href="../wsdata/wsdata-08.html">查记录</a></td>
+              </tr>
+              <tr>
+                <td class="nowrap">2026-07-31 08:26:44</td><td class="nowrap text-danger">未知</td><td class="cell-lg text-danger">未知调用方</td><td class="nowrap">查询</td>
+                <td class="cell-lg">SVC-0012 房屋基本信息查询</td><td class="num">0</td><td class="nowrap">接口</td><td class="nowrap">10.86.42.186</td>
+                <td><span class="badge red">鉴权失败</span></td><td><span class="badge red">异常 IP</span></td>
+                <td class="nowrap"><span class="link" onclick="PMS.openDrawer('logDrawer')">详情</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">2026-07-31 08:12:26</td><td class="nowrap">蒙丽华</td><td class="cell-lg">市房产交易所 · 网签科</td><td class="nowrap">删除</td>
+                <td class="cell-lg">ODS_HT_HTXX 合同 LZHT202600011862（逻辑删除）</td><td class="num">1</td><td class="nowrap">业务办理</td><td class="nowrap">10.86.8.16</td>
+                <td><span class="badge green">成功</span></td><td><span class="badge gray">正常</span></td>
+                <td class="nowrap"><span class="link" onclick="PMS.openDrawer('logDrawer')">详情</span> <a class="link" href="../wsdata/wsdata-08.html">查记录</a></td>
+              </tr>
+              <tr>
+                <td class="nowrap">2026-07-30 02:12—02:48</td><td class="nowrap text-3">—</td><td class="cell-lg text-3">—</td><td class="nowrap text-3">—</td>
+                <td class="cell-lg text-warning"><b>审计采集中断 36 分钟（wsswb）</b>，该时段行为可能未记录</td><td class="num text-3">—</td><td class="nowrap text-3">—</td><td class="nowrap text-3">—</td>
+                <td><span class="badge orange">采集异常</span></td><td><span class="badge orange">数据缺口</span></td>
+                <td class="nowrap"><span class="link" onclick="PMS.toast('补采工单 BC-20260730-001 处理中：从 wsswb 本地日志回补，预计 2026-08-02 完成')">补采工单</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 页签三 导出审批 FR-067 -->
+    <div class="tab-panel" data-panel="dc">
+      <div class="dc-list">
+        <div class="alert alert-info"><i class="fa-solid fa-droplet"></i><div>审批通过后生成导出任务，导出文件<b>自动加暗水印</b>（申请人 + 时间 + 申请编号）。下载有效期 <b>7 天</b>，过期自动清理，下载记录逐次登记。<b>导出追溯</b>：输入水印编号可反查申请人、申请时间与导出内容。</div></div>
+        <div class="dc-mini">
+          <div class="mi warn"><div class="mv">5</div><div class="ml">待审批</div></div>
+          <div class="mi"><div class="mv">42</div><div class="ml">今日导出次数</div></div>
+          <div class="mi"><div class="mv">18</div><div class="ml">有效期内可下载</div></div>
+          <div class="mi"><div class="mv">86</div><div class="ml">本月已导出</div></div>
+          <div class="mi bad"><div class="mv">3</div><div class="ml">本月驳回</div></div>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-item"><label>申请人</label><input type="text" placeholder="姓名 / 单位"></div>
+          <div class="filter-item"><label>审批状态</label><select><option value="">全部</option><option>待审批</option><option>已批准</option><option>已驳回</option></select></div>
+          <div class="filter-item"><label>导出状态</label><select><option value="">全部</option><option>待生成</option><option>生成中</option><option>可下载</option><option>已过期</option></select></div>
+          <div class="filter-item"><label>水印编号</label><input type="text" placeholder="输入水印编号反查"></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按条件查询')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="PMS.openDrawer('traceDrawer')"><i class="fa-solid fa-fingerprint"></i> 导出追溯</button>
+            <button class="btn" onclick="PMS.toast('已导出导出审批台账')"><i class="fa-solid fa-download"></i> 导出台账</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>申请编号</th><th>申请人</th><th class="cell-lg">导出对象</th><th class="num">导出条数</th><th>格式</th><th class="cell-lg">使用目的</th><th>审批状态</th><th>导出状态</th><th>下载有效期</th><th class="num">已下载</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="nowrap">DC-20260731-012</td><td class="nowrap">周敏</td>
+                <td class="cell-lg text-danger">ODS_HT_HTXX 全市全量合同（含买受人证件号码）</td><td class="num">862,146</td><td>CSV</td>
+                <td class="cell-lg">按揭客户批量核验</td>
+                <td><span class="badge orange">待审批</span></td><td><span class="badge gray">待生成</span></td><td class="nowrap text-3">—</td><td class="num">0</td>
+                <td class="nowrap"><span class="link" onclick="PMS.openDrawer('dcDrawer')">审批</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">DC-20260731-011</td><td class="nowrap">李建华</td>
+                <td class="cell-lg">FIX_ZB_YDCJ 月度成交额固化快照（2026-01 — 2026-06）</td><td class="num">3,168</td><td>XLSX</td>
+                <td class="cell-lg">月度房地产统计报表编制</td>
+                <td><span class="badge orange">待审批</span></td><td><span class="badge gray">待生成</span></td><td class="nowrap text-3">—</td><td class="num">0</td>
+                <td class="nowrap"><span class="link" onclick="PMS.openDrawer('dcDrawer')">审批</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">DC-20260731-010</td><td class="nowrap">覃海燕</td>
+                <td class="cell-lg">DWS_JY_HTKB 柳江区 2026-07 合同明细（姓名已脱敏）</td><td class="num">4,862</td><td>XLSX</td>
+                <td class="cell-lg">柳江区 7 月市场运行分析</td>
+                <td><span class="badge green">已批准</span></td><td><span class="badge green">可下载</span></td><td class="nowrap">至 2026-08-07</td><td class="num">2</td>
+                <td class="nowrap"><span class="link" onclick="PMS.openDrawer('dcDrawer')">详情</span> <span class="link" onclick="PMS.toast('下载已开始，本次下载已逐次登记')">下载</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">DC-20260730-009</td><td class="nowrap">陆志明</td>
+                <td class="cell-lg">数据资产盘点报告（PD-2026Q3）</td><td class="num">1,286</td><td>PDF</td>
+                <td class="cell-lg">季度资产盘点汇报材料</td>
+                <td><span class="badge green">已批准</span></td><td><span class="badge green">可下载</span></td><td class="nowrap">至 2026-08-06</td><td class="num">1</td>
+                <td class="nowrap"><span class="link" onclick="PMS.openDrawer('dcDrawer')">详情</span> <span class="link" onclick="PMS.toast('下载已开始')">下载</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">DC-20260722-006</td><td class="nowrap">韦建国</td>
+                <td class="cell-lg">敏感字段清单（等保测评材料）</td><td class="num">862</td><td>XLSX</td>
+                <td class="cell-lg">等保测评现场材料</td>
+                <td><span class="badge green">已批准</span></td><td><span class="badge gray">已过期</span></td><td class="nowrap text-3">2026-07-29 已过期</td><td class="num">3</td>
+                <td class="nowrap"><span class="link" onclick="PMS.openDrawer('dcDrawer')">详情</span> <span class="link" onclick="PMS.toast('文件已过期自动清理，如需重新获取请重新申请')">重新申请</span></td>
+              </tr>
+              <tr>
+                <td class="nowrap">DC-20260718-002</td><td class="nowrap">黄涛</td>
+                <td class="cell-lg text-danger">ODS_HT_HTXX 全市合同（含买受人姓名与联系方式）</td><td class="num">862,146</td><td>CSV</td>
+                <td class="cell-lg">中介门店客源核实</td>
+                <td><span class="badge red">已驳回</span></td><td><span class="badge gray">未生成</span></td><td class="nowrap text-3">—</td><td class="num">0</td>
+                <td class="nowrap"><span class="link" onclick="PMS.toast('驳回理由：申请方为市场机构，无法定依据获取自然人个人信息')">驳回理由</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 页签四 合规核查 FR-068 -->
+    <div class="tab-panel" data-panel="hg">
+      <div class="dc-list">
+        <div class="alert alert-warning"><i class="fa-solid fa-scale-balanced"></i><div>个人信息处理活动须逐项登记<b>处理场景、信息类型、处理目的、法定依据、留存期限、授权情况、责任人</b>。核查项以<b>通过 / 不通过 / 待确认</b>三态呈现；超期数据须清理，<b>清理须审批并留痕</b>。</div></div>
+        <div class="dc-mini">
+          <div class="mi"><div class="mv">18</div><div class="ml">处理活动数</div></div>
+          <div class="mi ok"><div class="mv">14</div><div class="ml">核查通过</div></div>
+          <div class="mi bad"><div class="mv">2</div><div class="ml">核查不通过</div></div>
+          <div class="mi warn"><div class="mv">2</div><div class="ml">待确认</div></div>
+          <div class="mi bad"><div class="mv">4.2 万</div><div class="ml">超期个人信息记录</div></div>
+          <div class="mi"><div class="mv">2026Q3</div><div class="ml">当前核查批次</div></div>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-item"><label>核查批次</label><select><option>HC-2026Q3（2026-07-31）</option><option>HC-2026Q2（2026-04-30）</option><option>HC-2026Q1（2026-01-31）</option></select></div>
+          <div class="filter-item"><label>核查结论</label><select><option value="">全部</option><option>通过</option><option>不通过</option><option>待确认</option></select></div>
+          <div class="filter-item"><label>责任人</label><input type="text" placeholder="姓名 / 科室"></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按条件查询')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="PMS.toast('已生成《个人信息保护合规核查报告》')"><i class="fa-solid fa-file-lines"></i> 核查报告</button>
+            <button class="btn" onclick="PMS.openDrawer('expDrawer')"><i class="fa-solid fa-hourglass-end"></i> 超期数据清单</button>
+            <button class="btn btn-primary" onclick="runCheck()"><i class="fa-solid fa-play"></i> 发起核查</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th class="cell-lg">处理场景</th><th class="cell-lg">涉及个人信息类型</th><th class="cell-lg">处理目的</th><th class="cell-lg">法定依据</th><th>留存期限</th><th>授权情况</th><th>责任人</th><th class="cell-lg">核查项结论</th><th>整改状态</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="cell-lg">商品房买卖合同网签备案</td><td class="cell-lg">姓名、证件号码、联系电话、住址</td>
+                <td class="cell-lg">合同备案登记与权属核验</td><td class="cell-lg">《城市房地产管理法》《商品房销售管理办法》</td>
+                <td class="nowrap">永久</td><td class="nowrap">法定履职</td><td class="nowrap">蒙丽华</td>
+                <td class="cell-lg"><span class="badge green">最小必要</span> <span class="badge green">有依据</span> <span class="badge green">期限合规</span> <span class="badge green">已授权</span> <span class="badge green">无超期</span></td>
+                <td><span class="badge green">通过</span></td>
+                <td class="nowrap"><span class="link" onclick="PMS.openDrawer('hgDrawer')">详情</span></td>
+              </tr>
+              <tr>
+                <td class="cell-lg">存量房交易资金监管</td><td class="cell-lg">姓名、证件号码、银行账号</td>
+                <td class="cell-lg">交易资金账户管理与划转</td><td class="cell-lg">《商品房预售资金监督管理办法》</td>
+                <td class="nowrap">交易完成后 10 年</td><td class="nowrap">合同授权</td><td class="nowrap">韦建国</td>
+                <td class="cell-lg"><span class="badge green">最小必要</span> <span class="badge green">有依据</span> <span class="badge green">期限合规</span> <span class="badge green">已授权</span> <span class="badge green">无超期</span></td>
+                <td><span class="badge green">通过</span></td>
+                <td class="nowrap"><span class="link" onclick="PMS.openDrawer('hgDrawer')">详情</span></td>
+              </tr>
+              <tr>
+                <td class="cell-lg text-danger">住房租赁合同备案</td><td class="cell-lg">承租人姓名、证件号码、联系电话、紧急联系人</td>
+                <td class="cell-lg">租赁合同备案</td><td class="cell-lg text-danger">《住房租赁条例》；<b>紧急联系人信息无采集依据</b></td>
+                <td class="nowrap">租期结束后 5 年</td><td class="nowrap">合同授权</td><td class="nowrap">蒙丽华</td>
+                <td class="cell-lg text-danger"><span class="badge red">超最小必要</span> <span class="badge orange">依据不全</span> <span class="badge green">期限合规</span> <span class="badge green">已授权</span> <span class="badge green">无超期</span></td>
+                <td><span class="badge orange">整改中</span></td>
+                <td class="nowrap"><span class="link" onclick="PMS.openDrawer('hgDrawer')">详情</span> <span class="link" onclick="PMS.toast('整改要求：停止采集紧急联系人信息并清理存量；已推送业务科室')">整改要求</span></td>
+              </tr>
+              <tr>
+                <td class="cell-lg text-danger">县区历史办件数据归集</td><td class="cell-lg">姓名、证件号码、联系电话</td>
+                <td class="cell-lg">历史数据统一归集与查档出证</td><td class="cell-lg">《档案法》《不动产登记暂行条例》</td>
+                <td class="nowrap">永久</td><td class="nowrap text-danger">历史数据无授权记录</td><td class="nowrap">陆志明</td>
+                <td class="cell-lg text-danger"><span class="badge green">最小必要</span> <span class="badge green">有依据</span> <span class="badge green">期限合规</span> <span class="badge red">授权缺失</span> <span class="badge red">有超期 4.2 万条</span></td>
+                <td><span class="badge red">不通过</span></td>
+                <td class="nowrap"><span class="link" onclick="PMS.openDrawer('hgDrawer')">详情</span> <span class="link" onclick="PMS.openDrawer('expDrawer')">超期清单</span></td>
+              </tr>
+              <tr>
+                <td class="cell-lg">购房资格核验</td><td class="cell-lg">姓名、证件号码、婚姻状况、家庭成员</td>
+                <td class="cell-lg">限购政策核验</td><td class="cell-lg">市政府限购政策文件（2024 年）</td>
+                <td class="nowrap">核验后 2 年</td><td class="nowrap">申请人授权</td><td class="nowrap">覃海燕</td>
+                <td class="cell-lg"><span class="badge green">最小必要</span> <span class="badge orange">依据待确认</span> <span class="badge green">期限合规</span> <span class="badge green">已授权</span> <span class="badge green">无超期</span></td>
+                <td><span class="badge orange">待确认</span></td>
+                <td class="nowrap"><span class="link" onclick="PMS.openDrawer('hgDrawer')">详情</span> <span class="link" onclick="PMS.toast('待确认事项：限购政策文件是否仍在有效期内，须法规科出具意见')">待确认项</span></td>
+              </tr>
+              <tr>
+                <td class="cell-lg">对外数据服务（脱敏后）</td><td class="cell-lg">姓名（脱敏）</td>
+                <td class="cell-lg">向部门与银行提供核验服务</td><td class="cell-lg">数据共享协议 + 部门规章</td>
+                <td class="nowrap">不留存（实时查询）</td><td class="nowrap">法定履职</td><td class="nowrap">陆志明</td>
+                <td class="cell-lg"><span class="badge green">最小必要</span> <span class="badge green">有依据</span> <span class="badge green">期限合规</span> <span class="badge green">已授权</span> <span class="badge green">无超期</span></td>
+                <td><span class="badge green">通过</span></td>
+                <td class="nowrap"><span class="link" onclick="PMS.openDrawer('hgDrawer')">详情</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 页签五 应急处置 FR-069 -->
+    <div class="tab-panel" data-panel="yj">
+      <div class="dc-scroll">
+        <div class="alert alert-danger"><i class="fa-solid fa-triangle-exclamation"></i><div><b>SE-20260731-002 严重安全事件处置中</b>。紧急处置操作<b>立即生效且不可自动撤回</b>，每个操作须二次确认并填写理由，执行后全程留痕。</div></div>
+
+        <div class="card mt-16">
+          <div class="card-head"><h3><i class="fa-solid fa-bolt"></i> 紧急处置</h3></div>
+          <div class="card-body">
+            <div class="filter-actions">
+              <button class="btn btn-danger" onclick="emergency('停用账号', '立即停用该账号，其在途会话将被强制下线，所有请求返回 401。')"><i class="fa-solid fa-user-slash"></i> 停用账号</button>
+              <button class="btn btn-danger" onclick="emergency('撤销共享授权', '立即撤销该单位的全部共享授权，凭证即时失效，在途调用返回 403。')"><i class="fa-solid fa-key"></i> 撤销共享授权</button>
+              <button class="btn btn-danger" onclick="emergency('关闭接口', '立即关闭该接口，全部调用方将同时受影响，须评估对业务办理的连带影响。')"><i class="fa-solid fa-plug-circle-xmark"></i> 关闭接口</button>
+              <button class="btn btn-danger" onclick="emergency('冻结数据导出', '冻结全平台数据导出功能，已批准未下载的导出文件同步锁定。')"><i class="fa-solid fa-file-circle-xmark"></i> 冻结数据导出</button>
+            </div>
+            <p class="hint mt-16"><i class="fa-solid fa-circle-info"></i> 已执行：<b>停用账号 bank_lz_01</b>（2026-07-31 08:26 · 陆志明 · 理由：非工作时间批量查询证件号码，疑似超范围使用）。撤销共享授权与关闭接口尚未执行，正在评估对该行按揭业务的连带影响。</p>
+          </div>
+        </div>
+
+        <div class="card mt-16">
+          <div class="card-head"><h3><i class="fa-solid fa-diagram-project"></i> 事件处置流程 · SE-20260731-002</h3></div>
+          <div class="card-body">
+            <div class="wizard">
+              <div class="w-step done"><span class="w-num">1</span><span class="w-label">发现</span></div>
+              <div class="w-line"></div>
+              <div class="w-step done"><span class="w-num">2</span><span class="w-label">研判定级</span></div>
+              <div class="w-line"></div>
+              <div class="w-step active"><span class="w-num">3</span><span class="w-label">应急处置</span></div>
+              <div class="w-line"></div>
+              <div class="w-step"><span class="w-num">4</span><span class="w-label">影响溯源</span></div>
+              <div class="w-line"></div>
+              <div class="w-step"><span class="w-num">5</span><span class="w-label">恢复</span></div>
+              <div class="w-line"></div>
+              <div class="w-step"><span class="w-num">6</span><span class="w-label">复盘</span></div>
+            </div>
+            <ul class="timeline">
+              <li class="tl-item done"><div class="tl-dot"></div><div class="tl-body"><div class="tl-title">发现</div><div class="tl-meta">2026-07-31 02:18 · 系统自动</div><div class="tl-desc">异常行为监测检出非工作时间批量查询：账号 bank_lz_01 于 02:16 起 12 分钟内查询买受人证件号码 4,286 次，超日均 32 倍</div></div></li>
+              <li class="tl-item done"><div class="tl-dot"></div><div class="tl-body"><div class="tl-title">研判定级</div><div class="tl-meta">2026-07-31 08:12 · 韦建国</div><div class="tl-desc">定级为<b>严重</b>：涉及四级核心数据（证件号码）、涉及个人信息主体 4,286 人、申请授权范围为「本行贷款关系合同」而实际查询覆盖全市，判定为超范围使用</div></div></li>
+              <li class="tl-item"><div class="tl-dot"></div><div class="tl-body"><div class="tl-title">应急处置（进行中）</div><div class="tl-meta">2026-07-31 08:26 起 · 陆志明</div><div class="tl-desc">已停用账号 bank_lz_01。撤销共享授权待评估连带影响后执行；已电话通知该行信息科负责人并要求书面说明</div></div></li>
+              <li class="tl-item pending"><div class="tl-dot"></div><div class="tl-body"><div class="tl-title">影响溯源</div><div class="tl-meta">待启动</div><div class="tl-desc">须明确：泄露范围、涉及数据量、涉及个人信息主体数、可能的泄露路径、责任定位</div></div></li>
+              <li class="tl-item pending"><div class="tl-dot"></div><div class="tl-body"><div class="tl-title">恢复</div><div class="tl-meta">待启动</div><div class="tl-desc">该行整改到位并重新签署数据使用承诺后，按裁剪后的最小必要范围重新授权</div></div></li>
+              <li class="tl-item pending"><div class="tl-dot"></div><div class="tl-body"><div class="tl-title">复盘</div><div class="tl-meta">待启动</div><div class="tl-desc">复盘要点：为何超范围调用未被实时阻断而只被事后检出；服务侧数据范围控制是否可从「授权登记」升级为「查询时强制过滤」</div></div></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="grid-2 mt-16">
+          <div class="card">
+            <div class="card-head"><h3><i class="fa-solid fa-list"></i> 安全事件列表</h3></div>
+            <div class="card-body">
+              <table class="data-table compact" data-static>
+                <thead><tr><th>事件编号</th><th>类型</th><th>级别</th><th>发现时间</th><th class="cell-lg">影响范围</th><th>状态</th><th>处置人</th><th class="num">处置时长</th></tr></thead>
+                <tbody>
+                  <tr><td class="nowrap">SE-20260731-002</td><td class="nowrap">超范围使用</td><td><span class="badge red">严重</span></td><td class="nowrap">2026-07-31 02:18</td><td class="cell-lg">4,286 名个人信息主体的证件号码</td><td><span class="badge orange">处置中</span></td><td class="nowrap">陆志明</td><td class="num">9.2 小时</td></tr>
+                  <tr><td class="nowrap">SE-20260726-001</td><td class="nowrap">异常 IP 探测</td><td><span class="badge orange">一般</span></td><td class="nowrap">2026-07-26 22:42</td><td class="cell-lg">未造成数据泄露，鉴权全部失败</td><td><span class="badge green">已闭环</span></td><td class="nowrap">韦建国</td><td class="num">2.6 小时</td></tr>
+                  <tr><td class="nowrap">SE-20260618-004</td><td class="nowrap">明文残留</td><td><span class="badge red">严重</span></td><td class="nowrap">2026-06-18 03:12</td><td class="cell-lg">租赁表 186,420 条承租人证件号码未加密</td><td><span class="badge green">已闭环</span></td><td class="nowrap">陆志明</td><td class="num">72 小时</td></tr>
+                  <tr><td class="nowrap">SE-20260512-003</td><td class="nowrap">越权导出</td><td><span class="badge orange">一般</span></td><td class="nowrap">2026-05-12 16:08</td><td class="cell-lg">导出 4,862 条含姓名明细，已追回文件</td><td><span class="badge green">已闭环</span></td><td class="nowrap">覃海燕</td><td class="num">18 小时</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <h3><i class="fa-solid fa-magnifying-glass-location"></i> 影响溯源工具</h3>
+              <div class="head-actions"><button class="btn btn-sm btn-primary" onclick="PMS.openDrawer('srcDrawer')"><i class="fa-solid fa-play"></i> 执行溯源</button></div>
+            </div>
+            <div class="card-body">
+              <div class="form-grid form-align">
+                <div class="form-item"><label>数据特征类型 <span class="req">*</span></label><select><option>证件号码</option><option>姓名 + 联系电话</option><option>合同编号</option><option>房屋主键</option><option>水印编号</option></select></div>
+                <div class="form-item"><label>时间范围</label><input type="date" value="2026-07-01"></div>
+                <div class="form-item col-2"><label>数据特征值 <span class="req">*</span></label><input type="text" value="450206********1234, 450206********5678, 450206********9012"></div>
+              </div>
+              <p class="hint mt-16"><i class="fa-solid fa-circle-info"></i> 溯源依托三项能力：<b>访问审计三向追溯</b>、<b>导出文件暗水印</b>、<b>血缘链路</b>。输出结论须明确泄露范围、涉及数据量、涉及个人信息主体数、可能的泄露路径与责任定位。</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt-16">
+          <div class="card-head"><h3><i class="fa-solid fa-book-open"></i> 应急预案</h3></div>
+          <div class="card-body">
+            <table class="data-table compact" data-static>
+              <thead><tr><th>预案编号</th><th class="cell-lg">适用事件类型</th><th class="cell-lg">首要处置动作</th><th class="cell-lg">通报要求</th><th>责任科室</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr><td class="nowrap">YA-001</td><td class="cell-lg">数据泄露 / 超范围使用</td><td class="cell-lg">停用账号 → 撤销授权 → 固定证据 → 影响溯源</td><td class="cell-lg">严重级 2 小时内报局领导与市网信办</td><td class="nowrap">信息中心</td><td class="nowrap"><span class="link" onclick="PMS.toast('已打开预案全文')">查看</span></td></tr>
+                <tr><td class="nowrap">YA-002</td><td class="cell-lg">接口被恶意调用 / 异常 IP</td><td class="cell-lg">IP 阻断 → 限流 → 关闭接口（评估连带影响后）</td><td class="cell-lg">一般级 24 小时内内部通报</td><td class="nowrap">信息中心</td><td class="nowrap"><span class="link" onclick="PMS.toast('已打开预案全文')">查看</span></td></tr>
+                <tr><td class="nowrap">YA-003</td><td class="cell-lg">明文残留 / 加密失效</td><td class="cell-lg">冻结导出 → 紧急加密改造 → 评估既往暴露面</td><td class="cell-lg">严重级 2 小时内报局领导</td><td class="nowrap">信息中心</td><td class="nowrap"><span class="link" onclick="PMS.toast('已打开预案全文')">查看</span></td></tr>
+                <tr><td class="nowrap">YA-004</td><td class="cell-lg">审计采集中断</td><td class="cell-lg">恢复采集 → 从子系统本地日志回补 → 标注数据缺口</td><td class="cell-lg">内部通报，不隐瞒缺口</td><td class="nowrap">信息中心</td><td class="nowrap"><span class="link" onclick="PMS.toast('已打开预案全文')">查看</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- 审计详情抽屉 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="logDrawer">
+  <div class="drawer-head"><h3>审计记录详情 · 2026-07-31 02:16:08</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-info"><i class="fa-solid fa-lock"></i><div>审计记录<b>只读</b>：本抽屉无编辑与删除入口，记录一经写入不可修改。</div></div>
+    <h4 class="section-title mt-16">基本信息</h4>
+    <dl class="desc-list">
+      <div class="desc-item"><dt>访问时间</dt><dd>2026-07-31 02:16:08.426</dd></div>
+      <div class="desc-item"><dt>操作人 / 账号</dt><dd>周敏 / <code>bank_lz_01</code></dd></div>
+      <div class="desc-item full"><dt>所属单位</dt><dd>某商业银行柳州分行 · 对公业务部</dd></div>
+      <div class="desc-item"><dt>操作类型</dt><dd>查询</dd></div>
+      <div class="desc-item"><dt>访问方式</dt><dd>接口 SVC-0018 合同备案信息查询 v1.4</dd></div>
+      <div class="desc-item"><dt>访问 IP</dt><dd>203.86.***.42（互联网出口）</dd></div>
+      <div class="desc-item"><dt>涉及记录数</dt><dd>4,286</dd></div>
+      <div class="desc-item"><dt>耗时</dt><dd>12 分 06 秒（4,286 次调用累计）</dd></div>
+      <div class="desc-item"><dt>结果</dt><dd><span class="badge green">成功</span></dd></div>
+      <div class="desc-item"><dt>异常标记</dt><dd><span class="badge red">非工作时间 + 超量</span></dd></div>
+      <div class="desc-item full"><dt>数据对象</dt><dd><code>ODS_HT_HTXX</code> 的 <code>msrzjhm</code>（买受人证件号码，四级核心）、<code>msrxm</code>（买受人姓名，三级敏感）</dd></div>
+      <div class="desc-item full"><dt>完整查询条件</dt><dd><code>SELECT htbh, msrxm, msrzjhm FROM ODS_HT_HTXX WHERE said IN (450202,450203,450204,450205,450206) AND wqsj BETWEEN '2026-01-01' AND '2026-07-31'</code></dd></div>
+      <div class="desc-item full"><dt>关联业务场景</dt><dd class="text-danger">授权范围为「本行有贷款关系的合同」，但本次查询未附加贷款关系过滤条件，覆盖全市五城区全量合同，<b>超出授权范围</b>。</dd></div>
+    </dl>
+    <h4 class="section-title mt-16">同账号近期行为</h4>
+    <table class="data-table compact">
+      <thead><tr><th>时间</th><th>操作类型</th><th class="cell-lg">数据对象</th><th class="num">记录数</th><th>异常标记</th></tr></thead>
+      <tbody>
+        <tr><td class="nowrap">2026-07-31 02:16</td><td>查询</td><td class="cell-lg">买受人证件号码 / 姓名</td><td class="num">4,286</td><td><span class="badge red">非工作时间 + 超量</span></td></tr>
+        <tr><td class="nowrap">2026-07-24 02:08</td><td>查询</td><td class="cell-lg">买受人证件号码 / 姓名</td><td class="num">6,428</td><td><span class="badge red">非工作时间 + 超量</span></td></tr>
+        <tr><td class="nowrap">2026-07-18 16:06</td><td>申请导出</td><td class="cell-lg">全市合同（含姓名与联系方式）</td><td class="num">862,146</td><td><span class="badge orange">已驳回</span></td></tr>
+        <tr><td class="nowrap">2026-07-16 10:12</td><td>查询</td><td class="cell-lg">合同基本信息</td><td class="num">126</td><td><span class="badge gray">正常</span></td></tr>
+      </tbody>
+    </table>
+    <p class="hint mt-16"><i class="fa-solid fa-triangle-exclamation"></i> 该账号存在<b>连续两周的同类行为</b>，且此前有导出申请被驳回的记录，行为模式指向有组织的数据获取，已按严重事件处置。</p>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn" onclick="PMS.toast('已导出该条审计记录，导出行为已记入审计')"><i class="fa-solid fa-download"></i> 导出</button>
+    <button class="btn btn-primary" onclick="PMS.closeDrawer();go('yj')"><i class="fa-solid fa-triangle-exclamation"></i> 转应急处置</button>
+  </div>
+</div>
+
+<!-- 多维分析抽屉 -->
+<div class="drawer" id="dimDrawer">
+  <div class="drawer-head"><h3>访问审计多维分析</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-info"><i class="fa-solid fa-chart-pie"></i><div>按<b>人员、数据对象、时间</b>三个维度分析访问量分布，用于发现异常模式：单人访问量突增、某字段被异常集中查询、非工作时段访问占比抬升。</div></div>
+    <h4 class="section-title mt-16">按人员 · 近 30 日敏感数据访问量 TOP</h4>
+    <div class="dc-bars wide">
+      <div class="b-item"><div class="b-label">bank_lz_01 周敏</div><div class="b-track"><div class="b-fill bad" style="width:100%"></div></div><div class="b-val">10,714</div></div>
+      <div class="b-item"><div class="b-label">ljq_wei 韦明</div><div class="b-track"><div class="b-fill warn" style="width:48%"></div></div><div class="b-val">5,186</div></div>
+      <div class="b-item"><div class="b-label">覃海燕</div><div class="b-track"><div class="b-fill" style="width:32%"></div></div><div class="b-val">3,428</div></div>
+      <div class="b-item"><div class="b-label">蒙丽华</div><div class="b-track"><div class="b-fill" style="width:26%"></div></div><div class="b-val">2,862</div></div>
+      <div class="b-item"><div class="b-label">陆志明</div><div class="b-track"><div class="b-fill" style="width:12%"></div></div><div class="b-val">1,286</div></div>
+    </div>
+    <h4 class="section-title mt-16">按数据对象 · 被访问最多的敏感字段</h4>
+    <div class="dc-bars wide">
+      <div class="b-item"><div class="b-label">买受人证件号码</div><div class="b-track"><div class="b-fill bad" style="width:100%"></div></div><div class="b-val">12,486</div></div>
+      <div class="b-item"><div class="b-label">买受人姓名</div><div class="b-track"><div class="b-fill warn" style="width:76%"></div></div><div class="b-val">9,486</div></div>
+      <div class="b-item"><div class="b-label">房屋坐落</div><div class="b-track"><div class="b-fill" style="width:52%"></div></div><div class="b-val">6,482</div></div>
+      <div class="b-item"><div class="b-label">买受人联系电话</div><div class="b-track"><div class="b-fill warn" style="width:34%"></div></div><div class="b-val">4,286</div></div>
+      <div class="b-item"><div class="b-label">监管账户账号</div><div class="b-track"><div class="b-fill" style="width:6%"></div></div><div class="b-val">762</div></div>
+    </div>
+    <h4 class="section-title mt-16">按时间 · 访问时段分布</h4>
+    <table class="data-table compact">
+      <thead><tr><th>时段</th><th class="num">访问量</th><th class="num">占比</th><th class="cell-lg">判断</th></tr></thead>
+      <tbody>
+        <tr><td class="nowrap">09:00 — 12:00</td><td class="num">128,624</td><td class="num">42.6%</td><td class="cell-lg">与办件高峰一致，正常</td></tr>
+        <tr><td class="nowrap">14:00 — 17:00</td><td class="num">116,482</td><td class="num">38.6%</td><td class="cell-lg">与办件高峰一致，正常</td></tr>
+        <tr><td class="nowrap">08:00 — 09:00 / 17:00 — 18:00</td><td class="num">42,186</td><td class="num">14.0%</td><td class="cell-lg">上下班前后，正常</td></tr>
+        <tr><td class="nowrap text-danger">00:00 — 06:00</td><td class="num text-danger">14,286</td><td class="num text-danger">4.7%</td><td class="cell-lg text-danger">非工作时间访问占比异常偏高，其中 10,714 次来自单一账号</td></tr>
+        <tr><td class="nowrap">其他时段</td><td class="num">286</td><td class="num">0.1%</td><td class="cell-lg">系统定时任务，正常</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn" onclick="PMS.toast('已导出多维分析报告')"><i class="fa-solid fa-download"></i> 导出分析报告</button>
+  </div>
+</div>
+
+<!-- 导出审批抽屉 -->
+<div class="drawer" id="dcDrawer">
+  <div class="drawer-head"><h3>导出审批 · DC-20260731-012</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <h4 class="section-title">申请内容</h4>
+    <dl class="desc-list">
+      <div class="desc-item"><dt>申请编号</dt><dd>DC-20260731-012</dd></div>
+      <div class="desc-item"><dt>申请人</dt><dd>周敏（某商业银行柳州分行）</dd></div>
+      <div class="desc-item full"><dt>导出对象</dt><dd>ODS_HT_HTXX 全市全量合同</dd></div>
+      <div class="desc-item"><dt>导出条数</dt><dd class="text-danger">862,146</dd></div>
+      <div class="desc-item"><dt>导出格式</dt><dd>CSV</dd></div>
+      <div class="desc-item full"><dt>使用目的</dt><dd>按揭客户批量核验。</dd></div>
+    </dl>
+    <h4 class="section-title mt-16">审批判断依据</h4>
+    <table class="data-table compact">
+      <thead><tr><th>判断项</th><th class="cell-lg">情况</th><th>结论</th></tr></thead>
+      <tbody>
+        <tr><td class="nowrap">申请人近期导出频次</td><td class="cell-lg">近 30 日提交 4 次导出申请，3 次被驳回；另有 2 次解除脱敏申请被驳回</td><td><span class="badge red">异常</span></td></tr>
+        <tr><td class="nowrap">本次导出数据分级</td><td class="cell-lg">含四级核心（买受人证件号码）、三级敏感（姓名、联系电话）</td><td><span class="badge red">高</span></td></tr>
+        <tr><td class="nowrap">涉及敏感字段</td><td class="cell-lg">msrzjhm 证件号码、msrxm 姓名、msrlxdh 联系电话</td><td><span class="badge red">3 项</span></td></tr>
+        <tr><td class="nowrap">涉及个人信息主体数</td><td class="cell-lg">约 86.2 万人</td><td><span class="badge red">极高</span></td></tr>
+        <tr><td class="nowrap">申请理由充分性</td><td class="cell-lg">「批量核验」表述笼统，未说明业务场景与法定依据</td><td><span class="badge red">不充分</span></td></tr>
+        <tr><td class="nowrap">关联安全事件</td><td class="cell-lg text-danger">该申请人账号正因超范围使用被停用（SE-20260731-002 处置中）</td><td><span class="badge red">阻断</span></td></tr>
+      </tbody>
+    </table>
+    <h4 class="section-title mt-16">水印预览</h4>
+    <div class="empty mt-16" style="border:1px dashed var(--border-strong);border-radius:var(--radius)">
+      <i class="fa-solid fa-droplet"></i>
+      <div class="fw-700 text-2">暗水印样式预览</div>
+      <div class="text-sm mt-8">周敏 · 2026-07-31 · DC-20260731-012 · WM-8F42A6C1</div>
+      <div class="text-sm">水印以低对比度平铺于文件内容之上，截图与打印同样保留，可用于泄露溯源</div>
+    </div>
+    <h4 class="section-title mt-16">审批意见</h4>
+    <div class="form-grid form-align">
+      <div class="form-item"><label>审批结论 <span class="req">*</span></label><select><option selected>驳回</option><option>批准</option><option>部分批准（裁剪字段与范围）</option></select></div>
+      <div class="form-item"><label>下载有效期</label><select><option>7 天（默认）</option><option>3 天</option><option>1 天</option></select></div>
+      <div class="form-item col-2"><label>审批意见 <span class="req">*</span></label><input type="text" value="驳回。申请人账号正因超范围使用被停用，且本次申请为全市全量含四级核心字段，不满足最小必要原则。"></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn" onclick="PMS.toast('已批准并生成导出任务，文件将自动加暗水印，有效期 7 天', 'success')">批准</button>
+    <button class="btn btn-primary" onclick="PMS.toast('已驳回并通知申请人', 'success')">驳回</button>
+  </div>
+</div>
+
+<!-- 导出追溯抽屉 -->
+<div class="drawer" id="traceDrawer">
+  <div class="drawer-head"><h3>导出追溯 · 水印编号反查</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-info"><i class="fa-solid fa-fingerprint"></i><div>在流出的文件、截图或打印件中提取水印编号，即可反查该文件的<b>申请人、申请时间、导出内容与下载记录</b>，用于泄露溯源与责任定位。</div></div>
+    <div class="form-grid form-align mt-16">
+      <div class="form-item col-2"><label>水印编号 <span class="req">*</span></label><input type="text" value="WM-3C81D9F4"></div>
+    </div>
+    <h4 class="section-title mt-16">反查结果</h4>
+    <dl class="desc-list">
+      <div class="desc-item"><dt>水印编号</dt><dd><code>WM-3C81D9F4</code></dd></div>
+      <div class="desc-item"><dt>关联申请</dt><dd>DC-20260731-010</dd></div>
+      <div class="desc-item"><dt>申请人</dt><dd>覃海燕（市住建局 · 房产市场监管科）</dd></div>
+      <div class="desc-item"><dt>申请时间</dt><dd>2026-07-31 09:12</dd></div>
+      <div class="desc-item"><dt>审批人 / 时间</dt><dd>韦建国 / 2026-07-31 09:26</dd></div>
+      <div class="desc-item full"><dt>导出内容</dt><dd>DWS_JY_HTKB 柳江区 2026-07 合同明细 4,862 条（买受人姓名已脱敏，证件号码未导出）</dd></div>
+      <div class="desc-item"><dt>文件格式 / 大小</dt><dd>XLSX / 2.4 MB</dd></div>
+      <div class="desc-item"><dt>下载有效期</dt><dd>至 2026-08-07</dd></div>
+    </dl>
+    <h4 class="section-title mt-16">下载记录</h4>
+    <table class="data-table compact">
+      <thead><tr><th>下载时间</th><th>下载人</th><th>IP</th><th>终端</th><th>结果</th></tr></thead>
+      <tbody>
+        <tr><td class="nowrap">2026-07-31 09:32:08</td><td>覃海燕</td><td class="nowrap">10.86.8.28</td><td class="nowrap">Windows · Chrome</td><td><span class="badge green">成功</span></td></tr>
+        <tr><td class="nowrap">2026-07-31 14:06:42</td><td>覃海燕</td><td class="nowrap">10.86.8.28</td><td class="nowrap">Windows · Chrome</td><td><span class="badge green">成功</span></td></tr>
+      </tbody>
+    </table>
+    <p class="hint mt-16"><i class="fa-solid fa-circle-info"></i> 该文件仅由申请人本人在单位内网 IP 下载 2 次，未出现异地或异常终端下载。若流出文件出现在外部渠道，责任可定位到该申请人。</p>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn btn-primary" onclick="PMS.toast('已导出追溯结论，可作为溯源材料')"><i class="fa-solid fa-download"></i> 导出追溯结论</button>
+  </div>
+</div>
+
+<!-- 合规核查详情抽屉 -->
+<div class="drawer" id="hgDrawer">
+  <div class="drawer-head"><h3>个人信息处理活动核查 · 县区历史办件数据归集</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-danger"><i class="fa-solid fa-circle-exclamation"></i><div>本项核查<b>不通过</b>：授权情况缺失 + 存在超期数据 4.2 万条。历史迁移数据的授权缺失属客观历史遗留，须由法规科出具处理意见；超期数据须走清理审批。</div></div>
+    <h4 class="section-title mt-16">处理活动登记</h4>
+    <dl class="desc-list">
+      <div class="desc-item full"><dt>处理场景</dt><dd>县区历史办件数据归集</dd></div>
+      <div class="desc-item full"><dt>涉及个人信息类型</dt><dd>姓名、证件号码、联系电话</dd></div>
+      <div class="desc-item full"><dt>处理目的</dt><dd>历史数据统一归集，支撑查档出证与权属追溯</dd></div>
+      <div class="desc-item full"><dt>法定依据</dt><dd>《档案法》第十三条；《不动产登记暂行条例》第二十三条</dd></div>
+      <div class="desc-item"><dt>留存期限</dt><dd>永久（档案属性）</dd></div>
+      <div class="desc-item"><dt>授权情况</dt><dd class="text-danger">历史数据无授权记录</dd></div>
+      <div class="desc-item"><dt>责任人</dt><dd>陆志明（信息中心）</dd></div>
+      <div class="desc-item"><dt>数据规模</dt><dd>1,286,420 条</dd></div>
+    </dl>
+    <h4 class="section-title mt-16">核查项结论</h4>
+    <table class="data-table compact">
+      <thead><tr><th>核查项</th><th class="cell-lg">核查情况</th><th>结论</th></tr></thead>
+      <tbody>
+        <tr><td class="nowrap">采集范围最小必要</td><td class="cell-lg">仅归集办件必需的三类信息，未额外采集</td><td><span class="badge green">通过</span></td></tr>
+        <tr><td class="nowrap">是否有法定依据</td><td class="cell-lg">《档案法》与《不动产登记暂行条例》均有明确规定</td><td><span class="badge green">通过</span></td></tr>
+        <tr><td class="nowrap">留存期限是否合规</td><td class="cell-lg">房产档案属永久保管，留存期限符合档案管理要求</td><td><span class="badge green">通过</span></td></tr>
+        <tr><td class="nowrap">是否取得授权</td><td class="cell-lg text-danger">2018 年前的历史数据在原系统采集时未留存授权记录，无法补证</td><td><span class="badge red">不通过</span></td></tr>
+        <tr><td class="nowrap">是否有超期数据</td><td class="cell-lg text-danger">4.2 万条已注销 / 已废止办件的联系电话超出「办结后 5 年」的留存必要期</td><td><span class="badge red">不通过</span></td></tr>
+      </tbody>
+    </table>
+    <h4 class="section-title mt-16">整改措施</h4>
+    <table class="data-table compact">
+      <thead><tr><th class="cell-lg">问题</th><th class="cell-lg">整改措施</th><th>责任人</th><th>期限</th><th>状态</th></tr></thead>
+      <tbody>
+        <tr><td class="cell-lg">历史数据授权缺失</td><td class="cell-lg">由法规科出具《历史数据处理法律意见》，说明依《档案法》履职处理不以个人授权为前提；意见归档备查</td><td class="nowrap">韦建国</td><td class="nowrap">2026-08-31</td><td><span class="badge orange">进行中</span></td></tr>
+        <tr><td class="cell-lg">超期联系电话 4.2 万条</td><td class="cell-lg">走清理审批流程，清理范围限「已注销 / 已废止且办结满 5 年」的联系电话字段；姓名与证件号码作为档案要素保留</td><td class="nowrap">陆志明</td><td class="nowrap">2026-09-30</td><td><span class="badge orange">待审批</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn" onclick="PMS.openDrawer('expDrawer')"><i class="fa-solid fa-hourglass-end"></i> 超期数据清单</button>
+    <button class="btn btn-primary" onclick="PMS.toast('已派发整改任务至责任人', 'success')"><i class="fa-solid fa-paper-plane"></i> 派发整改</button>
+  </div>
+</div>
+
+<!-- 超期数据清单抽屉 -->
+<div class="drawer" id="expDrawer">
+  <div class="drawer-head"><h3>超期个人信息数据清单</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-warning"><i class="fa-solid fa-hourglass-end"></i><div>超期数据指<b>超出登记留存期限仍在库</b>的个人信息。<b>清理须审批并留痕</b>；清理只针对超出必要期的字段，档案要素字段不在清理范围内。</div></div>
+    <table class="data-table compact mt-16">
+      <thead><tr><th class="cell-lg">数据范围</th><th class="cell-lg">超期字段</th><th class="num">记录数</th><th>登记留存期</th><th class="cell-lg">超期情况</th><th>清理方式</th><th>状态</th><th>操作</th></tr></thead>
+      <tbody>
+        <tr><td class="cell-lg">ODS_QX_BJXX 已注销办件（2015—2019）</td><td class="cell-lg">联系电话 lxdh</td><td class="num">26,482</td><td class="nowrap">办结后 5 年</td><td class="cell-lg">超期 2—6 年</td><td class="nowrap">字段置空</td><td><span class="badge orange">待审批</span></td><td class="nowrap"><span class="link" onclick="clean()">申请清理</span></td></tr>
+        <tr><td class="cell-lg">ODS_HT_HTXX 已废止合同（2016—2020）</td><td class="cell-lg">买受人联系电话 msrlxdh</td><td class="num">12,486</td><td class="nowrap">废止后 5 年</td><td class="cell-lg">超期 1—5 年</td><td class="nowrap">字段置空</td><td><span class="badge orange">待审批</span></td><td class="nowrap"><span class="link" onclick="clean()">申请清理</span></td></tr>
+        <tr><td class="cell-lg">购房资格核验记录（2022 及以前）</td><td class="cell-lg">家庭成员信息 jtcy</td><td class="num">3,286</td><td class="nowrap">核验后 2 年</td><td class="cell-lg">超期 1—2 年</td><td class="nowrap">整条删除</td><td><span class="badge orange">待审批</span></td><td class="nowrap"><span class="link" onclick="clean()">申请清理</span></td></tr>
+        <tr><td class="cell-lg">租赁备案紧急联系人（全量）</td><td class="cell-lg">紧急联系人姓名与电话</td><td class="num">186</td><td class="nowrap text-danger">无采集依据</td><td class="cell-lg text-danger">属超最小必要采集，须停止采集并清理存量</td><td class="nowrap">字段置空</td><td><span class="badge orange">待审批</span></td><td class="nowrap"><span class="link" onclick="clean()">申请清理</span></td></tr>
+        <tr><td class="cell-lg">已完成清理 · 2026Q2 批次</td><td class="cell-lg">联系电话</td><td class="num">8,624</td><td class="nowrap">办结后 5 年</td><td class="cell-lg">已于 2026-05-18 清理，清理过程留痕</td><td class="nowrap">字段置空</td><td><span class="badge green">已清理</span></td><td class="nowrap"><span class="link" onclick="PMS.toast('清理留痕：2026-05-18 22:06 执行，审批人韦建国，清理前已备份至归档库')">清理记录</span></td></tr>
+      </tbody>
+    </table>
+    <p class="hint mt-16"><i class="fa-solid fa-circle-info"></i> 清理采用<b>字段置空</b>而非整条删除（除无依据采集项外），保留办件记录的完整性以支撑档案追溯；清理动作同样写入变更留痕。</p>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn" onclick="PMS.toast('已导出超期数据清单')"><i class="fa-solid fa-download"></i> 导出清单</button>
+    <button class="btn btn-primary" onclick="clean()"><i class="fa-solid fa-broom"></i> 批量申请清理</button>
+  </div>
+</div>
+
+<!-- 影响溯源结果抽屉 -->
+<div class="drawer" id="srcDrawer">
+  <div class="drawer-head"><h3>影响溯源结果 · SE-20260731-002</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-warning"><i class="fa-solid fa-magnifying-glass-location"></i><div>溯源依托<b>访问审计三向追溯 + 导出文件暗水印 + 血缘链路</b>三项能力。以下结论已明确泄露范围、数据量、主体数、泄露路径与责任定位。</div></div>
+    <h4 class="section-title mt-16">溯源结论</h4>
+    <dl class="desc-list">
+      <div class="desc-item full"><dt>泄露范围</dt><dd>XXXX市五城区 2026-01-01 至 2026-07-31 网签备案合同的买受人姓名与证件号码</dd></div>
+      <div class="desc-item"><dt>涉及数据量</dt><dd>4,286 条记录 × 3 字段</dd></div>
+      <div class="desc-item"><dt>涉及个人信息主体数</dt><dd>4,286 人</dd></div>
+      <div class="desc-item"><dt>数据分级</dt><dd><span class="badge red">四级 核心</span></dd></div>
+      <div class="desc-item full"><dt>可能的泄露路径</dt><dd>经由接口 SVC-0018 以合法凭证调用后落入该行内部系统。<b>未发现</b>经本平台导出文件外流的证据（该账号的导出申请均被驳回，无水印文件生成）。数据是否在该行内部进一步外流，超出本平台可观测范围，须由该行自查并出具说明。</dd></div>
+      <div class="desc-item full"><dt>责任定位</dt><dd>某商业银行柳州分行对公业务部账号 <code>bank_lz_01</code>（使用人周敏）超出授权范围调用。平台侧责任：服务的数据范围控制依赖授权登记而非查询时强制过滤，存在设计缺陷，已列入复盘整改。</dd></div>
+    </dl>
+    <h4 class="section-title mt-16">追溯链路</h4>
+    <div class="dc-flow">
+      <div class="dc-node"><div class="n-t">ODS_HT_HTXX</div><div class="n-s">数据来源表</div></div>
+      <span class="dc-arrow"><i class="fa-solid fa-arrow-right"></i></span>
+      <div class="dc-node"><div class="n-t">DWS_JY_HTKB</div><div class="n-s">主题宽表</div></div>
+      <span class="dc-arrow"><i class="fa-solid fa-arrow-right"></i></span>
+      <div class="dc-node"><div class="n-t">SVC-0018</div><div class="n-s">对外服务</div></div>
+      <span class="dc-arrow"><i class="fa-solid fa-arrow-right"></i></span>
+      <div class="dc-node on"><div class="n-t">bank_lz_01</div><div class="n-s">调用账号（已停用）</div></div>
+      <span class="dc-arrow"><i class="fa-solid fa-arrow-right"></i></span>
+      <div class="dc-node plan"><div class="n-t">该行内部系统</div><div class="n-s">超出可观测范围</div></div>
+    </div>
+    <h4 class="section-title mt-16">下一步处置建议</h4>
+    <table class="data-table compact">
+      <thead><tr><th class="cell-lg">建议动作</th><th class="cell-lg">理由</th><th>优先级</th></tr></thead>
+      <tbody>
+        <tr><td class="cell-lg">撤销该单位全部共享授权</td><td class="cell-lg">已确认超范围使用，须先阻断再谈整改；须评估对按揭业务的连带影响并提前通知</td><td><span class="badge red">高</span></td></tr>
+        <tr><td class="cell-lg">要求该行书面说明数据用途与去向</td><td class="cell-lg">平台侧无法观测该行内部流转，须由其自查</td><td><span class="badge red">高</span></td></tr>
+        <tr><td class="cell-lg">SVC-0018 增加查询时强制范围过滤</td><td class="cell-lg">从「授权登记」升级为「查询时按授权范围强制过滤」，从机制上杜绝超范围</td><td><span class="badge red">高</span></td></tr>
+        <tr><td class="cell-lg">对四级核心字段增加实时阻断规则</td><td class="cell-lg">非工作时间单账号查询超阈值时实时限流并告警，而非仅事后检出</td><td><span class="badge orange">中</span></td></tr>
+        <tr><td class="cell-lg">按规定向市网信办报告</td><td class="cell-lg">严重级事件，涉及 4,286 名个人信息主体</td><td><span class="badge red">高</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn" onclick="PMS.toast('已导出溯源报告')"><i class="fa-solid fa-download"></i> 导出溯源报告</button>
+    <button class="btn btn-primary" onclick="PMS.toast('已推进至「恢复」阶段', 'success')"><i class="fa-solid fa-forward"></i> 推进至下一步</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+  function go(key) { document.querySelectorAll('.tabs .tab').forEach(function (t) { if (t.getAttribute('data-tab') === key) t.click(); }); }
+  function confirmAb() {
+    PMS.confirm({
+      title: '确认异常行为', message: '确认该异常行为的处置结论？',
+      detail: '确认后须选择结论：属正常业务（说明原因）/ 属违规须处置（转安全事件）。超过 30 分钟未确认的异常将升级推送至安全责任人。',
+      type: 'info', okText: '确认',
+      onOk: function () { PMS.toast('已确认：柳江区住建局当日开展辖区房屋普查，属正常业务，已记录说明', 'success'); }
+    });
+  }
+  function runCheck() {
+    PMS.confirm({
+      title: '发起合规核查', message: '立即发起个人信息保护合规核查？',
+      detail: '核查五项：采集范围最小必要、是否有法定依据、留存期限是否合规、是否取得授权、是否有超期数据。核查完成后生成《个人信息保护合规核查报告》。',
+      type: 'info', okText: '发起核查',
+      onOk: function () { PMS.toast('核查任务已提交，完成后将生成报告', 'success'); }
+    });
+  }
+  function clean() {
+    PMS.confirm({
+      title: '申请清理超期数据', message: '对超期个人信息数据发起清理申请？',
+      detail: '清理须经审批，审批通过后在业务低峰执行。清理采用字段置空而非整条删除（无依据采集项除外），清理前自动备份至归档库，清理动作写入变更留痕。',
+      type: 'warning', okText: '提交申请',
+      onOk: function () { PMS.toast('清理申请已提交，待分管领导审批', 'success'); }
+    });
+  }
+  function emergency(action, detail) {
+    PMS.confirm({
+      title: '紧急处置 · ' + action, message: '确认执行「' + action + '」？该操作立即生效。',
+      detail: detail + ' 执行须填写理由，操作全程留痕并同步推送安全责任人与分管领导。',
+      type: 'danger', okText: '确认执行',
+      onOk: function () { PMS.toast(action + ' 已执行并留痕', 'success'); }
+    });
+  }
+</script>
+</body>
+</html>

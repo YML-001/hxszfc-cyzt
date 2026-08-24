@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>结构关系异常核查 · 房屋交易面积信息管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：七类核查项概览、异常等级色标、异常描述折行 */
+  .ck7 { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+  .ck7 .ci {
+    border: 1px solid var(--border); border-radius: var(--radius); background: #fff; padding: 9px 11px; cursor: pointer;
+    transition: all .15s;
+  }
+  .ck7 .ci:hover { border-color: var(--primary); box-shadow: var(--shadow-sm); }
+  .ck7 .ci .l { font-size: 12px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ck7 .ci .v { font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums; margin-top: 1px; }
+  .ck7 .ci.zero .v { color: var(--text-3); }
+  .ck7 .ci.warn { background: #fffbeb; border-color: #fde68a; } .ck7 .ci.warn .v { color: #b45309; }
+  .ck7 .ci.bad { background: #fef2f2; border-color: #fecaca; } .ck7 .ci.bad .v { color: var(--danger); }
+  .ck7 .ci.on { box-shadow: 0 0 0 2px rgba(37, 99, 235, .18); border-color: var(--primary); }
+  .data-table tbody td.msg { max-width: 250px; white-space: normal; line-height: 1.55; font-size: 12.5px; color: var(--text-2); }
+  .msg code { background: var(--bg-soft); padding: 0 4px; border-radius: 3px; font-size: 11.5px; color: #b45309; }
+  tr.lv3 > td { background: #fef2f2; } tr.lv3:hover > td { background: #fee9e9; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wschcg-13">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易面积信息管理系统
+        <span class="sep">/</span> 结构关联关系
+        <span class="sep">/</span> <span class="cur">结构关系异常核查</span>
+      </div>
+      <div class="page-title">结构关系异常核查</div>
+    </div>
+    <div class="page-actions">
+      <select style="width:250px" onchange="PMS.toast('已切换核查对象：' + this.value)">
+        <option>CG450200202600186 · 荣和公园大道二期 8 栋 V2.0</option>
+        <option>CG450200202600180 · 万科城 5 栋 V2.0</option>
+      </select>
+      <button type="button" class="btn" onclick="reCheck()"><i class="fa-solid fa-rotate"></i> 重新核查</button>
+      <button type="button" class="btn" onclick="location.href='structure-tree.html'"><i class="fa-solid fa-sitemap"></i> 结构树</button>
+      <button type="button" class="btn" onclick="PMS.toast('《结构关系异常核查单》Excel 已生成，正在下载','success')"><i class="fa-solid fa-download"></i> 导出核查单</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-list-check"></i></div>
+      <div><div class="s-label">本次核查项</div><div class="s-value">7 类</div><div class="s-trend text-3">系统自动核查</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><div class="s-label">发现异常</div><div class="s-value">5 条</div><div class="s-trend text-3">涉及 3 个单元</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">已处理</div><div class="s-value">2 条</div><div class="s-trend text-success">均标记为合理跳号</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-clock"></i></div>
+      <div><div class="s-label">待处理</div><div class="s-value">3 条</div><div class="s-trend text-danger">含严重异常 2 条</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-calendar-day"></i></div>
+      <div><div class="s-label">核查时间</div><div class="s-value">08-01</div><div class="s-trend text-3">2026-08-01 09:12 自动核查</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>结构异常<b>自动标记并生成核查单，不直接判定为错误</b>，须人工核实；部分异常有合理解释（如数字避讳跳号、顶层带阁楼、底层带院子），可<b>标注说明后放行</b>；核查结论全程留痕。存在<b>严重</b>级未处理异常的成果不允许入库。</div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>七类核查项概览</h3>
+      <span class="sub">点击卡片可按类型筛选下方异常清单</span>
+    </div>
+    <div class="card-body">
+      <div class="ck7">
+        <div class="ci warn" data-t="1" onclick="pickType(this,'1')"><div class="l">层号跳号</div><div class="v">2</div></div>
+        <div class="ci warn" data-t="2" onclick="pickType(this,'2')"><div class="l">房号跳号</div><div class="v">1</div></div>
+        <div class="ci bad" data-t="3" onclick="pickType(this,'3')"><div class="l">户数不符</div><div class="v">1</div></div>
+        <div class="ci bad" data-t="4" onclick="pickType(this,'4')"><div class="l">层数缺失</div><div class="v">1</div></div>
+        <div class="ci zero" data-t="5" onclick="pickType(this,'5')"><div class="l">单元归属错乱</div><div class="v">0</div></div>
+        <div class="ci zero" data-t="6" onclick="pickType(this,'6')"><div class="l">孤儿记录</div><div class="v">0</div></div>
+        <div class="ci zero" data-t="7" onclick="pickType(this,'7')"><div class="l">不动产单元号重复</div><div class="v">0</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card list-card">
+    <div class="filter-bar">
+      <div class="filter-item"><label>异常编号</label><input type="text" placeholder="如 JG450200202600186-01"></div>
+      <div class="filter-item"><label>成果编号</label><input type="text" placeholder="如 CG450200202600186"></div>
+      <div class="filter-item"><label>项目 / 幢号</label><input type="text" placeholder="如 荣和公园大道二期 8 栋"></div>
+      <div class="filter-item">
+        <label>异常类型</label>
+        <select id="fType" onchange="applyFilter()">
+          <option value="">全部</option>
+          <option value="1">层号跳号</option><option value="2">房号跳号</option><option value="3">户数不符</option>
+          <option value="4">层数缺失</option><option value="5">单元归属错乱</option><option value="6">孤儿记录</option><option value="7">不动产单元号重复</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>异常等级</label>
+        <select id="fLv" onchange="applyFilter()"><option value="">全部</option><option value="1">提示</option><option value="2">一般</option><option value="3">严重</option></select>
+      </div>
+      <div class="filter-item">
+        <label>处理状态</label>
+        <select id="fSt" onchange="applyFilter()"><option value="">全部</option><option value="0">待处理</option><option value="2">已处理</option></select>
+      </div>
+      <div class="filter-item"><label>核查时间起</label><input type="date" value="2026-07-01"></div>
+      <div class="filter-item"><label>核查时间止</label><input type="date" value="2026-08-01"></div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="applyFilter()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn" onclick="resetFilter()"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tbYc" data-static>
+        <thead>
+          <tr>
+            <th>异常编号</th><th>成果编号</th><th>项目 / 幢号</th><th>异常类型</th><th>涉及位置</th>
+            <th>异常描述</th><th>异常等级</th><th>发现时间</th><th>处理方式</th><th>处理说明</th>
+            <th>处理人</th><th>处理状态</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr id="r1" data-t="1" data-lv="1" data-st="2">
+            <td class="nowrap fw-600">JG450200202600186-01</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600186</span></td>
+            <td class="nowrap">荣和公园大道二期 / 8 栋</td>
+            <td class="nowrap"><span class="badge orange">层号跳号</span></td>
+            <td class="nowrap">8 栋 1 单元</td>
+            <td class="msg">存在 <code>3 层</code>、<code>5 层</code>，无 <code>4 层</code>，层序不连续</td>
+            <td class="nowrap"><span class="badge">提示</span></td>
+            <td class="nowrap">2026-08-01 09:12</td>
+            <td class="nowrap">标记合理</td>
+            <td class="msg">数字避讳跳号，设计与楼层标识一致</td>
+            <td>韦国强</td>
+            <td class="nowrap"><span class="badge green">已处理</span></td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('处理留痕：韦国强 2026-08-01 09:40 标记为合理跳号（数字避讳）')">详情</span></td>
+          </tr>
+          <tr id="r2" data-t="1" data-lv="1" data-st="2">
+            <td class="nowrap fw-600">JG450200202600186-02</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600186</span></td>
+            <td class="nowrap">荣和公园大道二期 / 8 栋</td>
+            <td class="nowrap"><span class="badge orange">层号跳号</span></td>
+            <td class="nowrap">8 栋 2 单元</td>
+            <td class="msg">存在 <code>12 层</code>、<code>15 层</code>，无 <code>13 层</code>、<code>14 层</code></td>
+            <td class="nowrap"><span class="badge">提示</span></td>
+            <td class="nowrap">2026-08-01 09:12</td>
+            <td class="nowrap">标记合理</td>
+            <td class="msg">数字避讳跳号，与预售方案楼层编号一致</td>
+            <td>韦国强</td>
+            <td class="nowrap"><span class="badge green">已处理</span></td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('处理留痕：韦国强 2026-08-01 09:42 标记为合理跳号（数字避讳）')">详情</span></td>
+          </tr>
+          <tr id="r3" data-t="2" data-lv="2" data-st="0">
+            <td class="nowrap fw-600">JG450200202600186-03</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600186</span></td>
+            <td class="nowrap">荣和公园大道二期 / 8 栋</td>
+            <td class="nowrap"><span class="badge orange">房号跳号</span></td>
+            <td class="nowrap">8 栋 2 单元 18 层</td>
+            <td class="msg">存在 <code>1801</code>、<code>1803</code>，无 <code>1802</code>，本层户表记录 5 条</td>
+            <td class="nowrap"><span class="badge orange">一般</span></td>
+            <td class="nowrap">2026-08-01 09:12</td>
+            <td class="text-3">—</td>
+            <td class="text-3">—</td>
+            <td class="text-3">—</td>
+            <td class="nowrap"><span class="badge red">待处理</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openOk('r3','JG450200202600186-03')">标记合理</span>
+              <span class="link" onclick="sendCheck('JG450200202600186-03')">下发核查</span>
+              <span class="link danger" onclick="sendBack('r3','JG450200202600186-03')">退回整改</span>
+            </td>
+          </tr>
+          <tr id="r4" class="lv3" data-t="3" data-lv="3" data-st="0">
+            <td class="nowrap fw-600">JG450200202600186-04</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600186</span></td>
+            <td class="nowrap">荣和公园大道二期 / 8 栋</td>
+            <td class="nowrap"><span class="badge red">户数不符</span></td>
+            <td class="nowrap">8 栋 1 单元 26 层</td>
+            <td class="msg">层表「层户数」字段填 <code>2</code>，实际户表记录 <code>3</code> 条（含顶层跃层 2603），层户对应完整性不通过</td>
+            <td class="nowrap"><span class="badge red">严重</span></td>
+            <td class="nowrap">2026-08-01 09:12</td>
+            <td class="text-3">—</td>
+            <td class="text-3">—</td>
+            <td class="text-3">—</td>
+            <td class="nowrap"><span class="badge red">待处理</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openOk('r4','JG450200202600186-04')">标记合理</span>
+              <span class="link" onclick="sendCheck('JG450200202600186-04')">下发核查</span>
+              <span class="link danger fw-600" onclick="sendBack('r4','JG450200202600186-04')">退回整改</span>
+            </td>
+          </tr>
+          <tr id="r5" class="lv3" data-t="4" data-lv="3" data-st="0">
+            <td class="nowrap fw-600">JG450200202600186-05</td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600186</span></td>
+            <td class="nowrap">荣和公园大道二期 / 8 栋</td>
+            <td class="nowrap"><span class="badge red">层数缺失</span></td>
+            <td class="nowrap">8 栋</td>
+            <td class="msg">幢表申报总层数 <code>26</code>，实际层表记录 <code>25</code> 条，缺<b>地下 1 层</b>；地下层缺失将影响共有面积分摊计算</td>
+            <td class="nowrap"><span class="badge red">严重</span></td>
+            <td class="nowrap">2026-08-01 09:12</td>
+            <td class="text-3">—</td>
+            <td class="text-3">—</td>
+            <td class="text-3">—</td>
+            <td class="nowrap"><span class="badge red">待处理</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openOk('r5','JG450200202600186-05')">标记合理</span>
+              <span class="link" onclick="sendCheck('JG450200202600186-05')">下发核查</span>
+              <span class="link danger fw-600" onclick="sendBack('r5','JG450200202600186-05')">退回整改</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- 标记合理弹窗 -->
+<div class="modal-mask" id="mdOk">
+  <div class="modal">
+    <div class="modal-head">标记为合理</div>
+    <div class="modal-body">
+      <div class="alert alert-warning">
+        <i class="fa-solid fa-circle-question"></i>
+        <div>异常 <b id="okNo">JG450200202600186-03</b> 标记为合理后置为「已处理」，不再阻断成果入库。请填写理由，标记人与理由全程留痕可追溯。</div>
+      </div>
+      <div class="form-grid form-align mt-16">
+        <div class="form-item">
+          <label>合理理由<span class="req">*</span></label>
+          <select id="okWhy" onchange="onWhy()">
+            <option>数字避讳跳号</option><option>设计如此</option><option>已并户</option><option>已分户</option><option>顶层跃层</option><option>其他</option>
+          </select>
+        </div>
+        <div class="form-item"><label>标记人</label><input type="text" value="韦国强" readonly></div>
+        <div class="form-item col-full">
+          <label>补充说明<span class="req">*</span></label>
+          <textarea rows="3" id="okTxt">该单元 18 层 1802 房号原设计为设备间，未纳入销售房源，房号跳号系设计所致，与预售方案一致，测绘院已出具书面说明。</textarea>
+        </div>
+        <div class="form-item col-full">
+          <label>依据文件</label>
+          <input type="text" value="XXXX市测绘院情况说明_20260801.pdf" readonly>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" data-close-modal>取消</button>
+      <button type="button" class="btn btn-primary" onclick="okMark()"><i class="fa-solid fa-check"></i> 确认标记</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+var curRow = null;
+
+function pickType(el, t) {
+  var on = el.classList.contains('on');
+  document.querySelectorAll('.ck7 .ci').forEach(function (c) { c.classList.remove('on'); });
+  document.getElementById('fType').value = on ? '' : t;
+  if (!on) el.classList.add('on');
+  applyFilter();
+}
+
+function applyFilter() {
+  var t = document.getElementById('fType').value,
+      lv = document.getElementById('fLv').value,
+      st = document.getElementById('fSt').value, n = 0;
+  document.querySelectorAll('#tbYc tbody tr').forEach(function (tr) {
+    var ok = (!t || tr.dataset.t === t) && (!lv || tr.dataset.lv === lv) && (!st || tr.dataset.st === st);
+    tr.style.display = ok ? '' : 'none';
+    if (ok) n++;
+  });
+  PMS.toast('已按条件筛选：' + n + ' 条异常');
+}
+
+function resetFilter() {
+  ['fType', 'fLv', 'fSt'].forEach(function (id) { document.getElementById(id).value = ''; });
+  document.querySelectorAll('.ck7 .ci').forEach(function (c) { c.classList.remove('on'); });
+  document.querySelectorAll('#tbYc tbody tr').forEach(function (tr) { tr.style.display = ''; });
+  PMS.toast('筛选条件已重置');
+}
+
+function onWhy() {
+  var v = document.getElementById('okWhy').value, t = document.getElementById('okTxt');
+  var map = {
+    '数字避讳跳号': '本地习俗对 4、13、14 等数字避讳，楼层编号跳号系设计所致，与预售方案、楼盘表楼层标识一致。',
+    '设计如此': '该位置原设计为设备间 / 公共空间，未纳入销售房源，房号不连续系设计所致。',
+    '已并户': '相邻两套房屋已办理合并，合并后按新房号登记，原房号停用，故出现房号不连续。',
+    '已分户': '原一套房屋已办理分割，分割后新增房号，故本层户数与原层表填报不一致。',
+    '顶层跃层': '顶层为跃层户型，跨两个自然层，层户数与户表记录数不一致系跃层计数所致。',
+    '其他': ''
+  };
+  t.value = map[v] || '';
+}
+
+function openOk(rowId, no) {
+  curRow = rowId;
+  document.getElementById('okNo').textContent = no;
+  PMS.openModal('mdOk');
+}
+
+function okMark() {
+  var why = document.getElementById('okWhy').value;
+  var tr = document.getElementById(curRow);
+  tr.classList.remove('lv3');
+  tr.dataset.st = '2';
+  /* 从末尾定位，避开 app.js 自动插入的序号列 */
+  var c = tr.cells, n = c.length;
+  c[n - 5].textContent = '标记合理'; c[n - 5].className = 'nowrap';
+  c[n - 4].textContent = why; c[n - 4].className = 'msg';
+  c[n - 3].textContent = '韦国强'; c[n - 3].className = '';
+  c[n - 2].innerHTML = '<span class="badge green">已处理</span>'; c[n - 2].className = 'nowrap';
+  c[n - 1].innerHTML = '<span class="link" onclick="PMS.toast(\'处理留痕：韦国强 2026-08-01 18:56 标记为合理（' + why + '）\')">详情</span>';
+  PMS.closeModal('mdOk');
+  PMS.toast('已标记为合理（' + why + '）并留痕，该异常不再阻断入库', 'success');
+}
+
+function sendCheck(no) {
+  PMS.confirm({
+    title: '下发核查',
+    message: '向测绘机构下发 ' + no + ' 核查通知？',
+    detail: '通知含异常类型、涉及位置与异常描述，要求机构在 3 个工作日内书面说明或提交更正成果；下发后异常状态置为「核查中」。',
+    type: 'info', okText: '下发核查',
+    onOk: function () { PMS.toast('核查通知已下发至XXXX市测绘院，要求 2026-08-06 前反馈', 'success'); }
+  });
+}
+
+function sendBack(rowId, no) {
+  PMS.confirm({
+    title: '退回整改',
+    message: '确认因 ' + no + ' 退回本成果整改？',
+    detail: '退回后成果状态置为「质检不通过待整改」，机构须更正结构数据后重新报送；本次暂存区数据保留 30 日供比对。',
+    type: 'danger', okText: '确认退回',
+    onOk: function () {
+      PMS.toast('已退回整改，整改通知已发送至XXXX市测绘院', 'success');
+      setTimeout(function () { location.href = 'result-check.html'; }, 1400);
+    }
+  });
+}
+
+function reCheck() {
+  PMS.toast('正在执行 7 类结构关系核查…');
+  setTimeout(function () { PMS.toast('核查完成：发现异常 5 条（提示 2 / 一般 1 / 严重 2），已处理 2 条', 'success'); }, 900);
+}
+</script>
+</body>
+</html>

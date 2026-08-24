@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能体编排 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="pt" data-active="model-library" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>模型底座</span>
+      <span class="sep">/</span><span>模型管理</span>
+      <span class="sep">/</span><span class="cur">智能体编排</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-microchip"></i>模型管理 wsai-02</span>
+    <a href="model-library.html?role=pt">算法模型库</a>
+    <a href="model-deploy.html?role=pt">本地化部署</a>
+    <a href="model-version.html?role=pt">版本管理</a>
+    <a href="model-eval.html?role=pt">效果评估</a>
+    <a href="compute-resource.html?role=pt">算力纳管</a>
+    <a class="active" href="agent-orchestrate.html?role=pt">智能体编排</a>
+    <a href="upstream-model.html?role=pt">上级模型复用</a>
+    <a href="corpus-manage.html?role=pt">行业语料</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-diagram-project"></i>
+    <span>智能体上架必须<b>五要件齐备</b>：已发布模型 + 已生效知识库（需溯源场景）+ 生效提示词 + 合规过滤规则 + 人工确认节点。
+      缺任一项都会被拦截并在下方编排画布中标红。上架后才会出现在「我的 AI 工作台」的能力入口。</span>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon ai"><i class="fa-solid fa-robot"></i></div>
+      <div><div class="s-label">智能体总数</div><div class="s-value" id="kAll">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">已上架 / 已共享</div><div class="s-value" id="kOn">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><div class="s-label">要件不齐</div><div class="s-value" id="kMiss">—</div>
+        <div class="s-trend text-danger">不允许上架</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-thumbs-up"></i></div>
+      <div><div class="s-label">平均采纳率</div><div class="s-value" id="kAdopt">—</div></div>
+    </div>
+  </div>
+
+  <!-- 编排画布：选中的智能体在这里展示六节点链路 -->
+  <div class="card">
+    <div class="card-head">
+      <h3>编排画布</h3>
+      <span class="sub" id="canvasSub">点下方列表中的智能体名称查看其编排链路</span>
+      <div class="head-actions">
+        <select id="pickAgent" style="width:230px" onchange="paintCanvas()"></select>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="flow-canvas" id="canvas"></div>
+      <div id="missBox"></div>
+    </div>
+  </div>
+
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3>智能体清单</h3>
+      <span class="sub">状态机：草稿 → 已上架 → 已共享</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tAgent" data-static>
+        <thead><tr>
+          <th>智能体名称</th><th>应用场景</th><th>底座模型</th><th>知识库</th><th>提示词</th>
+          <th>合规规则</th><th>人工确认</th><th>状态</th><th class="num">调用量</th>
+          <th class="num">采纳率</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var cur = null;
+
+  function fillPicker() {
+    var sel = document.getElementById('pickAgent');
+    /* select 在写入 innerHTML 后会自动选中第一项，因此不能用 sel.value 判断
+       用户是否选过，要靠 cur 记住上一次的选择 */
+    var keep = cur;
+    sel.innerHTML = AI.get('agents').map(function (a) {
+      var miss = AI.act.agentMissing(a).length;
+      return '<option value="' + a.id + '">' + AI.esc(a.mc) + '（' + AI.dict('ztzt', a.ztzt) +
+        (miss ? ' · 缺 ' + miss + ' 项要件' : ' · 要件齐备') + '）</option>';
+    }).join('');
+    if (keep && AI.byId('agents', keep)) {
+      sel.value = keep;
+    } else {
+      /* 首次进入优先选中要件不齐的智能体：本页的重点是演示五要件校验，
+         默认展示一个要件齐备的智能体会让缺失标红看不到 */
+      var bad = AI.get('agents').filter(function (a) { return AI.act.agentMissing(a).length > 0; })[0];
+      if (bad) sel.value = bad.id;
+    }
+    cur = sel.value;
+  }
+
+  function paintKpi() {
+    var all = AI.get('agents');
+    var on = all.filter(function (a) { return a.ztzt === '1' || a.ztzt === '2'; });
+    var miss = all.filter(function (a) { return AI.act.agentMissing(a).length > 0; });
+    var withCalls = on.filter(function (a) { return a.calls > 0; });
+    document.getElementById('kAll').textContent = all.length;
+    document.getElementById('kOn').textContent = on.length + ' / ' + all.length;
+    document.getElementById('kMiss').textContent = miss.length;
+    document.getElementById('kAdopt').textContent = withCalls.length
+      ? (Math.round(withCalls.reduce(function (s, a) { return s + a.adopt; }, 0) / withCalls.length * 10) / 10) + '%'
+      : '—';
+  }
+
+  /* 六节点编排链路：输入 → 合规过滤 → 知识检索 → 模型推理 → 人工确认 → 输出 */
+  window.paintCanvas = function () {
+    cur = document.getElementById('pickAgent').value;
+    var a = AI.byId('agents', cur);
+    if (!a) { document.getElementById('canvas').innerHTML = ''; return; }
+    var miss = AI.act.agentMissing(a);
+    document.getElementById('canvasSub').textContent =
+      AI.dict('scene', a.scene) + ' · ' + (miss.length ? ('缺 ' + miss.length + ' 项要件') : '五要件齐备');
+
+    var m = a.modelId ? AI.byId('models', a.modelId) : null;
+    var p = a.promptId ? AI.byId('prompts', a.promptId) : null;
+    var kbOk = (a.kbIds || []).filter(function (k) {
+      var d = AI.byId('kbDocs', k);
+      return d && d.zskzt === '2';
+    });
+    var needKb = ['01', '02', '13', '14'].indexOf(a.scene) >= 0;
+
+    var nodes = [
+      { i: 'fa-keyboard', t: '输入', v: '用户提问 / 业务材料', ok: 1, fixed: 1 },
+      { i: 'fa-filter', t: '合规过滤', ok: (a.ruleIds || []).length > 0,
+        v: (a.ruleIds || []).length ? (a.ruleIds.length + ' 条规则生效') : '未挂合规规则' },
+      { i: 'fa-book', t: '知识检索', ok: !needKb || kbOk.length > 0,
+        v: needKb ? (kbOk.length ? kbOk.length + ' 份已生效文档' : '无已生效知识库') : '本场景不需检索' },
+      { i: 'fa-microchip', t: '模型推理', ok: !!(m && (m.mxzt === '3' || m.mxzt === '2') && m.enabled),
+        v: m ? (m.mc.slice(0, 14) + ' ' + m.ver + '（' + AI.dict('mxzt', m.mxzt) + '）') : '未绑定模型' },
+      { i: 'fa-comment-dots', t: '提示词', ok: !!(p && p.zt === '2'),
+        v: p ? (p.ver + '（' + AI.dict('zskzt', p.zt === '2' ? '2' : '3') + '）') : '未挂提示词模板' },
+      { i: 'fa-user-check', t: '人工确认', ok: !!a.needHuman,
+        v: a.needHuman ? '必经节点，不可跳过' : '未设置人工确认节点' },
+      { i: 'fa-flag-checkered', t: '输出', v: '带模型版本与溯源落库', ok: 1, fixed: 1 }
+    ];
+    document.getElementById('canvas').innerHTML = nodes.map(function (n, i) {
+      return (i ? '<div class="flow-arrow"><i class="fa-solid fa-angle-right"></i></div>' : '') +
+        '<div class="flow-node' + (n.ok ? (n.fixed ? ' fixed' : '') : ' miss') + '">' +
+          '<div class="fn-h"><i class="fa-solid ' + n.i + '"></i>' + n.t +
+            (n.ok ? '' : ' <i class="fa-solid fa-circle-exclamation" style="color:var(--danger)"></i>') + '</div>' +
+          '<div class="fn-v">' + AI.esc(n.v) + '</div>' +
+        '</div>';
+    }).join('');
+
+    document.getElementById('missBox').innerHTML = miss.length
+      ? '<div class="alert alert-danger mt-16"><i class="fa-solid fa-circle-exclamation"></i>' +
+        '<span>五要件不齐，<b>不允许上架</b>。缺少：' + miss.map(function (x) { return AI.esc(x); }).join('、') + '。' +
+        '请到<a class="link" href="model-deploy.html?role=pt">本地化部署</a>、' +
+        '<a class="link" href="knowledge-base.html?role=pt">政务知识库</a>、' +
+        '<a class="link" href="prompt-template.html?role=pt">提示词模板</a>、' +
+        '<a class="link" href="content-filter.html?role=pt">内容合规过滤</a> 逐项补齐。</span></div>'
+      : '<div class="alert alert-success mt-16"><i class="fa-solid fa-circle-check"></i>' +
+        '<span>五要件齐备，可上架。上架后将出现在「我的 AI 工作台」的能力入口，并按共享复用标准供业务部门调用。</span></div>';
+  };
+
+  function chip(ok, text) {
+    return ok
+      ? '<span class="badge green">' + AI.esc(text) + '</span>'
+      : '<span class="badge red">' + AI.esc(text) + '</span>';
+  }
+
+  AI.table({
+    id: 'tAgent', pageSize: 10,
+    rows: function () { return AI.get('agents'); },
+    cells: function (a) {
+      var m = a.modelId ? AI.byId('models', a.modelId) : null;
+      var p = a.promptId ? AI.byId('prompts', a.promptId) : null;
+      var kbOk = (a.kbIds || []).filter(function (k) {
+        var d = AI.byId('kbDocs', k);
+        return d && d.zskzt === '2';
+      }).length;
+      var needKb = ['01', '02', '13', '14'].indexOf(a.scene) >= 0;
+      var miss = AI.act.agentMissing(a);
+      return [
+        '<td><a class="link" onclick="showOn(\'' + a.id + '\')">' + AI.esc(a.mc) + '</a>' +
+          (miss.length ? '<div class="text-sm text-danger">缺 ' + miss.length + ' 项要件</div>' : '') + '</td>',
+        '<td>' + AI.dict('scene', a.scene) + '</td>',
+        '<td>' + (m
+          ? chip(m.mxzt === '3' || m.mxzt === '2', m.ver) + '<div class="text-3 text-sm">' + AI.esc(m.mc.slice(0, 12)) + '</div>'
+          : chip(false, '未绑定')) + '</td>',
+        '<td>' + (needKb ? chip(kbOk > 0, kbOk + ' 份') : '<span class="badge gray">不需</span>') + '</td>',
+        '<td>' + (p ? chip(p.zt === '2', p.ver) : chip(false, '未挂')) + '</td>',
+        '<td>' + chip((a.ruleIds || []).length > 0, (a.ruleIds || []).length + ' 条') + '</td>',
+        '<td>' + chip(!!a.needHuman, a.needHuman ? '已设置' : '缺失') + '</td>',
+        '<td>' + AI.ztBadge(a.ztzt) + '</td>',
+        '<td class="num">' + AI.num(a.calls) + '</td>',
+        '<td class="num">' + (a.calls ? a.adopt + '%' : '—') + '</td>',
+        '<td class="col-ops">' +
+          (a.ztzt === '0' || a.ztzt === '3'
+            ? '<button class="btn btn-primary btn-sm" onclick="AI.act.publishAgent(\'' + a.id + '\')"><i class="fa-solid fa-upload"></i> 上架</button>'
+            : '') +
+          (a.ztzt === '1'
+            ? '<button class="btn btn-success btn-sm" onclick="AI.act.shareAgent(\'' + a.id + '\')"><i class="fa-solid fa-share-nodes"></i> 共享</button> ' +
+              '<button class="btn btn-danger btn-sm" onclick="AI.act.offAgent(\'' + a.id + '\')"><i class="fa-solid fa-power-off"></i> 停用</button>'
+            : '') +
+          (a.ztzt === '2'
+            ? '<button class="btn btn-danger btn-sm" onclick="AI.act.offAgent(\'' + a.id + '\')"><i class="fa-solid fa-power-off"></i> 停用</button>'
+            : '') +
+        '</td>'
+      ];
+    },
+    empty: '暂无智能体'
+  });
+
+  window.showOn = function (id) {
+    document.getElementById('pickAgent').value = id;
+    paintCanvas();
+    document.getElementById('canvas').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () {
+      fillPicker();
+      paintKpi();
+      paintCanvas();
+      AI.repaintAll();
+    });
+  });
+})();
+</script>
+</body>
+</html>

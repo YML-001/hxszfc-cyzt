@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>帮办代办 · 统一工作门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="biz" data-active="assist-service">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 预约窗口
+        <span class="sep">/</span> <span class="cur">帮办代办</span>
+      </div>
+      <div class="page-title">帮办代办</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-primary" onclick="openAssist()"><i class="fa-solid fa-hands-holding-child"></i> 帮办代办受理</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <span>为老年人、残障人士等特殊群体提供<b>帮办代办</b>，须记录帮办人与授权情况，收件方式标记为「帮办代办」；<b>材料网上预审</b>通过后可到窗口一次办结或直接网上办结，预审不通过自动生成补正任务。</span>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-hands-holding-child"></i></div><div>
+      <div class="s-label">帮办代办件</div><div class="s-value" id="kAssist">—</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-laptop"></i></div><div>
+      <div class="s-label">待预审</div><div class="s-value" id="kPending">—</div></div></div>
+    <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div><div>
+      <div class="s-label">预审通过</div><div class="s-value" id="kPass">—</div><div class="s-trend text-success">可一次办结</div></div></div>
+    <div class="stat-card"><div class="s-icon orange"><i class="fa-solid fa-file-pen"></i></div><div>
+      <div class="s-label">预审不通过</div><div class="s-value" id="kFail">—</div><div class="s-trend text-3">已生成补正</div></div></div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="assist" onclick="setTab('assist')">帮办代办台账</div>
+      <div class="tab" data-tab="pre" onclick="setTab('pre')">材料网上预审</div>
+    </div>
+    <div class="filter-bar">
+      <div class="filter-item"><label>收件编号 / 申请人</label><input type="text" id="fKw" placeholder="编号或申请人" oninput="repaint()"></div>
+      <div class="filter-item"><label>办理状态</label><select id="fBlzt" data-dict="blzt" onchange="repaint()"></select></div>
+      <div class="filter-item"><label>来源渠道</label><select id="fSjly" data-dict="sjly" onchange="repaint()"></select></div>
+      <button class="btn btn-primary" onclick="repaint()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+      <button class="btn" onclick="resetFilter()">重置</button>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tbAssist" data-static>
+        <thead>
+          <tr><th>收件编号</th><th>事项名称</th><th>申请人</th><th id="thCol">特殊群体 / 帮办人</th>
+              <th>收件方式</th><th>收件时间</th><th>办理状态</th><th>操作</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- 帮办代办受理 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="assistDrawer">
+  <div class="drawer-head"><h3>帮办代办受理</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation"></i>
+      <span>帮办代办须记录<b>帮办人与授权情况</b>，全过程留痕；生成的办件收件方式自动标记为「帮办代办」。</span></div>
+    <div class="form-grid">
+      <div class="form-item"><label>办理事项<span class="req">*</span></label><select id="aSxdm"></select></div>
+      <div class="form-item"><label>特殊群体类型<span class="req">*</span></label>
+        <select id="aGroup">
+          <option value="">请选择</option>
+          <option value="高龄老年人">高龄老年人</option>
+          <option value="残障人士">残障人士</option>
+          <option value="行动不便人员">行动不便人员</option>
+          <option value="不熟悉网络操作人员">不熟悉网络操作人员</option>
+          <option value="外地异地办理人员">外地异地办理人员</option>
+        </select></div>
+      <div class="form-item"><label>申请人<span class="req">*</span></label><input type="text" id="aSqr" placeholder="如 潘秀珍"></div>
+      <div class="form-item"><label>联系电话</label><input type="text" id="aDh" placeholder="如 177****8815"></div>
+      <div class="form-item"><label>帮办人<span class="req">*</span></label><select id="aHelper"></select></div>
+      <div class="form-item"><label>办件属地<span class="req">*</span></label><select id="aSaid" data-dict="said" data-selected="100100"></select></div>
+      <div class="form-item col-full"><label>房屋坐落</label><input type="text" id="aFw" placeholder="如 阳光新城 21 栋 0801"></div>
+      <div class="form-item col-full"><label>授权情况<span class="req">*</span></label>
+        <textarea id="aAuth" rows="2">申请人现场口头授权并录音留痕，已出示身份证原件核验。</textarea></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="doAssist()"><i class="fa-solid fa-check"></i> 受理并生成办件</button>
+  </div>
+</div>
+
+<!-- 材料网上预审 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="preDrawer">
+  <div class="drawer-head"><h3>材料网上预审</h3><span class="badge blue" id="pdNo">—</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body" id="preBody"></div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-danger" onclick="doPre(false)"><i class="fa-solid fa-xmark"></i> 预审不通过</button>
+    <button class="btn btn-primary" onclick="doPre(true)"><i class="fa-solid fa-check"></i> 预审通过</button>
+  </div>
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/flow-data.js"></script>
+<script src="../assets/js/flow.js"></script>
+<script>
+(function () {
+  var tab = 'assist', curId = null;
+  function val(id) { return (document.getElementById(id).value || '').trim(); }
+  window.setTab = function (t) { tab = t; repaint(); };
+  window.resetFilter = function () {
+    ['fKw', 'fBlzt', 'fSjly'].forEach(function (id) { document.getElementById(id).value = ''; });
+    repaint(); PMS.toast('已重置查询条件');
+  };
+
+  function rows() {
+    var kw = val('fKw'), zt = val('fBlzt'), ly = val('fSjly');
+    var base = (tab === 'assist')
+      ? FLOW.where('cases', function (c) { return c.sjfs === '7' || c.assist; })
+      : FLOW.where('cases', function (c) { return c.sjly === '02' || c.sjly === '03' || c.preAudit; });
+    return base.sort(function (a, b) { return b.sjsj - a.sjsj; }).filter(function (c) {
+      if (kw && c.sjbh.indexOf(kw) < 0 && c.sqr.indexOf(kw) < 0) return false;
+      if (zt && c.blzt !== zt) return false;
+      if (ly && c.sjly !== ly) return false;
+      return true;
+    });
+  }
+  window.repaint = function () {
+    document.getElementById('thCol').textContent = (tab === 'assist') ? '特殊群体 / 帮办人' : '预审状态';
+    document.querySelectorAll('.tabs .tab').forEach(function (el) {
+      el.classList.toggle('active', el.getAttribute('data-tab') === tab);
+    });
+    FLOW.paint('tbAssist');
+    syncKpi();
+  };
+  function syncKpi() {
+    document.getElementById('kAssist').textContent = FLOW.where('cases', function (c) { return c.sjfs === '7' || c.assist; }).length;
+    var online = FLOW.where('cases', function (c) { return c.sjly === '02' || c.sjly === '03'; });
+    document.getElementById('kPending').textContent = online.filter(function (c) { return !c.preAudit; }).length;
+    document.getElementById('kPass').textContent = FLOW.where('cases', function (c) { return c.preAudit && c.preAudit.pass; }).length;
+    document.getElementById('kFail').textContent = FLOW.where('cases', function (c) { return c.preAudit && !c.preAudit.pass; }).length;
+  }
+
+  /* 功能点 39 帮办代办受理 */
+  window.openAssist = function () {
+    document.getElementById('aSqr').value = '';
+    document.getElementById('aDh').value = '';
+    document.getElementById('aFw').value = '';
+    PMS.openDrawer('assistDrawer');
+  };
+  window.doAssist = function () {
+    var c = FLOW.act.assistIntake({
+      sxdm: val('aSxdm'), sqr: val('aSqr'), sqrdh: val('aDh'), said: val('aSaid'),
+      fw: val('aFw'), helper: val('aHelper'), group: val('aGroup'), auth: val('aAuth')
+    });
+    if (c) PMS.closeDrawer('assistDrawer');
+  };
+
+  /* 功能点 40 材料网上预审 */
+  window.openPre = function (id) {
+    curId = id;
+    var c = FLOW.byId('cases', id);
+    var mats = FLOW.where('materials', function (m) { return m.bjzj === id; });
+    document.getElementById('pdNo').textContent = c.sjbh;
+    document.getElementById('preBody').innerHTML =
+      '<div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>' +
+      '<span>预审通过后申请人可到窗口一次办结或直接网上办结；不通过将自动生成补正任务并通知申请人。</span></div>' +
+      '<dl class="desc-list">' +
+        row('收件编号', c.sjbh) + row('办理事项', c.sxmc) +
+        row('申请人', c.sqr) + row('来源渠道', FLOW.dict('sjly', c.sjly)) +
+        row('房屋坐落', c.fw) + row('办理状态', FLOW.dict('blzt', c.blzt)) +
+      '</dl>' +
+      '<div class="section-title mt-16" data-icon="fa-folder-open">网上提交的材料</div>' +
+      '<dl class="desc-list">' + mats.map(function (m) {
+        return row(m.clmc, FLOW.dict('tjfs', m.tjfs) + ' · ' + m.pages + ' 页 · ' + (m.ok ? '形式要件合格' : '不合格：' + m.bad));
+      }).join('') + '</dl>' +
+      (c.preAudit
+        ? '<div class="alert ' + (c.preAudit.pass ? 'alert-success' : 'alert-danger') + ' mt-16">' +
+          '<i class="fa-solid fa-clipboard-check"></i><span>已预审（' + (c.preAudit.pass ? '通过' : '不通过') + '）：' +
+          FLOW.esc(c.preAudit.opinion) + '　' + FLOW.fmt.time(c.preAudit.at) + '</span></div>'
+        : '') +
+      '<div class="form-grid mt-16"><div class="form-item col-full">' +
+        '<label>预审意见</label><textarea id="preOpinion" rows="3" placeholder="通过可留空，不通过必须填写"></textarea>' +
+      '</div></div>';
+    PMS.openDrawer('preDrawer');
+  };
+  window.doPre = function (pass) {
+    var op = (document.getElementById('preOpinion') || {}).value || '';
+    if (FLOW.act.preAudit(curId, pass, op.trim())) PMS.closeDrawer('preDrawer');
+  };
+  function row(label, value) {
+    return '<div class="desc-item"><dt>' + FLOW.esc(label) + '</dt><dd>' + FLOW.esc(value == null || value === '' ? '—' : value) + '</dd></div>';
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('aSxdm').innerHTML = FLOW.get('items').map(function (it) {
+      return '<option value="' + it.sxdm + '">' + FLOW.esc(it.sxmc) + '</option>';
+    }).join('');
+    document.getElementById('aHelper').innerHTML = FLOW.get('users')
+      .filter(function (u) { return u.roles.indexOf('sl') >= 0; })
+      .map(function (u) { return '<option value="' + FLOW.esc(u.name) + '">' + FLOW.esc(u.name) + '（' + FLOW.esc(u.dept) + '）</option>'; }).join('');
+
+    FLOW.table({
+      id: 'tbAssist', pageSize: 10, empty: tab === 'assist' ? '暂无帮办代办件' : '暂无网上申报待预审件', icon: 'fa-hands-holding-child',
+      rows: rows,
+      cells: function (c) {
+        var col4 = (tab === 'assist')
+          ? (c.assist ? FLOW.badge(c.assist.group, 'purple') + ' ' + FLOW.esc(c.assist.helper) : '<span class="text-3">—</span>')
+          : (c.preAudit
+              ? FLOW.badge(c.preAudit.pass ? '预审通过' : '预审不通过', c.preAudit.pass ? 'green' : 'red')
+              : FLOW.badge('待预审', 'orange'));
+        var ops = [];
+        if (tab === 'pre') ops.push('<span class="link" onclick="event.stopPropagation();openPre(\'' + c.id + '\')">预审</span>');
+        ops.push('<a class="link" href="case-detail.html?role=biz&id=' + c.id + '">详情</a>');
+        return [
+          '<td>' + FLOW.esc(c.sjbh) + '</td>',
+          '<td class="cell-lg">' + FLOW.esc(c.sxmc) + '</td>',
+          '<td>' + FLOW.esc(c.sqr) + '</td>',
+          '<td>' + col4 + '</td>',
+          '<td>' + FLOW.esc(FLOW.dict('sjfs', c.sjfs)) + '</td>',
+          '<td>' + FLOW.fmt.time(c.sjsj) + '</td>',
+          '<td>' + FLOW.ztBadge(c.blzt) + '</td>',
+          '<td>' + ops.join(' ') + '</td>'
+        ];
+      },
+      attrs: function (c) { return ' data-focus="' + c.id + '"'; },
+      after: syncKpi
+    });
+    FLOW.on(function () { repaint(); });
+  });
+})();
+</script>
+</body>
+</html>

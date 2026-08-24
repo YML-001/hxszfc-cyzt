@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>分类目录与归档规则 · 房屋交易档案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  .no-code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; }
+  /* 本页特有：左树右表单 */
+  .ct-layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 12px; align-items: start; }
+  @media (max-width: 1100px) { .ct-layout { grid-template-columns: 1fr; } }
+  .ct-tree { font-size: 13.5px; }
+  .ct-tree .tn {
+    display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 7px;
+    cursor: pointer; color: var(--text-2);
+  }
+  .ct-tree .tn:hover { background: var(--primary-light-2, var(--primary-light)); color: var(--text-1); }
+  .ct-tree .tn.on { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+  .ct-tree .tn .ar { width: 12px; font-size: 11px; color: var(--text-3); transition: .2s; }
+  .ct-tree .tn .no { font-family: Consolas, "Courier New", monospace; font-size: 12px; color: var(--text-3); }
+  .ct-tree .tn.on .no { color: var(--primary); }
+  .ct-tree .tn .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ct-tree .tn .ct-cnt { font-size: 11.5px; color: var(--text-3); background: var(--bg-soft); border-radius: 10px; padding: 1px 7px; }
+  .ct-tree .sub { display: none; padding-left: 18px; }
+  .ct-tree .nd.open > .sub { display: block; }
+  .ct-tree .nd.open > .tn .ar { transform: rotate(90deg); }
+  .ct-tree .root > .tn { font-weight: 700; color: var(--text-1); }
+  /* 本页特有：档案号规则预览 */
+  .rule-box { background: var(--bg-soft); border-radius: 8px; padding: 12px; }
+  .rule-exp {
+    font-family: Consolas, "Courier New", monospace; font-size: 13px; background: #fff;
+    border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; width: 100%;
+  }
+  .rule-pv { font-family: Consolas, "Courier New", monospace; font-size: 16px; font-weight: 700; color: var(--primary); }
+  .tag-input {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 36px;
+    border: 1px solid var(--border); border-radius: 8px; padding: 5px 8px; background: #fff;
+  }
+  .tag-input .tg {
+    display: inline-flex; align-items: center; gap: 5px; background: var(--primary-light);
+    color: var(--primary); border-radius: 5px; padding: 2px 6px; font-size: 12.5px;
+    font-family: Consolas, "Courier New", monospace;
+  }
+  .tag-input .tg .x { cursor: pointer; opacity: .6; }
+  .tag-input .tg .x:hover { opacity: 1; }
+  .tag-input input { flex: 1; min-width: 100px; border: 0; outline: none; font-size: 13px; height: 24px; }
+  .drag-h { cursor: grab; color: var(--text-3); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdagl-07">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> <a class="link" href="index.html">房屋交易档案管理系统</a>
+        <span class="sep">/</span> 档案接收整理
+        <span class="sep">/</span> <span class="cur">分类目录与归档规则</span>
+      </div>
+      <div class="page-title">分类目录与归档规则</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="auto-collect.html"><i class="fa-solid fa-bolt"></i> 归集监控</a>
+      <button type="button" class="btn" onclick="PMS.toast('已新增同级分类，请填写分类号与名称')"><i class="fa-solid fa-plus"></i> 新增分类</button>
+      <button type="button" class="btn" onclick="PMS.toast('已导出《档案分类目录与归档规则》Excel','success')"><i class="fa-solid fa-download"></i> 导出规则</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-sitemap"></i>
+    <div>
+      <b>归档规则决定自动归集怎么组卷。</b>分类目录是归档规则的载体——事项代码到分类的映射决定了办件办结后取哪些材料、按什么顺序排列、生成什么档案号。
+      修改后<b>仅对新归档的案卷生效</b>，不影响已归档案卷。
+    </div>
+  </div>
+
+  <div class="ct-layout">
+    <div class="card">
+      <div class="card-head">
+        <h3>分类目录树</h3>
+        <span class="sub">全宗 J028</span>
+      </div>
+      <div class="card-body tight ct-tree">
+        <div class="nd root open">
+          <div class="tn" onclick="tgl(this)">
+            <span class="ar"><i class="fa-solid fa-angle-right"></i></span>
+            <i class="fa-solid fa-folder-tree text-primary"></i>
+            <span class="nm">XXXX市房产交易档案</span>
+            <span class="ct-cnt">486,286</span>
+          </div>
+          <div class="sub">
+            <div class="nd open">
+              <div class="tn" onclick="tgl(this)">
+                <span class="ar"><i class="fa-solid fa-angle-right"></i></span>
+                <span class="no">01</span><span class="nm">商品房交易档案</span><span class="ct-cnt">139,078</span>
+              </div>
+              <div class="sub">
+                <div class="nd"><div class="tn" onclick="pick(this,'01.01','商品房预售许可')"><span class="ar"></span><span class="no">01.01</span><span class="nm">商品房预售许可</span><span class="ct-cnt">4,286</span></div></div>
+                <div class="nd"><div class="tn" onclick="pick(this,'01.02','商品房网签备案')"><span class="ar"></span><span class="no">01.02</span><span class="nm">商品房网签备案</span><span class="ct-cnt">126,428</span></div></div>
+                <div class="nd"><div class="tn" onclick="pick(this,'01.03','商品房合同变更注销')"><span class="ar"></span><span class="no">01.03</span><span class="nm">商品房合同变更注销</span><span class="ct-cnt">8,364</span></div></div>
+              </div>
+            </div>
+            <div class="nd open">
+              <div class="tn" onclick="tgl(this)">
+                <span class="ar"><i class="fa-solid fa-angle-right"></i></span>
+                <span class="no">02</span><span class="nm">存量房交易档案</span><span class="ct-cnt">108,928</span>
+              </div>
+              <div class="sub">
+                <div class="nd"><div class="tn" onclick="pick(this,'02.01','房源核验')"><span class="ar"></span><span class="no">02.01</span><span class="nm">房源核验</span><span class="ct-cnt">32,486</span></div></div>
+                <div class="nd"><div class="tn" onclick="pick(this,'02.02','存量房网签')"><span class="ar"></span><span class="no">02.02</span><span class="nm">存量房网签</span><span class="ct-cnt">28,164</span></div></div>
+                <div class="nd"><div class="tn on" onclick="pick(this,'02.03','存量房备案')"><span class="ar"></span><span class="no">02.03</span><span class="nm">存量房备案</span><span class="ct-cnt">48,278</span></div></div>
+              </div>
+            </div>
+            <div class="nd"><div class="tn" onclick="pick(this,'03','房屋租赁档案')"><span class="ar"><i class="fa-solid fa-angle-right"></i></span><span class="no">03</span><span class="nm">房屋租赁档案</span><span class="ct-cnt">41,820</span></div></div>
+            <div class="nd"><div class="tn" onclick="pick(this,'04','抵押登记档案')"><span class="ar"><i class="fa-solid fa-angle-right"></i></span><span class="no">04</span><span class="nm">抵押登记档案</span><span class="ct-cnt">62,244</span></div></div>
+            <div class="nd"><div class="tn" onclick="pick(this,'05','政策性住房档案')"><span class="ar"><i class="fa-solid fa-angle-right"></i></span><span class="no">05</span><span class="nm">政策性住房档案</span><span class="ct-cnt">12,486</span></div></div>
+            <div class="nd"><div class="tn" onclick="pick(this,'06','公有住房与房改档案')"><span class="ar"><i class="fa-solid fa-angle-right"></i></span><span class="no">06</span><span class="nm">公有住房与房改档案</span><span class="ct-cnt">25,286</span></div></div>
+            <div class="nd"><div class="tn" onclick="pick(this,'07','征收安置档案')"><span class="ar"><i class="fa-solid fa-angle-right"></i></span><span class="no">07</span><span class="nm">征收安置档案</span><span class="ct-cnt">8,642</span></div></div>
+            <div class="nd"><div class="tn" onclick="pick(this,'08','房产测绘档案')"><span class="ar"><i class="fa-solid fa-angle-right"></i></span><span class="no">08</span><span class="nm">房产测绘档案</span><span class="ct-cnt">16,428</span></div></div>
+            <div class="nd"><div class="tn" onclick="pick(this,'09','资金监管档案')"><span class="ar"><i class="fa-solid fa-angle-right"></i></span><span class="no">09</span><span class="nm">资金监管档案</span><span class="ct-cnt">6,286</span></div></div>
+            <div class="nd"><div class="tn" onclick="pick(this,'10','维修资金档案')"><span class="ar"><i class="fa-solid fa-angle-right"></i></span><span class="no">10</span><span class="nm">维修资金档案</span><span class="ct-cnt">3,486</span></div></div>
+            <div class="nd"><div class="tn" onclick="pick(this,'11','项目开发建设档案')"><span class="ar"><i class="fa-solid fa-angle-right"></i></span><span class="no">11</span><span class="nm">项目开发建设档案</span><span class="ct-cnt">1,286</span></div></div>
+            <div class="nd"><div class="tn" onclick="pick(this,'12','从业主体档案')"><span class="ar"><i class="fa-solid fa-angle-right"></i></span><span class="no">12</span><span class="nm">从业主体档案</span><span class="ct-cnt">862</span></div></div>
+            <div class="nd"><div class="tn" onclick="pick(this,'13','一房一档（房屋总卷）')"><span class="ar"><i class="fa-solid fa-angle-right"></i></span><span class="no">13</span><span class="nm">一房一档（房屋总卷）</span><span class="ct-cnt">128,462</span></div></div>
+            <div class="nd"><div class="tn" onclick="pick(this,'14','综合管理档案')"><span class="ar"><i class="fa-solid fa-angle-right"></i></span><span class="no">14</span><span class="nm">综合管理档案</span><span class="ct-cnt">2,486</span></div></div>
+            <div class="nd"><div class="tn" onclick="pick(this,'99','其他档案')"><span class="ar"><i class="fa-solid fa-angle-right"></i></span><span class="no">99</span><span class="nm">其他档案</span><span class="ct-cnt">1,286</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-head">
+          <h3>分类详情 · <span class="no-code" id="curNo">02.03.01</span> <span id="curName">存量房备案</span></h3>
+          <div class="head-actions">
+            <button type="button" class="btn btn-sm" onclick="PMS.toast('已停用该分类，新办件不再匹配此规则','warning')"><i class="fa-solid fa-ban"></i> 停用</button>
+            <button type="button" class="btn btn-sm btn-primary" onclick="PMS.toast('分类与归档规则已保存，仅对新归档案卷生效','success')"><i class="fa-solid fa-floppy-disk"></i> 保存</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="section-title">基本信息</div>
+          <div class="form-grid form-align">
+            <div class="form-item">
+              <label>分类号<span class="req">*</span></label>
+              <input type="text" value="02.03.01">
+            </div>
+            <div class="form-item">
+              <label>分类名称<span class="req">*</span></label>
+              <input type="text" value="存量房买卖合同网签备案">
+            </div>
+            <div class="form-item">
+              <label>上级分类</label>
+              <input type="text" value="02.03 存量房备案" readonly>
+            </div>
+            <div class="form-item">
+              <label>层级</label>
+              <input type="text" value="3" readonly>
+            </div>
+            <div class="form-item col-full">
+              <label>全路径</label>
+              <input type="text" value="XXXX市房产交易档案 / 02 存量房交易档案 / 02.03 存量房备案 / 02.03.01 存量房买卖合同网签备案" readonly>
+            </div>
+            <div class="form-item">
+              <label>对应档案类型<span class="req">*</span></label>
+              <select><option>02 存量房交易档案</option><option>01 商品房交易档案</option><option>13 一房一档（房屋总卷）</option></select>
+            </div>
+            <div class="form-item">
+              <label>排序</label>
+              <input type="number" value="1">
+            </div>
+            <div class="form-item">
+              <label>是否启用</label>
+              <div class="radio-line">
+                <label><input type="radio" name="en" checked> 启用</label>
+                <label><input type="radio" name="en"> 停用</label>
+              </div>
+            </div>
+            <div class="form-item">
+              <label>案卷数量</label>
+              <input type="text" value="48,278 卷" readonly>
+            </div>
+          </div>
+
+          <div class="section-title mt-16">默认属性</div>
+          <div class="form-grid form-align">
+            <div class="form-item">
+              <label>默认保管期限<span class="req">*</span></label>
+              <select><option>永久</option><option>长期</option><option>定期 30 年</option><option>定期 10 年</option><option>定期 5 年</option><option>短期</option></select>
+            </div>
+            <div class="form-item">
+              <label>默认密级<span class="req">*</span></label>
+              <select><option>内部</option><option>公开</option><option>秘密</option><option>机密</option></select>
+            </div>
+            <div class="form-item">
+              <label>默认开放级别</label>
+              <select><option>受控开放</option><option>不开放</option><option>完全开放</option></select>
+            </div>
+          </div>
+          <p class="text-3 text-sm mt-8">
+            <i class="fa-solid fa-circle-info"></i>
+            密级为秘密及以上时，开放级别强制为「不开放」，借阅须专项审批。
+          </p>
+
+          <div class="section-title mt-16">对应事项代码范围</div>
+          <div class="tag-input" id="tagCode">
+            <span class="tg">CFBA-001<i class="fa-solid fa-xmark x" onclick="this.parentElement.remove()"></i></span>
+            <span class="tg">CFBA-002<i class="fa-solid fa-xmark x" onclick="this.parentElement.remove()"></i></span>
+            <span class="tg">CFWQ-001<i class="fa-solid fa-xmark x" onclick="this.parentElement.remove()"></i></span>
+            <span class="tg">CFWQ-002<i class="fa-solid fa-xmark x" onclick="this.parentElement.remove()"></i></span>
+            <input type="text" placeholder="输入事项代码后回车添加" onkeydown="addCode(event,this)">
+          </div>
+          <p class="text-3 text-sm mt-8">
+            办件的事项代码命中此范围时，自动归集按本分类的归档规则组卷；未命中的任务状态为「失败 · 事项代码未匹配到归档规则」。
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>应归档材料清单</h3>
+          <span class="sub">共 12 项，必要 10 项 · 可选 2 项</span>
+          <div class="head-actions">
+            <button type="button" class="btn btn-sm" onclick="addMat()"><i class="fa-solid fa-plus"></i> 新增材料</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table compact" id="tblMat" data-static>
+            <thead>
+              <tr>
+                <th style="width:44px"></th>
+                <th class="idx-col">序号</th>
+                <th>材料名称</th>
+                <th>材料类型代码</th>
+                <th>文件类型</th>
+                <th>是否必要</th>
+                <th>说明</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="drag-h"><i class="fa-solid fa-grip-vertical"></i></td>
+                <td class="idx-col">1</td>
+                <td class="cell-lg">存量房买卖合同网签备案申请表</td>
+                <td class="nowrap no-code">M001</td>
+                <td class="nowrap">01 申请表</td>
+                <td class="nowrap"><span class="badge blue">必要</span></td>
+                <td class="cell-lg text-3">窗口或网上申请生成，含双方签字</td>
+                <td class="col-ops"><a class="link danger" onclick="PMS.delRow(this.closest('tr'),'该材料')">删除</a></td>
+              </tr>
+              <tr>
+                <td class="drag-h"><i class="fa-solid fa-grip-vertical"></i></td>
+                <td class="idx-col">2</td>
+                <td class="cell-lg">转让方身份证明</td>
+                <td class="nowrap no-code">M002</td>
+                <td class="nowrap">02 身份证明材料</td>
+                <td class="nowrap"><span class="badge blue">必要</span></td>
+                <td class="cell-lg text-3">已通过人口库核验的可只归集核验结果</td>
+                <td class="col-ops"><a class="link danger" onclick="PMS.delRow(this.closest('tr'),'该材料')">删除</a></td>
+              </tr>
+              <tr>
+                <td class="drag-h"><i class="fa-solid fa-grip-vertical"></i></td>
+                <td class="idx-col">3</td>
+                <td class="cell-lg">受让方身份证明</td>
+                <td class="nowrap no-code">M003</td>
+                <td class="nowrap">02 身份证明材料</td>
+                <td class="nowrap"><span class="badge blue">必要</span></td>
+                <td class="cell-lg text-3">同上</td>
+                <td class="col-ops"><a class="link danger" onclick="PMS.delRow(this.closest('tr'),'该材料')">删除</a></td>
+              </tr>
+              <tr>
+                <td class="drag-h"><i class="fa-solid fa-grip-vertical"></i></td>
+                <td class="idx-col">4</td>
+                <td class="cell-lg">不动产权证书</td>
+                <td class="nowrap no-code">M004</td>
+                <td class="nowrap">05 权属证明</td>
+                <td class="nowrap"><span class="badge blue">必要</span></td>
+                <td class="cell-lg text-3">电子证照优先，无电子证照的归集扫描件</td>
+                <td class="col-ops"><a class="link danger" onclick="PMS.delRow(this.closest('tr'),'该材料')">删除</a></td>
+              </tr>
+              <tr>
+                <td class="drag-h"><i class="fa-solid fa-grip-vertical"></i></td>
+                <td class="idx-col">5</td>
+                <td class="cell-lg">存量房买卖合同</td>
+                <td class="nowrap no-code">M005</td>
+                <td class="nowrap">04 合同协议</td>
+                <td class="nowrap"><span class="badge blue">必要</span></td>
+                <td class="cell-lg text-3">网签生成的合同文本，含电子签章</td>
+                <td class="col-ops"><a class="link danger" onclick="PMS.delRow(this.closest('tr'),'该材料')">删除</a></td>
+              </tr>
+              <tr>
+                <td class="drag-h"><i class="fa-solid fa-grip-vertical"></i></td>
+                <td class="idx-col">6</td>
+                <td class="cell-lg">房源核验单</td>
+                <td class="nowrap no-code">M006</td>
+                <td class="nowrap">07 审批表与审批文书</td>
+                <td class="nowrap"><span class="badge blue">必要</span></td>
+                <td class="cell-lg text-3">来自 wscwb 房源核验结果</td>
+                <td class="col-ops"><a class="link danger" onclick="PMS.delRow(this.closest('tr'),'该材料')">删除</a></td>
+              </tr>
+              <tr>
+                <td class="drag-h"><i class="fa-solid fa-grip-vertical"></i></td>
+                <td class="idx-col">7</td>
+                <td class="cell-lg">交易限制校验结果单</td>
+                <td class="nowrap no-code">M007</td>
+                <td class="nowrap">07 审批表与审批文书</td>
+                <td class="nowrap"><span class="badge blue">必要</span></td>
+                <td class="cell-lg text-3">来自 wsdwb 交易限制校验</td>
+                <td class="col-ops"><a class="link danger" onclick="PMS.delRow(this.closest('tr'),'该材料')">删除</a></td>
+              </tr>
+              <tr>
+                <td class="drag-h"><i class="fa-solid fa-grip-vertical"></i></td>
+                <td class="idx-col">8</td>
+                <td class="cell-lg">资金监管协议</td>
+                <td class="nowrap no-code">M008</td>
+                <td class="nowrap">04 合同协议</td>
+                <td class="nowrap"><span class="badge blue">必要</span></td>
+                <td class="cell-lg text-3">纳入资金监管的必归，自行成交的可缺</td>
+                <td class="col-ops"><a class="link danger" onclick="PMS.delRow(this.closest('tr'),'该材料')">删除</a></td>
+              </tr>
+              <tr>
+                <td class="drag-h"><i class="fa-solid fa-grip-vertical"></i></td>
+                <td class="idx-col">9</td>
+                <td class="cell-lg">购房款支付凭证</td>
+                <td class="nowrap no-code">M009</td>
+                <td class="nowrap">08 缴费凭证</td>
+                <td class="nowrap"><span class="badge blue">必要</span></td>
+                <td class="cell-lg text-warning">银行回单或监管账户流水，办件中常缺，需人工补充</td>
+                <td class="col-ops"><a class="link danger" onclick="PMS.delRow(this.closest('tr'),'该材料')">删除</a></td>
+              </tr>
+              <tr>
+                <td class="drag-h"><i class="fa-solid fa-grip-vertical"></i></td>
+                <td class="idx-col">10</td>
+                <td class="cell-lg">网签备案证明</td>
+                <td class="nowrap no-code">M010</td>
+                <td class="nowrap">09 发证证书与证明</td>
+                <td class="nowrap"><span class="badge blue">必要</span></td>
+                <td class="cell-lg text-3">办结生成的电子证照</td>
+                <td class="col-ops"><a class="link danger" onclick="PMS.delRow(this.closest('tr'),'该材料')">删除</a></td>
+              </tr>
+              <tr>
+                <td class="drag-h"><i class="fa-solid fa-grip-vertical"></i></td>
+                <td class="idx-col">11</td>
+                <td class="cell-lg">契税完税凭证</td>
+                <td class="nowrap no-code">M011</td>
+                <td class="nowrap">08 缴费凭证</td>
+                <td class="nowrap"><span class="badge gray">可选</span></td>
+                <td class="cell-lg text-3">税务共享获取，未共享的不阻塞归档</td>
+                <td class="col-ops"><a class="link danger" onclick="PMS.delRow(this.closest('tr'),'该材料')">删除</a></td>
+              </tr>
+              <tr>
+                <td class="drag-h"><i class="fa-solid fa-grip-vertical"></i></td>
+                <td class="idx-col">12</td>
+                <td class="cell-lg">经纪服务合同</td>
+                <td class="nowrap no-code">M012</td>
+                <td class="nowrap">04 合同协议</td>
+                <td class="nowrap"><span class="badge gray">可选</span></td>
+                <td class="cell-lg text-3">经纪促成的归集，自行成交的不适用</td>
+                <td class="col-ops"><a class="link danger" onclick="PMS.delRow(this.closest('tr'),'该材料')">删除</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card-body">
+          <p class="text-3 text-sm">
+            <i class="fa-solid fa-grip-vertical"></i> 拖拽左侧手柄可调整顺序；<b>必要</b>材料缺失时案卷停留在「归档中」并标记需人工补充，<b>可选</b>材料缺失不阻塞归档。
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>组卷与编号规则</h3></div>
+        <div class="card-body">
+          <div class="form-grid form-align">
+            <div class="form-item">
+              <label>卷内排序规则<span class="req">*</span></label>
+              <select id="sortRule" onchange="toggleCustom()">
+                <option>按材料类型代码</option>
+                <option>按办件材料顺序</option>
+                <option>按成文日期</option>
+                <option>自定义</option>
+              </select>
+              <span class="hint">卷内文件按此规则自动排序并编卷内序号与页号</span>
+            </div>
+            <div class="form-item">
+              <label>页号编制方式</label>
+              <select><option>全卷连续编页</option><option>按件独立编页</option></select>
+            </div>
+          </div>
+          <div id="customBox" style="display:none;margin-top:10px">
+            <div class="alert alert-info">
+              <i class="fa-solid fa-list-ol"></i>
+              <div>自定义顺序：M001 → M002 → M003 → M004 → M005 → M006 → M007 → M008 → M009 → M010 → M011 → M012，可在上方材料清单中拖拽调整。</div>
+            </div>
+          </div>
+
+          <div class="section-title mt-16">档案号生成规则</div>
+          <div class="rule-box">
+            <input type="text" class="rule-exp" id="ruleExp" value="DA + {行政区划6} + {年份4} + {顺序5}" oninput="preview()">
+            <div class="mt-8 text-sm">
+              可用变量：<span class="no-code">{行政区划6}</span> <span class="no-code">{年份4}</span> <span class="no-code">{顺序5}</span>
+              <span class="no-code">{分类号}</span> <span class="no-code">{全宗号}</span>
+            </div>
+            <div class="mt-8">
+              示例预览：<span class="rule-pv" id="rulePv">DA450204202600862</span>
+            </div>
+          </div>
+          <div class="form-grid form-align mt-16">
+            <div class="form-item">
+              <label>档案标识码规则</label>
+              <input type="text" class="no-code" value="AID + {行政区划6} + {年份4} + {顺序8}">
+              <span class="hint">全局唯一，示例 AID450204202600000862</span>
+            </div>
+            <div class="form-item">
+              <label>一房一档总卷号规则</label>
+              <input type="text" class="no-code" value="DAFY + {行政区划6} + {房源顺序6}">
+              <span class="hint">示例 DAFY450202001286</span>
+            </div>
+          </div>
+
+          <div class="alert alert-warning mt-16">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <div>归档规则决定自动归集怎么组卷，<b>修改后仅对新归档的案卷生效，不影响已归档案卷</b>；档案号规则变更须报档案主管部门备案。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function tgl(el) { el.parentElement.classList.toggle('open'); }
+function pick(el, no, name) {
+  document.querySelectorAll('.ct-tree .tn').forEach(function (t) { t.classList.remove('on'); });
+  el.classList.add('on');
+  var full = no.indexOf('.') > 0 ? no + '.01' : no;
+  document.getElementById('curNo').textContent = full;
+  document.getElementById('curName').textContent = name;
+  PMS.toast('已切换到分类 ' + full + ' ' + name);
+}
+function addCode(e, inp) {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  var v = (inp.value || '').trim();
+  if (!v) return;
+  inp.insertAdjacentHTML('beforebegin',
+    '<span class="tg">' + v + '<i class="fa-solid fa-xmark x" onclick="this.parentElement.remove()"></i></span>');
+  inp.value = '';
+}
+function addMat() {
+  var tb = document.querySelector('#tblMat tbody');
+  var n = tb.querySelectorAll('tr').length + 1;
+  var code = 'M' + String(n).padStart(3, '0');
+  tb.insertAdjacentHTML('beforeend',
+    '<tr>' +
+    '<td class="drag-h"><i class="fa-solid fa-grip-vertical"></i></td>' +
+    '<td class="idx-col">' + n + '</td>' +
+    '<td><input type="text" placeholder="材料名称"></td>' +
+    '<td class="nowrap no-code">' + code + '</td>' +
+    '<td><select><option>01 申请表</option><option>02 身份证明材料</option><option>04 合同协议</option>' +
+    '<option>05 权属证明</option><option>07 审批表与审批文书</option><option>08 缴费凭证</option>' +
+    '<option>09 发证证书与证明</option><option>99 其他材料</option></select></td>' +
+    '<td><select><option>必要</option><option>可选</option></select></td>' +
+    '<td><input type="text" placeholder="说明"></td>' +
+    '<td class="col-ops"><a class="link danger" onclick="PMS.delRow(this.closest(\'tr\'),\'该材料\')">删除</a></td>' +
+    '</tr>');
+  PMS.toast('已新增一行材料，请填写名称与必要性');
+}
+function toggleCustom() {
+  var v = document.getElementById('sortRule').value;
+  document.getElementById('customBox').style.display = v === '自定义' ? '' : 'none';
+}
+function preview() {
+  var exp = document.getElementById('ruleExp').value || '';
+  var s = exp.replace(/\s|\+/g, '')
+    .replace('{行政区划6}', '450204')
+    .replace('{年份4}', '2026')
+    .replace('{顺序5}', '00862')
+    .replace('{顺序8}', '00000862')
+    .replace('{分类号}', '020301')
+    .replace('{全宗号}', 'J028');
+  document.getElementById('rulePv').textContent = s || '—';
+}
+</script>
+</body>
+</html>

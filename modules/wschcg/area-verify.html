@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>面积核验办理 · 房屋交易面积信息管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：成果依据条、面积对照差异着色、比对触发提示、结论单选卡 */
+  .amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .bs {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: #fff;
+  }
+  .bs .bi { padding: 10px 14px; border-right: 1px solid var(--border); }
+  .bs .bi:last-child { border-right: 0; }
+  .bs .bi .l { font-size: 12px; color: var(--text-3); }
+  .bs .bi .v { font-size: 14px; font-weight: 700; margin-top: 3px; }
+  .cmp td.diff-bad { color: var(--danger); font-weight: 700; background: #fef2f2; }
+  .cmp td.diff-ok { color: var(--success); font-weight: 600; }
+  .trig {
+    border: 1px solid #bfdbfe; background: linear-gradient(180deg, #f0f7ff, #fff);
+    border-radius: var(--radius); padding: 13px 15px; display: flex; align-items: center; gap: 12px;
+  }
+  .trig .ti {
+    width: 38px; height: 38px; border-radius: 50%; background: #dbeafe; color: var(--primary);
+    display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0;
+  }
+  .trig .tt { flex: 1; min-width: 0; }
+  .trig .tt b { font-size: 13.5px; }
+  .trig .tt div { font-size: 12.5px; color: var(--text-2); margin-top: 2px; }
+  .concl-pick { display: flex; gap: 10px; }
+  .concl-pick label {
+    flex: 1; border: 1.5px solid var(--border); border-radius: var(--radius); padding: 11px 14px;
+    cursor: pointer; display: flex; align-items: center; gap: 9px; font-size: 13.5px; font-weight: 700;
+    color: var(--text-2); transition: all .15s;
+  }
+  .concl-pick label:hover { border-color: var(--primary); }
+  .concl-pick label.on-pass { border-color: var(--success); background: #f0fdf4; color: var(--success); }
+  .concl-pick label.on-back { border-color: var(--danger); background: #fef2f2; color: var(--danger); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wschcg-05">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易面积信息管理系统
+        <span class="sep">/</span> 面积核验管理
+        <span class="sep">/</span> <span class="cur">面积核验办理</span>
+      </div>
+      <div class="page-title">面积核验办理</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="location.href='area-compare.html'"><i class="fa-solid fa-scale-balanced"></i> 预实测比对</button>
+      <button type="button" class="btn" onclick="PMS.toast('《面积核验台账》Excel 已生成，正在下载','success')"><i class="fa-solid fa-download"></i> 导出台账</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-clipboard-check"></i></div>
+      <div><div class="s-label">待核验</div><div class="s-value">11 件</div><div class="s-trend text-warning">3 件超 3 个工作日</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">核验中</div><div class="s-value">4 件</div><div class="s-trend text-3">含竣工实测核验 2 件</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">本月已核验</div><div class="s-value">37 件</div><div class="s-trend text-success">通过率 91.9%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-rotate-left"></i></div>
+      <div><div class="s-label">已退回</div><div class="s-value">3 件</div><div class="s-trend text-3">多因面积平衡不符</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-scale-balanced"></i></div>
+      <div><div class="s-label">核验触发比对</div><div class="s-value">2,168 户</div><div class="s-trend text-danger">超阈值 86 户待处理</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>核验以 <b>EPCAD 测绘成果</b>为依据，依据成果须<b>质检通过且已入库生效</b>，否则办理时拦截。竣工实测核验通过后自动触发全项目逐户预实测比对，超约定误差幅度的房源须走差异处理流程。</div>
+  </div>
+
+  <div class="card list-card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="all">待核验（11）</div>
+      <div class="tab" data-tab="ing">核验中（4）</div>
+      <div class="tab" data-tab="done">已核验（37）</div>
+      <div class="tab" data-tab="back">已退回（3）</div>
+    </div>
+
+    <div class="filter-bar">
+      <div class="filter-item"><label>核验编号</label><input type="text" placeholder="如 HY450200202600126"></div>
+      <div class="filter-item"><label>项目 / 楼盘 / 幢号</label><input type="text" placeholder="如 荣和公园大道二期 8 栋"></div>
+      <div class="filter-item">
+        <label>核验场景</label>
+        <select id="fScene" onchange="applyFilter()">
+          <option value="">全部</option><option value="1">预售面积核验</option><option value="2">竣工实测核验</option><option value="3">现售备案核验</option>
+        </select>
+      </div>
+      <div class="filter-item"><label>申请单位</label><input type="text" placeholder="开发企业名称"></div>
+      <div class="filter-item"><label>申请时间起</label><input type="date" value="2026-07-01"></div>
+      <div class="filter-item"><label>申请时间止</label><input type="date" value="2026-08-01"></div>
+      <div class="filter-item">
+        <label>核验状态</label>
+        <select id="fSt" onchange="applyFilter()">
+          <option value="">全部</option><option value="0">待核验</option><option value="1">核验中</option><option value="2">已核验</option><option value="3">已退回</option>
+        </select>
+      </div>
+      <div class="filter-item"><label>依据成果编号</label><input type="text" placeholder="如 CG450200202600186"></div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="applyFilter()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn" onclick="resetFilter()"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        <button type="button" class="btn" onclick="PMS.toast('《面积核验台账》Excel 已生成，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tbHy" data-static>
+        <thead>
+          <tr>
+            <th>核验编号</th><th>项目 / 幢号</th><th>核验场景</th><th>依据成果 / 版本</th>
+            <th>申请单位</th><th class="text-right">涉及户数</th><th class="text-right">总建筑面积</th>
+            <th>申请时间</th><th>核验状态</th><th>核验人</th><th>核验时间</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-scene="2" data-st="0">
+            <td class="nowrap fw-600">HY450200202600126</td>
+            <td class="nowrap">荣和公园大道二期 / 8 栋</td>
+            <td class="nowrap"><span class="badge orange">竣工实测核验</span></td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600186</span> <span class="badge blue">V2.0</span></td>
+            <td class="nowrap">柳州荣和房地产开发有限公司</td>
+            <td class="text-right amt">96</td>
+            <td class="text-right amt">28,842.60</td>
+            <td class="nowrap">2026-07-30 09:12</td>
+            <td class="nowrap"><span class="badge blue">待核验</span></td>
+            <td class="text-3">—</td><td class="text-3">—</td>
+            <td class="col-ops">
+              <span class="link" onclick="openDo()">办理</span>
+              <span class="link" onclick="location.href='result-detail.html'">详情</span>
+              <span class="link danger" onclick="doBack('HY450200202600126')">退回</span>
+            </td>
+          </tr>
+          <tr data-scene="2" data-st="0">
+            <td class="nowrap fw-600">HY450200202600125</td>
+            <td class="nowrap">万科城 / 5 栋</td>
+            <td class="nowrap"><span class="badge orange">竣工实测核验</span></td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600180</span> <span class="badge blue">V2.0</span></td>
+            <td class="nowrap">柳州万科房地产有限公司</td>
+            <td class="text-right amt">120</td>
+            <td class="text-right amt">36,420.80</td>
+            <td class="nowrap">2026-07-29 15:40</td>
+            <td class="nowrap"><span class="badge blue">待核验</span></td>
+            <td class="text-3">—</td><td class="text-3">—</td>
+            <td class="col-ops">
+              <span class="link" onclick="openDo()">办理</span>
+              <span class="link" onclick="location.href='result-detail.html'">详情</span>
+              <span class="link danger" onclick="doBack('HY450200202600125')">退回</span>
+            </td>
+          </tr>
+          <tr data-scene="1" data-st="0">
+            <td class="nowrap fw-600">HY450200202600124</td>
+            <td class="nowrap">恒大城 / 5 栋</td>
+            <td class="nowrap"><span class="badge purple">预售面积核验</span></td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600192</span> <span class="badge">V1.0</span></td>
+            <td class="nowrap">柳州恒大房地产开发有限公司</td>
+            <td class="text-right amt">144</td>
+            <td class="text-right amt">42,168.20</td>
+            <td class="nowrap">2026-07-29 11:05</td>
+            <td class="nowrap"><span class="badge blue">待核验</span></td>
+            <td class="text-3">—</td><td class="text-3">—</td>
+            <td class="col-ops">
+              <span class="link" onclick="openDo()">办理</span>
+              <span class="link" onclick="location.href='result-detail.html'">详情</span>
+              <span class="link danger" onclick="doBack('HY450200202600124')">退回</span>
+            </td>
+          </tr>
+          <tr data-scene="3" data-st="1">
+            <td class="nowrap fw-600">HY450200202600123</td>
+            <td class="nowrap">彰泰春天 / 12 栋</td>
+            <td class="nowrap"><span class="badge green">现售备案核验</span></td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600177</span> <span class="badge blue">V2.0</span></td>
+            <td class="nowrap">柳州彰泰房地产开发有限公司</td>
+            <td class="text-right amt">72</td>
+            <td class="text-right amt">19,846.40</td>
+            <td class="nowrap">2026-07-28 16:22</td>
+            <td class="nowrap"><span class="badge orange">核验中</span></td>
+            <td>韦国强</td><td class="nowrap">2026-07-31 10:18</td>
+            <td class="col-ops">
+              <span class="link" onclick="openDo()">办理</span>
+              <span class="link" onclick="location.href='result-detail.html'">详情</span>
+              <span class="link danger" onclick="doBack('HY450200202600123')">退回</span>
+            </td>
+          </tr>
+          <tr data-scene="2" data-st="1">
+            <td class="nowrap fw-600">HY450200202600122</td>
+            <td class="nowrap">龙湖春江天玺 / 7 栋</td>
+            <td class="nowrap"><span class="badge orange">竣工实测核验</span></td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600172</span> <span class="badge blue">V2.0</span></td>
+            <td class="nowrap">柳州龙湖房地产开发有限公司</td>
+            <td class="text-right amt">104</td>
+            <td class="text-right amt">31,268.40</td>
+            <td class="nowrap">2026-07-28 09:48</td>
+            <td class="nowrap"><span class="badge orange">核验中</span></td>
+            <td>韦国强</td><td class="nowrap">2026-07-31 15:06</td>
+            <td class="col-ops">
+              <span class="link" onclick="openDo()">办理</span>
+              <span class="link" onclick="location.href='result-detail.html'">详情</span>
+              <span class="link danger" onclick="doBack('HY450200202600122')">退回</span>
+            </td>
+          </tr>
+          <tr data-scene="2" data-st="2">
+            <td class="nowrap fw-600">HY450200202600118</td>
+            <td class="nowrap">保利大都会 / 3 栋</td>
+            <td class="nowrap"><span class="badge orange">竣工实测核验</span></td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600164</span> <span class="badge blue">V2.0</span></td>
+            <td class="nowrap">柳州保利房地产开发有限公司</td>
+            <td class="text-right amt">88</td>
+            <td class="text-right amt">26,142.60</td>
+            <td class="nowrap">2026-07-24 09:30</td>
+            <td class="nowrap"><span class="badge green">已核验</span></td>
+            <td>韦国强</td><td class="nowrap">2026-07-26 14:52</td>
+            <td class="col-ops">
+              <span class="link" onclick="location.href='result-detail.html'">详情</span>
+              <span class="link" onclick="location.href='area-compare.html'">比对结果</span>
+            </td>
+          </tr>
+          <tr data-scene="1" data-st="2">
+            <td class="nowrap fw-600">HY450200202600116</td>
+            <td class="nowrap">碧桂园柳江府 / 15 栋</td>
+            <td class="nowrap"><span class="badge purple">预售面积核验</span></td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600158</span> <span class="badge">V1.0</span></td>
+            <td class="nowrap">柳州碧桂园房地产开发有限公司</td>
+            <td class="text-right amt">132</td>
+            <td class="text-right amt">38,624.80</td>
+            <td class="nowrap">2026-07-22 10:16</td>
+            <td class="nowrap"><span class="badge green">已核验</span></td>
+            <td>韦国强</td><td class="nowrap">2026-07-23 16:40</td>
+            <td class="col-ops">
+              <span class="link" onclick="location.href='result-detail.html'">详情</span>
+              <span class="link" onclick="location.href='area-sync.html'">同步记录</span>
+            </td>
+          </tr>
+          <tr data-scene="1" data-st="3">
+            <td class="nowrap fw-600">HY450200202600112</td>
+            <td class="nowrap">融创九棠府 / 2 栋</td>
+            <td class="nowrap"><span class="badge purple">预售面积核验</span></td>
+            <td class="nowrap"><span class="link" onclick="location.href='result-detail.html'">CG450200202600151</span> <span class="badge">V1.0</span></td>
+            <td class="nowrap">柳州融创房地产开发有限公司</td>
+            <td class="text-right amt">76</td>
+            <td class="text-right amt">22,468.20</td>
+            <td class="nowrap">2026-07-20 14:10</td>
+            <td class="nowrap"><span class="badge red">已退回</span></td>
+            <td>韦国强</td><td class="nowrap">2026-07-21 09:26</td>
+            <td class="col-ops">
+              <span class="link" onclick="location.href='result-detail.html'">详情</span>
+              <span class="link" onclick="PMS.toast('退回原因：幢建筑面积与各层建筑面积之和不符，差值 2.86 ㎡，须补正后重新报送')">退回原因</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- 核验办理抽屉 -->
+<div class="drawer-mask"></div>
+<div class="drawer drawer-xl" id="drDo">
+  <div class="drawer-head">
+    <h3 style="margin:0;font-size:16px">面积核验办理 · HY450200202600126</h3>
+    <span class="badge orange">竣工实测核验</span>
+    <button type="button" class="btn btn-ghost" style="margin-left:auto" data-close-drawer><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="drawer-body">
+
+    <div class="section-title">一、成果依据</div>
+    <div class="bs">
+      <div class="bi"><div class="l">依据成果编号</div><div class="v"><span class="link" onclick="location.href='result-detail.html'">CG450200202600186</span></div></div>
+      <div class="bi"><div class="l">成果类型 / 版本</div><div class="v">实测成果 · <span class="badge blue">V2.0</span></div></div>
+      <div class="bi"><div class="l">质检结论</div><div class="v text-success"><i class="fa-solid fa-circle-check"></i> 质检通过（12 / 12）</div></div>
+      <div class="bi"><div class="l">入库状态</div><div class="v text-success"><i class="fa-solid fa-database"></i> 已入库生效</div></div>
+    </div>
+    <div class="alert alert-success mt-16">
+      <i class="fa-solid fa-shield-halved"></i>
+      <div>依据成果已质检通过且已入库生效，满足核验前置条件。<span class="text-3">若成果未质检通过或未入库，办理时将被拦截，不允许提交核验结论。</span></div>
+    </div>
+
+    <div class="section-title mt-16" style="margin-top:20px">二、面积汇总核验</div>
+    <div class="alert alert-warning">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div>总建筑面积与预售许可数据差异 <b>+0.85%</b>，在允许范围（±1%）内；<b>总套内建筑面积差异 +1.56% 超出 ±1% 阈值并已标红</b>，请核实分摊系数按实测调整的依据。</div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table compact cmp" data-static>
+        <thead>
+          <tr>
+            <th>面积项</th><th class="text-right">本次实测成果</th><th class="text-right">预售许可数据</th>
+            <th class="text-right">差值</th><th class="text-right">差异比例</th>
+            <th class="text-right">规划许可数据</th><th class="text-right">差异比例</th><th>结论</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="fw-600">总建筑面积（㎡）</td>
+            <td class="text-right amt">28,842.60</td><td class="text-right amt">28,600.00</td>
+            <td class="text-right amt text-warning">+242.60</td><td class="text-right amt diff-ok">+0.85%</td>
+            <td class="text-right amt">28,600.00</td><td class="text-right amt diff-ok">+0.85%</td>
+            <td class="nowrap"><span class="badge green">在允许范围</span></td>
+          </tr>
+          <tr>
+            <td class="fw-600">总套内建筑面积（㎡）</td>
+            <td class="text-right amt">22,368.42</td><td class="text-right amt">22,024.60</td>
+            <td class="text-right amt text-warning">+343.82</td><td class="text-right amt diff-bad">+1.56%</td>
+            <td class="text-right amt">22,024.60</td><td class="text-right amt diff-bad">+1.56%</td>
+            <td class="nowrap"><span class="badge orange">超阈值待核实</span></td>
+          </tr>
+          <tr>
+            <td class="fw-600">总分摊面积（㎡）</td>
+            <td class="text-right amt">6,474.18</td><td class="text-right amt">6,575.40</td>
+            <td class="text-right amt text-success">−101.22</td><td class="text-right amt diff-ok">−1.54%</td>
+            <td class="text-right amt">6,575.40</td><td class="text-right amt diff-ok">−1.54%</td>
+            <td class="nowrap"><span class="badge green">在允许范围</span></td>
+          </tr>
+          <tr>
+            <td class="fw-600">分摊系数</td>
+            <td class="text-right amt">0.2270</td><td class="text-right amt">0.2225</td>
+            <td class="text-right amt text-warning">+0.0045</td><td class="text-right amt diff-ok">+2.02%</td>
+            <td class="text-right text-3">—</td><td class="text-right text-3">—</td>
+            <td class="nowrap"><span class="badge green">住宅合理区间</span></td>
+          </tr>
+          <tr>
+            <td class="fw-600">总户数（户）</td>
+            <td class="text-right amt">96</td><td class="text-right amt">96</td>
+            <td class="text-right amt">0</td><td class="text-right amt diff-ok">0.00%</td>
+            <td class="text-right amt">96</td><td class="text-right amt diff-ok">0.00%</td>
+            <td class="nowrap"><span class="badge green">一致</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section-title mt-16" style="margin-top:20px">三、预实测比对</div>
+    <div class="trig">
+      <div class="ti"><i class="fa-solid fa-scale-balanced"></i></div>
+      <div class="tt">
+        <b>本次为竣工实测核验，提交结论后自动触发全项目逐户预实测比对</b>
+        <div>系统已预跑比对：96 户全部完成，其中 <b class="text-danger">5 户差异比例超 3% 约定幅度</b>，须走差异处理流程；91 户可据实结算。</div>
+      </div>
+      <button type="button" class="btn btn-primary" onclick="location.href='area-compare.html'"><i class="fa-solid fa-arrow-right"></i> 查看比对结果</button>
+    </div>
+
+    <div class="section-title mt-16" style="margin-top:20px">四、核验结论</div>
+    <div class="concl-pick">
+      <label class="on-pass" id="lbPass"><input type="radio" name="cc" value="pass" checked onchange="pick(this)"><i class="fa-solid fa-circle-check"></i> 核验通过</label>
+      <label id="lbBack"><input type="radio" name="cc" value="back" onchange="pick(this)"><i class="fa-solid fa-rotate-left"></i> 退回补正</label>
+    </div>
+    <div class="form-grid form-align mt-16" id="fmPass">
+      <div class="form-item"><label>核验人</label><input type="text" value="韦国强" readonly></div>
+      <div class="form-item"><label>核验时间</label><input type="text" value="2026-08-01 18:40" readonly></div>
+      <div class="form-item"><label>政策版本号</label><input type="text" value="V2026.03" readonly></div>
+      <div class="form-item col-full">
+        <label>核验意见</label>
+        <textarea rows="3">依据成果 CG450200202600186 V2.0 质检通过且已入库生效，面积汇总与预售许可、规划许可数据对照差异在允许范围内；总套内面积差异 +1.56% 已核实系分摊系数按实测调整所致，附XXXX市测绘院书面说明，同意核验通过。</textarea>
+      </div>
+      <div class="form-item col-full">
+        <label>后续处理</label>
+        <div class="radio-line">
+          <label><input type="checkbox" checked> 核验通过后同步楼盘表面积</label>
+          <label><input type="checkbox" checked> 触发全项目逐户预实测比对</label>
+          <label><input type="checkbox"> 通知不动产登记机构</label>
+          <label><input type="checkbox" checked> 短信通知申请单位</label>
+        </div>
+      </div>
+    </div>
+    <div class="form-grid form-align mt-16" id="fmBack" style="display:none">
+      <div class="form-item">
+        <label>退回原因<span class="req">*</span></label>
+        <select>
+          <option>面积平衡关系不符</option><option>与预售许可面积差异超阈值且无合理说明</option>
+          <option>分摊系数超出合理区间</option><option>图形文件缺失或不可读</option><option>其他</option>
+        </select>
+      </div>
+      <div class="form-item"><label>补正期限</label><input type="date" value="2026-08-10"></div>
+      <div class="form-item col-full"><label>退回说明<span class="req">*</span></label><textarea rows="3" placeholder="须写明补正要求与补正材料清单，退回后申请单位按要求整改并重新报送"></textarea></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button type="button" class="btn" data-close-drawer>取消</button>
+    <button type="button" class="btn" onclick="PMS.toast('核验办理草稿已保存','success')">保存草稿</button>
+    <button type="button" class="btn btn-primary" onclick="submitDo()"><i class="fa-solid fa-paper-plane"></i> 提交结论</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+function openDo() { PMS.openDrawer('drDo'); }
+
+function applyFilter() {
+  var sc = document.getElementById('fScene').value, st = document.getElementById('fSt').value, n = 0;
+  document.querySelectorAll('#tbHy tbody tr').forEach(function (tr) {
+    var ok = (!sc || tr.dataset.scene === sc) && (!st || tr.dataset.st === st);
+    tr.style.display = ok ? '' : 'none';
+    if (ok) n++;
+  });
+  PMS.toast('已按条件筛选：' + n + ' 条核验记录');
+}
+
+function resetFilter() {
+  document.getElementById('fScene').value = '';
+  document.getElementById('fSt').value = '';
+  document.querySelectorAll('#tbHy tbody tr').forEach(function (tr) { tr.style.display = ''; });
+  PMS.toast('筛选条件已重置');
+}
+
+function pick(el) {
+  var pass = el.value === 'pass';
+  document.getElementById('lbPass').className = pass ? 'on-pass' : '';
+  document.getElementById('lbBack').className = pass ? '' : 'on-back';
+  document.getElementById('fmPass').style.display = pass ? '' : 'none';
+  document.getElementById('fmBack').style.display = pass ? 'none' : '';
+}
+
+function submitDo() {
+  var pass = document.querySelector('input[name=cc]:checked').value === 'pass';
+  if (!pass) {
+    PMS.confirm({
+      title: '退回补正',
+      message: '确认退回本次面积核验申请？',
+      detail: '退回后申请单位须按补正要求整改测绘成果并重新报送，核验编号保留，核验状态置为「已退回」，退回意见留痕。',
+      type: 'warning', okText: '确认退回',
+      onOk: function () {
+        PMS.closeDrawer('drDo');
+        PMS.toast('HY450200202600126 已退回，补正通知已发送至柳州荣和房地产开发有限公司', 'success');
+      }
+    });
+    return;
+  }
+  PMS.confirm({
+    title: '提交核验结论',
+    message: '确认本次面积核验通过？',
+    detail: '通过后同步楼盘表面积，并自动触发全项目 96 户预实测比对；其中 5 户超 3% 约定幅度，须走差异处理流程后方可结算。',
+    type: 'info', okText: '确认通过',
+    onOk: function () {
+      PMS.closeDrawer('drDo');
+      PMS.toast('核验通过：楼盘表面积同步中，96 户预实测比对已触发', 'success');
+      setTimeout(function () { location.href = 'area-compare.html'; }, 1500);
+    }
+  });
+}
+
+function doBack(no) {
+  PMS.confirm({
+    title: '退回申请',
+    message: '确认退回 ' + no + '？',
+    detail: '退回须填写原因与补正要求，将打开办理抽屉的「退回补正」表单。',
+    type: 'warning', okText: '去填写原因',
+    onOk: function () {
+      openDo();
+      var r = document.querySelector('input[name=cc][value=back]');
+      r.checked = true; pick(r);
+    }
+  });
+}
+</script>
+</body>
+</html>

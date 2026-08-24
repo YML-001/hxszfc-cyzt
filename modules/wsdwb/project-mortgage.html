@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>在建工程抵押备案 · 房屋交易备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：抵押幢号方块矩阵 */
+  .bd-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+  .bd {
+    width: 104px; border-radius: var(--radius); border: 1px solid var(--border); background: #f7f9fc;
+    padding: 10px 8px; text-align: center; cursor: pointer; transition: .16s; position: relative;
+  }
+  .bd:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+  .bd .bn { font-size: 15px; font-weight: 800; }
+  .bd .bs { font-size: 11.5px; color: var(--text-3); margin-top: 3px; line-height: 1.5; }
+  .bd.in { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .bd.in .bs { color: rgba(255, 255, 255, .82); }
+  .bd.sold {
+    background: repeating-linear-gradient(45deg, #fff3e0, #fff3e0 7px, #ffe3bd 7px, #ffe3bd 14px);
+    border-color: var(--warning); color: #92400e;
+  }
+  .bd.sold .bs { color: #b45309; }
+  .bd .tagn {
+    position: absolute; top: -7px; right: -6px; background: var(--danger); color: #fff;
+    font-size: 10.5px; border-radius: 20px; padding: 1px 7px; font-weight: 700;
+  }
+  .bd-lg { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-2); margin-top: 14px; }
+  .bd-lg .l { display: flex; align-items: center; gap: 6px; }
+  .bd-lg .sw { width: 15px; height: 15px; border-radius: 4px; border: 1px solid var(--border); }
+  .area-sum {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--primary-light);
+    border: 1px solid var(--primary-soft); border-radius: var(--radius); padding: 11px 15px; font-size: 13.5px;
+  }
+  .area-sum b { font-size: 15px; }
+  /* 局部滚动容器，避免触发全局定高列表布局 */
+  .tbl-box { overflow: auto; border-top: 1px solid var(--border); }
+  .radio-line { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; min-height: 32px; }
+  .radio-line label { font-size: 14px; color: var(--text-2); font-weight: 400; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdwb-06">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易备案管理系统
+        <span class="sep">/</span> 抵押合同备案
+        <span class="sep">/</span> <span class="cur">在建工程抵押备案</span>
+      </div>
+      <div class="page-title">在建工程抵押备案</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" onclick="location.href='mortgage-create.html'"><i class="fa-solid fa-file-circle-plus"></i> 新增在建工程抵押</button>
+      <button type="button" class="btn" onclick="PMS.toast('《在建工程抵押台账》Excel 已生成，正在下载','success')"><i class="fa-solid fa-download"></i> 导出台账</button>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>在建工程抵押<b>限制抵押范围内房源预售网签</b>；已完成网签备案的房源自动从抵押范围中排除并核减抵押面积。
+      办理部分注销后，对应幢号房源的预售限制即时释放。</div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item"><label>抵押编号 / 项目名称</label><input type="text" placeholder="如 ZJGC20260036"></div>
+      <div class="filter-item"><label>开发企业</label><input type="text" placeholder="企业名称"></div>
+      <div class="filter-item">
+        <label>贷款银行</label>
+        <select><option value="">全部</option><option>中国工商银行柳州分行</option><option>中国建设银行柳州分行</option><option>中国银行柳州分行</option><option>柳州银行</option></select>
+      </div>
+      <div class="filter-item">
+        <label>抵押状态</label>
+        <select><option value="">全部</option><option>有效</option><option>部分注销</option><option>全部注销</option><option>已变更</option></select>
+      </div>
+      <div class="filter-item">
+        <label>是否限制预售</label>
+        <select><option value="">全部</option><option>是</option><option>否</option></select>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 68 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tbl-box">
+    <table class="data-table" data-static>
+      <thead>
+        <tr>
+          <th>在建工程抵押编号</th><th>项目名称</th><th>开发企业</th><th>抵押幢号范围</th>
+          <th>抵押建筑面积</th><th>评估价值</th><th>贷款金额</th><th>贷款银行</th>
+          <th>抵押期限</th><th>限制预售</th><th>抵押状态</th><th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="nowrap fw-600">ZJGC20260036</td>
+          <td>荣和公园大道项目二期</td>
+          <td class="nowrap">柳州荣和房地产开发有限公司</td>
+          <td class="nowrap">8 ~ 12 栋</td>
+          <td class="num nowrap">24,757.40 ㎡</td>
+          <td class="num nowrap">32,860.00 万元</td>
+          <td class="num nowrap">18,000.00 万元</td>
+          <td class="nowrap">中国工商银行柳州分行</td>
+          <td class="nowrap">2026-03-18 ~ 2029-03-17</td>
+          <td class="nowrap"><span class="badge red">是</span></td>
+          <td class="nowrap"><span class="badge green">有效</span></td>
+          <td class="col-ops"><span class="link" onclick="PMS.toast('当前详情即为该笔在建工程抵押')">详情</span> <span class="link" onclick="openPart()">部分注销</span></td>
+        </tr>
+        <tr>
+          <td class="nowrap fw-600">ZJGC20260028</td>
+          <td>华润万象天地三期</td>
+          <td class="nowrap">柳州华润置地有限公司</td>
+          <td class="nowrap">1 ~ 4 栋</td>
+          <td class="num nowrap">18,420.60 ㎡</td>
+          <td class="num nowrap">26,180.00 万元</td>
+          <td class="num nowrap">14,000.00 万元</td>
+          <td class="nowrap">中国建设银行柳州分行</td>
+          <td class="nowrap">2026-01-12 ~ 2028-01-11</td>
+          <td class="nowrap"><span class="badge red">是</span></td>
+          <td class="nowrap"><span class="badge orange">部分注销</span></td>
+          <td class="col-ops"><span class="link" onclick="PMS.toast('演示数据仅提供 ZJGC20260036 的详情')">详情</span> <span class="link" onclick="openPart()">部分注销</span></td>
+        </tr>
+        <tr>
+          <td class="nowrap fw-600">ZJGC20250186</td>
+          <td>彰泰滨江学府四期</td>
+          <td class="nowrap">柳州彰泰房地产开发有限公司</td>
+          <td class="nowrap">15 ~ 18 栋</td>
+          <td class="num nowrap">0.00 ㎡</td>
+          <td class="num nowrap">21,460.00 万元</td>
+          <td class="num nowrap">12,000.00 万元</td>
+          <td class="nowrap">柳州银行</td>
+          <td class="nowrap">2025-06-20 ~ 2027-06-19</td>
+          <td class="nowrap"><span class="badge gray">否</span></td>
+          <td class="nowrap"><span class="badge gray">全部注销</span></td>
+          <td class="col-ops"><span class="link" onclick="PMS.toast('该笔抵押已全部注销，预售限制已释放')">详情</span></td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-diagram-project"></i> ZJGC20260036 · 荣和公园大道项目二期</h3>
+      <span class="sub">抵押权人 中国工商银行柳州分行 · 有效</span>
+    </div>
+    <div class="card-body">
+      <dl class="desc-list">
+        <div class="desc-item"><dt>在建工程抵押编号</dt><dd>ZJGC20260036</dd></div>
+        <div class="desc-item"><dt>项目名称</dt><dd>荣和公园大道项目二期</dd></div>
+        <div class="desc-item"><dt>开发企业</dt><dd>柳州荣和房地产开发有限公司</dd></div>
+        <div class="desc-item"><dt>项目坐落</dt><dd>柳州市城中区静兰路 8 号</dd></div>
+        <div class="desc-item"><dt>抵押幢号范围</dt><dd>8 栋、9 栋、10 栋、11 栋、12 栋</dd></div>
+        <div class="desc-item"><dt>原抵押建筑面积</dt><dd>28,600.00 ㎡</dd></div>
+        <div class="desc-item"><dt>核减后抵押面积</dt><dd class="text-danger fw-700">24,757.40 ㎡</dd></div>
+        <div class="desc-item"><dt>评估价值</dt><dd>32,860.00 万元</dd></div>
+        <div class="desc-item"><dt>贷款金额</dt><dd>18,000.00 万元</dd></div>
+        <div class="desc-item"><dt>贷款银行</dt><dd>中国工商银行柳州分行</dd></div>
+        <div class="desc-item"><dt>抵押期限</dt><dd>2026-03-18 至 2029-03-17</dd></div>
+        <div class="desc-item"><dt>土地使用权证号</dt><dd>桂(2024)柳州市不动产权第 0012865 号</dd></div>
+      </dl>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-building"></i> 抵押范围可视化</h3>
+      <span class="sub">按幢呈现，悬停查看该幢明细</span>
+    </div>
+    <div class="card-body">
+      <div class="bd-grid" id="bdGrid"></div>
+      <div class="bd-lg">
+        <span class="l"><span class="sw" style="background:var(--primary);border-color:var(--primary)"></span> 抵押范围内</span>
+        <span class="l"><span class="sw" style="background:repeating-linear-gradient(45deg,#fff3e0,#fff3e0 5px,#ffe3bd 5px,#ffe3bd 10px);border-color:var(--warning)"></span> 范围内含已售排除</span>
+        <span class="l"><span class="sw" style="background:#f7f9fc"></span> 抵押范围外</span>
+      </div>
+      <div class="area-sum" style="margin-top:16px">
+        <i class="fa-solid fa-calculator text-primary"></i>
+        <span>已排除 <b>36 套</b>，合计 <b>3,842.60 ㎡</b>；抵押面积由 <b>28,600.00 ㎡</b> 核减为 <b class="text-danger">24,757.40 ㎡</b>。</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-list-check"></i> 已售房源排除清单</h3>
+      <span class="sub">抵押范围内已完成网签备案的房源自动排除</span>
+    </div>
+    <div class="card-body" style="padding-top:0">
+      <table class="data-table compact" data-static>
+        <thead><tr><th>幢号</th><th>房号</th><th>买受人</th><th>网签备案编号</th><th>备案日期</th><th>建筑面积</th><th>成交价</th></tr></thead>
+        <tbody>
+          <tr><td>8 栋</td><td>8-1-1502</td><td>李**</td><td class="nowrap">SPFBA450200202601879</td><td class="nowrap">2026-07-28</td><td class="num nowrap">106.80 ㎡</td><td class="num nowrap">1,186,000.00</td></tr>
+          <tr><td>8 栋</td><td>8-1-1601</td><td>吴**</td><td class="nowrap">SPFBA450200202601862</td><td class="nowrap">2026-07-22</td><td class="num nowrap">106.80 ㎡</td><td class="num nowrap">1,192,000.00</td></tr>
+          <tr><td>8 栋</td><td>8-2-0903</td><td>秦**</td><td class="nowrap">SPFBA450200202601846</td><td class="nowrap">2026-07-16</td><td class="num nowrap">89.60 ㎡</td><td class="num nowrap">986,000.00</td></tr>
+          <tr><td>9 栋</td><td>9-1-1203</td><td>覃**</td><td class="nowrap">SPFBA450200202601821</td><td class="nowrap">2026-07-08</td><td class="num nowrap">118.20 ㎡</td><td class="num nowrap">1,326,000.00</td></tr>
+          <tr><td>9 栋</td><td>9-2-0602</td><td>周**</td><td class="nowrap">SPFBA450200202601808</td><td class="nowrap">2026-07-02</td><td class="num nowrap">89.60 ㎡</td><td class="num nowrap">972,000.00</td></tr>
+          <tr><td>10 栋</td><td>10-1-0801</td><td>莫**</td><td class="nowrap">SPFBA450200202601786</td><td class="nowrap">2026-06-24</td><td class="num nowrap">106.80 ㎡</td><td class="num nowrap">1,168,000.00</td></tr>
+          <tr><td>10 栋</td><td>10-2-1102</td><td>郑**</td><td class="nowrap">SPFBA450200202601762</td><td class="nowrap">2026-06-18</td><td class="num nowrap">118.20 ㎡</td><td class="num nowrap">1,308,000.00</td></tr>
+          <tr><td>11 栋</td><td>11-1-0502</td><td>梁**</td><td class="nowrap">SPFBA450200202601741</td><td class="nowrap">2026-06-10</td><td class="num nowrap">89.60 ㎡</td><td class="num nowrap">958,000.00</td></tr>
+        </tbody>
+      </table>
+      <div class="text-3 text-sm" style="margin-top:10px"><i class="fa-solid fa-circle-info"></i> 仅展示前 8 条，共 36 条已排除房源。</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3><i class="fa-solid fa-scissors"></i> 部分注销记录</h3></div>
+    <div class="card-body" style="padding-top:0">
+      <table class="data-table compact" data-static>
+        <thead><tr><th>注销时间</th><th>注销范围</th><th>注销面积</th><th>剩余抵押面积</th><th>释放房源</th><th>注销文书编号</th><th>经办人</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="nowrap">2026-06-30</td><td class="nowrap">按幢 · 13 栋</td><td class="num nowrap">4,860.00 ㎡</td>
+            <td class="num nowrap">28,600.00 ㎡</td><td class="nowrap">96 套</td><td class="nowrap">GCZX20260628003</td><td class="nowrap">韦国强</td>
+          </tr>
+          <tr>
+            <td class="nowrap">2026-05-12</td><td class="nowrap">按面积</td><td class="num nowrap">2,180.00 ㎡</td>
+            <td class="num nowrap">33,460.00 ㎡</td><td class="nowrap">42 套</td><td class="nowrap">GCZX20260512001</td><td class="nowrap">韦国强</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="btn-row" style="margin-top:14px">
+        <button type="button" class="btn btn-primary" onclick="openPart()"><i class="fa-solid fa-scissors"></i> 办理部分注销</button>
+        <button type="button" class="btn" onclick="location.href='mortgage-cancel.html'">办理全部注销</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- 部分注销 -->
+<div class="modal-mask" id="mdPart">
+  <div class="modal">
+    <div class="modal-head">办理在建工程抵押部分注销</div>
+    <div class="modal-body">
+      <div class="alert alert-info">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>部分注销后，对应幢号房源的<b>预售限制即时释放</b>，剩余抵押面积同步核减，注销结果与不动产登记机构合并推送。</div>
+      </div>
+      <div class="form-grid form-align">
+        <div class="form-item" style="grid-column:span 2">
+          <label>注销方式<span class="req">*</span></label>
+          <div class="radio-line">
+            <label><input type="radio" name="pmode" value="bd" checked onchange="togglePart()"> 按幢注销</label>
+            <label><input type="radio" name="pmode" value="area" onchange="togglePart()"> 按面积注销</label>
+          </div>
+        </div>
+        <div class="form-item" style="grid-column:span 2" id="pBd">
+          <label>注销幢号<span class="req">*</span></label>
+          <div class="radio-line">
+            <label><input type="checkbox" checked onchange="calcPart()" data-bd="12" data-area="5210.60" data-house="96"> 12 栋（96 套 · 5,210.60 ㎡）</label>
+            <label><input type="checkbox" onchange="calcPart()" data-bd="11" data-area="4986.20" data-house="88"> 11 栋（88 套 · 4,986.20 ㎡）</label>
+            <label><input type="checkbox" onchange="calcPart()" data-bd="10" data-area="4862.00" data-house="86"> 10 栋（86 套 · 4,862.00 ㎡）</label>
+          </div>
+        </div>
+        <div class="form-item hidden" id="pArea"><label>注销面积（㎡）<span class="req">*</span></label><input type="text" placeholder="请输入注销面积"></div>
+        <div class="form-item"><label>本次注销面积</label><input type="text" id="pSum" value="5,210.60 ㎡" readonly></div>
+        <div class="form-item"><label>注销后剩余抵押面积</label><input type="text" id="pLeft" value="19,546.80 ㎡" readonly></div>
+        <div class="form-item"><label>注销文书编号<span class="req">*</span></label><input type="text" value="GCZX20260801001"></div>
+        <div class="form-item"><label>抵押权人同意<span class="req">*</span></label><select><option>已出具同意注销函</option><option>待出具</option></select></div>
+        <div class="form-item" style="grid-column:span 2"><label>注销原因<span class="req">*</span></label><textarea rows="2">项目 12 栋已达预售条件，开发企业提前偿还对应贷款本金 3,200 万元，银行同意释放该幢抵押并解除预售限制。</textarea></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" onclick="PMS.closeModal('mdPart')">取消</button>
+      <button type="button" class="btn btn-primary" onclick="doPart()">提交部分注销</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+/* 幢号矩阵：in 抵押范围内 · sold 范围内含已售排除 · 空白为范围外 */
+var BUILDINGS = [
+  { n: '1 栋', t: 96, s: 96, a: 0, k: '' },
+  { n: '2 栋', t: 96, s: 92, a: 0, k: '' },
+  { n: '3 栋', t: 88, s: 81, a: 0, k: '' },
+  { n: '4 栋', t: 88, s: 76, a: 0, k: '' },
+  { n: '5 栋', t: 86, s: 62, a: 0, k: '' },
+  { n: '6 栋', t: 86, s: 48, a: 0, k: '' },
+  { n: '7 栋', t: 96, s: 26, a: 0, k: '' },
+  { n: '8 栋', t: 96, s: 18, a: 5386.40, k: 'sold' },
+  { n: '9 栋', t: 96, s: 12, a: 5312.20, k: 'sold' },
+  { n: '10 栋', t: 86, s: 6, a: 4862.00, k: 'sold' },
+  { n: '11 栋', t: 88, s: 0, a: 4986.20, k: 'in' },
+  { n: '12 栋', t: 96, s: 0, a: 5210.60, k: 'in' },
+  { n: '13 栋', t: 96, s: 0, a: 0, k: '' },
+  { n: '14 栋', t: 96, s: 0, a: 0, k: '' }
+];
+
+(function () {
+  document.getElementById('bdGrid').innerHTML = BUILDINGS.map(function (b) {
+    var inRange = b.k === 'in' || b.k === 'sold';
+    var tip = b.n + '：总 ' + b.t + ' 套，已售 ' + b.s + ' 套' + (inRange ? '，抵押面积 ' + b.a.toLocaleString('en-US', { minimumFractionDigits: 2 }) + ' ㎡' : '，不在抵押范围');
+    return '<div class="bd ' + b.k + '" title="' + tip + '" onclick="PMS.toast(\'' + tip + '\')">' +
+      (b.k === 'sold' ? '<span class="tagn">已售 ' + b.s + '</span>' : '') +
+      '<div class="bn">' + b.n + '</div>' +
+      '<div class="bs">' + b.t + ' 套' + (inRange ? '<br>' + b.a.toLocaleString('en-US', { minimumFractionDigits: 2 }) + ' ㎡' : '<br>范围外') + '</div>' +
+      '</div>';
+  }).join('');
+})();
+
+function openPart() { PMS.openModal('mdPart'); }
+
+function togglePart() {
+  var mode = document.querySelector('input[name="pmode"]:checked').value;
+  document.getElementById('pBd').classList.toggle('hidden', mode !== 'bd');
+  document.getElementById('pArea').classList.toggle('hidden', mode !== 'area');
+}
+
+function calcPart() {
+  var sum = 0, house = 0;
+  document.querySelectorAll('#pBd input:checked').forEach(function (c) {
+    sum += parseFloat(c.getAttribute('data-area'));
+    house += parseInt(c.getAttribute('data-house'), 10);
+  });
+  var f = function (v) { return v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ㎡'; };
+  document.getElementById('pSum').value = f(sum);
+  document.getElementById('pLeft').value = f(24757.40 - sum);
+  return house;
+}
+
+function doPart() {
+  var house = calcPart();
+  var bds = [];
+  document.querySelectorAll('#pBd input:checked').forEach(function (c) { bds.push(c.getAttribute('data-bd') + ' 栋'); });
+  PMS.closeModal('mdPart');
+  PMS.confirm({
+    title: '确认办理部分注销',
+    message: '注销后对应幢号房源的预售限制将即时释放，是否确认？',
+    detail: '注销范围：' + (bds.join('、') || '按面积注销') + '；剩余抵押面积 ' + document.getElementById('pLeft').value + '。',
+    type: 'warning',
+    okText: '确认注销',
+    onOk: function () {
+      PMS.toast('部分注销成功，本次释放 ' + (bds.join('、') || '指定面积') + '共 ' + house + ' 套房源的预售限制', 'success');
+    }
+  });
+}
+</script>
+</body>
+</html>

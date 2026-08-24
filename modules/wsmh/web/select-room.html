@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>在线选房与认购登记 · 统一服务门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  /* 在线选房页专属布局 */
+  .sr-body { padding-bottom: 40px; }
+  .sr-foot { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-top: 1px solid var(--border); }
+  .terms {
+    max-height: 260px; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 14px 16px; background: var(--bg-soft); font-size: 13.5px; line-height: 1.95; color: var(--text-2);
+  }
+  .terms h4 { font-size: 14px; color: var(--text-1); margin: 12px 0 4px; }
+  .terms h4:first-child { margin-top: 0; }
+  .chk-list { margin-top: 14px; }
+  .chk-list label { display: flex; gap: 8px; align-items: flex-start; font-size: 13.5px; padding: 7px 0; cursor: pointer; }
+  .chk-list input { margin-top: 4px; flex: none; }
+  .sr-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .ok-box { text-align: center; padding: 26px 20px 10px; }
+  .ok-box .ok-i { font-size: 52px; color: var(--success); }
+  .ok-box .ok-t { font-size: 21px; font-weight: 700; margin-top: 12px; }
+  .ok-box .ok-no {
+    display: inline-block; margin-top: 14px; background: var(--primary-light); border: 1px dashed var(--primary-soft);
+    border-radius: var(--radius); padding: 10px 22px; font-size: 15px; color: var(--primary);
+  }
+  .ok-box .ok-no b { font-family: "DIN Alternate", var(--font); font-size: 19px; }
+</style>
+</head>
+<body data-nav="house">
+
+<div class="wrap">
+  <div class="crumb">
+    <a href="home.html">首页</a><i class="fa-solid fa-angle-right"></i>
+    <a href="house-market.html">房源超市</a><i class="fa-solid fa-angle-right"></i>
+    <a href="new-house.html">新房专区</a><i class="fa-solid fa-angle-right"></i>在线选房与认购登记
+  </div>
+</div>
+
+<div class="wrap sr-body" id="sr-body"></div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+var XM = null, PL = null, CELL = null, UNIT = 1, FH = '';
+var ST = ['未售', '已认购', '已签约', '限制交易', '已备案'];
+var W = { step: 1, data: {}, draftId: '', done: null };
+var STEPS = [
+  ['确认房源', '核对房号、面积与备案价格'],
+  ['填写购房人信息', '购房人、证件与付款方式'],
+  ['确认认购条款', '监管账户与签约时限告知'],
+  ['提交登记', '生成认购编号与缴款单']
+];
+
+function pageInit() {
+  var id = UI.param('id');
+  UNIT = Number(UI.param('unit') || 1) || 1;
+  FH = UI.param('fh');
+  XM = id ? PORTAL.project(id) : null;
+  PL = id ? PORTAL.plate(id) : null;
+  CELL = findCell();
+
+  /* 未登录：进入页面即拦截（wsmh-34-06） */
+  if (!UI.needLogin('在线选房与认购登记')) { renderGuest(); return; }
+  if (!XM || !PL || !CELL) { renderPick(); return; }
+
+  loadDraft();
+  render();
+}
+
+function findCell() {
+  if (!PL || !FH) return null;
+  var unit = PL.units.filter(function (u) { return u.u === UNIT; })[0];
+  if (!unit) return null;
+  var hit = null;
+  unit.floors.forEach(function (f) {
+    f.cells.forEach(function (c) { if (c.fh === FH) hit = c; });
+  });
+  return hit;
+}
+
+function plateProjects() {
+  return PORTAL.projects().filter(function (p) { return !!PORTAL.plate(p.id); });
+}
+
+/* 该房号是否由本次选房锁定：以是否已生成对应认购书为准 */
+function lockedByMe() {
+  return PORTAL.contracts().filter(function (x) {
+    return x.lx === '商品房认购书' && x.xmmc === XM.xmmc && x.fw.indexOf(FH) >= 0;
+  }).length > 0;
+}
+
+/* ------------------------- 未登录 ------------------------- */
+function renderGuest() {
+  document.getElementById('sr-body').innerHTML =
+    '<div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation"></i>'
+    + '<span><b>在线选房与认购登记需登录并完成实名认证。</b>'
+    + '未登录状态可自由浏览房源、一房一价与信息公示；认购登记涉及购房人身份与合同权利义务，须实名后办理。</span></div>'
+    + '<div class="card"><div class="card-body">'
+    + UI.empty('请先登录后办理认购登记', '登录后可继续本次选房，已填写内容会保存为草稿并支持换端续办',
+      '<a class="btn btn-primary btn-lg" href="login.html?from=select-room.html" data-fp="wsmh-13-01"><i class="fa-solid fa-right-to-bracket"></i> 去登录</a> '
+      + '<a class="btn btn-lg" href="price-table.html' + (UI.param('id') ? '?id=' + UI.param('id') : '') + '" data-fp="wsmh-08-04">先看一房一价</a> '
+      + '<a class="btn btn-lg" href="new-house.html" data-fp="wsmh-08-01">回新房专区</a>')
+    + '</div></div>';
+}
+
+/* ------------------------- 未选房：先选项目与房号 ------------------------- */
+function renderPick() {
+  var list = plateProjects();
+  var tip = !XM ? '还没有选择项目' : (!PL ? '「' + XM.xmmc + '」的销控表尚未接入' : '还没有选择具体房号');
+  document.getElementById('sr-body').innerHTML =
+    '<div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>'
+    + '<span>在线选房须先在楼盘销控表中选定房号：进入项目的一房一价与销控表，点击绿色「未售」房号并选择「选此房」，'
+    + '房号锁定后自动进入认购登记表单。</span></div>'
+    + '<div class="card"><div class="card-body">'
+    + UI.empty(tip, '请从下列已接入销控表的项目中选择一个，进入销控表选房',
+      (XM && PL ? '<a class="btn btn-primary btn-lg" href="price-table.html?id=' + XM.id + '" data-fp="wsmh-08-04">'
+        + '<i class="fa-solid fa-table-cells"></i> 去「' + XM.xmmc + '」销控表选房</a> ' : '')
+      + '<a class="btn btn-lg" href="new-house.html" data-fp="wsmh-08-01">浏览全部新房项目</a>')
+    + '</div></div>'
+    + '<div class="col-head mt-20"><h2 style="font-size:17px">已接入一房一价与销控表的项目</h2>'
+    + '<span class="ch-en">' + list.length + ' 个</span></div>'
+    + '<div class="house-grid">' + list.map(function (p) {
+      return '<div class="card"><div class="card-body">'
+        + '<div style="font-size:16px;font-weight:700">' + p.xmmc + '</div>'
+        + '<div class="text-xs text-3 mt-8">' + p.qx + ' · ' + p.sq + '　' + p.zt + '　可售 ' + p.ksts + ' 套</div>'
+        + '<div class="text-sm mt-8">备案拟售均价 <b class="text-accent num">' + UI.money(p.junjia, 0) + '</b> 元/㎡</div>'
+        + '<div class="flex gap-8 mt-12">'
+        + '<a class="btn btn-sm btn-primary" href="price-table.html?id=' + p.id + '" data-fp="wsmh-13-01">去销控表选房</a>'
+        + '<a class="btn btn-sm" href="new-house-detail.html?id=' + p.id + '" data-fp="wsmh-07-06">楼盘详情</a>'
+        + '</div></div></div>';
+    }).join('') + '</div>';
+}
+
+/* ------------------------- 草稿续办（wsmh-02-07） ------------------------- */
+function loadDraft() {
+  var d = PORTAL.drafts().filter(function (x) {
+    return x.sxdm === 'SX0101' && x.data && x.data.fh === FH && x.data.xmzj === XM.id;
+  })[0];
+  if (!d) return;
+  setTimeout(function () {
+    UI.confirm('发现未提交的认购登记草稿',
+      '您在 <b>' + d.cjsj + '</b> 通过「' + d.from + '」保存过本房号的认购登记草稿（进行到第 ' + d.step + ' 步），是否带出已填写内容继续办理？',
+      function () {
+        W.data = d.data; W.step = Math.min(3, d.step || 1); W.draftId = d.id;
+        render(); UI.toast('已带出草稿内容，可继续填写', 'success');
+      }, '继续填写');
+  }, 300);
+}
+
+/* ------------------------- 主渲染 ------------------------- */
+function render() {
+  if (W.done) { renderDone(); return; }
+  var html = '<div class="wizard">' + STEPS.map(function (s, i) {
+    var n = i + 1;
+    var cls = W.step === n ? 'on' : (W.step > n ? 'done' : '');
+    return '<div class="wz-step ' + cls + '"><span class="wz-n">' + n + '</span>'
+      + '<span class="wz-t">' + s[0] + '</span><div class="wz-d">' + s[1] + '</div></div>';
+  }).join('') + '</div>';
+
+  html += '<div class="card mt-16"><div class="card-body" id="step-body"></div>'
+    + '<div class="sr-foot" id="step-foot"></div></div>';
+  document.getElementById('sr-body').innerHTML = html;
+
+  if (W.step === 1) stepHouse();
+  else if (W.step === 2) stepBuyer();
+  else stepTerms();
+}
+
+/* 步骤 1：确认房源 */
+function stepHouse() {
+  var c = CELL;
+  var acct = PORTAL.funds().accounts.filter(function (a) { return a.xm === XM.xmmc; })[0];
+  document.getElementById('step-body').innerHTML =
+    '<div class="col-head" style="margin-bottom:12px"><h2 style="font-size:17px">所选房源信息</h2>'
+    + '<span class="ch-more" style="cursor:default">与楼盘销控表实时同源</span></div>'
+    + '<div class="desc-list c2"><dl>'
+    + dd('项目名称', XM.xmmc) + dd('楼栋单元房号', PL.lc + ' ' + UNIT + ' 单元 ' + c.fh + ' 室')
+    + dd('户型', c.hx) + dd('朝向', c.cx)
+    + dd('建筑面积', '<b>' + c.mj + '</b> ㎡') + dd('套内建筑面积', '<b>' + c.tnmj + '</b> ㎡')
+    + dd('建面单价', '<b class="text-accent num">' + UI.money(c.dj, 0) + '</b> 元/㎡')
+    + dd('套内单价', '<b class="text-accent num">' + UI.money(c.tndj, 0) + '</b> 元/㎡')
+    + dd('参考总价', '<b class="text-accent num">' + UI.money(c.mj * c.dj, 0) + '</b> 元（约 ' + c.zj + ' 万元）')
+    + dd('当前销售状态', PORTAL.badge(ST[c.s], ['green', 'orange', 'blue', 'gray', 'red'][c.s])
+      + (c.s === 1 && lockedByMe() ? ' <span class="text-xs text-3">（本次选房已锁定该房号）</span>' : ''))
+    + '</dl></div>'
+    + '<div class="alert alert-warning mt-16"><i class="fa-solid fa-triangle-exclamation"></i>'
+    + '<span><b>备案（拟售）价格，实际成交以合同为准。</b>参考总价按建筑面积 × 建面单价测算，'
+    + '不含契税、住宅专项维修资金、物业费与白蚁防治等费用。</span></div>'
+
+    + '<div class="col-head mt-20" style="margin-bottom:12px"><h2 style="font-size:17px">项目购房关键信息摘要</h2>'
+    + '<a class="ch-more" href="new-house-detail.html?id=' + XM.id + '" data-fp="wsmh-08-05">查看完整公示 <i class="fa-solid fa-angle-right"></i></a></div>'
+    + '<div class="alert alert-danger"><i class="fa-solid fa-shield-halved"></i>'
+    + '<span><b>购房款（含定金）必须缴入下列预售资金监管账户，切勿转入个人账户或销售人员账户。</b>'
+    + '监管账户：' + XM.jgyh + '　账号 ' + XM.jgzh + (acct ? '　监管范围 ' + acct.lc : '') + '</span></div>'
+    + '<div class="desc-list c2"><dl>'
+    + dd('预售许可证号', XM.yszh) + dd('发证日期', XM.ysrq)
+    + dd('开发企业', XM.kfqy) + dd('监管银行', XM.jgyh)
+    + dd('前期物业服务企业', XM.wuye) + dd('物业费标准', XM.wyf + ' 元/㎡·月')
+    + dd('住宅专项维修资金', XM.wxzj + ' 元/㎡') + dd('白蚁防治收费', XM.byfz + ' 元/㎡')
+    + '</dl></div>';
+
+  /* 房号被他人认购 / 已签约 / 已备案 / 限制交易：不可继续登记 */
+  if (c.s > 1 || (c.s === 1 && !lockedByMe())) {
+    document.getElementById('step-body').innerHTML =
+      '<div class="alert alert-danger"><i class="fa-solid fa-circle-exclamation"></i>'
+      + '<span><b>该房号当前为「' + ST[c.s] + '」，不能办理认购登记。</b>'
+      + (c.s === 1 ? '该房号已由其他购房人认购登记，认购后 7 日内未签约的将自动释放。' : '')
+      + '请返回销控表选择绿色「未售」房号。</span></div>'
+      + document.getElementById('step-body').innerHTML;
+    foot('<a class="btn btn-primary" href="price-table.html?id=' + XM.id + '" data-fp="wsmh-08-04">'
+      + '<i class="fa-solid fa-rotate-left"></i> 返回销控表重新选房</a>'
+      + '<a class="btn" href="new-house-detail.html?id=' + XM.id + '" data-fp="wsmh-07-06">看楼盘详情</a>'
+      + '<span class="text-3 text-xs ml-auto">第 1 / 4 步</span>');
+    return;
+  }
+
+  foot('<a class="btn" href="price-table.html?id=' + XM.id + '" data-fp="wsmh-08-04"><i class="fa-solid fa-rotate-left"></i> 重新选房</a>'
+    + '<span class="text-3 text-xs ml-auto">第 1 / 4 步</span>'
+    + '<button class="btn btn-primary" id="next" data-fp="wsmh-13-01">下一步：填写购房人信息 <i class="fa-solid fa-angle-right"></i></button>');
+  document.getElementById('next').onclick = function () { W.step = 2; render(); };
+}
+
+/* 步骤 2：购房人信息 */
+function stepBuyer() {
+  var u = UI.user(), d = W.data;
+  document.getElementById('step-body').innerHTML =
+    '<div class="col-head" style="margin-bottom:12px"><h2 style="font-size:17px">购房人信息</h2>'
+    + '<span class="ch-more" style="cursor:default">带 <span class="text-accent">*</span> 为必填，信息将用于生成认购书与后续网签备案</span></div>'
+    + '<div class="form-grid">'
+    + '<div class="form-item"><label><span class="req">*</span>购房人姓名</label>'
+    + '<input class="input" id="f-name" value="' + UI.esc(d.name || (u.role === 'person' ? u.name : '')) + '" placeholder="与证件一致"></div>'
+    + '<div class="form-item"><label><span class="req">*</span>证件类型</label>'
+    + '<select class="select" id="f-zjlx">' + opts(['居民身份证', '港澳居民来往内地通行证', '台湾居民来往大陆通行证', '护照', '外国人永久居留身份证'], d.zjlx) + '</select></div>'
+    + '<div class="form-item"><label><span class="req">*</span>证件号码</label>'
+    + '<input class="input" id="f-zjhm" value="' + UI.esc(d.zjhm || (u.idno || '')) + '" placeholder="请输入证件号码">'
+    + '<div class="tip">证件号码在对外展示时按规定脱敏，仅业务办理使用</div></div>'
+    + '<div class="form-item"><label><span class="req">*</span>手机号码</label>'
+    + '<input class="input" id="f-tel" value="' + UI.esc(d.tel || (u.mobile || '')) + '" placeholder="用于接收签约与缴款提醒"></div>'
+    + '<div class="form-item"><label><span class="req">*</span>婚姻状况</label>'
+    + '<div class="radio-row">' + radios('f-hy', ['未婚', '已婚', '离异', '丧偶'], d.hy || '未婚') + '</div></div>'
+    + '<div class="form-item"><label><span class="req">*</span>是否家庭首套住房</label>'
+    + '<div class="radio-row">' + radios('f-st', ['是（首套）', '否（二套及以上）'], d.st || '是（首套）') + '</div>'
+    + '<div class="tip">首套认定以住房套数查询结果为准，将在网签备案环节复核</div></div>'
+    + '<div class="form-item full"><label><span class="req">*</span>付款方式</label>'
+    + '<div class="radio-row">' + radios('f-fk', ['一次性付款', '按揭贷款', '组合贷款（商贷 + 公积金）'], d.fk || '按揭贷款') + '</div></div>'
+    + '<div class="form-item"><label>共有人姓名（选填）</label>'
+    + '<input class="input" id="f-gyr" value="' + UI.esc(d.gyr || '') + '" placeholder="无共有人可不填"></div>'
+    + '<div class="form-item"><label>共有人证件号码（选填）</label>'
+    + '<input class="input" id="f-gyzj" value="' + UI.esc(d.gyzj || '') + '" placeholder="填写共有人时必填"></div>'
+    + '<div class="form-item"><label>共有方式</label>'
+    + '<select class="select" id="f-gyfs">' + opts(['单独所有', '共同共有', '按份共有'], d.gyfs) + '</select></div>'
+    + '<div class="form-item"><label>通讯地址（选填）</label>'
+    + '<input class="input" id="f-addr" value="' + UI.esc(d.addr || '') + '" placeholder="用于寄递纸质材料"></div>'
+    + '</div>'
+    + '<div class="alert alert-info mt-16" style="margin-bottom:0"><i class="fa-solid fa-circle-info"></i>'
+    + '<span>已完成实名认证的用户，身份信息可通过电子证照免提交；填写内容可随时「保存草稿」，'
+    + '在门户与微信小程序换端续办。</span></div>';
+
+  foot('<button class="btn" id="prev" data-fp="wsmh-13-01"><i class="fa-solid fa-angle-left"></i> 上一步</button>'
+    + '<button class="btn" id="save" data-fp="wsmh-02-07"><i class="fa-solid fa-floppy-disk"></i> 保存草稿</button>'
+    + '<span class="text-3 text-xs ml-auto">第 2 / 4 步</span>'
+    + '<button class="btn btn-primary" id="next" data-fp="wsmh-13-01">下一步：确认认购条款 <i class="fa-solid fa-angle-right"></i></button>');
+
+  document.getElementById('prev').onclick = function () { collect(); W.step = 1; render(); };
+  document.getElementById('save').onclick = function () { collect(); saveDraft(); };
+  document.getElementById('next').onclick = function () {
+    collect();
+    var d2 = W.data;
+    if (!d2.name) { UI.toast('请填写购房人姓名', 'warning'); return; }
+    if (!d2.zjhm) { UI.toast('请填写购房人证件号码', 'warning'); return; }
+    if (!/^\d{3}[\d*]{4}\d{4}$/.test(d2.tel || '') && !/^1\d{10}$/.test(d2.tel || '')) {
+      UI.toast('请填写正确的 11 位手机号码', 'warning'); return;
+    }
+    if (d2.gyr && !d2.gyzj) { UI.toast('填写了共有人姓名，请同时填写共有人证件号码', 'warning'); return; }
+    W.step = 3; render();
+  };
+}
+
+/* 步骤 3：认购条款 */
+function stepTerms() {
+  var c = CELL;
+  document.getElementById('step-body').innerHTML =
+    '<div class="col-head" style="margin-bottom:12px"><h2 style="font-size:17px">商品房认购条款告知</h2>'
+    + '<span class="ch-more" style="cursor:default">请逐条阅读后勾选确认</span></div>'
+    + '<div class="terms">'
+    + '<h4>一、认购标的</h4>'
+    + '购房人认购 ' + XM.xmmc + ' ' + PL.lc + ' ' + UNIT + ' 单元 ' + c.fh + ' 室，建筑面积 ' + c.mj + '㎡，套内建筑面积 ' + c.tnmj + '㎡，'
+    + '建面单价 ' + UI.money(c.dj, 0) + ' 元/㎡，参考总价 ' + UI.money(c.mj * c.dj, 0) + ' 元。'
+    + '上述价格为一房一价公示的<b>备案（拟售）价格，实际成交价格以双方签订的《商品房买卖合同》为准</b>。'
+    + '<h4>二、购房款缴纳</h4>'
+    + '本项目已实行预售资金监管，定金及各期购房款<b>必须缴入监管账户：' + XM.jgyh + '，账号 ' + XM.jgzh + '</b>。'
+    + '建设单位及其销售人员无权要求购房人向个人账户、非监管账户转账；发现此类情形，购房人可拒绝付款并向 '
+    + PORTAL.site().tel + ' 举报。'
+    + '<h4>三、签约时限</h4>'
+    + '购房人应当自认购登记之日起 <b>7 日内</b>与建设单位签订《商品房买卖合同》并办理网签备案。'
+    + '逾期未签约的，销控表中该房号自动释放恢复为「未售」，定金按认购书约定处理。'
+    + '<h4>四、费用告知</h4>'
+    + '除购房款外，购房人还需按规定缴纳住宅专项维修资金（' + XM.wxzj + ' 元/㎡）、契税等税费；'
+    + '前期物业服务企业为 ' + XM.wuye + '，物业费标准 ' + XM.wyf + ' 元/㎡·月；白蚁防治收费 ' + XM.byfz + ' 元/㎡。'
+    + '<h4>五、信息使用与公示</h4>'
+    + '购房人提交的身份与联系信息仅用于本次认购登记、网签备案及相关业务办理，对外公示时按规定脱敏，'
+    + '不展示权利人姓名、身份证号与联系方式，房号按规定截断。'
+    + '<h4>六、风险提示</h4>'
+    + '签约前请核对预售许可证、监管账户、测绘成果与交付节点等公示信息；'
+    + '涉及在建工程抵押的房屋，须由抵押权人出具同意销售的书面文件。'
+    + '</div>'
+    + '<div class="chk-list">'
+    + chk('c1', '本人已完整阅读并理解上述《商品房认购条款告知》全部内容。')
+    + chk('c2', '<b>本人已知悉购房款（含定金）必须缴入本项目预售资金监管账户，不向任何个人账户付款。</b>')
+    + chk('c3', '本人已知悉认购后应在 7 日内签订《商品房买卖合同》，逾期未签约房号将自动释放。')
+    + chk('c4', '本人承诺提交的身份与购房信息真实有效，同意平台按规定用于认购登记与网签备案。')
+    + '</div>';
+
+  foot('<button class="btn" id="prev" data-fp="wsmh-13-01"><i class="fa-solid fa-angle-left"></i> 上一步</button>'
+    + '<button class="btn" id="save" data-fp="wsmh-02-07"><i class="fa-solid fa-floppy-disk"></i> 保存草稿</button>'
+    + '<span class="text-3 text-xs ml-auto">第 3 / 4 步</span>'
+    + '<button class="btn btn-accent" id="submit" data-fp="wsmh-13-01"><i class="fa-solid fa-paper-plane"></i> 提交认购登记</button>');
+
+  document.getElementById('prev').onclick = function () { W.step = 2; render(); };
+  document.getElementById('save').onclick = function () { saveDraft(); };
+  document.getElementById('submit').onclick = submit;
+}
+
+/* ------------------------- 提交（wsmh-13-01） ------------------------- */
+function submit() {
+  var need = [['c1', '请确认已阅读并理解认购条款'],
+  ['c2', '「购房款须缴入预售资金监管账户」为必勾选项，请确认后再提交'],
+  ['c3', '请确认已知悉 7 日内签约的时限要求'],
+  ['c4', '请确认所填信息真实有效']];
+  for (var i = 0; i < need.length; i++) {
+    if (!document.getElementById(need[i][0]).checked) { UI.toast(need[i][1], 'warning'); return; }
+  }
+
+  var fw = XM.xmmc + ' ' + PL.lc + ' ' + UNIT + '单元 ' + FH;
+
+  /* 1. 销控锁定：若房号仍为「未售」则执行选房，若已由销控表锁定则跳过 */
+  CELL = findCell();
+  if (CELL.s === 0) {
+    var r = PORTAL.act('room.select', { xmzj: XM.id, unit: UNIT, fh: FH });
+    if (!r) { UI.toast('房号状态已变化，提交未成功，请返回销控表重新选房', 'error'); return; }
+  } else if (CELL.s !== 1 || !lockedByMe()) {
+    UI.toast('该房号当前为「' + ST[CELL.s] + '」，无法提交认购登记，请返回销控表重新选房', 'error');
+    return;
+  }
+
+  /* 2. 生成办件（wsmh-13-01 → person/my-case） */
+  var cs = PORTAL.act('case.submit', {
+    sxdm: 'SX0101', sxmc: '商品房买卖合同网签备案（认购登记）', fw: fw,
+    files: ['购房人身份证明.pdf', '商品房认购书.pdf'],
+    data: W.data, source: '门户网站', draftId: W.draftId
+  });
+
+  /* 3. 记入最近访问事项 */
+  PORTAL.act('prefs.recent', { code: 'SX0101', name: '商品房买卖合同网签备案' });
+
+  var ct = PORTAL.contracts().filter(function (x) {
+    return x.lx === '商品房认购书' && x.xmmc === XM.xmmc && x.fw.indexOf(FH) >= 0;
+  })[0];
+  var pay = PORTAL.payments().filter(function (x) {
+    return x.lx === '购房定金' && x.xm.indexOf(XM.xmmc) >= 0 && x.xm.indexOf(FH) >= 0;
+  })[0];
+
+  W.done = { cs: cs, ct: ct, pay: pay, fw: fw };
+  W.step = 4;
+  render();
+  UI.toast('认购登记提交成功，房号销控状态已变更为「已认购」', 'success');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ------------------------- 结果页 ------------------------- */
+function renderDone() {
+  var d = W.done, c = CELL;
+  var html = '<div class="wizard">' + STEPS.map(function (s, i) {
+    return '<div class="wz-step ' + (i === 3 ? 'on' : 'done') + '"><span class="wz-n">' + (i + 1) + '</span>'
+      + '<span class="wz-t">' + s[0] + '</span><div class="wz-d">' + s[1] + '</div></div>';
+  }).join('') + '</div>';
+
+  html += '<div class="card mt-16"><div class="card-body">'
+    + '<div class="ok-box"><i class="fa-solid fa-circle-check ok-i"></i>'
+    + '<div class="ok-t">认购登记提交成功</div>'
+    + '<div class="text-2 mt-8">' + d.fw + '　销控状态已更新为「已认购」</div>'
+    + '<div class="ok-no">认购编号 <b>' + (d.ct ? d.ct.bh : '—') + '</b>　|　办件编号 <b>' + d.cs.bh + '</b></div>'
+    + '</div>'
+
+    + '<div class="alert alert-warning mt-20"><i class="fa-solid fa-clock"></i>'
+    + '<span><b>请在 7 日内（' + PDATA.ymd(PDATA.shift(7)) + ' 前）与建设单位签订《商品房买卖合同》并办理网签备案，'
+    + '逾期未签约的，该房号将自动释放恢复为「未售」，定金按认购书约定处理。</b></span></div>'
+
+    + '<div class="sr-2 mt-20">'
+    + '<div class="card"><div class="card-head"><h3><i class="fa-solid fa-diagram-project text-primary"></i> 下一步办理指引</h3></div>'
+    + '<div class="card-body"><div class="timeline">'
+    + tl('done', '认购登记', '已完成 ' + UI.today() + '，认购书编号 ' + (d.ct ? d.ct.bh : '—'))
+    + tl('on', '缴存购房定金', '金额 ' + (d.pay ? UI.money(d.pay.je, 0) : '20,000') + ' 元，缴入 ' + XM.jgyh + ' 监管账户')
+    + tl('wait', '签订并网签《商品房买卖合同》', '7 日内办理，可在「二手房/新房网签」窗口或线上办理')
+    + tl('wait', '合同备案', '承诺 3 个工作日办结，办结后可下载备案证明')
+    + tl('wait', '缴存住宅专项维修资金', '按 ' + XM.wxzj + ' 元/㎡ × ' + c.mj + '㎡ 计缴')
+    + tl('wait', '产权过户与房屋交付', '按合同约定与交付节点公示执行')
+    + '</div></div></div>'
+
+    + '<div class="card"><div class="card-head"><h3><i class="fa-solid fa-money-check-dollar text-primary"></i> 定金缴款信息</h3></div>'
+    + '<div class="card-body np"><div class="desc-list" style="border:0"><dl>'
+    + dd('缴款项目', d.pay ? d.pay.lx : '购房定金')
+    + dd('缴款金额', '<b class="text-accent num">' + (d.pay ? UI.money(d.pay.je, 0) : '20,000') + '</b> 元')
+    + dd('收款银行', XM.jgyh)
+    + dd('监管账号', '<b>' + XM.jgzh + '</b>')
+    + dd('缴款状态', PORTAL.badge(d.pay ? d.pay.zt : '待缴存', 'orange'))
+    + dd('缴款提示', '<span class="text-accent">购房款必须缴入本监管账户，切勿转入个人账户</span>')
+    + '</dl></div></div></div>'
+    + '</div>'
+
+    + '<div class="flex gap-12 mt-20 wrapf">'
+    + '<a class="btn btn-primary btn-lg" href="../person/my-contract.html" data-fp="wsmh-30-03"><i class="fa-solid fa-file-contract"></i> 查看我的交易</a>'
+    + '<a class="btn btn-accent btn-lg" href="../person/my-payment.html" data-fp="wsmh-13-03"><i class="fa-solid fa-money-check-dollar"></i> 去缴存定金</a>'
+    + '<a class="btn btn-lg" href="../person/my-case.html" data-fp="wsmh-30-01">查看办件进度</a>'
+    + '<a class="btn btn-lg" href="price-table.html?id=' + XM.id + '" data-fp="wsmh-08-03">回销控表看状态</a>'
+    + '<a class="btn btn-lg" href="buy-service.html" data-fp="wsmh-13-02">购房进度查询</a>'
+    + '</div>'
+    + '</div></div>'
+    + '<div id="src-note"></div>';
+
+  document.getElementById('sr-body').innerHTML = html;
+  document.getElementById('src-note').innerHTML = UI.sourceNote(
+    '认购登记结果同步写入「个人中心 → 我的交易 / 我的办件 / 我的缴款」，销控表状态实时变更。');
+}
+
+function tl(cls, t, m) {
+  return '<div class="tl-i ' + cls + '"><div class="tl-t">' + t + '</div><div class="tl-m">' + m + '</div></div>';
+}
+
+/* ------------------------- 工具 ------------------------- */
+function foot(html) { document.getElementById('step-foot').innerHTML = html; }
+function dd(k, v) { return '<dt>' + k + '</dt><dd>' + v + '</dd>'; }
+function opts(arr, cur) {
+  return arr.map(function (o) { return '<option' + (o === cur ? ' selected' : '') + '>' + o + '</option>'; }).join('');
+}
+function radios(name, arr, cur) {
+  return arr.map(function (o) {
+    return '<label><input type="radio" name="' + name + '" value="' + o + '"' + (o === cur ? ' checked' : '') + '> ' + o + '</label>';
+  }).join('');
+}
+function chk(id, text) {
+  return '<label><input type="checkbox" id="' + id + '"><span>' + text + '</span></label>';
+}
+function val(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; }
+function radioVal(name) {
+  var el = document.querySelector('input[name="' + name + '"]:checked');
+  return el ? el.value : '';
+}
+
+function collect() {
+  W.data = {
+    xmzj: XM.id, xmmc: XM.xmmc, fh: FH, unit: UNIT, mj: CELL.mj, dj: CELL.dj,
+    name: val('f-name'), zjlx: val('f-zjlx'), zjhm: val('f-zjhm'), tel: val('f-tel'),
+    hy: radioVal('f-hy'), st: radioVal('f-st'), fk: radioVal('f-fk'),
+    gyr: val('f-gyr'), gyzj: val('f-gyzj'), gyfs: val('f-gyfs'), addr: val('f-addr')
+  };
+}
+
+function saveDraft() {
+  if (!W.data.fh) {
+    W.data.xmzj = XM.id; W.data.xmmc = XM.xmmc; W.data.fh = FH; W.data.unit = UNIT;
+  }
+  var d = PORTAL.act('draft.save', {
+    id: W.draftId, sxdm: 'SX0101', sxmc: '商品房认购登记（' + XM.xmmc + ' ' + FH + '）',
+    step: W.step, data: W.data, files: []
+  });
+  if (d && !W.draftId) W.draftId = d.id;
+  UI.toast('草稿已保存（' + (W.draftId || '') + '），有效期 30 天，可在个人中心或微信小程序继续办理', 'success');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>办件详情 · 个人中心</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  /* 办件详情专属布局 */
+  .cd-head { padding: 20px; display: flex; gap: 20px; align-items: flex-start; }
+  .cd-h-l { flex: 1; min-width: 0; }
+  .cd-title { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .cd-meta { font-size: 13px; color: var(--text-3); margin-top: 10px; display: flex; gap: 20px; flex-wrap: wrap; }
+  .cd-meta b { color: var(--text-2); font-weight: 500; }
+  .cd-clock {
+    width: 176px; flex: none; text-align: center; border-left: 1px solid var(--border); padding-left: 18px;
+  }
+  .cd-clock .cc-v { font-size: 30px; font-weight: 700; color: var(--primary); font-family: "DIN Alternate", var(--font); line-height: 1.2; }
+  .cd-clock .cc-v.warn { color: var(--accent); }
+  .cd-clock .cc-l { font-size: 12.5px; color: var(--text-3); margin-top: 4px; line-height: 1.7; }
+  .tl-i.fix::before { background: var(--warning); border-color: var(--warning); box-shadow: 0 0 0 4px var(--warning-light); }
+  .tl-i.back::before { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+  .mat-i {
+    display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px dashed var(--row-line); font-size: 13.5px;
+  }
+  .mat-i:last-child { border-bottom: 0; }
+  .mat-i .mi-n { flex: 1; min-width: 0; }
+  .mat-i .mi-d { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+  .cert-view {
+    border: 2px solid var(--primary-soft); border-radius: 8px; padding: 24px 28px; background: #fdfdff; position: relative;
+  }
+  .cert-view .cv-t { text-align: center; font-size: 21px; font-weight: 700; letter-spacing: 3px; }
+  .cert-view .cv-s { text-align: center; font-size: 13px; color: var(--text-3); margin-top: 6px; }
+  .cert-view .cv-b { font-size: 14.5px; line-height: 2.2; margin-top: 20px; text-indent: 2em; }
+  .cert-view .cv-f { display: flex; align-items: flex-end; margin-top: 26px; }
+  .cert-view .cv-qr {
+    width: 92px; height: 92px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-soft);
+    display: flex; align-items: center; justify-content: center; font-size: 40px; color: var(--primary);
+  }
+  .cert-view .cv-sign { margin-left: auto; text-align: right; font-size: 14px; line-height: 2; }
+</style>
+</head>
+<body data-nav="home">
+
+<div class="wrap"><div class="crumb">
+  <a href="../web/home.html">首页</a><i class="fa-solid fa-angle-right"></i>
+  <a href="index.html">个人中心</a><i class="fa-solid fa-angle-right"></i>
+  <a href="my-case.html">我的办件</a><i class="fa-solid fa-angle-right"></i>办件详情
+</div></div>
+
+<div class="wrap">
+  <div class="desk">
+    <aside class="side-menu" id="side"></aside>
+    <main class="desk-main" id="dmain">
+      <div id="cd-box"></div>
+    </main>
+  </div>
+</div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+/* 演示用完整证件号（虚构），默认脱敏展示，查看需二次核验 */
+var ID_NO = '450202198703152816';
+var CID = '', SHOW_ID = 0, FIXFILES = [];
+
+function pageInit() {
+  if (!deskGuard('case')) return;
+  CID = UI.param('id') || UI.param('bh');
+  render();
+  PORTAL.on(function () { renderSide('case'); render(); });
+}
+
+/* ============ 个人中心左侧菜单（各页统一） ============ */
+function renderSide(active) {
+  var u = UI.user(), login = UI.isLogin();
+  var c = PORTAL.todoCounts();
+  var M = [
+    ['idx', '个人中心首页', 'fa-gauge', 'index.html', 0, 'wsmh-02-06'],
+    ['case', '我的办件', 'fa-list-check', 'my-case.html', c.fix, 'wsmh-30-01'],
+    ['contract', '我的合同与交易', 'fa-file-contract', 'my-contract.html', 0, 'wsmh-30-02'],
+    ['pay', '我的缴款与贷款', 'fa-money-bill-transfer', 'my-payment.html', c.pay, 'wsmh-30-04'],
+    ['listing', '我的房源与预约', 'fa-house-circle-check', 'my-listing.html', 0, 'wsmh-30-06'],
+    ['cert', '我的证照与消息', 'fa-file-shield', 'my-cert.html', PORTAL.unread(), 'wsmh-30-08'],
+    ['rating', '我的评价与授权', 'fa-star', 'my-rating.html', c.rate, 'wsmh-30-10']
+  ];
+  document.getElementById('side').innerHTML =
+    '<div class="sm-head"><div class="sm-n"><i class="fa-solid fa-circle-user"></i> '
+    + UI.esc(login ? u.name : '未登录') + '</div>'
+    + '<div class="sm-r">' + (login ? '个人用户 · 已实名（等级 ' + u.realname + '）' : '登录后查看办件、合同与证照') + '</div></div>'
+    + '<div class="sm-g"><div class="sm-gt">我的服务</div>'
+    + M.map(function (m) {
+      return '<a href="' + m[3] + '" class="' + (m[0] === active ? 'on' : '') + '" data-fp="' + m[5] + '">'
+        + '<i class="fa-solid ' + m[2] + '"></i>' + m[1]
+        + (login && m[4] ? '<span class="sm-b">' + m[4] + '</span>' : '') + '</a>';
+    }).join('')
+    + '</div><div class="sm-g" style="border-top:1px solid var(--border)">'
+    + '<a href="../web/home.html" data-fp="wsmh-34-01"><i class="fa-solid fa-arrow-left"></i>返回门户首页</a>'
+    + '</div>';
+}
+
+function deskGuard(active) {
+  renderSide(active);
+  if (UI.isLogin()) return true;
+  document.getElementById('dmain').innerHTML =
+    '<div class="desk-card"><div class="empty"><i class="fa-solid fa-user-lock"></i>'
+    + '<div class="em-t">个人中心需要登录后访问</div>'
+    + '<div class="em-d">门户配置的未登录浏览范围为「房源列表与详情、信息公示、办事指南」，办件详情属于需登录实名的范围。</div>'
+    + '<div class="em-a"><a class="btn btn-primary" href="../web/login.html?from=person" data-fp="wsmh-34-06">立即登录</a>'
+    + '<button class="btn" style="margin-left:10px" onclick="demoLogin()" data-fp="wsmh-34-06">演示：一键登录个人用户</button>'
+    + '</div></div></div>';
+  UI.needLogin('办件详情');
+  return false;
+}
+
+/* 演示用：保留当前页参数并以个人用户身份登录 */
+function demoLogin() {
+  var parts = location.search.replace(/^\?/, '').split('&').filter(function (x) {
+    return x && x.indexOf('user=') !== 0;
+  });
+  parts.push('user=person');
+  location.href = location.pathname + '?' + parts.join('&');
+}
+
+/* ============ 主渲染 ============ */
+function render() {
+  var box = document.getElementById('cd-box');
+  var c = CID ? PORTAL.caseOf(CID) : null;
+  if (!c) {
+    box.innerHTML = '<div class="desk-card">'
+      + UI.empty('未找到该办件',
+        CID ? '办件编号「' + UI.esc(CID) + '」不存在或不属于当前登录用户，请核对后重试。' : '缺少办件编号参数。',
+        '<a class="btn btn-primary" href="my-case.html" data-fp="wsmh-30-01">返回我的办件列表</a>'
+        + '<a class="btn" style="margin-left:10px" href="../web/query-center.html" data-fp="wsmh-26-01">凭编号查询办件进度</a>')
+      + '</div>';
+    return;
+  }
+  var it = PORTAL.item(c.sxdm);
+  box.innerHTML = headHtml(c, it) + infoHtml(c) + timelineHtml(c)
+    + stateHtml(c) + matsHtml(c, it) + footHtml(c);
+  bindAll(c);
+}
+
+/* ---- 办件头 ---- */
+function usedDays(c) {
+  var s = new Date(String(c.sqrq).replace(/-/g, '/')).getTime();
+  return Math.max(0, Math.floor((Date.now() - s) / 86400000));
+}
+function headHtml(c, it) {
+  var ns = it ? it.nsrq : 3;
+  var clock;
+  if (c.zt === '4') {
+    clock = '<div class="cc-v" style="color:var(--success)">' + usedDays(c) + '</div>'
+      + '<div class="cc-l">实际办理天数<br>办结时间 ' + c.bjrq + '</div>';
+  } else if (c.zt === '5') {
+    clock = '<div class="cc-v warn">已退件</div><div class="cc-l">可修改后重新申报</div>';
+  } else if (c.zt === '3') {
+    clock = '<div class="cc-v warn">' + c.xqts + '</div>'
+      + '<div class="cc-l">补正剩余天数<br>补正期间不计入办理时限</div>';
+  } else {
+    var left = Math.max(0, ns - usedDays(c));
+    clock = '<div class="cc-v' + (left <= 1 ? ' warn' : '') + '">' + left + '</div>'
+      + '<div class="cc-l">距承诺办结剩余天数<br>承诺 ' + ns + ' 个工作日</div>';
+  }
+  return '<div class="desk-card"><div class="cd-head">'
+    + '<div class="cd-h-l">'
+    + '<div class="cd-title">' + UI.esc(c.sxmc) + ' ' + PORTAL.caseBadge(c)
+    + (c.pkg ? ' <span class="badge purple"><i class="fa-solid fa-layer-group"></i> 一件事集成办理</span>' : '') + '</div>'
+    + '<div class="cd-meta">'
+    + '<span>办件编号：<b>' + c.bh + '</b></span>'
+    + '<span>承办科室：<b>' + UI.esc(c.dept) + '</b></span>'
+    + '<span>申请时间：<b>' + c.sqrq + '</b></span>'
+    + '<span>承诺办结时限：<b>' + ns + ' 个工作日</b></span>'
+    + (c.bjrq ? '<span>办结时间：<b>' + c.bjrq + '</b></span>' : '')
+    + '</div>'
+    + '<div class="flex gap-8 mt-16">'
+    + '<a class="btn btn-sm btn-ghost" id="cd-chat" href="javascript:;" data-fp="wsmh-31-06"><i class="fa-solid fa-headset"></i> 咨询此办件</a>'
+    + '<a class="btn btn-sm" href="../web/query-center.html" data-fp="wsmh-26-01"><i class="fa-solid fa-magnifying-glass-chart"></i> 到查询中心核对进度</a>'
+    + (it ? '<a class="btn btn-sm" href="../web/item-detail.html?code=' + it.code + '" data-fp="wsmh-04-01"><i class="fa-solid fa-book"></i> 查看办事指南</a>' : '')
+    + '</div></div>'
+    + '<div class="cd-clock">' + clock + '</div>'
+    + '</div></div>';
+}
+
+/* ---- 办件信息 ---- */
+function infoHtml(c) {
+  var pkg = c.pkg ? PORTAL.package(c.pkg) : null;
+  return '<div class="desk-card">'
+    + '<div class="card-head"><h3><i class="fa-solid fa-circle-info text-primary"></i> 办件信息</h3>'
+    + '<span class="sub">敏感字段默认遮蔽，查看需二次身份核验</span></div>'
+    + '<div class="card-body"><div class="desc-list c2"><dl>'
+    + '<dt>涉及房屋</dt><dd>' + UI.esc(c.fw) + '</dd>'
+    + '<dt>申请人姓名</dt><dd>' + PORTAL.mask('name', UI.user().name) + '</dd>'
+    + '<dt>申请人证件号</dt><dd class="' + (SHOW_ID ? '' : 'mask') + '">'
+    + (SHOW_ID ? ID_NO + ' <span class="badge orange">已记入查询留痕</span>'
+      : PORTAL.mask('id', ID_NO) + '<a class="unmask" id="cd-see" data-fp="wsmh-35-06">查看</a>') + '</dd>'
+    + '<dt>来源渠道</dt><dd>' + UI.esc(c.source) + '</dd>'
+    + '<dt>事项编码</dt><dd>' + c.sxdm + '</dd>'
+    + '<dt>一件事主题</dt><dd>' + (pkg
+      ? '<a href="../web/one-thing.html?pkg=' + pkg.id + '" data-fp="wsmh-06-01">' + UI.esc(pkg.mc) + '</a>（' + pkg.mode + '办理）'
+      : '不适用（单事项申报）') + '</dd>'
+    + '</dl></div></div></div>';
+}
+
+/* ---- 进度时间轴 ---- */
+function timelineHtml(c) {
+  var DEPT = { '在线提交': '申请人自助提交', '收件受理': c.dept, '业务审核': c.dept, '办结出件': c.dept };
+  var CLS = { 0: 'wait', 1: 'done', 2: 'on', 3: 'on fix', 4: 'on back' };
+  var TXT = { 0: '未开始', 1: '已完成', 2: '进行中', 3: '待补正', 4: '已退件' };
+  return '<div class="desk-card">'
+    + '<div class="card-head"><h3><i class="fa-solid fa-timeline text-primary"></i> 办理进度</h3>'
+    + '<span class="sub">与「查询中心 → 网签备案进度查询」同源</span></div>'
+    + '<div class="card-body"><div class="timeline">'
+    + c.steps.map(function (s) {
+      return '<div class="tl-i ' + CLS[s.s] + '">'
+        + '<div class="tl-t">' + UI.esc(s.n)
+        + ' <span class="badge ' + (s.s === 1 ? 'green' : s.s === 2 ? 'blue' : s.s === 3 ? 'orange' : s.s === 4 ? 'red' : 'gray') + '">'
+        + TXT[s.s] + '</span></div>'
+        + '<div class="tl-m">责任科室：' + UI.esc(DEPT[s.n] || c.dept) + '　'
+        + (s.d ? '时间：' + s.d : '尚未进入该环节') + '</div>'
+        + (s.s === 3 ? '<div class="tl-c">' + UI.esc(c.bzyq) + '</div>' : '')
+        + (s.s === 4 ? '<div class="tl-c">' + UI.esc(c.tjly) + '</div>' : '')
+        + '</div>';
+    }).join('')
+    + '</div></div></div>';
+}
+
+/* ---- 状态相关区块 ---- */
+function stateHtml(c) {
+  if (c.zt === '3') {
+    return '<div class="desk-card" style="border-color:#f5dab0">'
+      + '<div class="card-head" style="background:var(--warning-light)">'
+      + '<h3 class="text-warning"><i class="fa-solid fa-file-circle-exclamation"></i> 需要补正材料</h3>'
+      + '<span class="sub text-warning">补正剩余 ' + c.xqts + ' 天，逾期未补正将作退件处理</span></div>'
+      + '<div class="card-body">'
+      + '<div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation"></i>'
+      + '<span><b>补正要求（一次性告知）：</b>' + UI.esc(c.bzyq) + '</span></div>'
+      + '<div class="form-item full"><label><span class="req">*</span>补交材料</label>'
+      + '<div class="file-up" id="cd-up"><i class="fa-solid fa-cloud-arrow-up"></i>'
+      + '点击选择需要补交的材料文件（支持 PDF、JPG、PNG，单个不超过 20MB）</div>'
+      + '<input type="file" id="cd-file" multiple style="display:none">'
+      + '<div class="file-list" id="cd-list"></div>'
+      + '<div class="tip">演示环境不上传真实文件，仅记录文件名。'
+      + '<a href="javascript:;" id="cd-demo" data-fp="wsmh-30-01">使用示例材料快速演示</a></div></div>'
+      + '<div class="form-item full mt-16"><label>补正说明（选填）</label>'
+      + '<textarea class="textarea" id="cd-note" placeholder="可说明补交材料的情况，便于审核人员核对"></textarea></div>'
+      + '<div class="mt-16"><button class="btn btn-primary" id="cd-fix" data-fp="wsmh-30-01">'
+      + '<i class="fa-solid fa-paper-plane"></i> 提交补正</button>'
+      + '<span class="text-xs text-3" style="margin-left:12px">提交后办件回到「已受理」，首页与菜单的待补正提醒同步减一。</span></div>'
+      + '</div></div>';
+  }
+  if (c.zt === '5') {
+    return '<div class="desk-card" style="border-color:#f7cdca">'
+      + '<div class="card-head" style="background:var(--accent-soft)">'
+      + '<h3 class="text-accent"><i class="fa-solid fa-rotate-left"></i> 退件说明</h3></div>'
+      + '<div class="card-body">'
+      + '<div class="alert alert-danger" style="margin-bottom:14px"><i class="fa-solid fa-circle-xmark"></i>'
+      + '<span><b>退件原因：</b>' + UI.esc(c.tjly) + '</span></div>'
+      + '<div class="text-sm text-2">如对退件结论有异议，可通过智能客服转人工或「咨询投诉」提出；'
+      + '消除限制情形后可重新申报，已提交材料无需重复上传。</div>'
+      + '<div class="flex gap-8 mt-16">'
+      + '<a class="btn btn-primary" href="../web/service-hall.html" data-fp="wsmh-30-01">重新申报</a>'
+      + '<a class="btn" href="../web/complaint.html" data-fp="wsmh-32-02">去咨询投诉</a>'
+      + '</div></div></div>';
+  }
+  if (c.zt === '4') {
+    return '<div class="desk-card" style="border-color:#bfe8cf">'
+      + '<div class="card-head" style="background:var(--success-light)">'
+      + '<h3 class="text-success"><i class="fa-solid fa-circle-check"></i> 办结结果</h3>'
+      + '<span class="sub">办结时间 ' + c.bjrq + '</span></div>'
+      + '<div class="card-body">'
+      + '<div class="desc-list mb-16"><dl>'
+      + '<dt>办理结果</dt><dd><span class="badge green">准予办理</span>　' + UI.esc(c.sxmc) + ' 已办结</dd>'
+      + '<dt>结果送达</dt><dd>电子证明即时出具，可在线下载、打印与扫码验真；如需纸质件可到窗口或自助终端打印</dd>'
+      + '<dt>好差评</dt><dd>' + (c.pj === 1
+        ? '<span class="badge blue">已评价</span>　感谢您的反馈，评价已按规范回传一网通办'
+        : '<span class="badge orange">待评价</span>　办件已进入「我的评价与授权 → 待评价」') + '</dd>'
+      + '</dl></div>'
+      + '<div class="flex gap-8">'
+      + '<button class="btn btn-primary" id="cd-cert" data-fp="wsmh-30-08"><i class="fa-solid fa-file-shield"></i> 获取备案证明</button>'
+      + (c.pj === 0
+        ? '<a class="btn btn-accent" href="my-rating.html" data-fp="wsmh-30-10"><i class="fa-solid fa-star"></i> 去评价</a>'
+        : '<a class="btn" href="my-rating.html?tab=mr-mine" data-fp="wsmh-30-10">查看我的评价</a>')
+      + '<a class="btn" href="my-cert.html" data-fp="wsmh-30-08">我的证照与票据</a>'
+      + '</div></div></div>';
+  }
+  return '<div class="desk-card"><div class="card-body">'
+    + '<div class="alert alert-info" style="margin:0"><i class="fa-solid fa-circle-info"></i>'
+    + '<span>办件正在办理中，进度变化会通过站内消息与短信推送。'
+    + '如需补充说明材料或撤回申请，可通过「咨询此办件」联系承办科室。</span></div>'
+    + '</div></div>';
+}
+
+/* ---- 材料清单 ---- */
+function matsHtml(c, it) {
+  var need = it ? it.cl : [];
+  var rows = need.map(function (m) {
+    var got = c.files.filter(function (f) { return String(f).indexOf(m.mc) >= 0; }).length > 0;
+    return '<div class="mat-i">'
+      + '<i class="fa-solid ' + (got ? 'fa-circle-check text-success' : (m.mian ? 'fa-circle-minus text-3' : 'fa-circle-exclamation text-warning')) + '"></i>'
+      + '<div class="mi-n"><div>' + UI.esc(m.mc)
+      + (m.bt ? ' <span class="badge red">必要</span>' : ' <span class="badge gray">按需</span>')
+      + (m.mian ? ' <span class="badge green">电子证照免提交</span>' : '')
+      + (m.fy ? ' <span class="badge cyan">可复用</span>' : '') + '</div>'
+      + '<div class="mi-d">材料类型：' + UI.esc(m.lx) + '</div></div>'
+      + (got ? '<span class="badge green">已提交</span>'
+        : (m.mian ? '<span class="badge gray">系统核验，无需提交</span>' : '<span class="badge orange">待补充</span>')) + '</div>';
+  }).join('');
+  var extra = c.files.map(function (f) {
+    return '<div class="file-chip"><i class="fa-solid ' + (/\.pdf$/i.test(f) ? 'fa-file-pdf' : 'fa-file-image') + '"></i>'
+      + '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + UI.esc(f) + '</span></div>';
+  }).join('');
+  return '<div class="desk-card">'
+    + '<div class="card-head"><h3><i class="fa-solid fa-folder-open text-primary"></i> 材料清单</h3>'
+    + '<span class="sub">按事项要求逐项对照，已提交 ' + c.files.length + ' 份</span></div>'
+    + '<div class="card-body">'
+    + (rows || '<div class="text-3 text-sm">该事项未配置材料清单。</div>')
+    + '<div class="col-head mt-20" style="margin-bottom:10px"><h2 style="font-size:15px">已上传材料</h2></div>'
+    + (extra ? '<div class="file-list">' + extra + '</div>' : '<div class="text-3 text-sm">暂无已上传材料。</div>')
+    + '</div></div>';
+}
+
+/* ---- 底部操作 ---- */
+function footHtml(c) {
+  return '<div class="desk-card"><div class="card-body flex gap-8 wrapf">'
+    + '<a class="btn" href="my-case.html" data-fp="wsmh-30-01"><i class="fa-solid fa-arrow-left"></i> 返回列表</a>'
+    + '<button class="btn" id="cd-print" data-fp="wsmh-30-01"><i class="fa-solid fa-print"></i> 打印办件回执</button>'
+    + '<a class="btn" href="../web/cert-print.html" data-fp="wsmh-27-01"><i class="fa-solid fa-file-arrow-down"></i> 到证明打印出证</a>'
+    + '<span class="text-xs text-3 ml-auto" style="align-self:center">办件编号 ' + c.bh + '　最近更新 ' + (c.bjrq || c.sqrq) + '</span>'
+    + '</div></div>';
+}
+
+/* ============ 事件绑定 ============ */
+function bindAll(c) {
+  var see = document.getElementById('cd-see');
+  if (see) {
+    see.onclick = function () {
+      UI.verifyIdentity('办件申请人证件号码', function () { SHOW_ID = 1; render(); });
+    };
+  }
+  document.getElementById('cd-chat').onclick = function () {
+    UI.go('../web/chat.html', { ctx: c.bh + ' ' + c.sxmc });
+  };
+  document.getElementById('cd-print').onclick = function () {
+    UI.toast('办件回执已生成，演示环境不调用打印机；正式环境将输出带二维码的 A4 回执', 'success');
+  };
+
+  var up = document.getElementById('cd-up');
+  if (up) {
+    FIXFILES = [];
+    drawFiles();
+    var input = document.getElementById('cd-file');
+    up.onclick = function () { input.click(); };
+    input.onchange = function () {
+      for (var i = 0; i < input.files.length; i++) {
+        if (FIXFILES.indexOf(input.files[i].name) < 0) FIXFILES.push(input.files[i].name);
+      }
+      drawFiles();
+    };
+    document.getElementById('cd-demo').onclick = function () {
+      ['契税完税凭证.pdf', '补正情况说明.pdf'].forEach(function (f) {
+        if (FIXFILES.indexOf(f) < 0) FIXFILES.push(f);
+      });
+      drawFiles();
+      UI.toast('已加入 2 份示例材料', 'info');
+    };
+    document.getElementById('cd-fix').onclick = function () {
+      if (!FIXFILES.length) { UI.toast('请先选择需要补交的材料', 'warning'); return; }
+      var note = document.getElementById('cd-note').value.trim();
+      var files = FIXFILES.slice();
+      if (note) files.push('补正说明：' + note);
+      var r = PORTAL.act('case.supplement', { id: c.id, files: files });
+      if (!r) return;
+      UI.toast('补正材料已提交，办件已重新进入审核，待补正提醒 -1', 'success');
+    };
+  }
+
+  var cert = document.getElementById('cd-cert');
+  if (cert) cert.onclick = function () { issueCert(c); };
+}
+
+function drawFiles() {
+  var box = document.getElementById('cd-list');
+  if (!box) return;
+  box.innerHTML = FIXFILES.map(function (f, i) {
+    return '<div class="file-chip"><i class="fa-solid ' + (/\.pdf$/i.test(f) ? 'fa-file-pdf' : 'fa-file-image') + '"></i>'
+      + '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + UI.esc(f) + '</span>'
+      + '<span class="fx" data-rm="' + i + '"><i class="fa-solid fa-xmark"></i></span></div>';
+  }).join('');
+  box.querySelectorAll('[data-rm]').forEach(function (x) {
+    x.onclick = function () { FIXFILES.splice(Number(x.getAttribute('data-rm')), 1); drawFiles(); };
+  });
+}
+
+/* ---- 出具备案证明并预览 ---- */
+function issueCert(c) {
+  var ct = PORTAL.act('cert.issue', {
+    lx: c.sxmc.indexOf('备案') >= 0 ? c.sxmc.replace('申请', '') + '证明' : c.sxmc + '结果证明',
+    fw: c.fw, yt: '办理后续手续'
+  });
+  UI.modal('<i class="fa-solid fa-file-shield text-primary"></i> ' + UI.esc(ct.lx),
+    '<div class="cert-view">'
+    + '<div class="cv-t">' + UI.esc(ct.lx) + '</div>'
+    + '<div class="cv-s">编号：' + ct.bh + '</div>'
+    + '<div class="cv-b">' + UI.esc(ct.nr) + '</div>'
+    + '<div class="cv-b" style="text-indent:0;font-size:13.5px;color:var(--text-3)">'
+    + '本证明信息来源于华信数智房产交易一体化平台业务库，可通过扫描二维码或在「查询中心 → 扫码验真」'
+    + '输入验真码核验真伪与有效期。</div>'
+    + '<div class="cv-f"><div><div class="cv-qr"><i class="fa-solid fa-qrcode"></i></div>'
+    + '<div class="text-xs text-3" style="margin-top:6px">验真码 <b style="font-family:Menlo,Consolas,monospace">' + ct.yzm + '</b></div></div>'
+    + '<div class="cv-sign">XXXX市房产交易管理中心<br>' + ct.d.slice(0, 10) + '<br>'
+    + '<span class="text-xs text-3">有效期至 ' + ct.yxq + '</span></div></div>'
+    + '</div>',
+    '<button class="btn" data-act="close-modal">关闭</button>'
+    + '<a class="btn" href="../web/query-verify.html?code=' + ct.yzm + '" data-fp="wsmh-26-02">扫码验真</a>'
+    + '<a class="btn btn-primary" href="my-cert.html" data-fp="wsmh-30-08">到我的证照查看</a>', true);
+  UI.toast('证明已出具，编号 ' + ct.bh + '，验真码 ' + ct.yzm + '，已进入我的证照与票据', 'success');
+}
+</script>
+</body>
+</html>

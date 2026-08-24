@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的工作台 · 房屋交易档案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：房屋档案速查条 */
+  .qs-card { background: linear-gradient(135deg, var(--primary) 0%, #2f6fd0 100%); border: 0; }
+  .qs-inner { padding: 18px 20px; }
+  .qs-title { color: #fff; font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .qs-sub { color: rgba(255,255,255,.82); font-size: 12.5px; margin-top: 4px; }
+  .qs-form { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  .qs-form input {
+    flex: 1 1 420px; min-width: 260px; height: 42px; border-radius: 8px; border: 0;
+    padding: 0 14px; font-size: 14px; outline: none;
+  }
+  .qs-btn { height: 42px; padding: 0 22px; border-radius: 8px; border: 0; background: #ffd66b; color: #6b4a00; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .qs-btn:hover { background: #ffcb45; }
+  .qs-recent { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .qs-recent .lb { color: rgba(255,255,255,.8); font-size: 12.5px; }
+  .qs-chip {
+    display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px;
+    background: rgba(255,255,255,.16); color: #fff; font-size: 12.5px; text-decoration: none;
+  }
+  .qs-chip:hover { background: rgba(255,255,255,.3); }
+  /* 本页特有：待办分组 */
+  .td-grp { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
+  .td-grp:last-child { margin-bottom: 0; }
+  .td-head {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--bg-soft);
+    font-size: 13.5px; font-weight: 700; cursor: pointer;
+  }
+  .td-head .cnt { margin-left: auto; font-variant-numeric: tabular-nums; }
+  .td-head i.ar { color: var(--text-3); font-size: 12px; transition: .2s; }
+  .td-grp.open .td-head i.ar { transform: rotate(90deg); }
+  .td-body { display: none; padding: 4px 0; }
+  .td-grp.open .td-body { display: block; }
+  .td-row {
+    display: flex; align-items: center; gap: 10px; padding: 8px 12px; font-size: 13px;
+    color: var(--text-2); text-decoration: none; border-top: 1px dashed var(--border);
+  }
+  .td-row:hover { background: var(--primary-light-2, var(--primary-light)); color: var(--text-1); }
+  .td-row .code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; color: var(--text-1); font-weight: 600; }
+  .td-row .txt { flex: 1; min-width: 0; }
+  /* 本页特有：库房状态卡 */
+  .kf-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+  .kf-card { border: 1px solid var(--border); border-radius: 10px; padding: 12px; background: #fff; }
+  .kf-card.warn { background: #fff8ed; border-color: #f4d39a; }
+  .kf-name { font-size: 13.5px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .kf-ring {
+    width: 76px; height: 76px; border-radius: 50%; margin: 10px auto 8px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .kf-ring i { width: 56px; height: 56px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; font-style: normal; }
+  .kf-env { display: flex; gap: 8px; }
+  .kf-env > div { flex: 1; text-align: center; border-radius: 6px; background: var(--bg-soft); padding: 5px 2px; }
+  .kf-card.warn .kf-env > div { background: #fff; }
+  .kf-env .v { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .kf-env .l { font-size: 11.5px; color: var(--text-3); }
+  /* 本页特有：功能导航 */
+  .nav-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 10px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 9px; padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: 9px; text-decoration: none; color: var(--text-1); font-size: 13.5px; background: #fff; transition: .18s;
+  }
+  .nav-item:hover { border-color: var(--primary-soft); background: var(--primary-light); color: var(--primary); }
+  .nav-item i { width: 26px; height: 26px; border-radius: 7px; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+  .nav-item:hover i { background: var(--primary); color: #fff; }
+  .bar-chart.dual .bar-col { flex-direction: column; }
+  .bar-pair { display: flex; align-items: flex-end; gap: 3px; height: 100%; width: 100%; justify-content: center; }
+  .bar-pair .b1 { width: 16px; background: linear-gradient(180deg, var(--primary) 0%, #60a5fa 100%); border-radius: 4px 4px 0 0; }
+  .bar-pair .b2 { width: 16px; background: linear-gradient(180deg, #f59e0b 0%, #fbbf24 100%); border-radius: 4px 4px 0 0; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdagl-01">
+<main class="app-main">
+
+  <div class="home-hero">
+    <div class="hero-l">
+      <div class="hero-greet">上午好，韦国强</div>
+      <div class="hero-sub">XXXX市房产交易所 · 综合业务岗　|　房屋交易档案管理系统</div>
+      <div class="hero-date"><i class="fa-regular fa-calendar"></i> 2026 年 8 月 1 日 · 星期六</div>
+    </div>
+    <div class="hero-r">
+      <div class="hs"><div class="hs-v">486,286</div><div class="hs-l">馆藏案卷（卷）</div></div>
+      <div class="hs-div"></div>
+      <div class="hs"><div class="hs-v">128,462</div><div class="hs-l">一房一档（档）</div></div>
+      <div class="hs-div"></div>
+      <div class="hs"><div class="hs-v">42</div><div class="hs-l">待我处理（项）</div></div>
+    </div>
+  </div>
+
+  <div class="card qs-card">
+    <div class="qs-inner">
+      <div class="qs-title"><i class="fa-solid fa-magnifying-glass-location"></i> 房屋档案速查</div>
+      <div class="qs-sub">一套房历年全部案卷自动聚合成「一房一档」，输入房号即可看到从认购到过户的完整历史，不必再逐年翻档案盒</div>
+      <div class="qs-form">
+        <input type="text" id="qsInput" value="450202001005GB00123F00020017"
+               placeholder="输入不动产单元号 / 产权证号 / 坐落 / 权利人姓名，查看该房全部档案">
+        <button type="button" class="qs-btn" onclick="goHouse()"><i class="fa-solid fa-magnifying-glass"></i> 查询房屋档案</button>
+      </div>
+      <div class="qs-recent">
+        <span class="lb"><i class="fa-regular fa-clock"></i> 最近查询</span>
+        <a class="qs-chip" href="house-archive.html?code=450202001005GB00123F00020017">彰泰滨江学府 12-2-1802 · 9 卷</a>
+        <a class="qs-chip" href="house-archive.html?code=%E9%98%B3%E5%85%89100">阳光 100 城市广场 3-2-1602 · 6 卷</a>
+        <a class="qs-chip" href="house-archive.html?code=%E4%B8%87%E7%A7%91%E5%9F%8E">万科城 7-1-902 · 4 卷</a>
+        <a class="qs-chip" href="house-archive.html?code=%E8%8D%A3%E5%92%8C">荣和公园大道 5-1-806 · 5 卷</a>
+        <a class="qs-chip" href="house-archive.html?code=%E9%BE%99%E5%85%89">龙光玖誉城 4-1-706 · 3 卷</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-box-archive"></i></div>
+      <div>
+        <div class="s-label">馆藏案卷</div>
+        <div class="s-value">486,286</div>
+        <div class="s-trend text-3">一房一档 128,462 档</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-inbox"></i></div>
+      <div>
+        <div class="s-label">本月新增归档</div>
+        <div class="s-value">3,846</div>
+        <div class="s-trend text-success">自动归集率 96.8%</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-file-circle-exclamation"></i></div>
+      <div>
+        <div class="s-label">待补充缺件</div>
+        <div class="s-value">42</div>
+        <div class="s-trend text-warning">涉及 68 件材料</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-hand-holding-hand"></i></div>
+      <div>
+        <div class="s-label">在借档案</div>
+        <div class="s-value">186</div>
+        <div class="s-trend text-3">借阅人 62 人</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-hourglass-end"></i></div>
+      <div>
+        <div class="s-label">逾期未还</div>
+        <div class="s-value">8</div>
+        <div class="s-trend text-danger">最长逾期 26 天</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-images"></i></div>
+      <div>
+        <div class="s-label">数字化完成率</div>
+        <div class="s-value">68.4%</div>
+        <div class="s-trend text-3">已数字化 332,620 卷</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card home-panel">
+      <div class="card-head">
+        <h3>我的待办</h3>
+        <span class="sub">共 10 组 1,588 项，临期标橙、超期标红</span>
+        <div class="head-actions"><a class="home-more" href="auto-collect.html">归集监控 <i class="fa-solid fa-angle-right"></i></a></div>
+      </div>
+      <div class="card-body">
+        <div class="td-grp open">
+          <div class="td-head" onclick="this.parentElement.classList.toggle('open')">
+            <i class="fa-solid fa-angle-right ar"></i> 归集缺件待补充
+            <span class="cnt badge orange">42</span>
+          </div>
+          <div class="td-body">
+            <a class="td-row" href="auto-collect.html?task=GJ20260628042">
+              <span class="code">GJ20260628042</span>
+              <span class="txt">存量房网签备案 · 彰泰滨江学府12-2-1802 · <b class="text-danger">缺付款凭证 1 件</b></span>
+              <span class="badge orange">部分成功</span>
+            </a>
+            <a class="td-row" href="auto-collect.html?task=GJ20260628038">
+              <span class="code">GJ20260628038</span>
+              <span class="txt">商品房网签备案 · 荣和公园大道5-1-806 · 缺测绘成果 1 件</span>
+              <span class="badge orange">部分成功</span>
+            </a>
+            <a class="td-row" href="auto-collect.html?task=GJ20260627026">
+              <span class="code">GJ20260627026</span>
+              <span class="txt">抵押备案 · 万科城7-1-902 · 缺抵押合同附件 2 件</span>
+              <span class="badge orange">部分成功</span>
+            </a>
+          </div>
+        </div>
+        <div class="td-grp">
+          <div class="td-head" onclick="this.parentElement.classList.toggle('open')">
+            <i class="fa-solid fa-angle-right ar"></i> 待著录案卷
+            <span class="cnt badge cyan">68</span>
+          </div>
+          <div class="td-body">
+            <a class="td-row" href="catalog-entry.html?da=DA450204202600862">
+              <span class="code">DA450204202600862</span>
+              <span class="txt">存量房交易档案 · 自动提取已完成待补充摘要与主题词</span>
+              <span class="badge cyan">待著录</span>
+            </a>
+            <a class="td-row" href="catalog-entry.html?da=DA450204202600858">
+              <span class="code">DA450204202600858</span>
+              <span class="txt">存量房交易档案 · 自动提取 13 项，待人工补充</span>
+              <span class="badge cyan">待著录</span>
+            </a>
+          </div>
+        </div>
+        <div class="td-grp">
+          <div class="td-head" onclick="this.parentElement.classList.toggle('open')">
+            <i class="fa-solid fa-angle-right ar"></i> 著录待校验
+            <span class="cnt badge cyan">23</span>
+          </div>
+          <div class="td-body">
+            <a class="td-row" href="catalog-entry.html?da=DA450204202600854&amp;mode=check">
+              <span class="code">DA450204202600854</span>
+              <span class="txt">著录质量评分 <b class="text-warning">82 分</b> · 摘要充分性扣分，待校验</span>
+              <span class="badge orange">待校验</span>
+            </a>
+          </div>
+        </div>
+        <div class="td-grp">
+          <div class="td-head" onclick="this.parentElement.classList.toggle('open')">
+            <i class="fa-solid fa-angle-right ar"></i> 待上架案卷
+            <span class="cnt badge blue">16</span>
+          </div>
+          <div class="td-body">
+            <a class="td-row" href="warehouse.html?da=DA450204202600862">
+              <span class="code">DA450204202600862</span>
+              <span class="txt">双套载体 · 待分配库位，系统推荐 KF01-J12-J3-C4-G2-H086</span>
+              <span class="badge blue">待上架</span>
+            </a>
+          </div>
+        </div>
+        <div class="td-grp">
+          <div class="td-head" onclick="this.parentElement.classList.toggle('open')">
+            <i class="fa-solid fa-angle-right ar"></i> 待审批借阅申请
+            <span class="cnt badge orange">9</span>
+          </div>
+          <div class="td-body">
+            <a class="td-row" href="borrow-apply.html?sq=JY20260801016">
+              <span class="code">JY20260801016</span>
+              <span class="txt">广西同望律师事务所 韦** · 调卷办案 · <b class="text-warning">秘密级需专项审批</b></span>
+              <span class="badge orange">待审批</span>
+            </a>
+          </div>
+        </div>
+        <div class="td-grp">
+          <div class="td-head" onclick="this.parentElement.classList.toggle('open')">
+            <i class="fa-solid fa-angle-right ar"></i> 借阅逾期待催办
+            <span class="cnt badge red">8</span>
+          </div>
+          <div class="td-body">
+            <a class="td-row" href="borrow-return.html?jc=JC20260620008">
+              <span class="code">JC20260620008</span>
+              <span class="txt">XXXX市中级人民法院 · 借出 2 卷 · <b class="text-danger">逾期 26 天</b>，已催办 4 次</span>
+              <span class="badge red">逾期未还</span>
+            </a>
+          </div>
+        </div>
+        <div class="td-grp">
+          <div class="td-head" onclick="this.parentElement.classList.toggle('open')">
+            <i class="fa-solid fa-angle-right ar"></i> 待验收数字化批次
+            <span class="cnt badge orange">3</span>
+          </div>
+          <div class="td-body">
+            <a class="td-row" href="digitize-batch.html?pc=SZH2026Q3-018">
+              <span class="code">SZH2026Q3-018</span>
+              <span class="txt">1998 年公有住房与房改档案 486 卷 · 抽检合格率 <b class="text-success">97.2%</b></span>
+              <span class="badge orange">待验收</span>
+            </a>
+          </div>
+        </div>
+        <div class="td-grp">
+          <div class="td-head" onclick="this.parentElement.classList.toggle('open')">
+            <i class="fa-solid fa-angle-right ar"></i> 待鉴定到期档案
+            <span class="cnt badge gray">1,286</span>
+          </div>
+          <div class="td-body">
+            <a class="td-row" href="appraise-destroy.html">
+              <span class="code">2016 年度</span>
+              <span class="txt">定期 10 年档案已到保管期限，待组织鉴定（永久与长期档案自动排除）</span>
+              <span class="badge gray">待鉴定</span>
+            </a>
+          </div>
+        </div>
+        <div class="td-grp">
+          <div class="td-head" onclick="this.parentElement.classList.toggle('open')">
+            <i class="fa-solid fa-angle-right ar"></i> 待审批销毁清册
+            <span class="cnt badge orange">1</span>
+          </div>
+          <div class="td-body">
+            <a class="td-row" href="appraise-destroy.html?jd=JD2026002&amp;step=3">
+              <span class="code">JD2026002</span>
+              <span class="txt">建议销毁 486 卷 · <b class="text-warning">备份恢复验证待确认</b>，未通过不得执行销毁</span>
+              <span class="badge orange">待审批</span>
+            </a>
+          </div>
+        </div>
+        <div class="td-grp">
+          <div class="td-head" onclick="this.parentElement.classList.toggle('open')">
+            <i class="fa-solid fa-angle-right ar"></i> 盘点异常待处理
+            <span class="cnt badge red">5</span>
+          </div>
+          <div class="td-body">
+            <a class="td-row" href="inventory.html?pd=PD2026008">
+              <span class="code">PD2026008</span>
+              <span class="txt">一号档案库全面盘点 · <b class="text-danger">缺失 2 卷</b>、错架 3 卷待处理</span>
+              <span class="badge red">异常</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card home-panel">
+      <div class="card-head">
+        <h3>档案类型分布</h3>
+        <span class="sub">馆藏 486,286 卷</span>
+      </div>
+      <div class="card-body">
+        <div class="flex items-center gap-16" style="flex-wrap:wrap">
+          <div class="donut" style="background:conic-gradient(var(--primary) 0 28.6%, var(--info) 28.6% 51%, #7c3aed 51% 67.2%, var(--warning) 67.2% 80%, var(--success) 80% 88.6%, #a16207 88.6% 93.8%, #94a3b8 93.8% 100%)">
+            <div class="donut-hole">
+              <div class="fw-700" style="font-size:19px">486,286</div>
+              <div class="text-3 text-sm">馆藏卷数</div>
+            </div>
+          </div>
+          <div class="legend" style="flex:1;min-width:210px">
+            <div class="lg-item"><span class="lg-color" style="background:var(--primary)"></span> 商品房交易档案 <b style="margin-left:auto">28.6%</b></div>
+            <div class="lg-item"><span class="lg-color" style="background:var(--info)"></span> 存量房交易档案 <b style="margin-left:auto">22.4%</b></div>
+            <div class="lg-item"><span class="lg-color" style="background:#7c3aed"></span> 一房一档房屋总卷 <b style="margin-left:auto">16.2%</b></div>
+            <div class="lg-item"><span class="lg-color" style="background:var(--warning)"></span> 抵押登记档案 <b style="margin-left:auto">12.8%</b></div>
+            <div class="lg-item"><span class="lg-color" style="background:var(--success)"></span> 房屋租赁档案 <b style="margin-left:auto">8.6%</b></div>
+            <div class="lg-item"><span class="lg-color" style="background:#a16207"></span> 公有住房与房改档案 <b style="margin-left:auto">5.2%</b></div>
+            <div class="lg-item"><span class="lg-color" style="background:#94a3b8"></span> 其他档案 <b style="margin-left:auto">6.2%</b></div>
+          </div>
+        </div>
+        <div class="alert alert-info mt-16">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>
+            档案只做「目录 + 指针」——卷内文件直接引用 wssvc 文件服务的文件主键，不复制文件二进制，
+            同一份材料在全平台只存一份。
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head">
+        <h3>近 6 月归档量</h3>
+        <span class="sub">
+          <span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--primary)"></span> 自动归集
+          　<span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#f59e0b"></span> 人工归档（单位：卷）
+        </span>
+      </div>
+      <div class="card-body">
+        <div class="bar-chart dual">
+          <div class="bar-col">
+            <span class="bar-val">3,286 / 142</span>
+            <div class="bar-pair"><div class="b1" style="height:85%"></div><div class="b2" style="height:12%"></div></div>
+            <span class="bar-label">3 月</span>
+          </div>
+          <div class="bar-col">
+            <span class="bar-val">3,462 / 128</span>
+            <div class="bar-pair"><div class="b1" style="height:90%"></div><div class="b2" style="height:11%"></div></div>
+            <span class="bar-label">4 月</span>
+          </div>
+          <div class="bar-col">
+            <span class="bar-val">3,384 / 156</span>
+            <div class="bar-pair"><div class="b1" style="height:88%"></div><div class="b2" style="height:13%"></div></div>
+            <span class="bar-label">5 月</span>
+          </div>
+          <div class="bar-col">
+            <span class="bar-val">3,628 / 118</span>
+            <div class="bar-pair"><div class="b1" style="height:94%"></div><div class="b2" style="height:10%"></div></div>
+            <span class="bar-label">6 月</span>
+          </div>
+          <div class="bar-col">
+            <span class="bar-val">3,846 / 126</span>
+            <div class="bar-pair"><div class="b1" style="height:100%"></div><div class="b2" style="height:11%"></div></div>
+            <span class="bar-label">7 月</span>
+          </div>
+          <div class="bar-col">
+            <span class="bar-val">186 / 8</span>
+            <div class="bar-pair"><div class="b1" style="height:6%"></div><div class="b2" style="height:2%"></div></div>
+            <span class="bar-label">8 月<span class="text-3">（进行中）</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3>库房状态</h3>
+        <span class="sub">温度要求 14 ~ 24 ℃，湿度要求 45% ~ 60%</span>
+        <div class="head-actions"><a class="home-more" href="warehouse.html">库房管理 <i class="fa-solid fa-angle-right"></i></a></div>
+      </div>
+      <div class="card-body">
+        <div class="kf-grid">
+          <div class="kf-card">
+            <div class="kf-name"><i class="fa-solid fa-warehouse text-primary"></i> 一号档案库</div>
+            <div class="kf-ring" style="background:conic-gradient(var(--primary) 0 86.2%, #e8edf5 86.2% 100%)"><i>86.2%</i></div>
+            <div class="kf-env">
+              <div><div class="v">21.4 ℃</div><div class="l">温度</div></div>
+              <div><div class="v">52.6%</div><div class="l">湿度</div></div>
+            </div>
+            <div class="text-3 text-sm mt-8">08-01 14:00 监测 · <span class="text-success">正常</span></div>
+          </div>
+          <div class="kf-card">
+            <div class="kf-name"><i class="fa-solid fa-warehouse text-primary"></i> 二号密集库</div>
+            <div class="kf-ring" style="background:conic-gradient(var(--warning) 0 92.8%, #e8edf5 92.8% 100%)"><i>92.8%</i></div>
+            <div class="kf-env">
+              <div><div class="v">22.1 ℃</div><div class="l">温度</div></div>
+              <div><div class="v">58.2%</div><div class="l">湿度</div></div>
+            </div>
+            <div class="text-3 text-sm mt-8">08-01 14:00 监测 · <span class="text-success">正常</span></div>
+          </div>
+          <div class="kf-card warn">
+            <div class="kf-name"><i class="fa-solid fa-triangle-exclamation text-warning"></i> 三号特藏库</div>
+            <div class="kf-ring" style="background:conic-gradient(var(--primary) 0 46.2%, #e8edf5 46.2% 100%)"><i>46.2%</i></div>
+            <div class="kf-env">
+              <div><div class="v">19.8 ℃</div><div class="l">温度</div></div>
+              <div><div class="v text-danger">64.8%</div><div class="l">湿度</div></div>
+            </div>
+            <div class="text-sm mt-8"><span class="badge orange">湿度偏高</span> 超上限 4.8 个百分点</div>
+          </div>
+          <div class="kf-card">
+            <div class="kf-name"><i class="fa-solid fa-warehouse text-primary"></i> 中转库</div>
+            <div class="kf-ring" style="background:conic-gradient(var(--success) 0 32.4%, #e8edf5 32.4% 100%)"><i>32.4%</i></div>
+            <div class="kf-env">
+              <div><div class="v">23.6 ℃</div><div class="l">温度</div></div>
+              <div><div class="v">55.1%</div><div class="l">湿度</div></div>
+            </div>
+            <div class="text-3 text-sm mt-8">08-01 14:00 监测 · <span class="text-success">正常</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>档案业务导航</h3>
+      <span class="sub">档案接收整理 4 项 · 档案保管利用 6 项，共 21 个业务页面</span>
+    </div>
+    <div class="card-body">
+      <div class="section-title">档案接收整理</div>
+      <div class="nav-grid mb-16">
+        <a class="nav-item" href="auto-collect.html"><i class="fa-solid fa-bolt"></i> 随办随归自动归集</a>
+        <a class="nav-item" href="archive-list.html"><i class="fa-solid fa-box-archive"></i> 档案案卷台账</a>
+        <a class="nav-item" href="archive-detail.html"><i class="fa-solid fa-file-lines"></i> 案卷详情</a>
+        <a class="nav-item" href="scan-collect.html"><i class="fa-solid fa-camera-retro"></i> 影像电子归集</a>
+        <a class="nav-item" href="catalog-entry.html"><i class="fa-solid fa-pen-to-square"></i> 档案著录</a>
+        <a class="nav-item" href="category-tree.html"><i class="fa-solid fa-sitemap"></i> 分类目录与归档规则</a>
+        <a class="nav-item" href="house-archive.html"><i class="fa-solid fa-house-chimney-window"></i> 一房一档全景</a>
+        <a class="nav-item" href="digitize-batch.html"><i class="fa-solid fa-images"></i> 历史档案数字化</a>
+      </div>
+      <div class="section-title">档案保管利用</div>
+      <div class="nav-grid">
+        <a class="nav-item" href="warehouse.html"><i class="fa-solid fa-warehouse"></i> 库房与库位管理</a>
+        <a class="nav-item" href="inventory.html"><i class="fa-solid fa-clipboard-check"></i> 实体档案盘点</a>
+        <a class="nav-item" href="borrow-list.html"><i class="fa-solid fa-hand-holding-hand"></i> 借阅申请台账</a>
+        <a class="nav-item" href="borrow-apply.html"><i class="fa-solid fa-user-check"></i> 借阅申请与审批</a>
+        <a class="nav-item" href="borrow-return.html"><i class="fa-solid fa-rotate-left"></i> 借出归还与催办</a>
+        <a class="nav-item" href="archive-viewer.html"><i class="fa-solid fa-object-group"></i> 图文一体化查看</a>
+        <a class="nav-item" href="copy-cert.html"><i class="fa-solid fa-stamp"></i> 档案复制出证</a>
+        <a class="nav-item" href="archive-correct.html"><i class="fa-solid fa-wrench"></i> 档案信息勘误</a>
+        <a class="nav-item" href="appraise-destroy.html"><i class="fa-solid fa-fire"></i> 鉴定与销毁审批</a>
+        <a class="nav-item" href="transfer.html"><i class="fa-solid fa-truck-ramp-box"></i> 档案移交联动</a>
+        <a class="nav-item" href="backup.html"><i class="fa-solid fa-database"></i> 备份与长期保管</a>
+        <a class="nav-item" href="access-audit.html"><i class="fa-solid fa-shield-halved"></i> 利用留痕审计</a>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function goHouse() {
+  var v = (document.getElementById('qsInput').value || '').trim();
+  if (!v) { PMS.toast('请输入不动产单元号 / 产权证号 / 坐落 / 权利人姓名', 'warning'); return; }
+  location.href = 'house-archive.html?code=' + encodeURIComponent(v);
+}
+document.getElementById('qsInput').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') goHouse();
+});
+</script>
+</body>
+</html>

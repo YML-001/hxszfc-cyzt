@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>档案库房与库位管理 · 房屋交易档案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  .no-code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; }
+  /* 本页特有：库房大卡 */
+  .kf-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 12px; }
+  .kf-box { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: #fff; }
+  .kf-box.warn { border-color: #f4d39a; }
+  .kf-h {
+    display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--bg-soft);
+    font-size: 14.5px; font-weight: 700; flex-wrap: wrap;
+  }
+  .kf-h .st { margin-left: auto; }
+  .kf-b { display: grid; grid-template-columns: 1fr 130px; gap: 14px; padding: 14px; }
+  @media (max-width: 560px) { .kf-b { grid-template-columns: 1fr; } }
+  .kf-b .kv { display: flex; gap: 8px; font-size: 13px; padding: 3px 0; }
+  .kf-b .kv .k { width: 68px; flex-shrink: 0; color: var(--text-3); }
+  .cap-ring {
+    width: 118px; height: 118px; border-radius: 50%; margin: 0 auto;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cap-ring > i {
+    width: 88px; height: 88px; border-radius: 50%; background: #fff; font-style: normal;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  }
+  .cap-ring .cv { font-size: 20px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .cap-ring .cl { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+  /* 本页特有：环境监测仪表条 */
+  .env-panel { padding: 10px 14px; border-top: 1px dashed var(--border); }
+  .kf-box.warn .env-panel { background: #fff8ed; }
+  .env-row { display: flex; align-items: center; gap: 10px; font-size: 12.5px; padding: 5px 0; }
+  .env-row .env-l { width: 34px; color: var(--text-3); flex-shrink: 0; }
+  .env-track { flex: 1; height: 12px; border-radius: 8px; background: #e8edf5; position: relative; min-width: 120px; }
+  .env-ok { position: absolute; top: 0; bottom: 0; background: #bbf7d0; border-radius: 8px; }
+  .env-ptr { position: absolute; top: -4px; width: 4px; height: 20px; border-radius: 3px; background: var(--primary); }
+  .env-ptr.bad { background: var(--danger); }
+  .env-ptr > b {
+    position: absolute; left: 50%; transform: translateX(-50%); top: -19px; white-space: nowrap;
+    font-size: 11.5px; color: var(--text-1);
+  }
+  .env-ptr.bad > b { color: var(--danger); }
+  .env-req { width: 118px; flex-shrink: 0; color: var(--text-3); text-align: right; }
+  .kf-f { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+  .dev { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #cbd5e1; }
+  .dev.on { color: var(--primary); }
+  /* 本页特有：货架库位矩阵 */
+  .rk-wrap { overflow: auto; }
+  .rk-grid { display: grid; grid-template-columns: 46px repeat(12, minmax(58px, 1fr)); gap: 4px; min-width: 800px; }
+  .rk-head, .rk-side {
+    display: flex; align-items: center; justify-content: center; font-size: 11.5px; color: var(--text-3);
+    background: var(--bg-soft); border-radius: 5px; min-height: 26px;
+  }
+  .rk-cell {
+    border-radius: 6px; border: 1px solid transparent; min-height: 46px; padding: 4px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-size: 11.5px; cursor: pointer; line-height: 1.3; transition: .15s;
+  }
+  .rk-cell .cg { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .rk-cell .cn { font-size: 10.5px; opacity: .8; }
+  .rk-cell:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+  .rk-cell.s0 { background: #f1f5f9; color: #64748b; border-color: #e2e8f0; }
+  .rk-cell.s1 { background: #dbeafe; color: #1d4ed8; border-color: #bfdbfe; }
+  .rk-cell.s2 { background: #f0e9ff; color: #7c3aed; border-color: #e3d8ff; }
+  .rk-cell.s3 {
+    color: #b91c1c; border-color: #fecaca; cursor: not-allowed;
+    background: repeating-linear-gradient(45deg, #fee2e2 0 6px, #fff1f1 6px 12px);
+  }
+  .rk-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; align-items: center; }
+  .rk-legend .lg { display: inline-flex; align-items: center; gap: 6px; }
+  .rk-legend .sw { width: 14px; height: 14px; border-radius: 4px; border: 1px solid #d8e0ec; }
+  .qr-ph {
+    width: 54px; height: 54px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px;
+    background: #fff; border: 1px solid var(--border); padding: 3px;
+  }
+  .qr-ph span { background: #1e293b; border-radius: 1px; }
+  .qr-ph span.b { background: #fff; }
+  .modal-head { display: flex; align-items: center; gap: 10px; }
+  .modal-head h3 { font-size: 16px; font-weight: 700; }
+  .modal-head .close { margin-left: auto; cursor: pointer; color: var(--text-3); font-size: 18px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: none; border: 0; }
+  .modal-head .close:hover { background: var(--bg-soft); color: var(--text-1); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdagl-10">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> <a class="link" href="index.html">房屋交易档案管理系统</a>
+        <span class="sep">/</span> 档案保管利用
+        <span class="sep">/</span> <span class="cur">档案库房与库位管理</span>
+      </div>
+      <div class="page-title">档案库房与库位管理</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn btn-primary" href="inventory.html"><i class="fa-solid fa-clipboard-check"></i> 发起盘点</a>
+      <button type="button" class="btn" onclick="PMS.openModal('mdShelf')"><i class="fa-solid fa-boxes-stacked"></i> 办理上架</button>
+      <button type="button" class="btn" onclick="PMS.toast('已导出《库房与库位台账》Excel','success')"><i class="fa-solid fa-download"></i> 导出</button>
+      <button type="button" class="btn" onclick="PMS.toast('已打开环境监测记录（近 30 天温湿度曲线）')"><i class="fa-solid fa-temperature-half"></i> 环境记录</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      纯电子档案不占用库房位置，库位只管有实体的那部分；库房温湿度超出要求范围自动预警。
+      <b>温度要求 14 ~ 24 ℃，湿度要求 45% ~ 60%</b>，当前三号特藏库湿度 64.8% 超上限。
+    </div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="kf">库房管理 <span class="badge gray">4</span></div>
+      <div class="tab" data-tab="kw">库位管理</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="kf">
+      <div class="card-body">
+        <div class="kf-grid">
+          <div class="kf-box">
+            <div class="kf-h">
+              <i class="fa-solid fa-warehouse text-primary"></i>
+              <span class="no-code">KF01</span> 一号档案库
+              <span class="badge cyan">档案库</span>
+              <span class="st badge green">正常使用</span>
+            </div>
+            <div class="kf-b">
+              <div>
+                <div class="kv"><span class="k">地址</span><span>柳州市城中区三中路 12 号房产交易大楼 3 层</span></div>
+                <div class="kv"><span class="k">所在楼层</span><span>3 层</span></div>
+                <div class="kv"><span class="k">库房面积</span><span>862 ㎡</span></div>
+                <div class="kv"><span class="k">货架数量</span><span>32 组（J01 ~ J32）</span></div>
+                <div class="kv"><span class="k">负责人</span><span>覃永明　0772-2861086</span></div>
+                <div class="kv"><span class="k">库存容量</span><span>41,862 / 48,600 卷</span></div>
+              </div>
+              <div>
+                <div class="cap-ring" style="background:conic-gradient(var(--primary) 0 86.2%, #e8edf5 86.2% 100%)">
+                  <i><span class="cv">86.2%</span><span class="cl">使用率</span></i>
+                </div>
+              </div>
+            </div>
+            <div class="env-panel">
+              <div class="env-row">
+                <span class="env-l">温度</span>
+                <span class="env-track">
+                  <span class="env-ok" style="left:35%;width:25%"></span>
+                  <span class="env-ptr" style="left:53.5%"><b>21.4 ℃</b></span>
+                </span>
+                <span class="env-req">要求 14 ~ 24 ℃</span>
+              </div>
+              <div class="env-row">
+                <span class="env-l">湿度</span>
+                <span class="env-track">
+                  <span class="env-ok" style="left:45%;width:15%"></span>
+                  <span class="env-ptr" style="left:52.6%"><b>52.6%</b></span>
+                </span>
+                <span class="env-req">要求 45% ~ 60%</span>
+              </div>
+            </div>
+            <div class="kf-f">
+              <span class="dev on"><i class="fa-solid fa-fire-extinguisher"></i> 防火</span>
+              <span class="dev on"><i class="fa-solid fa-lock"></i> 防盗</span>
+              <span class="dev on"><i class="fa-solid fa-video"></i> 监控</span>
+              <span class="text-3 text-sm">08-01 14:00 监测</span>
+              <div class="btn-row" style="margin-left:auto">
+                <button type="button" class="btn btn-sm" onclick="gotoKw('KF01')"><i class="fa-solid fa-table-cells"></i> 查看库位</button>
+                <button type="button" class="btn btn-sm" onclick="PMS.toast('已打开库房编辑')"><i class="fa-solid fa-pen"></i> 编辑</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="kf-box">
+            <div class="kf-h">
+              <i class="fa-solid fa-warehouse text-primary"></i>
+              <span class="no-code">KF02</span> 二号密集库
+              <span class="badge purple">密集库</span>
+              <span class="st badge orange">接近满库</span>
+            </div>
+            <div class="kf-b">
+              <div>
+                <div class="kv"><span class="k">地址</span><span>柳州市城中区三中路 12 号房产交易大楼 4 层</span></div>
+                <div class="kv"><span class="k">所在楼层</span><span>4 层</span></div>
+                <div class="kv"><span class="k">库房面积</span><span>648 ㎡</span></div>
+                <div class="kv"><span class="k">货架数量</span><span>48 组（密集架 J01 ~ J48）</span></div>
+                <div class="kv"><span class="k">负责人</span><span>蒙丽华　0772-2861088</span></div>
+                <div class="kv"><span class="k">库存容量</span><span>58,486 / 63,000 卷</span></div>
+              </div>
+              <div>
+                <div class="cap-ring" style="background:conic-gradient(var(--warning) 0 92.8%, #e8edf5 92.8% 100%)">
+                  <i><span class="cv text-warning">92.8%</span><span class="cl">使用率</span></i>
+                </div>
+              </div>
+            </div>
+            <div class="env-panel">
+              <div class="env-row">
+                <span class="env-l">温度</span>
+                <span class="env-track">
+                  <span class="env-ok" style="left:35%;width:25%"></span>
+                  <span class="env-ptr" style="left:55.3%"><b>22.1 ℃</b></span>
+                </span>
+                <span class="env-req">要求 14 ~ 24 ℃</span>
+              </div>
+              <div class="env-row">
+                <span class="env-l">湿度</span>
+                <span class="env-track">
+                  <span class="env-ok" style="left:45%;width:15%"></span>
+                  <span class="env-ptr" style="left:58.2%"><b>58.2%</b></span>
+                </span>
+                <span class="env-req">要求 45% ~ 60%</span>
+              </div>
+            </div>
+            <div class="kf-f">
+              <span class="dev on"><i class="fa-solid fa-fire-extinguisher"></i> 防火</span>
+              <span class="dev on"><i class="fa-solid fa-lock"></i> 防盗</span>
+              <span class="dev on"><i class="fa-solid fa-video"></i> 监控</span>
+              <span class="text-warning text-sm">使用率超 90%，建议启用中转库分流</span>
+              <div class="btn-row" style="margin-left:auto">
+                <button type="button" class="btn btn-sm" onclick="gotoKw('KF02')"><i class="fa-solid fa-table-cells"></i> 查看库位</button>
+                <button type="button" class="btn btn-sm" onclick="PMS.toast('已打开库房编辑')"><i class="fa-solid fa-pen"></i> 编辑</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="kf-box warn">
+            <div class="kf-h">
+              <i class="fa-solid fa-triangle-exclamation text-warning"></i>
+              <span class="no-code">KF03</span> 三号特藏库
+              <span class="badge orange">特藏库</span>
+              <span class="st badge orange">湿度偏高</span>
+            </div>
+            <div class="kf-b">
+              <div>
+                <div class="kv"><span class="k">地址</span><span>柳州市城中区三中路 12 号房产交易大楼 5 层</span></div>
+                <div class="kv"><span class="k">所在楼层</span><span>5 层</span></div>
+                <div class="kv"><span class="k">库房面积</span><span>286 ㎡</span></div>
+                <div class="kv"><span class="k">货架数量</span><span>12 组（恒温恒湿柜）</span></div>
+                <div class="kv"><span class="k">负责人</span><span>覃永明　0772-2861090</span></div>
+                <div class="kv"><span class="k">库存容量</span><span>6,486 / 14,040 卷</span></div>
+              </div>
+              <div>
+                <div class="cap-ring" style="background:conic-gradient(var(--primary) 0 46.2%, #e8edf5 46.2% 100%)">
+                  <i><span class="cv">46.2%</span><span class="cl">使用率</span></i>
+                </div>
+              </div>
+            </div>
+            <div class="env-panel">
+              <div class="env-row">
+                <span class="env-l">温度</span>
+                <span class="env-track">
+                  <span class="env-ok" style="left:35%;width:25%"></span>
+                  <span class="env-ptr" style="left:49.5%"><b>19.8 ℃</b></span>
+                </span>
+                <span class="env-req">要求 14 ~ 24 ℃</span>
+              </div>
+              <div class="env-row">
+                <span class="env-l">湿度</span>
+                <span class="env-track">
+                  <span class="env-ok" style="left:45%;width:15%"></span>
+                  <span class="env-ptr bad" style="left:64.8%"><b>64.8%</b></span>
+                </span>
+                <span class="env-req">要求 45% ~ 60%</span>
+              </div>
+              <div class="text-warning text-sm mt-8">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                湿度超上限 4.8 个百分点，已推送预警至库房负责人，建议启动除湿并复测
+              </div>
+            </div>
+            <div class="kf-f">
+              <span class="dev on"><i class="fa-solid fa-fire-extinguisher"></i> 防火</span>
+              <span class="dev on"><i class="fa-solid fa-lock"></i> 防盗</span>
+              <span class="dev on"><i class="fa-solid fa-video"></i> 监控</span>
+              <span class="text-3 text-sm">08-01 14:00 监测</span>
+              <div class="btn-row" style="margin-left:auto">
+                <button type="button" class="btn btn-sm btn-primary" onclick="PMS.toast('已下发除湿处置任务，2 小时后自动复测','success')"><i class="fa-solid fa-wind"></i> 处置</button>
+                <button type="button" class="btn btn-sm" onclick="gotoKw('KF03')"><i class="fa-solid fa-table-cells"></i> 查看库位</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="kf-box">
+            <div class="kf-h">
+              <i class="fa-solid fa-warehouse text-primary"></i>
+              <span class="no-code">KF04</span> 中转库
+              <span class="badge gray">中转库</span>
+              <span class="st badge green">正常使用</span>
+            </div>
+            <div class="kf-b">
+              <div>
+                <div class="kv"><span class="k">地址</span><span>柳州市城中区三中路 12 号房产交易大楼 2 层</span></div>
+                <div class="kv"><span class="k">所在楼层</span><span>2 层</span></div>
+                <div class="kv"><span class="k">库房面积</span><span>186 ㎡</span></div>
+                <div class="kv"><span class="k">货架数量</span><span>8 组</span></div>
+                <div class="kv"><span class="k">负责人</span><span>覃永明　0772-2861092</span></div>
+                <div class="kv"><span class="k">库存容量</span><span>2,486 / 7,672 卷</span></div>
+              </div>
+              <div>
+                <div class="cap-ring" style="background:conic-gradient(var(--success) 0 32.4%, #e8edf5 32.4% 100%)">
+                  <i><span class="cv text-success">32.4%</span><span class="cl">使用率</span></i>
+                </div>
+              </div>
+            </div>
+            <div class="env-panel">
+              <div class="env-row">
+                <span class="env-l">温度</span>
+                <span class="env-track">
+                  <span class="env-ok" style="left:35%;width:25%"></span>
+                  <span class="env-ptr" style="left:59%"><b>23.6 ℃</b></span>
+                </span>
+                <span class="env-req">要求 14 ~ 24 ℃</span>
+              </div>
+              <div class="env-row">
+                <span class="env-l">湿度</span>
+                <span class="env-track">
+                  <span class="env-ok" style="left:45%;width:15%"></span>
+                  <span class="env-ptr" style="left:55.1%"><b>55.1%</b></span>
+                </span>
+                <span class="env-req">要求 45% ~ 60%</span>
+              </div>
+            </div>
+            <div class="kf-f">
+              <span class="dev on"><i class="fa-solid fa-fire-extinguisher"></i> 防火</span>
+              <span class="dev on"><i class="fa-solid fa-lock"></i> 防盗</span>
+              <span class="dev"><i class="fa-solid fa-video"></i> 监控</span>
+              <span class="text-3 text-sm">数字化出入库暂存与移交待运档案</span>
+              <div class="btn-row" style="margin-left:auto">
+                <button type="button" class="btn btn-sm" onclick="gotoKw('KF04')"><i class="fa-solid fa-table-cells"></i> 查看库位</button>
+                <button type="button" class="btn btn-sm" onclick="PMS.toast('已打开库房编辑')"><i class="fa-solid fa-pen"></i> 编辑</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="kw">
+      <div class="card-body">
+        <div class="filter-bar" style="border-radius:8px;border:1px solid var(--border)">
+          <div class="filter-item">
+            <label>库房</label>
+            <select id="selKf" onchange="PMS.toast('已切换到 ' + this.value)">
+              <option>KF01 一号档案库</option><option>KF02 二号密集库</option>
+              <option>KF03 三号特藏库</option><option>KF04 中转库</option>
+            </select>
+          </div>
+          <div class="filter-item">
+            <label>货架号</label>
+            <select onchange="PMS.toast('已加载货架 ' + this.value + ' 库位矩阵')">
+              <option>J12</option><option>J08</option><option>J10</option><option>J16</option><option>J20</option>
+            </select>
+          </div>
+          <div class="filter-item">
+            <label>节号</label>
+            <select><option>J3</option><option>J1</option><option>J2</option><option>J4</option></select>
+          </div>
+          <div class="filter-item">
+            <label>位置状态</label>
+            <select><option value="">全部</option><option>空闲</option><option>已占用</option><option>已封存</option><option>不可用</option></select>
+          </div>
+          <div class="filter-actions">
+            <button type="button" class="btn btn-primary" onclick="PMS.toast('已加载 KF01-J12-J3 库位矩阵')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button type="button" class="btn" onclick="PMS.toast('已打印本节库位标签（含二维码）','success')"><i class="fa-solid fa-tag"></i> 批量打印标签</button>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between mt-16 mb-8" style="flex-wrap:wrap;gap:10px">
+          <b>KF01 一号档案库 · 货架 J12 · 第 J3 节　库位矩阵（6 层 × 12 格）</b>
+          <div class="rk-legend">
+            <span class="lg"><span class="sw" style="background:#f1f5f9"></span> 空闲</span>
+            <span class="lg"><span class="sw" style="background:#dbeafe"></span> 已占用</span>
+            <span class="lg"><span class="sw" style="background:#f0e9ff"></span> 已封存</span>
+            <span class="lg"><span class="sw" style="background:repeating-linear-gradient(45deg,#fee2e2 0 4px,#fff1f1 4px 8px)"></span> 不可用</span>
+          </div>
+        </div>
+
+        <div class="rk-wrap">
+          <div class="rk-grid" id="rkGrid"></div>
+        </div>
+        <p class="text-3 text-sm mt-8">
+          <i class="fa-solid fa-circle-info"></i>
+          鼠标悬停查看该格存放的档案号与最近盘点结果；点击格子可办理上架 / 下架 / 调整。
+        </p>
+
+        <div class="section-title mt-16">库位明细</div>
+        <div class="table-wrap">
+          <table class="data-table compact" data-static>
+            <thead>
+              <tr>
+                <th>位置编号</th>
+                <th>位置全称</th>
+                <th>RFID 标签编号</th>
+                <th>二维码编号</th>
+                <th class="num">可存 / 已存</th>
+                <th>存放档案号</th>
+                <th>存入日期 / 存入人</th>
+                <th>位置状态</th>
+                <th>最近盘点</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="nowrap fw-600 no-code">WZ0086421</td>
+                <td class="nowrap no-code">KF01-J12-J3-C4-G2-H086</td>
+                <td class="nowrap no-code">RF0086421026</td>
+                <td class="nowrap no-code">QR450204202600862</td>
+                <td class="num">1 / 1</td>
+                <td class="nowrap no-code"><a class="link" href="archive-detail.html">DA450204202600862</a></td>
+                <td class="nowrap">2026-07-02　覃永明</td>
+                <td class="nowrap"><span class="badge blue">已占用</span></td>
+                <td class="nowrap">07-28 <span class="badge green">在架</span></td>
+                <td class="col-ops">
+                  <a class="link" onclick="PMS.toast('已办理下架，库位置为空闲')">下架</a>
+                  <a class="link" onclick="PMS.openModal('mdShelf')">调整</a>
+                  <a class="link" onclick="PMS.toast('已打印库位标签','success')">打印标签</a>
+                </td>
+              </tr>
+              <tr>
+                <td class="nowrap fw-600 no-code">WZ0086422</td>
+                <td class="nowrap no-code">KF01-J12-J3-C4-G2-H087</td>
+                <td class="nowrap no-code">RF0086422026</td>
+                <td class="nowrap no-code">QR450204202600866</td>
+                <td class="num">1 / 0</td>
+                <td class="nowrap text-3">—</td>
+                <td class="nowrap text-3">—</td>
+                <td class="nowrap"><span class="badge gray">空闲</span></td>
+                <td class="nowrap">07-28 <span class="badge gray">空位</span></td>
+                <td class="col-ops">
+                  <a class="link" onclick="PMS.openModal('mdShelf')">上架</a>
+                  <a class="link" onclick="PMS.toast('已打印库位标签','success')">打印标签</a>
+                </td>
+              </tr>
+              <tr>
+                <td class="nowrap fw-600 no-code">WZ0086408</td>
+                <td class="nowrap no-code">KF01-J12-J3-C4-G1-H082</td>
+                <td class="nowrap no-code">RF0086408026</td>
+                <td class="nowrap no-code">QR450202202100862</td>
+                <td class="num">1 / 1</td>
+                <td class="nowrap no-code"><a class="link" href="archive-detail.html">DA450202202100862</a></td>
+                <td class="nowrap">2021-05-12　蒙丽华</td>
+                <td class="nowrap"><span class="badge orange">已占用</span><br><span class="text-warning text-sm">档案已借出</span></td>
+                <td class="nowrap">07-28 <span class="badge blue">已借出</span></td>
+                <td class="col-ops">
+                  <a class="link" href="borrow-return.html">办理归还</a>
+                  <a class="link" onclick="PMS.toast('已打印库位标签','success')">打印标签</a>
+                </td>
+              </tr>
+              <tr>
+                <td class="nowrap fw-600 no-code">WZ0086002</td>
+                <td class="nowrap no-code">KF01-J12-J5-C7-G3-H208</td>
+                <td class="nowrap no-code">RF0086002026</td>
+                <td class="nowrap no-code">QR450205201800386</td>
+                <td class="num">1 / 1</td>
+                <td class="nowrap no-code"><a class="link" href="archive-detail.html">DA450205201800386</a></td>
+                <td class="nowrap">2018-12-26　蒙丽华</td>
+                <td class="nowrap"><span class="badge red">已占用</span><br><span class="text-danger text-sm">盘点未找到</span></td>
+                <td class="nowrap">07-28 <span class="badge red">缺失</span></td>
+                <td class="col-ops">
+                  <a class="link" href="inventory.html?pd=PD2026008">核查处理</a>
+                </td>
+              </tr>
+              <tr>
+                <td class="nowrap fw-600 no-code">WZ0086520</td>
+                <td class="nowrap no-code">KF01-J12-J3-C6-G8-H126</td>
+                <td class="nowrap no-code">RF0086520026</td>
+                <td class="nowrap no-code">—</td>
+                <td class="num">1 / 0</td>
+                <td class="nowrap text-3">—</td>
+                <td class="nowrap text-3">—</td>
+                <td class="nowrap"><span class="badge red">不可用</span><br><span class="text-danger text-sm">层板变形待维修</span></td>
+                <td class="nowrap">07-28 <span class="badge gray">—</span></td>
+                <td class="col-ops">
+                  <a class="link" onclick="PMS.toast('已提交库房维修工单')">报修</a>
+                </td>
+              </tr>
+              <tr>
+                <td class="nowrap fw-600 no-code">WZ0086002</td>
+                <td class="nowrap no-code">KF03-J01-J1-C1-G1-H002</td>
+                <td class="nowrap no-code">RF0086002018</td>
+                <td class="nowrap no-code">QR450205202300386</td>
+                <td class="num">1 / 1</td>
+                <td class="nowrap no-code"><a class="link" href="archive-detail.html">DA450205202300386</a></td>
+                <td class="nowrap">2023-11-08　覃永明</td>
+                <td class="nowrap"><span class="badge purple">已封存</span><br><span class="text-3 text-sm">机密级长期不动用</span></td>
+                <td class="nowrap">07-28 <span class="badge green">在架</span></td>
+                <td class="col-ops">
+                  <a class="link" onclick="PMS.toast('解封须经审批')">申请解封</a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="mdShelf">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>上架办理</h3>
+        <button type="button" class="close" onclick="PMS.closeModal('mdShelf')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="section-title">待上架案卷</div>
+        <div class="table-wrap">
+          <table class="data-table compact" data-static>
+            <thead>
+              <tr>
+                <th style="width:38px"><input type="checkbox" id="ckAll"></th>
+                <th>档案号</th>
+                <th>档案名称</th>
+                <th>载体</th>
+                <th>分类号</th>
+                <th>推荐库位</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><input type="checkbox" class="ck" checked></td>
+                <td class="nowrap no-code">DA450204202600862</td>
+                <td class="cell-lg">彰泰滨江学府12栋2单元1802存量房买卖合同网签备案</td>
+                <td class="nowrap">双套</td>
+                <td class="nowrap no-code">02.03.01</td>
+                <td class="nowrap no-code">KF01-J12-J3-C4-G2-H086</td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" class="ck"></td>
+                <td class="nowrap no-code">DA450204202600866</td>
+                <td class="cell-lg">荣和公园大道5栋1单元806存量房买卖合同网签备案</td>
+                <td class="nowrap">双套</td>
+                <td class="nowrap no-code">02.03.01</td>
+                <td class="nowrap no-code">KF01-J12-J3-C4-G2-H087</td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" class="ck"></td>
+                <td class="nowrap no-code">DA450202202600942</td>
+                <td class="cell-lg">2026 年度房屋交易综合管理档案</td>
+                <td class="nowrap">纯纸质</td>
+                <td class="nowrap no-code">14.01.01</td>
+                <td class="nowrap no-code">KF01-J20-J1-C2-G4-H018</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="text-3 text-sm mt-8">
+          <i class="fa-solid fa-circle-info"></i>
+          系统按分类就近原则推荐空闲库位，同一分类的案卷尽量集中存放，便于调卷与盘点。纯电子档案不进入上架流程。
+        </p>
+        <div class="form-grid form-align mt-16">
+          <div class="form-item">
+            <label>存入人<span class="req">*</span></label>
+            <input type="text" value="覃永明">
+          </div>
+          <div class="form-item">
+            <label>存入日期<span class="req">*</span></label>
+            <input type="date" value="2026-08-01">
+          </div>
+          <div class="form-item col-full">
+            <label>库位标签</label>
+            <div class="flex items-center gap-12">
+              <div class="qr-ph">
+                <span></span><span class="b"></span><span></span><span></span><span class="b"></span>
+                <span class="b"></span><span></span><span class="b"></span><span></span><span></span>
+                <span></span><span></span><span class="b"></span><span class="b"></span><span></span>
+                <span class="b"></span><span></span><span></span><span class="b"></span><span></span>
+                <span></span><span class="b"></span><span></span><span></span><span class="b"></span>
+              </div>
+              <div class="text-sm">
+                <div class="no-code">KF01-J12-J3-C4-G2-H086</div>
+                <div class="text-3">扫码可查该库位存放档案与盘点记录</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="PMS.closeModal('mdShelf')">取消</button>
+        <button type="button" class="btn" onclick="PMS.toast('已打印库位标签','success')"><i class="fa-solid fa-print"></i> 打印标签</button>
+        <button type="button" class="btn btn-primary" onclick="PMS.closeModal('mdShelf');PMS.toast('已上架 1 卷，库位状态置为已占用','success')">确认上架</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  var occupied = {
+    '1-2': 'DA450202202100486', '1-3': 'DA450202202100862', '2-5': 'DA450202202101024',
+    '3-1': 'DA450202202300186', '3-4': 'DA450202202300242', '4-2': 'DA450204202600862',
+    '4-6': 'DA450204202600908', '5-3': 'DA450202202400628', '6-7': 'DA450202202600186',
+    '2-9': 'DA450204202500742', '5-11': 'DA450206202400218'
+  };
+  var sealed = { '1-12': 'DA450205202300386' };
+  var broken = { '6-8': 1 };
+  var html = '<div class="rk-head"></div>';
+  for (var g = 1; g <= 12; g++) html += '<div class="rk-head">G' + g + '</div>';
+  for (var c = 1; c <= 6; c++) {
+    html += '<div class="rk-side">C' + c + '</div>';
+    for (var g2 = 1; g2 <= 12; g2++) {
+      var key = c + '-' + g2;
+      var cls = 's0', used = 0, tip = '空闲库位，可上架';
+      if (occupied[key]) { cls = 's1'; used = 1; tip = '存放 ' + occupied[key] + '　最近盘点：在架'; }
+      else if (sealed[key]) { cls = 's2'; used = 1; tip = '已封存 ' + sealed[key] + '　机密级长期不动用'; }
+      else if (broken[key]) { cls = 's3'; tip = '不可用：层板变形待维修'; }
+      html += '<div class="rk-cell ' + cls + '" title="KF01-J12-J3-C' + c + '-G' + g2 + '　' + tip + '" onclick="cellClick(' + c + ',' + g2 + ',\'' + cls + '\')">' +
+        '<span class="cg">G' + g2 + '</span><span class="cn">' + used + ' / 1</span></div>';
+    }
+  }
+  document.getElementById('rkGrid').innerHTML = html;
+})();
+function cellClick(c, g, cls) {
+  if (cls === 's3') { PMS.toast('该库位不可用（层板变形待维修）', 'warning'); return; }
+  if (cls === 's0') { PMS.openModal('mdShelf'); return; }
+  PMS.toast('库位 KF01-J12-J3-C' + c + '-G' + g + ' 已占用，可办理下架或调整');
+}
+function gotoKw(kf) {
+  document.querySelector('.tabs .tab[data-tab="kw"]').click();
+  var sel = document.getElementById('selKf');
+  for (var i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].value.indexOf(kf) === 0 || sel.options[i].text.indexOf(kf) === 0) sel.selectedIndex = i;
+  }
+  PMS.toast('已切换到 ' + kf + ' 的库位管理');
+}
+(function () {
+  var all = document.getElementById('ckAll');
+  if (all) all.addEventListener('change', function () {
+    var on = this.checked;
+    document.querySelectorAll('#mdShelf .ck').forEach(function (c) { c.checked = on; });
+  });
+  var da = new URLSearchParams(location.search).get('da');
+  if (da) PMS.openModal('mdShelf');
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 舆情监测 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="fx" data-active="ask-data" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>智能应用</span>
+      <span class="sep">/</span><span>智能分析报告</span>
+      <span class="sep">/</span><span class="cur">AI 舆情监测</span>
+    </div>
+    <div class="page-actions">
+      <span class="node-tag"><i class="fa-solid fa-user-shield"></i>监管分析人员</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-chart-simple"></i>智能分析报告 wsai-09</span>
+    <a href="ask-data.html?role=fx">智能问数</a>
+    <a href="ask-data-scope.html?role=fx">问数口径约束</a>
+    <a href="report-gen.html?role=fx">AI 报告生成</a>
+    <a class="active" href="sentiment.html?role=fx">AI 舆情监测</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-bullhorn"></i>
+    <span>采集房地产相关舆情后自动分类分级、溯源并生成处置建议。<b>处置建议须人工确认后才能执行</b>；
+      「重要」与「紧急」级别可转为<b>待确认</b>预警线索，仍需人工确认才推送督办中心。</span>
+  </div>
+
+  <div class="stat-grid" id="lvStats"></div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head"><h3>舆情分类分布</h3><span class="sub">按业务领域</span></div>
+      <div class="card-body"><div id="flBars"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>处置进度</h3><span class="sub">已研判 / 已处置</span></div>
+      <div class="card-body"><div class="grid-2" id="rings"></div></div>
+    </div>
+  </div>
+
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3>舆情清单</h3>
+      <span class="sub">点「智能研判」调用舆情研判模型</span>
+      <div class="head-actions">
+        <select id="fLv" style="width:150px" onchange="AI.paint('tYq')">
+          <option value="">全部级别</option>
+          <option value="4">紧急</option>
+          <option value="3">重要</option>
+          <option value="2">关注</option>
+          <option value="1">一般</option>
+        </select>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tYq" data-static>
+        <thead><tr>
+          <th class="cell-lg">舆情标题</th><th>分类</th><th>级别</th><th>来源</th>
+          <th class="cell-lg">处置建议</th><th>置信度</th><th>确认状态</th><th>处置</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var LV_ICON = { '4': 'fa-fire', '3': 'fa-triangle-exclamation', '2': 'fa-eye', '1': 'fa-circle-info' };
+  var LV_COLOR = { '4': 'red', '3': 'orange', '2': 'cyan', '1': 'gray' };
+
+  function paintKpi() {
+    var ss = AI.get('sentiments');
+    document.getElementById('lvStats').innerHTML = ['4', '3', '2', '1'].map(function (lv) {
+      var n = ss.filter(function (s) { return s.yqlv === lv; }).length;
+      var un = ss.filter(function (s) { return s.yqlv === lv && s.zt === '0'; }).length;
+      return '<div class="stat-card"><div class="s-icon ' + LV_COLOR[lv] + '">' +
+        '<i class="fa-solid ' + LV_ICON[lv] + '"></i></div><div>' +
+        '<div class="s-label">' + AI.dict('yqlv', lv) + '</div><div class="s-value">' + n + '</div>' +
+        '<div class="s-trend ' + (un ? 'text-danger' : 'text-2') + '">' +
+          (un ? un + ' 条待处置' : '已全部处置') + '</div></div></div>';
+    }).join('') +
+      '<div class="stat-card"><div class="s-icon ai"><i class="fa-solid fa-flag"></i></div><div>' +
+        '<div class="s-label">已转预警线索</div><div class="s-value">' +
+        ss.filter(function (s) { return s.toClue; }).length + '</div>' +
+        '<div class="s-trend text-2">仍需人工确认</div></div></div>';
+
+    /* 分类分布 */
+    var byFl = {};
+    ss.forEach(function (s) { byFl[s.yqfl] = (byFl[s.yqfl] || 0) + 1; });
+    var max = 1;
+    Object.keys(byFl).forEach(function (k) { if (byFl[k] > max) max = byFl[k]; });
+    document.getElementById('flBars').innerHTML = Object.keys(byFl).map(function (k) {
+      return '<div class="factor-row"><span class="fr-n">' + AI.dict('yqfl', k) + '</span>' +
+        '<span class="fr-bar"><span style="width:' + (byFl[k] / max * 100) + '%"></span></span>' +
+        '<span class="fr-v">' + byFl[k] + ' 条</span><span class="fr-d"></span></div>';
+    }).join('');
+
+    /* 处置进度环 */
+    var judged = ss.filter(function (s) { return s.outputId; }).length;
+    var handled = ss.filter(function (s) { return s.zt === '1'; }).length;
+    document.getElementById('rings').innerHTML =
+      AI.ring(ss.length ? Math.round(judged / ss.length * 1000) / 10 : 0, '已智能研判',
+        judged + ' / ' + ss.length + ' 条', 'var(--primary)') +
+      AI.ring(ss.length ? Math.round(handled / ss.length * 1000) / 10 : 0, '已完成处置',
+        handled + ' / ' + ss.length + ' 条', 'var(--success)');
+  }
+
+  AI.table({
+    id: 'tYq', pageSize: 10,
+    rows: function () {
+      var lv = document.getElementById('fLv').value;
+      return AI.where('sentiments', function (s) { return !lv || s.yqlv === lv; })
+        .sort(function (a, b) { return Number(b.yqlv) - Number(a.yqlv); });
+    },
+    cells: function (s) {
+      var o = s.outputId ? AI.byId('outputs', s.outputId) : null;
+      return [
+        '<td class="cell-lg">' + AI.esc(s.title) + '</td>',
+        '<td>' + AI.dict('yqfl', s.yqfl) + '</td>',
+        '<td>' + AI.yqBadge(s.yqlv) + '</td>',
+        '<td>' + AI.esc(s.src) + '</td>',
+        '<td class="cell-lg">' + AI.esc(s.advice) + '</td>',
+        '<td>' + (o ? AI.confidence(o.conf) : '<span class="text-3">未研判</span>') + '</td>',
+        '<td>' + (o ? AI.qrBadge(o.qrzt) : '<span class="text-3">—</span>') + '</td>',
+        '<td>' + (s.zt === '1'
+          ? '<span class="badge green">已处置</span><div class="text-3 text-sm">' + AI.esc(s.handleBy || '') + '</div>'
+          : '<span class="badge orange">待处置</span>') + '</td>',
+        '<td class="col-ops">' +
+          (!o
+            ? '<button class="btn btn-primary btn-sm" onclick="AI.act.classifySentiment(\'' + s.id + '\')">' +
+              '<i class="fa-solid fa-wand-magic-sparkles"></i> 智能研判</button>'
+            : (o.qrzt === '0'
+                ? AI.actTriplet(o.id)
+                : (s.zt === '0'
+                    ? '<button class="btn btn-success btn-sm" onclick="AI.act.handleSentiment(\'' + s.id + '\')">' +
+                      '<i class="fa-solid fa-check"></i> 执行处置</button> '
+                    : ''))) +
+          ((s.yqlv === '3' || s.yqlv === '4') && !s.toClue
+            ? ' <button class="btn btn-sm" onclick="AI.act.sentimentToClue(\'' + s.id + '\')">' +
+              '<i class="fa-solid fa-flag"></i> 转线索</button>'
+            : (s.toClue ? ' <span class="badge ai">已转线索</span>' : '')) +
+        '</td>'
+      ];
+    },
+    empty: '暂无舆情'
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () { paintKpi(); AI.repaintAll(); });
+  });
+})();
+</script>
+</body>
+</html>

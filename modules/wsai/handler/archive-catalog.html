@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>档案影像智能编目 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="jb" data-active="listing-verify" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>智能应用</span>
+      <span class="sep">/</span><span>智能核验</span>
+      <span class="sep">/</span><span class="cur">档案影像智能编目</span>
+    </div>
+    <div class="page-actions">
+      <span class="node-tag"><i class="fa-solid fa-user-shield"></i>业务经办人</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-clipboard-check"></i>智能核验 wsai-07</span>
+    <a href="listing-verify.html?role=jb">房源真实性核验</a>
+    <a href="quality-verify.html?role=jb">好房子品质核验</a>
+    <a class="active" href="archive-catalog.html?role=jb">档案影像编目</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-folder-tree"></i>
+    <span>对档案影像做 OCR 编目并提取当事人、房屋、日期等关键信息，编目后即可用<b>自然语言检索档案</b>。
+      <b>未编目的档案不参与检索</b>；编目模型当前为「部署中」，需先发布才能调用。</span>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon ai"><i class="fa-solid fa-box-archive"></i></div>
+      <div><div class="s-label">档案卷数</div><div class="s-value" id="kAll">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">已编目可检索</div><div class="s-value" id="kCat">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">未编目</div><div class="s-value" id="kUn">—</div>
+        <div class="s-trend text-danger">不参与检索</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-file-lines"></i></div>
+      <div><div class="s-label">影像总页数</div><div class="s-value" id="kPage">—</div></div>
+    </div>
+  </div>
+
+  <!-- 自然语言检索 -->
+  <div class="card">
+    <div class="card-head">
+      <h3>自然语言检索档案</h3>
+      <span class="sub">用日常说法描述要找的档案</span>
+    </div>
+    <div class="card-body">
+      <div class="flex gap-12" style="flex-wrap:wrap">
+        <input type="text" id="nlq" placeholder="例如：韦志强的商品房买卖合同备案档案" style="flex:1;min-width:300px">
+        <button class="btn btn-primary" onclick="search()"><i class="fa-solid fa-magnifying-glass"></i> 检索</button>
+        <button class="btn" onclick="fill('锦绣家园商品房备案')">示例一</button>
+        <button class="btn" onclick="fill('鸿达广场预售资金监管协议')">示例二</button>
+      </div>
+      <div id="nlResult" class="mt-16"></div>
+    </div>
+  </div>
+
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3>档案编目清单</h3>
+      <span class="sub">编目后才可被自然语言检索命中</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tArc" data-static>
+        <thead><tr>
+          <th>档案标题</th><th>档号</th><th class="num">页数</th><th>编目状态</th>
+          <th class="cell-lg">提取的关键信息</th><th>置信度</th><th>确认状态</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  function paintKpi() {
+    var as = AI.get('archives');
+    document.getElementById('kAll').textContent = as.length;
+    document.getElementById('kCat').textContent = as.filter(function (a) { return a.cataloged; }).length;
+    document.getElementById('kUn').textContent = as.filter(function (a) { return !a.cataloged; }).length;
+    document.getElementById('kPage').textContent = AI.num(as.reduce(function (s, a) { return s + a.pages; }, 0));
+  }
+
+  window.fill = function (t) {
+    document.getElementById('nlq').value = t;
+    search();
+  };
+
+  window.search = function () {
+    var hits = AI.act.nlSearch(document.getElementById('nlq').value);
+    var un = AI.where('archives', function (a) { return !a.cataloged; }).length;
+    document.getElementById('nlResult').innerHTML = hits.length
+      ? '<div class="alert alert-success"><i class="fa-solid fa-circle-check"></i><span>命中 ' + hits.length +
+          ' 卷档案' + (un ? '；另有 ' + un + ' 卷未编目未纳入检索范围' : '') + '</span></div>' +
+        '<div class="home-todo">' + hits.map(function (a) {
+          return '<div class="todo-row"><span class="badge ai">' + AI.esc(a.dah) + '</span>' +
+            '<span class="todo-text">' + AI.esc(a.title) + '<div class="text-3 text-sm">' +
+              AI.esc(a.keyInfo) + '</div></span>' +
+            '<span class="todo-time">' + a.pages + ' 页</span></div>';
+        }).join('') + '</div>'
+      : '<div class="alert alert-warning"><i class="fa-solid fa-circle-exclamation"></i><span>未命中档案' +
+        (un ? '；有 ' + un + ' 卷档案尚未编目，未编目档案不参与检索' : '') + '</span></div>';
+  };
+
+  AI.table({
+    id: 'tArc', pageSize: 10,
+    rows: function () { return AI.get('archives'); },
+    cells: function (a) {
+      var o = a.outputId ? AI.byId('outputs', a.outputId) : null;
+      return [
+        '<td>' + AI.esc(a.title) + '</td>',
+        '<td>' + AI.esc(a.dah) + '</td>',
+        '<td class="num">' + a.pages + '</td>',
+        '<td>' + (a.cataloged
+          ? '<span class="badge green">已编目</span>'
+          : '<span class="badge orange">未编目</span>') + '</td>',
+        '<td class="cell-lg">' + (a.keyInfo ? AI.esc(a.keyInfo) : '<span class="text-3">—</span>') + '</td>',
+        '<td>' + (a.conf ? AI.confidence(a.conf) : '<span class="text-3">—</span>') + '</td>',
+        '<td>' + (o ? AI.qrBadge(o.qrzt) : '<span class="text-3">—</span>') + '</td>',
+        '<td class="col-ops">' +
+          (!a.cataloged
+            ? '<button class="btn btn-primary btn-sm" onclick="AI.act.catalog(\'' + a.id + '\')">' +
+              '<i class="fa-solid fa-wand-magic-sparkles"></i> 智能编目</button>'
+            : (o && o.qrzt === '0'
+                ? AI.actTriplet(o.id)
+                : '<button class="btn btn-sm" onclick="fill(\'' + AI.esc(a.title.slice(0, 10)) + '\')">' +
+                  '<i class="fa-solid fa-magnifying-glass"></i> 检索验证</button>')) +
+        '</td>'
+      ];
+    },
+    empty: '暂无档案'
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () { paintKpi(); AI.repaintAll(); });
+  });
+})();
+</script>
+</body>
+</html>

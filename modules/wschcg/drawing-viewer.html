@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>测绘图在线查看 · 房屋交易面积信息管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：图纸查看器三栏布局、纯 CSS 示意平面图、双栏对照中缝差异条 */
+  .viewer {
+    display: grid; grid-template-columns: 232px 1fr 300px;
+    height: calc(100vh - 132px); min-height: 560px;
+    border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: #fff;
+  }
+
+  /* 左：图纸导航 */
+  .nav { border-right: 1px solid var(--border); display: flex; flex-direction: column; min-width: 0; background: #fbfcfe; }
+  .nav .nh { padding: 9px 11px; border-bottom: 1px solid var(--border); }
+  .nav .nh select { height: 28px; font-size: 12.5px; }
+  .nav .nb { flex: 1; overflow: auto; padding: 6px 4px 10px; }
+  .tn { font-size: 13px; }
+  .tn .nd {
+    display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 6px; cursor: pointer;
+    color: var(--text-2); white-space: nowrap;
+  }
+  .tn .nd:hover { background: var(--primary-light); color: var(--primary); }
+  .tn .nd.on { background: var(--primary); color: #fff; font-weight: 600; }
+  .tn .nd .ic { width: 13px; text-align: center; font-size: 11px; opacity: .8; }
+  .tn .nd .tx { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  .tn .nd .ct { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+  .tn .nd.on .ct { color: rgba(255, 255, 255, .8); }
+  .tn .lv2 { padding-left: 16px; } .tn .lv3 { padding-left: 30px; } .tn .lv4 { padding-left: 44px; }
+  .tn .grp { display: none; } .tn .grp.open { display: block; }
+
+  /* 中：画布 */
+  .cv { display: flex; flex-direction: column; min-width: 0; background: #eef1f6; }
+  .cv .tb {
+    display: flex; align-items: center; gap: 5px; padding: 7px 10px;
+    background: #fff; border-bottom: 1px solid var(--border); flex-wrap: wrap;
+  }
+  .cv .tb .bi {
+    width: 29px; height: 29px; border: 1px solid var(--border-strong); background: #fff; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-2); font-size: 12.5px;
+  }
+  .cv .tb .bi:hover { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .cv .tb .bi.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .cv .tb .sp { width: 1px; height: 18px; background: var(--border); margin: 0 3px; }
+  .cv .tb .ti { font-size: 13px; font-weight: 700; color: var(--text-1); margin-right: 4px; }
+  .cv .tb .rt { margin-left: auto; display: flex; gap: 5px; align-items: center; }
+  /* safe center：内容超出可视宽度时从左侧开始排布，避免居中导致两端被裁切 */
+  .cv .canvas { flex: 1; overflow: auto; padding: 14px 8px; display: flex; gap: 0; justify-content: safe center; align-items: flex-start; }
+  .cv .sb {
+    display: flex; align-items: center; gap: 16px; padding: 5px 12px; background: #fff;
+    border-top: 1px solid var(--border); font-size: 12px; color: var(--text-3);
+  }
+  .cv .sb .r { margin-left: auto; }
+
+  /* 图框与图签 */
+  .sheet { background: #fff; border: 1px solid #94a3b8; padding: 10px; box-shadow: 0 2px 12px rgba(15, 23, 42, .1); }
+  .sheet .frame { border: 2px solid #334155; padding: 14px 16px 0; position: relative; }
+  .sheet .stitle { text-align: center; font-size: 13.5px; font-weight: 800; letter-spacing: 1px; color: #1e293b; margin-bottom: 8px; }
+  .north { position: absolute; right: 12px; top: 10px; text-align: center; color: #334155; }
+  .north i { font-size: 17px; } .north span { display: block; font-size: 10px; font-weight: 700; }
+
+  /* 平面图 */
+  .plan {
+    display: grid; grid-template-columns: 1.05fr 1.35fr .8fr; grid-template-rows: 1.15fr .95fr .8fr;
+    grid-template-areas: "mb lt bal" "cb lt kt" "sf hw wc";
+    gap: 3px; width: 356px; height: 330px; background: #334155; border: 3px solid #334155;
+  }
+  .rm { background: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; position: relative; }
+  .rm .rn { font-size: 11.5px; font-weight: 700; color: #1e293b; }
+  .rm .ra { font-size: 10.5px; color: #64748b; font-variant-numeric: tabular-nums; }
+  .rm.bal { background: #eff6ff; }
+  .rm.wet { background: #f1f5f9; }
+  .rm.hall { background: #fafafa; }
+  .rm.chg { background: #fff7ed; box-shadow: inset 0 0 0 2px #f59e0b; }
+  .rm.chg .ra { color: #b45309; font-weight: 700; }
+  .a-mb { grid-area: mb; } .a-lt { grid-area: lt; } .a-bal { grid-area: bal; }
+  .a-cb { grid-area: cb; } .a-kt { grid-area: kt; } .a-sf { grid-area: sf; }
+  .a-hw { grid-area: hw; } .a-wc { grid-area: wc; }
+  .dim { display: flex; justify-content: space-between; font-size: 10px; color: #64748b; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .dim.v { flex-direction: column; }
+
+  /* 图签栏 */
+  .cart { margin-top: 10px; border: 1px solid #94a3b8; display: grid; grid-template-columns: repeat(4, 1fr); font-size: 10.5px; }
+  .cart div { padding: 4px 6px; border-right: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; color: #475569; }
+  .cart div:nth-child(4n) { border-right: 0; }
+  .cart div b { display: block; color: #1e293b; font-weight: 700; margin-top: 1px; }
+
+  /* 双栏对照：两栏图纸压缩尺寸，保证与中缝差异条同屏不横向溢出 */
+  .dual { display: flex; align-items: flex-start; gap: 0; }
+  .dual .plan { width: 250px; height: 244px; }
+  .dual .rm .rn { font-size: 11px; }
+  .dual .rm .ra { font-size: 10px; }
+  .dual .sheet .frame { padding: 12px 12px 0; }
+  .dual .cart { grid-template-columns: repeat(2, 1fr); }
+  .seam { width: 192px; flex-shrink: 0; padding: 0 6px; }
+  .seam .sk {
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, .07);
+  }
+  .seam .sh { padding: 7px 10px; background: var(--primary); color: #fff; font-size: 12.5px; font-weight: 700; text-align: center; }
+  .seam table { width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed; }
+  .seam td { padding: 5px 4px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .seam td.k { width: 56px; }
+  .seam tr:last-child td { border-bottom: 0; }
+  .seam td.k { color: var(--text-3); }
+  .seam td.n { text-align: right; }
+  .seam td.d { text-align: right; font-weight: 700; color: var(--warning); }
+  .seam .sf2 { padding: 7px 10px; background: #fffbeb; font-size: 11.5px; color: #92400e; border-top: 1px solid #fde68a; }
+  .vtag { text-align: center; font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+  .vtag .badge { font-size: 11px; }
+
+  /* 分层图 */
+  .floor { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; width: 420px; background: #334155; border: 3px solid #334155; }
+  .floor .fc {
+    background: #f8fafc; padding: 12px 6px; text-align: center; cursor: pointer; transition: all .15s;
+  }
+  .floor .fc:hover { background: #dbeafe; }
+  .floor .fc.on { background: var(--primary); color: #fff; }
+  .floor .fc .fn { font-size: 12px; font-weight: 700; }
+  .floor .fc .fa { font-size: 10.5px; color: #64748b; }
+  .floor .fc.on .fa { color: rgba(255, 255, 255, .85); }
+  .floor .fc.pub { background: #f1f5f9; cursor: default; }
+  .floor .fc.pub:hover { background: #f1f5f9; }
+
+  /* 右：信息面板 */
+  .info { border-left: 1px solid var(--border); overflow: auto; padding: 12px; min-width: 0; }
+  .info .it { font-size: 13px; font-weight: 700; color: var(--text-1); margin: 0 0 8px; padding-left: 8px; position: relative; }
+  .info .it::before { content: ""; position: absolute; left: 0; top: 3px; bottom: 3px; width: 3px; border-radius: 2px; background: var(--primary); }
+  .kv { font-size: 12.5px; }
+  .kv .r { display: flex; gap: 8px; padding: 3px 0; border-bottom: 1px dashed #eef0f5; }
+  .kv .r:last-child { border-bottom: 0; }
+  .kv .r .k { width: 74px; color: var(--text-3); flex-shrink: 0; }
+  .kv .r .v { flex: 1; min-width: 0; color: var(--text-1); word-break: break-all; }
+  .mj { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .mj .r { display: flex; justify-content: space-between; padding: 5px 10px; font-size: 12.5px; border-bottom: 1px solid #f1f5f9; }
+  .mj .r:last-child { border-bottom: 0; }
+  .mj .r .v { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .mj .r.hl { background: var(--primary-light); }
+  .mj .r.hl .v { color: var(--primary); }
+  .qa { display: flex; flex-direction: column; gap: 6px; }
+  .qa .btn { justify-content: flex-start; }
+
+  .trace { font-size: 12px; color: var(--text-3); margin-top: 8px; }
+
+  /* 打印预览 */
+  .a4 { background: #fff; padding: 20px 24px; border: 1px solid var(--border); position: relative; overflow: hidden; }
+  .a4 .wm {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 42px; font-weight: 800; color: rgba(37, 99, 235, .08); transform: rotate(-22deg);
+    pointer-events: none; letter-spacing: 6px;
+  }
+  .a4 h2 { text-align: center; font-size: 17px; font-weight: 800; letter-spacing: 1px; }
+  .a4 .pf { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-3); margin-top: 14px; border-top: 1px solid var(--border); padding-top: 8px; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wschcg-15">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易面积信息管理系统
+        <span class="sep">/</span> 测绘图管理
+        <span class="sep">/</span> <span class="cur">测绘图在线查看</span>
+      </div>
+      <div class="page-title">测绘图在线查看</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="location.href='drawing-list.html'"><i class="fa-solid fa-images"></i> 测绘图台账</button>
+      <button type="button" class="btn" onclick="location.href='area-compare.html'"><i class="fa-solid fa-scale-balanced"></i> 预实测比对</button>
+      <button type="button" class="btn btn-primary" onclick="toggleDual()" id="btnDual2"><i class="fa-solid fa-table-columns"></i> 预实测双栏对照</button>
+    </div>
+  </div>
+
+  <div class="viewer">
+
+    <!-- 左：图纸导航 -->
+    <div class="nav">
+      <div class="nh">
+        <select onchange="PMS.toast('已按图形类型筛选：' + this.options[this.selectedIndex].text)">
+          <option>全部图形类型（105）</option>
+          <option>03 分层平面图（8）</option>
+          <option>04 分户图（96）</option>
+          <option>02 总平面图（1）</option>
+          <option>01 宗地图（1）</option>
+          <option>07 共有部位示意图（2）</option>
+          <option>05 立面图 / 06 剖面图（3）</option>
+        </select>
+      </div>
+      <div class="nb tn">
+        <div class="nd on" onclick="pick(this,'building')"><span class="ic"><i class="fa-solid fa-building"></i></span><span class="tx">荣和公园大道二期 8 栋</span><span class="ct">105</span></div>
+        <div class="lv2">
+          <div class="nd" onclick="tg(this,'g15')"><span class="ic"><i class="fa-solid fa-caret-down"></i></span><span class="tx">15 层</span><span class="ct">13</span></div>
+          <div class="grp open" id="g15">
+            <div class="nd" onclick="pick(this,'floor')"><span class="ic"><i class="fa-regular fa-map"></i></span><span class="tx">15 层分层平面图</span><span class="ct">1</span></div>
+            <div class="nd on2" onclick="pick(this,'unit','8-1-1502')"><span class="ic"><i class="fa-regular fa-file-lines"></i></span><span class="tx">8-1-1502 分户图</span><span class="ct">2</span></div>
+            <div class="nd" onclick="pick(this,'unit','8-1-1503')"><span class="ic"><i class="fa-regular fa-file-lines"></i></span><span class="tx">8-1-1503 分户图</span><span class="ct">2</span></div>
+            <div class="nd" onclick="pick(this,'unit','8-2-1502')"><span class="ic"><i class="fa-regular fa-file-lines"></i></span><span class="tx">8-2-1502 分户图</span><span class="ct">2</span></div>
+            <div class="nd" onclick="pick(this,'unit','8-3-1502')"><span class="ic"><i class="fa-regular fa-file-lines"></i></span><span class="tx">8-3-1502 分户图</span><span class="ct">2</span></div>
+          </div>
+          <div class="nd" onclick="tg(this,'g18')"><span class="ic"><i class="fa-solid fa-caret-right"></i></span><span class="tx">18 层</span><span class="ct">13</span></div>
+          <div class="grp" id="g18">
+            <div class="nd" onclick="pick(this,'floor')"><span class="ic"><i class="fa-regular fa-map"></i></span><span class="tx">18 层分层平面图</span><span class="ct">1</span></div>
+            <div class="nd" onclick="pick(this,'unit','8-2-1806')"><span class="ic"><i class="fa-regular fa-file-lines"></i></span><span class="tx">8-2-1806 分户图</span><span class="ct">2</span></div>
+            <div class="nd" onclick="pick(this,'unit','8-1-1802')"><span class="ic"><i class="fa-regular fa-file-lines"></i></span><span class="tx">8-1-1802 分户图</span><span class="ct">2</span></div>
+          </div>
+          <div class="nd" onclick="tg(this,'g09')"><span class="ic"><i class="fa-solid fa-caret-right"></i></span><span class="tx">9 层</span><span class="ct">13</span></div>
+          <div class="grp" id="g09">
+            <div class="nd" onclick="pick(this,'floor')"><span class="ic"><i class="fa-regular fa-map"></i></span><span class="tx">9 层分层平面图</span><span class="ct">1</span></div>
+            <div class="nd" onclick="pick(this,'unit','8-3-902')"><span class="ic"><i class="fa-regular fa-file-lines"></i></span><span class="tx">8-3-902 分户图</span><span class="ct">2</span></div>
+          </div>
+          <div class="nd" onclick="tg(this,'gb1')"><span class="ic"><i class="fa-solid fa-caret-right"></i></span><span class="tx">地下 1 层</span><span class="ct">4</span></div>
+          <div class="grp" id="gb1">
+            <div class="nd" onclick="pick(this,'floor')"><span class="ic"><i class="fa-regular fa-map"></i></span><span class="tx">地下 1 层分层图</span><span class="ct">1</span></div>
+            <div class="nd" onclick="pick(this,'floor')"><span class="ic"><i class="fa-solid fa-square-parking"></i></span><span class="tx">车位平面图</span><span class="ct">1</span></div>
+          </div>
+          <div class="nd" onclick="pick(this,'floor')"><span class="ic"><i class="fa-solid fa-layer-group"></i></span><span class="tx">幢总平面图</span><span class="ct">1</span></div>
+          <div class="nd" onclick="pick(this,'floor')"><span class="ic"><i class="fa-solid fa-share-nodes"></i></span><span class="tx">共有部位示意图</span><span class="ct">2</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 中：画布 -->
+    <div class="cv">
+      <div class="tb">
+        <span class="ti" id="cvTitle">8-1-1502 分户图（V2.0 实测）</span>
+        <span class="sp"></span>
+        <span class="bi" title="放大" onclick="zoom(10)"><i class="fa-solid fa-magnifying-glass-plus"></i></span>
+        <span class="bi" title="缩小" onclick="zoom(-10)"><i class="fa-solid fa-magnifying-glass-minus"></i></span>
+        <span class="bi" title="适应窗口" onclick="setZoom(100)"><i class="fa-solid fa-expand"></i></span>
+        <span class="bi" title="1:1 原始大小" onclick="setZoom(100)"><i class="fa-solid fa-1"></i></span>
+        <span class="bi" title="旋转 90°" onclick="rot()"><i class="fa-solid fa-rotate-right"></i></span>
+        <span class="bi" title="全屏" onclick="PMS.toast('已进入全屏查看，按 Esc 退出')"><i class="fa-solid fa-up-right-and-down-left-from-center"></i></span>
+        <span class="sp"></span>
+        <span class="bi" id="btnDual" title="双栏对照" onclick="toggleDual()"><i class="fa-solid fa-table-columns"></i></span>
+        <span class="bi" id="btnSync" title="解除 / 恢复两栏同步缩放" onclick="toggleSync()" style="display:none"><i class="fa-solid fa-link"></i></span>
+        <div class="rt">
+          <button type="button" class="btn btn-sm" onclick="PMS.openDrawer('drPrint')"><i class="fa-solid fa-print"></i> 打印</button>
+          <button type="button" class="btn btn-sm" onclick="PMS.toast('8-1-1502分户图_V2.0.pdf 正在下载（含水印与出处信息）','success')"><i class="fa-solid fa-download"></i> 下载</button>
+        </div>
+      </div>
+
+      <div class="canvas" id="canvas">
+        <!-- 单栏：分户图 -->
+        <div id="single">
+          <div class="sheet" id="sheet1">
+            <div class="frame">
+              <div class="stitle">房屋分户平面图（V2.0 实测）</div>
+              <div class="north"><i class="fa-solid fa-location-arrow" style="transform:rotate(-45deg)"></i><span>北</span></div>
+              <div class="dim"><span>9,850</span><span>单位：mm</span></div>
+              <div class="plan" id="plan1">
+                <div class="rm a-mb"><span class="rn">主卧</span><span class="ra">16.80 ㎡</span></div>
+                <div class="rm a-lt"><span class="rn">客厅 / 餐厅</span><span class="ra">28.60 ㎡</span></div>
+                <div class="rm bal a-bal"><span class="rn">阳台</span><span class="ra">4.60 ㎡（半计）</span></div>
+                <div class="rm a-cb"><span class="rn">次卧</span><span class="ra">12.40 ㎡</span></div>
+                <div class="rm a-kt"><span class="rn">厨房</span><span class="ra">6.80 ㎡</span></div>
+                <div class="rm a-sf"><span class="rn">书房</span><span class="ra">9.20 ㎡</span></div>
+                <div class="rm hall a-hw"><span class="rn">玄关 / 过道</span><span class="ra">4.18 ㎡</span></div>
+                <div class="rm wet a-wc"><span class="rn">卫生间 ×2</span><span class="ra">9.60 ㎡</span></div>
+              </div>
+              <div class="dim"><span>建筑面积 120.86 ㎡ · 套内 93.62 ㎡ · 分摊 27.24 ㎡</span><span>比例 1:100</span></div>
+            </div>
+            <div class="cart">
+              <div>项目<b>荣和公园大道二期</b></div>
+              <div>房号<b>8 栋 1 单元 1502</b></div>
+              <div>成果编号<b>CG450200202600186</b></div>
+              <div>版本<b>V2.0 实测成果</b></div>
+              <div>测绘机构<b>XXXX市测绘院</b></div>
+              <div>测绘日期<b>2026-07-26</b></div>
+              <div>坐标系统<b>2000 国家大地坐标系</b></div>
+              <div>比例尺<b>1:100</b></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 双栏对照 -->
+        <div id="dual" class="dual" style="display:none">
+          <div>
+            <div class="vtag"><span class="badge">V1.0 预测成果分户图</span></div>
+            <div class="sheet">
+              <div class="frame">
+                <div class="stitle">房屋分户平面图（V1.0 预测）</div>
+                <div class="north"><i class="fa-solid fa-location-arrow" style="transform:rotate(-45deg)"></i><span>北</span></div>
+                <div class="dim"><span>9,780</span><span>单位：mm</span></div>
+                <div class="plan">
+                  <div class="rm a-mb"><span class="rn">主卧</span><span class="ra">16.62 ㎡</span></div>
+                  <div class="rm a-lt"><span class="rn">客厅 / 餐厅</span><span class="ra">28.24 ㎡</span></div>
+                  <div class="rm bal a-bal"><span class="rn">阳台</span><span class="ra">4.40 ㎡（半计）</span></div>
+                  <div class="rm a-cb"><span class="rn">次卧</span><span class="ra">12.28 ㎡</span></div>
+                  <div class="rm a-kt"><span class="rn">厨房</span><span class="ra">6.72 ㎡</span></div>
+                  <div class="rm a-sf"><span class="rn">书房</span><span class="ra">9.12 ㎡</span></div>
+                  <div class="rm hall a-hw"><span class="rn">玄关 / 过道</span><span class="ra">4.16 ㎡</span></div>
+                  <div class="rm wet a-wc"><span class="rn">卫生间 ×2</span><span class="ra">9.24 ㎡</span></div>
+                </div>
+                <div class="dim"><span>建筑面积 118.65 ㎡ · 套内 92.18 ㎡ · 分摊 26.47 ㎡</span><span>比例 1:100</span></div>
+              </div>
+              <div class="cart">
+                <div>成果编号<b>CG450200202600151</b></div>
+                <div>版本<b>V1.0 预测成果</b></div>
+                <div>测绘日期<b>2024-03-18</b></div>
+                <div>状态<b>已被新版本替代</b></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="seam">
+            <div class="vtag"><span class="badge orange">面积差异对照</span></div>
+            <div class="sk">
+              <div class="sh">8-1-1502 · V1.0 → V2.0</div>
+              <table>
+                <tr><td class="k">项</td><td class="n">V1.0</td><td class="n">V2.0</td><td class="d">差值</td></tr>
+                <tr><td class="k">建筑面积</td><td class="n">118.65</td><td class="n">120.86</td><td class="d">+2.21</td></tr>
+                <tr><td class="k">套内面积</td><td class="n">92.18</td><td class="n">93.62</td><td class="d">+1.44</td></tr>
+                <tr><td class="k">分摊面积</td><td class="n">26.47</td><td class="n">27.24</td><td class="d">+0.77</td></tr>
+                <tr><td class="k">分摊系数</td><td class="n">0.2225</td><td class="n">0.2270</td><td class="d">+0.0045</td></tr>
+                <tr><td class="k">阳台面积</td><td class="n">4.40</td><td class="n">4.60</td><td class="d">+0.20</td></tr>
+              </table>
+              <div class="sf2"><i class="fa-solid fa-circle-info"></i> 差异比例 +1.86%，未超合同约定 3% 幅度，可据实结算 23,953.31 元。</div>
+            </div>
+            <div class="qa mt-16">
+              <button type="button" class="btn btn-sm" onclick="location.href='area-diff.html'"><i class="fa-solid fa-calculator"></i> 处理差异找补</button>
+              <button type="button" class="btn btn-sm" onclick="toggleSync()"><i class="fa-solid fa-link-slash"></i> 解除两栏同步</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="vtag"><span class="badge blue">V2.0 实测成果分户图（当前生效）</span></div>
+            <div class="sheet">
+              <div class="frame">
+                <div class="stitle">房屋分户平面图（V2.0 实测）</div>
+                <div class="north"><i class="fa-solid fa-location-arrow" style="transform:rotate(-45deg)"></i><span>北</span></div>
+                <div class="dim"><span>9,850</span><span>单位：mm</span></div>
+                <div class="plan">
+                  <div class="rm chg a-mb"><span class="rn">主卧</span><span class="ra">16.80 ㎡</span></div>
+                  <div class="rm chg a-lt"><span class="rn">客厅 / 餐厅</span><span class="ra">28.60 ㎡</span></div>
+                  <div class="rm bal chg a-bal"><span class="rn">阳台</span><span class="ra">4.60 ㎡（半计）</span></div>
+                  <div class="rm a-cb"><span class="rn">次卧</span><span class="ra">12.40 ㎡</span></div>
+                  <div class="rm a-kt"><span class="rn">厨房</span><span class="ra">6.80 ㎡</span></div>
+                  <div class="rm a-sf"><span class="rn">书房</span><span class="ra">9.20 ㎡</span></div>
+                  <div class="rm hall a-hw"><span class="rn">玄关 / 过道</span><span class="ra">4.18 ㎡</span></div>
+                  <div class="rm chg wet a-wc"><span class="rn">卫生间 ×2</span><span class="ra">9.60 ㎡</span></div>
+                </div>
+                <div class="dim"><span>建筑面积 120.86 ㎡ · 套内 93.62 ㎡ · 分摊 27.24 ㎡</span><span>比例 1:100</span></div>
+              </div>
+              <div class="cart">
+                <div>成果编号<b>CG450200202600186</b></div>
+                <div>版本<b>V2.0 实测成果</b></div>
+                <div>测绘日期<b>2026-07-26</b></div>
+                <div>状态<b>已入库生效</b></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 分层图 -->
+        <div id="floorView" style="display:none">
+          <div class="sheet">
+            <div class="frame">
+              <div class="stitle">15 层分层平面图（V2.0 实测）</div>
+              <div class="north"><i class="fa-solid fa-location-arrow" style="transform:rotate(-45deg)"></i><span>北</span></div>
+              <div class="dim"><span>32,400</span><span>单位：mm · 点击户区域查看该户信息</span></div>
+              <div class="floor" id="floorGrid">
+                <div class="fc on" onclick="pickCell(this,'8-1-1502','120.86')"><div class="fn">1502</div><div class="fa">120.86 ㎡</div></div>
+                <div class="fc" onclick="pickCell(this,'8-1-1503','96.42')"><div class="fn">1503</div><div class="fa">96.42 ㎡</div></div>
+                <div class="fc" onclick="pickCell(this,'8-2-1502','96.20')"><div class="fn">1502</div><div class="fa">96.20 ㎡</div></div>
+                <div class="fc" onclick="pickCell(this,'8-2-1503','118.65')"><div class="fn">1503</div><div class="fa">118.65 ㎡</div></div>
+                <div class="fc pub"><div class="fn">电梯厅</div><div class="fa">18.60 ㎡</div></div>
+                <div class="fc pub"><div class="fn">楼梯间</div><div class="fa">14.20 ㎡</div></div>
+                <div class="fc pub"><div class="fn">前室</div><div class="fa">9.80 ㎡</div></div>
+                <div class="fc pub"><div class="fn">管道井</div><div class="fa">2.40 ㎡</div></div>
+                <div class="fc" onclick="pickCell(this,'8-3-1502','142.30')"><div class="fn">1502</div><div class="fa">142.30 ㎡</div></div>
+                <div class="fc" onclick="pickCell(this,'8-3-1503','118.65')"><div class="fn">1503</div><div class="fa">118.65 ㎡</div></div>
+                <div class="fc" onclick="pickCell(this,'8-3-1504','96.20')"><div class="fn">1504</div><div class="fa">96.20 ㎡</div></div>
+                <div class="fc" onclick="pickCell(this,'8-3-1505','108.46')"><div class="fn">1505</div><div class="fa">108.46 ㎡</div></div>
+              </div>
+              <div class="dim"><span>本层建筑面积 1,108.62 ㎡ · 套内 862.40 ㎡ · 共有 246.22 ㎡ · 8 户</span><span>比例 1:200</span></div>
+            </div>
+            <div class="cart">
+              <div>项目<b>荣和公园大道二期</b></div>
+              <div>幢 / 层<b>8 栋 15 层</b></div>
+              <div>成果编号<b>CG450200202600186</b></div>
+              <div>版本<b>V2.0 实测成果</b></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sb">
+        <span>缩放 <b id="zv">100%</b></span>
+        <span>图幅比例尺 <b id="scv">1:100</b></span>
+        <span>坐标系统 <b>2000 国家大地坐标系</b></span>
+        <span>高程系统 <b>1985 国家高程基准</b></span>
+        <span class="r">图纸格式 PDF · 2.46 MB</span>
+      </div>
+    </div>
+
+    <!-- 右：信息面板 -->
+    <div class="info">
+      <div class="it">图纸信息</div>
+      <div class="kv">
+        <div class="r"><span class="k">文件名称</span><span class="v" id="iFile">RHGYDD2Q_8_1_15_1502_FHT.pdf</span></div>
+        <div class="r"><span class="k">图形类型</span><span class="v">04 分户图</span></div>
+        <div class="r"><span class="k">关联对象</span><span class="v" id="iObj">8 栋 1 单元 15 层 1502</span></div>
+        <div class="r"><span class="k">格式 / 大小</span><span class="v">PDF · 2.46 MB</span></div>
+        <div class="r"><span class="k">图幅比例尺</span><span class="v">1:100</span></div>
+        <div class="r"><span class="k">上传时间</span><span class="v">2026-07-28 10:26</span></div>
+        <div class="r"><span class="k">成果编号</span><span class="v"><span class="link" onclick="location.href='result-detail.html'">CG450200202600186</span> V2.0</span></div>
+        <div class="r"><span class="k">文件 MD5</span><span class="v" title="a1f3c8d94e26b7018f42c6d3b95e0a76">a1f3c8d9…5e0a76</span></div>
+      </div>
+
+      <div class="it mt-16" style="margin-top:16px">该户面积明细</div>
+      <div class="mj" id="mjBox">
+        <div class="r hl"><span>建筑面积</span><span class="v">120.86 ㎡</span></div>
+        <div class="r"><span>套内建筑面积</span><span class="v">93.62 ㎡</span></div>
+        <div class="r"><span>套内墙体面积</span><span class="v">8.46 ㎡</span></div>
+        <div class="r"><span>阳台面积</span><span class="v">4.60 ㎡</span></div>
+        <div class="r"><span>分摊面积</span><span class="v">27.24 ㎡</span></div>
+        <div class="r"><span>分摊系数</span><span class="v">0.2270</span></div>
+        <div class="r"><span>地下室面积</span><span class="v">—</span></div>
+        <div class="r"><span>阁楼面积</span><span class="v">—</span></div>
+        <div class="r"><span>露台面积</span><span class="v">—</span></div>
+      </div>
+
+      <div class="it mt-16" style="margin-top:16px">快捷操作</div>
+      <div class="qa">
+        <button type="button" class="btn btn-sm" onclick="pick(null,'floor')"><i class="fa-regular fa-map"></i> 查看该层分层图</button>
+        <button type="button" class="btn btn-sm" onclick="nextRoom()"><i class="fa-solid fa-arrow-right"></i> 查看相邻户分户图</button>
+        <button type="button" class="btn btn-sm" onclick="toggleDual()"><i class="fa-solid fa-table-columns"></i> 预实测双栏对照</button>
+        <button type="button" class="btn btn-sm" onclick="location.href='result-detail.html'"><i class="fa-solid fa-file-lines"></i> 跳转成果详情</button>
+        <button type="button" class="btn btn-sm" onclick="location.href='structure-tree.html'"><i class="fa-solid fa-sitemap"></i> 查看幢层户结构</button>
+      </div>
+
+      <div class="trace">
+        <i class="fa-solid fa-eye"></i> 本次查看已记录：韦国强 2026-08-01 18:52 查看 <span id="tRoom">8-1-1502</span> 分户图（查看留痕可审计）
+      </div>
+    </div>
+
+  </div>
+
+</main>
+
+<!-- 打印预览抽屉 -->
+<div class="drawer-mask"></div>
+<div class="drawer drawer-xl" id="drPrint">
+  <div class="drawer-head">
+    <h3 style="margin:0;font-size:16px">分户图打印预览</h3>
+    <span class="badge">A4 横向 · 含水印</span>
+    <button type="button" class="btn btn-ghost" style="margin-left:auto" data-close-drawer><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="drawer-body" style="background:#eef1f6">
+    <div class="a4">
+      <div class="wm">仅供业务办理参考</div>
+      <h2>房屋分户平面图</h2>
+      <div class="text-center text-sm text-3 mb-16" style="text-align:center;margin:5px 0 12px">
+        荣和公园大道二期 8 栋 1 单元 1502 · 成果编号 CG450200202600186 V2.0（实测成果）
+      </div>
+      <div style="display:flex;justify-content:center">
+        <div class="sheet">
+          <div class="frame">
+            <div class="stitle">房屋分户平面图（V2.0 实测）</div>
+            <div class="north"><i class="fa-solid fa-location-arrow" style="transform:rotate(-45deg)"></i><span>北</span></div>
+            <div class="plan">
+              <div class="rm a-mb"><span class="rn">主卧</span><span class="ra">16.80 ㎡</span></div>
+              <div class="rm a-lt"><span class="rn">客厅 / 餐厅</span><span class="ra">28.60 ㎡</span></div>
+              <div class="rm bal a-bal"><span class="rn">阳台</span><span class="ra">4.60 ㎡</span></div>
+              <div class="rm a-cb"><span class="rn">次卧</span><span class="ra">12.40 ㎡</span></div>
+              <div class="rm a-kt"><span class="rn">厨房</span><span class="ra">6.80 ㎡</span></div>
+              <div class="rm a-sf"><span class="rn">书房</span><span class="ra">9.20 ㎡</span></div>
+              <div class="rm hall a-hw"><span class="rn">玄关 / 过道</span><span class="ra">4.18 ㎡</span></div>
+              <div class="rm wet a-wc"><span class="rn">卫生间 ×2</span><span class="ra">9.60 ㎡</span></div>
+            </div>
+            <div class="dim"><span>建筑面积 120.86 ㎡ · 套内 93.62 ㎡ · 分摊 27.24 ㎡</span><span>比例 1:100</span></div>
+          </div>
+          <div class="cart">
+            <div>测绘机构<b>XXXX市测绘院</b></div>
+            <div>测绘日期<b>2026-07-26</b></div>
+            <div>坐标系统<b>2000 国家大地坐标系</b></div>
+            <div>比例尺<b>1:100</b></div>
+          </div>
+        </div>
+      </div>
+      <div class="pf">
+        <span>打印人：韦国强（XXXX市房产交易所）</span>
+        <span>打印时间：2026-08-01 18:52</span>
+        <span>成果编号 CG450200202600186 · 版本 V2.0</span>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button type="button" class="btn" data-close-drawer>关闭</button>
+    <button type="button" class="btn" onclick="PMS.toast('分户图 PDF 已生成（含水印与出处信息），正在下载','success')"><i class="fa-solid fa-file-pdf"></i> 导出 PDF</button>
+    <button type="button" class="btn btn-primary" onclick="window.print()"><i class="fa-solid fa-print"></i> 打印</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+var zv = 100, rotDeg = 0, dual = false, sync = true, curRoom = '8-1-1502';
+var ROOM_LIST = ['8-1-1502', '8-1-1503', '8-2-1502', '8-3-1502'];
+
+function tg(el, id) {
+  var g = document.getElementById(id);
+  g.classList.toggle('open');
+  var i = el.querySelector('.ic i');
+  i.className = g.classList.contains('open') ? 'fa-solid fa-caret-down' : 'fa-solid fa-caret-right';
+}
+
+function pick(el, mode, room) {
+  if (el) {
+    document.querySelectorAll('.tn .nd').forEach(function (n) { n.classList.remove('on'); });
+    el.classList.add('on');
+  }
+  if (mode === 'floor') {
+    document.getElementById('single').style.display = 'none';
+    document.getElementById('dual').style.display = 'none';
+    document.getElementById('floorView').style.display = '';
+    document.getElementById('cvTitle').textContent = '15 层分层平面图（V2.0 实测）';
+    document.getElementById('scv').textContent = '1:200';
+    document.getElementById('btnDual').classList.remove('on');
+    document.getElementById('btnSync').style.display = 'none';
+    dual = false;
+    PMS.toast('已切换分层平面图，点击图上户区域可查看该户信息');
+    return;
+  }
+  document.getElementById('floorView').style.display = 'none';
+  document.getElementById('scv').textContent = '1:100';
+  if (room) setRoom(room);
+  showMode();
+}
+
+function showMode() {
+  document.getElementById('single').style.display = dual ? 'none' : '';
+  document.getElementById('dual').style.display = dual ? '' : 'none';
+  document.getElementById('btnDual').classList.toggle('on', dual);
+  document.getElementById('btnSync').style.display = dual ? '' : 'none';
+  document.getElementById('cvTitle').textContent = dual
+    ? curRoom + ' 预实测分户图双栏对照（V1.0 / V2.0）'
+    : curRoom + ' 分户图（V2.0 实测）';
+}
+
+function toggleDual() {
+  document.getElementById('floorView').style.display = 'none';
+  dual = !dual;
+  showMode();
+  PMS.toast(dual ? '已开启预实测双栏对照，两栏缩放与平移同步' : '已关闭双栏对照');
+}
+
+function toggleSync() {
+  sync = !sync;
+  var b = document.getElementById('btnSync');
+  b.innerHTML = sync ? '<i class="fa-solid fa-link"></i>' : '<i class="fa-solid fa-link-slash"></i>';
+  b.classList.toggle('on', !sync);
+  PMS.toast(sync ? '两栏已恢复同步缩放与平移' : '两栏同步已解除，可分别缩放查看局部');
+}
+
+function setRoom(room) {
+  curRoom = room;
+  document.getElementById('iObj').textContent = room.replace(/^8-(\d)-(\d+)$/, '8 栋 $1 单元 ' + '15 层 $2');
+  document.getElementById('iFile').textContent = 'RHGYDD2Q_' + room.split('-').join('_') + '_FHT.pdf';
+  document.getElementById('tRoom').textContent = room;
+}
+
+function pickCell(el, room, area) {
+  document.querySelectorAll('#floorGrid .fc').forEach(function (c) { c.classList.remove('on'); });
+  el.classList.add('on');
+  setRoom(room);
+  document.getElementById('mjBox').firstElementChild.innerHTML = '<span>建筑面积</span><span class="v">' + area + ' ㎡</span>';
+  PMS.confirm({
+    title: '查看该户',
+    message: '已选中 ' + room + '（建筑面积 ' + area + ' ㎡），是否打开该户分户图？',
+    detail: '右侧信息面板已切换为该户信息；打开分户图后可继续开启预实测双栏对照。',
+    type: 'info', okText: '打开分户图', cancelText: '留在分层图',
+    onOk: function () { pick(null, 'unit', room); }
+  });
+}
+
+function nextRoom() {
+  var i = (ROOM_LIST.indexOf(curRoom) + 1) % ROOM_LIST.length;
+  pick(null, 'unit', ROOM_LIST[i]);
+  PMS.toast('已切换至相邻户 ' + ROOM_LIST[i] + ' 分户图');
+}
+
+function zoom(d) { setZoom(Math.max(40, Math.min(260, zv + d))); }
+
+function setZoom(v) {
+  zv = v;
+  document.getElementById('zv').textContent = v + '%';
+  applyTf();
+}
+
+function rot() {
+  rotDeg = (rotDeg + 90) % 360;
+  applyTf();
+  PMS.toast('图纸已旋转至 ' + rotDeg + '°');
+}
+
+function applyTf() {
+  var tf = 'scale(' + (zv / 100) + ') rotate(' + rotDeg + 'deg)';
+  document.querySelectorAll('#canvas .sheet').forEach(function (s) {
+    s.style.transform = tf;
+    s.style.transformOrigin = 'top center';
+  });
+}
+</script>
+</body>
+</html>

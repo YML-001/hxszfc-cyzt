@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>风险权重模型管理 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="fx" data-active="risk-judge" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>智能应用</span>
+      <span class="sep">/</span><span>智能风险研判</span>
+      <span class="sep">/</span><span class="cur">风险权重模型管理</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-shield-halved"></i>智能风险研判 wsai-10</span>
+    <a href="risk-judge.html?role=fx">风险智能研判</a>
+    <a class="active" href="risk-weight.html?role=fx">风险权重模型</a>
+    <a href="risk-clue.html?role=fx">预警线索池</a>
+    <a href="dq-attribution.html?role=fx">数据质量归因</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-sliders"></i>
+    <span>调整因子权重会<b>立即试算</b>全部主体的分数并显示前后对比，但<b>只有点「保存并生效」才真正生效</b>并生成新的权重版本。
+      权重合计必须等于 100%，否则不允许保存。生效后可能新增或减少待确认预警线索。</span>
+  </div>
+
+  <div class="grid-2">
+    <!-- 权重调整 -->
+    <div class="card">
+      <div class="card-head">
+        <h3>因子权重</h3>
+        <span class="sub" id="sumSub">—</span>
+        <div class="head-actions">
+          <button class="btn btn-sm" onclick="reset()"><i class="fa-solid fa-rotate-left"></i> 还原</button>
+          <button class="btn btn-primary btn-sm" onclick="save()"><i class="fa-solid fa-floppy-disk"></i> 保存并生效</button>
+        </div>
+      </div>
+      <div class="card-body" id="wBox"></div>
+    </div>
+
+    <!-- 试算影响 -->
+    <div class="card">
+      <div class="card-head">
+        <h3>试算影响</h3>
+        <span class="sub" id="trialSub">—</span>
+      </div>
+      <div class="card-body">
+        <div class="grid-2" id="trialRings"></div>
+        <div id="trialAlert" class="mt-16"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3>全部主体试算对比</h3>
+      <span class="sub">左侧调权重，这里实时看每个主体的分数与等级变化</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tTrial" data-static>
+        <thead><tr>
+          <th>主体名称</th><th>类型</th><th class="num">当前分</th><th class="num">试算分</th>
+          <th>变化</th><th>当前等级</th><th>试算等级</th><th>阈值影响</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var LV_TEXT = { red: '严重', orange: '预警', yellow: '提示', blue: '正常' };
+  var draft = null;   /* 待保存的权重数组 */
+
+  function factors() { return AI.get('factors'); }
+
+  window.reset = function () {
+    draft = factors().map(function (f) { return f.weight; });
+    render();
+  };
+
+  function render() {
+    var fs = factors();
+    if (!draft) draft = fs.map(function (f) { return f.weight; });
+    document.getElementById('wBox').innerHTML = fs.map(function (f, i) {
+      return '<div style="margin-bottom:14px">' +
+        '<div class="flex items-center justify-between" style="margin-bottom:4px">' +
+          '<span style="font-size:13.5px;font-weight:600">' + AI.esc(f.mc) +
+            (f.dir < 0 ? ' <span class="badge gray">反向</span>' : '') + '</span>' +
+          '<span class="fw-700 text-primary" id="wv_' + i + '">' + draft[i] + '%</span>' +
+        '</div>' +
+        '<input type="range" min="0" max="40" step="1" value="' + draft[i] + '" ' +
+          'style="width:100%;height:auto;padding:0" oninput="onSlide(' + i + ',this.value)">' +
+        '<div class="text-3 text-sm">' + AI.esc(f.note) +
+          (f.hits ? '　<span class="text-danger">线索命中 ' + f.hits + ' 次</span>' : '') + '</div>' +
+        '</div>';
+    }).join('') +
+      '<div class="text-3 text-sm">权重版本：' + AI.esc(fs[0] ? fs[0].ver : '—') + '</div>';
+    trial();
+  }
+
+  window.onSlide = function (i, v) {
+    draft[i] = Number(v);
+    document.getElementById('wv_' + i).textContent = v + '%';
+    trial();
+  };
+
+  function trial() {
+    var t = AI.act.trialWeights(draft);
+    var sum = t.sum;
+    document.getElementById('sumSub').textContent = '权重合计 ' + sum + '%' + (sum === 100 ? '（可保存）' : '（须等于 100% 才能保存）');
+    document.getElementById('sumSub').className = 'sub ' + (sum === 100 ? 'text-success' : 'text-danger');
+
+    var up = t.rows.filter(function (r) { return r.delta > 0; }).length;
+    var down = t.rows.filter(function (r) { return r.delta < 0; }).length;
+    document.getElementById('trialSub').textContent =
+      up + ' 个主体升分、' + down + ' 个降分';
+    document.getElementById('trialRings').innerHTML =
+      AI.ring(t.rows.length ? Math.round(t.willClue / t.rows.length * 1000) / 10 : 0,
+        '新增超阈值', t.willClue + ' 个主体', 'var(--danger)') +
+      AI.ring(t.rows.length ? Math.round(t.dropClue / t.rows.length * 1000) / 10 : 0,
+        '回落到阈值下', t.dropClue + ' 个主体', 'var(--success)');
+    document.getElementById('trialAlert').innerHTML =
+      sum !== 100
+        ? '<div class="alert alert-danger"><i class="fa-solid fa-circle-exclamation"></i>' +
+          '<span>权重合计为 <b>' + sum + '%</b>，必须调整到 100% 才允许保存。</span></div>'
+        : (t.willClue || t.dropClue
+            ? '<div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation"></i>' +
+              '<span>保存后将<b>新增 ' + t.willClue + ' 条</b>待确认预警线索，' +
+              '<b>' + t.dropClue + ' 个</b>主体回落到阈值以下。线索仍需人工确认才推送督办。</span></div>'
+            : '<div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>' +
+              '<span>保存后线索数量不变，仅主体分数发生变化。</span></div>');
+    AI.paint('tTrial');
+  }
+
+  window.save = function () { AI.act.saveWeights(draft); };
+
+  AI.table({
+    id: 'tTrial', pageSize: 10,
+    rows: function () {
+      if (!draft) draft = factors().map(function (f) { return f.weight; });
+      return AI.act.trialWeights(draft).rows;
+    },
+    cells: function (r) {
+      var th = AI.act.clueThreshold();
+      var cross = r.newScore >= th && r.oldScore < th
+        ? '<span class="badge red">新增超阈值</span>'
+        : (r.oldScore >= th && r.newScore < th
+            ? '<span class="badge green">回落阈值下</span>'
+            : (r.newScore >= th ? '<span class="badge orange">持续超阈值</span>' : '<span class="text-3">—</span>'));
+      return [
+        '<td>' + AI.esc(r.mc) + '</td>',
+        '<td>' + (r.stlx === '1' ? '企业' : '项目') + '</td>',
+        '<td class="num">' + r.oldScore + '</td>',
+        '<td class="num fw-700">' + r.newScore + '</td>',
+        '<td><span class="trial-cmp">' + (r.delta === 0
+          ? '<span class="tc-same">持平</span>'
+          : '<span class="tc-old">' + r.oldScore + '</span><i class="fa-solid fa-arrow-right text-3"></i>' +
+            '<span class="' + (r.delta > 0 ? 'tc-up' : 'tc-down') + '">' +
+            (r.delta > 0 ? '+' : '') + r.delta + '</span>') + '</span></td>',
+        '<td>' + AI.lv(r.oldLv, LV_TEXT[r.oldLv]) + '</td>',
+        '<td>' + AI.lv(r.newLv, LV_TEXT[r.newLv]) + '</td>',
+        '<td>' + cross + '</td>'
+      ];
+    },
+    empty: '暂无监管主体'
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () { render(); });
+  });
+})();
+</script>
+</body>
+</html>

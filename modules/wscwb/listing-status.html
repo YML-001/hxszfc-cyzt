@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>核验状态维护 · 存量房交易网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：核验码等宽呈现 + 重复房源分组行 */
+  .hy-code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; letter-spacing: .3px; }
+  .hy-code.dead { color: var(--text-3); text-decoration: line-through; }
+  .dup-grp { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 12px; overflow: hidden; }
+  .dup-grp .dg-head {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 10px 14px; background: var(--primary-light); border-bottom: 1px solid var(--border);
+  }
+  .dup-grp .dg-name { font-size: 13.5px; font-weight: 700; }
+  .dup-grp .dg-unit { font-family: Consolas, "Courier New", monospace; font-size: 12px; color: var(--text-2); }
+  .dup-grp .dg-act { margin-left: auto; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wscwb-02">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 存量房交易网签备案管理系统
+        <span class="sep">/</span> <a class="link" href="listing-list.html">房源采集核验</a>
+        <span class="sep">/</span> <span class="cur">核验状态维护</span>
+      </div>
+      <div class="page-title">核验状态维护</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="gotoMerge()"><i class="fa-solid fa-code-merge"></i> 重复房源合并</button>
+      <a class="btn" href="listing-publish.html"><i class="fa-solid fa-bullhorn"></i> 发布授权</a>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《核验状态维护台账》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-end"></i></div>
+      <div><div class="s-label">临期（15 天内）</div><div class="s-value">62</div><div class="s-trend text-danger">须提醒委托方办理延期</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-circle-xmark"></i></div>
+      <div><div class="s-label">已过期</div><div class="s-value">73</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-file-circle-xmark"></i></div>
+      <div><div class="s-label">已作废</div><div class="s-value">18</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-calendar-plus"></i></div>
+      <div><div class="s-label">本月延期</div><div class="s-value">41</div></div>
+    </div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs" id="mainTabs">
+      <div class="tab active" data-tab="status">核验状态维护</div>
+      <div class="tab" data-tab="merge">重复房源合并 <span class="badge orange">7 组</span></div>
+    </div>
+
+    <div class="tab-panel active" data-panel="status">
+      <div class="filter-bar">
+        <div class="filter-item">
+          <label>核验申请编号</label>
+          <input type="text" placeholder="如 HY450200202600512">
+        </div>
+        <div class="filter-item">
+          <label>房源坐落</label>
+          <input type="text" placeholder="支持模糊查询">
+        </div>
+        <div class="filter-item">
+          <label>核验状态</label>
+          <select><option value="">全部</option><option>有效</option><option>临期</option><option>已过期</option><option>已作废</option></select>
+        </div>
+        <div class="filter-item">
+          <label>房源状态</label>
+          <select><option value="">全部</option><option>已挂牌</option><option>已下架</option><option>已成交</option><option>锁定中</option></select>
+        </div>
+        <div class="filter-item">
+          <label>有效期止</label>
+          <input type="date" value="2026-08-15">
+        </div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 153 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table" id="tblStatus" data-static>
+          <thead>
+            <tr>
+              <th>核验申请编号</th>
+              <th>房源坐落</th>
+              <th>核验码</th>
+              <th>核验状态</th>
+              <th>有效期起止</th>
+              <th class="num">剩余天数</th>
+              <th>房源状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="nowrap fw-600">HY450200202600497</td>
+              <td class="cell-lg">荣和千千树 5-2-1203</td>
+              <td class="nowrap"><span class="hy-code">HY450200202600497</span></td>
+              <td class="nowrap"><span class="badge orange">临期</span></td>
+              <td class="nowrap">2026-05-12 至 2026-08-10</td>
+              <td class="num text-warning fw-600">10</td>
+              <td class="nowrap"><span class="badge green">已挂牌</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openDelay(this,'HY450200202600497','2026-08-10')">延期核验</span>
+                <span class="link" onclick="offShelf(this,'HY450200202600497')">成交下架</span>
+                <span class="link danger" onclick="openVoid(this,'HY450200202600497')">撤销核验</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">HY450200202600482</td>
+              <td class="cell-lg">彰泰春天 3-2-1502</td>
+              <td class="nowrap"><span class="hy-code">HY450200202600482</span></td>
+              <td class="nowrap"><span class="badge orange">临期</span></td>
+              <td class="nowrap">2026-05-06 至 2026-08-04</td>
+              <td class="num text-warning fw-600">4</td>
+              <td class="nowrap"><span class="badge green">已挂牌</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openDelay(this,'HY450200202600482','2026-08-04')">延期核验</span>
+                <span class="link" onclick="offShelf(this,'HY450200202600482')">成交下架</span>
+                <span class="link danger" onclick="openVoid(this,'HY450200202600482')">撤销核验</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">HY450200202600317</td>
+              <td class="cell-lg">恒大城 6-1-1802</td>
+              <td class="nowrap"><span class="hy-code dead">HY450200202600317</span></td>
+              <td class="nowrap"><span class="badge red">已过期</span></td>
+              <td class="nowrap">2026-04-15 至 2026-07-14</td>
+              <td class="num text-danger fw-600">-17</td>
+              <td class="nowrap"><span class="badge red">已下架</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openDelay(this,'HY450200202600317','2026-07-14')">延期核验</span>
+                <span class="link danger" onclick="openVoid(this,'HY450200202600317')">撤销核验</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">HY450200202600288</td>
+              <td class="cell-lg">金龙湾 9-3-2201</td>
+              <td class="nowrap"><span class="hy-code dead">HY450200202600288</span></td>
+              <td class="nowrap"><span class="badge red">已过期</span></td>
+              <td class="nowrap">2026-03-28 至 2026-06-26</td>
+              <td class="num text-danger fw-600">-35</td>
+              <td class="nowrap"><span class="badge">已下架</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openDelay(this,'HY450200202600288','2026-06-26')">延期核验</span>
+                <span class="link danger" onclick="openVoid(this,'HY450200202600288')">撤销核验</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">HY450200202600512</td>
+              <td class="cell-lg">彰泰滨江学府 12-2-1802</td>
+              <td class="nowrap"><span class="hy-code">HY450200202600512</span></td>
+              <td class="nowrap"><span class="badge green">有效</span></td>
+              <td class="nowrap">2026-07-31 至 2026-10-29</td>
+              <td class="num">90</td>
+              <td class="nowrap"><span class="badge orange">锁定中</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="offShelf(this,'HY450200202600512')">成交下架</span>
+                <span class="link danger" onclick="openVoid(this,'HY450200202600512')">撤销核验</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">HY450200202600402</td>
+              <td class="cell-lg">万科城 12-2-905</td>
+              <td class="nowrap"><span class="hy-code">HY450200202600402</span></td>
+              <td class="nowrap"><span class="badge green">有效</span></td>
+              <td class="nowrap">2026-07-05 至 2026-10-03</td>
+              <td class="num">64</td>
+              <td class="nowrap"><span class="badge blue">已成交</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="PMS.toast('该房源已成交并自动下架，核验码保留至有效期止用于查询')">查看轨迹</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">HY450200202600209</td>
+              <td class="cell-lg">阳光 100 城市广场 B 座 2203</td>
+              <td class="nowrap"><span class="hy-code dead">HY450200202600209</span></td>
+              <td class="nowrap"><span class="badge purple">已作废</span></td>
+              <td class="nowrap">2026-02-18 至 2026-05-19</td>
+              <td class="num text-3">—</td>
+              <td class="nowrap"><span class="badge">已下架</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="PMS.toast('作废原因：产权人申请撤回委托，核验结论同步作废')">作废原因</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="merge">
+      <div class="filter-bar">
+        <div class="filter-item">
+          <label>不动产单元号</label>
+          <input type="text" placeholder="450200…">
+        </div>
+        <div class="filter-item">
+          <label>房源坐落</label>
+          <input type="text" placeholder="支持模糊查询">
+        </div>
+        <div class="filter-item">
+          <label>重复条数</label>
+          <select><option value="">全部</option><option>2 条</option><option>3 条及以上</option></select>
+        </div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 7 组')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        </div>
+      </div>
+
+      <div class="alert alert-info">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>系统按不动产单元号聚合识别重复房源，同一套房子被不同渠道重复录入时在此合并。选定主记录后，从记录标记删除并指向主记录，历史关联业务不受影响。</div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="dup-grp">
+          <div class="dg-head">
+            <span class="dg-name">恒大城 6-1-1802</span>
+            <span class="dg-unit">不动产单元号 450205001008GB00123F00010018</span>
+            <span class="badge orange">重复 2 条</span>
+            <span class="dg-act"><span class="link" onclick="merge(this,'恒大城 6-1-1802')">合并本组</span></span>
+          </div>
+          <table class="data-table compact">
+            <thead>
+              <tr><th style="width:64px">主记录</th><th>房源编号</th><th>录入方式</th><th>来源渠道</th><th>创建时间</th><th>核验状态</th><th>挂牌状态</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><input type="radio" name="g1" checked></td>
+                <td class="nowrap fw-600">FY450200202600317</td>
+                <td class="nowrap">经纪机构代办</td>
+                <td class="nowrap">XXXX市安家房地产经纪有限公司</td>
+                <td class="nowrap">2026-04-15 09:22</td>
+                <td class="nowrap"><span class="badge red">已过期</span></td>
+                <td class="nowrap"><span class="badge gray">已下架</span></td>
+              </tr>
+              <tr>
+                <td><input type="radio" name="g1"></td>
+                <td class="nowrap fw-600">FY450200202600455</td>
+                <td class="nowrap">个人自主申请</td>
+                <td class="nowrap">掌上柳州 APP</td>
+                <td class="nowrap">2026-06-28 20:47</td>
+                <td class="nowrap"><span class="badge orange">待核验</span></td>
+                <td class="nowrap"><span class="badge gray">未挂牌</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="dup-grp">
+          <div class="dg-head">
+            <span class="dg-name">荣和千千树 2-1-401</span>
+            <span class="dg-unit">不动产单元号 450203004011GB00087F00010401</span>
+            <span class="badge red">重复 3 条</span>
+            <span class="dg-act"><span class="link" onclick="merge(this,'荣和千千树 2-1-401')">合并本组</span></span>
+          </div>
+          <table class="data-table compact">
+            <thead>
+              <tr><th style="width:64px">主记录</th><th>房源编号</th><th>录入方式</th><th>来源渠道</th><th>创建时间</th><th>核验状态</th><th>挂牌状态</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><input type="radio" name="g2" checked></td>
+                <td class="nowrap fw-600">FY450200202600461</td>
+                <td class="nowrap">经纪机构代办</td>
+                <td class="nowrap">XXXX市优居房地产经纪有限公司</td>
+                <td class="nowrap">2026-07-21 10:05</td>
+                <td class="nowrap"><span class="badge green">核验通过</span></td>
+                <td class="nowrap"><span class="badge green">已挂牌</span></td>
+              </tr>
+              <tr>
+                <td><input type="radio" name="g2"></td>
+                <td class="nowrap fw-600">FY450200202600473</td>
+                <td class="nowrap">经纪机构代办</td>
+                <td class="nowrap">柳州链家房地产经纪有限公司</td>
+                <td class="nowrap">2026-07-23 15:31</td>
+                <td class="nowrap"><span class="badge orange">待核验</span></td>
+                <td class="nowrap"><span class="badge gray">未挂牌</span></td>
+              </tr>
+              <tr>
+                <td><input type="radio" name="g2"></td>
+                <td class="nowrap fw-600">FY450200202600488</td>
+                <td class="nowrap">窗口代录</td>
+                <td class="nowrap">柳南区交易服务窗口</td>
+                <td class="nowrap">2026-07-26 09:14</td>
+                <td class="nowrap"><span class="badge orange">待核验</span></td>
+                <td class="nowrap"><span class="badge gray">未挂牌</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="dup-grp">
+          <div class="dg-head">
+            <span class="dg-name">金龙湾 9-3-2201</span>
+            <span class="dg-unit">不动产单元号 450204002006GB00215F00032201</span>
+            <span class="badge orange">重复 2 条</span>
+            <span class="dg-act"><span class="link" onclick="merge(this,'金龙湾 9-3-2201')">合并本组</span></span>
+          </div>
+          <table class="data-table compact">
+            <thead>
+              <tr><th style="width:64px">主记录</th><th>房源编号</th><th>录入方式</th><th>来源渠道</th><th>创建时间</th><th>核验状态</th><th>挂牌状态</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><input type="radio" name="g3" checked></td>
+                <td class="nowrap fw-600">FY450200202600288</td>
+                <td class="nowrap">个人自主申请</td>
+                <td class="nowrap">广西政务服务网</td>
+                <td class="nowrap">2026-03-28 16:52</td>
+                <td class="nowrap"><span class="badge red">已过期</span></td>
+                <td class="nowrap"><span class="badge gray">已下架</span></td>
+              </tr>
+              <tr>
+                <td><input type="radio" name="g3"></td>
+                <td class="nowrap fw-600">FY450200202600502</td>
+                <td class="nowrap">个人自主申请</td>
+                <td class="nowrap">掌上柳州 APP</td>
+                <td class="nowrap">2026-07-29 21:08</td>
+                <td class="nowrap"><span class="badge orange">待核验</span></td>
+                <td class="nowrap"><span class="badge gray">未挂牌</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 延期核验 -->
+  <div class="modal-mask" id="mdDelay">
+    <div class="modal modal-sm">
+      <div class="modal-head">核验延期</div>
+      <div class="modal-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>延期须重新拉取登记库权属数据比对，比对通过后核验码不变、有效期顺延。</div>
+        </div>
+        <div class="form-grid">
+          <div class="form-item col-full">
+            <label>核验申请编号</label>
+            <input type="text" id="dlNo" readonly style="background:var(--bg-soft)">
+          </div>
+          <div class="form-item col-full">
+            <label>原有效期止</label>
+            <input type="text" id="dlOld" readonly style="background:var(--bg-soft)">
+          </div>
+          <div class="form-item col-full">
+            <label>延期时长<span class="req">*</span></label>
+            <select id="dlSpan">
+              <option value="90">延期 90 天（默认）</option>
+              <option value="180">延期 180 天</option>
+              <option value="30">延期 30 天</option>
+            </select>
+          </div>
+          <div class="form-item col-full">
+            <label>延期原因<span class="req">*</span></label>
+            <textarea placeholder="如：委托期限内未成交，委托方申请续期挂牌">委托期限内未成交，产权人申请续期挂牌，权属状况无变化。</textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-close-modal>取消</button>
+        <button type="button" class="btn btn-primary" onclick="doDelay()">确认延期</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 撤销核验 -->
+  <div class="drawer-mask"></div>
+  <div class="drawer" id="dwVoid">
+    <div class="drawer-head">
+      <h3>撤销核验（作废核验码）</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-danger">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>撤销后核验码立即作废，关联挂牌同步下架，且不可再用于签约与备案。已进入签约流程的房源不得撤销。</div>
+      </div>
+      <div class="form-grid form-align mt-16">
+        <div class="form-item col-full">
+          <label>核验申请编号</label>
+          <input type="text" id="vdNo" readonly style="background:var(--bg-soft)">
+        </div>
+        <div class="form-item">
+          <label>作废类型<span class="req">*</span></label>
+          <select>
+            <option>产权人申请撤回委托</option>
+            <option>核验信息填报有误</option>
+            <option>重复核验（已合并）</option>
+            <option>权属状况发生变化</option>
+            <option>经查存在虚假房源</option>
+          </select>
+        </div>
+        <div class="form-item">
+          <label>作废经办人</label>
+          <input type="text" value="韦国强" readonly style="background:var(--bg-soft)">
+        </div>
+        <div class="form-item col-full">
+          <label>作废原因说明<span class="req">*</span></label>
+          <textarea>产权人于窗口提交《撤回房源委托申请书》，申请撤销本次核验结论并下架挂牌。</textarea>
+        </div>
+        <div class="form-item col-full">
+          <label>佐证材料</label>
+          <div class="file-up">
+            <input type="hidden" class="file-up-val" value="撤回房源委托申请书.pdf,产权人身份证复印件.jpg">
+            <div class="file-up-grid">
+              <div class="file-up-tile file-up-add" title="添加文件（可多选）">
+                <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png">
+                <i class="fa-solid fa-plus"></i><span>上传</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="doVoid()"><i class="fa-solid fa-ban"></i> 确认撤销</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  PMS.renderPager(document.getElementById('tblStatus'), {
+    pageNum: 1, pageSize: 20, total: 153,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+
+function gotoMerge() {
+  document.querySelector('#mainTabs .tab[data-tab="merge"]').click();
+}
+
+var curRow = null;
+
+function openDelay(el, no, old) {
+  curRow = el.closest('tr');
+  document.getElementById('dlNo').value = no;
+  document.getElementById('dlOld').value = old;
+  PMS.openModal('mdDelay');
+}
+
+function doDelay() {
+  var span = parseInt(document.getElementById('dlSpan').value, 10);
+  var base = new Date(document.getElementById('dlOld').value.replace(/-/g, '/'));
+  base.setDate(base.getDate() + span);
+  var to = base.getFullYear() + '-' +
+    ('0' + (base.getMonth() + 1)).slice(-2) + '-' + ('0' + base.getDate()).slice(-2);
+  PMS.closeModal();
+  if (curRow) {
+    curRow.children[2].innerHTML = '<span class="hy-code">' + curRow.children[0].textContent.trim() + '</span>';
+    curRow.children[3].innerHTML = '<span class="badge green">有效</span>';
+    curRow.children[4].textContent = curRow.children[4].textContent.split(' 至 ')[0] + ' 至 ' + to;
+    curRow.children[5].className = 'num';
+    curRow.children[5].textContent = span;
+  }
+  PMS.toast('权属比对通过，核验有效期已延至 ' + to, 'success');
+}
+
+function offShelf(el, no) {
+  var tr = el.closest('tr');
+  PMS.confirm({
+    title: '成交下架',
+    message: '确认将 ' + no + ' 标记为成交下架？',
+    detail: '下架后房源从各展示端撤下，核验码保留至有效期止用于备案查询。',
+    okText: '确认下架',
+    onOk: function () {
+      tr.children[6].innerHTML = '<span class="badge blue">已成交</span>';
+      tr.querySelector('.col-ops').innerHTML =
+        '<span class="link" onclick="PMS.toast(\'该房源已成交并自动下架\')">查看轨迹</span>';
+      PMS.toast(no + ' 已标记成交下架', 'success');
+    }
+  });
+}
+
+function openVoid(el, no) {
+  curRow = el.closest('tr');
+  document.getElementById('vdNo').value = no;
+  PMS.openDrawer('dwVoid');
+}
+
+function doVoid() {
+  var no = document.getElementById('vdNo').value;
+  PMS.confirm({
+    title: '撤销核验',
+    message: '确认撤销 ' + no + ' 的核验结论？',
+    detail: '核验码立即作废，关联挂牌同步下架，操作不可撤回。',
+    type: 'danger',
+    okText: '确认撤销',
+    onOk: function () {
+      PMS.closeDrawer('dwVoid');
+      if (curRow) {
+        curRow.children[2].innerHTML = '<span class="hy-code dead">' + no + '</span>';
+        curRow.children[3].innerHTML = '<span class="badge purple">已作废</span>';
+        curRow.children[5].className = 'num text-3';
+        curRow.children[5].textContent = '—';
+        curRow.children[6].innerHTML = '<span class="badge">已下架</span>';
+        curRow.querySelector('.col-ops').innerHTML =
+          '<span class="link" onclick="PMS.toast(\'作废原因：产权人申请撤回委托，核验结论同步作废\')">作废原因</span>';
+      }
+      PMS.toast('核验已撤销，关联挂牌已同步下架', 'success');
+    }
+  });
+}
+
+function merge(el, name) {
+  var grp = el.closest('.dup-grp');
+  var rows = [].slice.call(grp.querySelectorAll('tbody tr'));
+  var main = rows.filter(function (tr) { return tr.querySelector('input[type=radio]').checked; })[0];
+  if (!main) { PMS.toast('请先选定本组的主记录', 'error'); return; }
+  var mainNo = main.children[1].textContent.trim();
+  PMS.confirm({
+    title: '合并重复房源',
+    message: '确认将 ' + name + ' 的 ' + rows.length + ' 条记录合并到 ' + mainNo + '？',
+    detail: '合并后从记录将标记删除并指向主记录，历史关联业务不受影响。',
+    okText: '确认合并',
+    onOk: function () {
+      rows.forEach(function (tr) { if (tr !== main) tr.remove(); });
+      main.children[6].innerHTML = '<span class="badge green">已合并为主记录</span>';
+      grp.querySelector('.dg-act').innerHTML = '<span class="badge green">已合并</span>';
+      grp.querySelector('.dg-head .badge.orange, .dg-head .badge.red').remove();
+      PMS.toast(name + ' 已合并至主记录 ' + mainNo, 'success');
+    }
+  });
+}
+</script>
+</body>
+</html>

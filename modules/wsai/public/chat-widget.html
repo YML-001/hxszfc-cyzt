@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能问答助手</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+<style>
+  /* 悬浮问答挂件：铺满外层 iframe，不出现页头/侧栏 */
+  html, body { height: 100%; background: #fff; }
+  body { padding: 0; }
+  .cw { display: flex; flex-direction: column; height: 100%; }
+  .cw-tip {
+    display: flex; gap: 8px; align-items: flex-start;
+    padding: 10px 14px; font-size: 12px; line-height: 1.55;
+    color: var(--text-2); background: var(--primary-light-2);
+    border-bottom: 1px solid var(--border);
+  }
+  .cw-tip i { color: var(--primary); margin-top: 2px; }
+  .cw .chat-wrap { flex: 1 1 auto; min-height: 0; border: none; border-radius: 0; box-shadow: none; }
+  .cw .chat-body { padding: 14px; }
+</style>
+</head>
+<body data-role="jb">
+
+<div class="cw">
+  <div class="cw-tip">
+    <i class="fa-solid fa-shield-halved"></i>
+    <span>7×24 智能问答，仅依据<b>已生效知识库</b>作答并标注引用；命中合规规则会拦截或脱敏，依据不足则转人工。</span>
+  </div>
+  <div class="chat-wrap">
+    <div class="chat-body" id="chatBody"></div>
+    <div class="chat-quick" id="quick"></div>
+    <div class="chat-foot">
+      <textarea id="q" rows="1" placeholder="请输入您的问题，按回车发送"
+                onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send();}"></textarea>
+      <button class="btn btn-primary" onclick="send()"><i class="fa-solid fa-paper-plane"></i></button>
+    </div>
+  </div>
+</div>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var turns = [];
+
+  var QUICK = [
+    '商品房网签备案要多久',
+    '存量房网签需要哪些材料',
+    '房屋租赁合同备案怎么办',
+    '维修资金缴存标准是多少',
+    '我的身份证是 450202199001011234，帮我查房'
+  ];
+
+  function paintQuick() {
+    document.getElementById('quick').innerHTML = QUICK.map(function (q) {
+      var risky = /身份证|保证升值/.test(q);
+      return '<span onclick="ask(this.textContent)"' +
+        (risky ? ' style="border-color:#fab6b6;color:var(--danger)"' : '') + '>' + AI.esc(q) + '</span>';
+    }).join('');
+  }
+
+  function bubble(t) {
+    if (t.me) {
+      return '<div class="chat-turn me"><div class="chat-avatar"><i class="fa-solid fa-user"></i></div>' +
+        '<div class="chat-bubble">' + AI.esc(t.text) + '</div></div>';
+    }
+    if (t.typing) {
+      return '<div class="chat-turn"><div class="chat-avatar"><i class="fa-solid fa-robot"></i></div>' +
+        '<div class="chat-bubble"><span class="chat-typing"><i></i><i></i><i></i></span></div></div>';
+    }
+    var o = t.outId ? AI.byId('outputs', t.outId) : null;
+    var cites = o ? (o.cites || []) : [];
+    return '<div class="chat-turn"><div class="chat-avatar"><i class="fa-solid fa-robot"></i></div>' +
+      '<div class="chat-bubble">' +
+        (t.blocked ? '<i class="fa-solid fa-shield-halved text-danger"></i> ' : '') +
+        AI.esc(t.text) +
+        (cites.length ? ' ' + AI.citeChips(cites) : '') +
+        (cites.length
+          ? cites.map(function (id) {
+              var d = AI.byId('kbDocs', id);
+              return d ? '<div class="chat-cite"><div class="cc-t"><i class="fa-solid fa-book"></i> ' +
+                AI.esc(d.title) + ' ' + AI.esc(d.ver) + '</div>' + AI.esc(d.clause) + '</div>' : '';
+            }).join('')
+          : '') +
+        (o
+          ? '<div class="cb-foot">' + AI.aiSource(o) +
+            '<div class="cb-acts">' + AI.aiMark(o.qrzt) +
+              (o.qrzt === '0' ? AI.actTriplet(o.id) : '') +
+            '</div></div>'
+          : '') +
+        (t.blocked
+          ? '<div class="cb-acts"><button class="btn btn-sm" onclick="toHuman()">' +
+            '<i class="fa-solid fa-headset"></i> 转人工坐席</button></div>'
+          : '') +
+      '</div></div>';
+  }
+
+  function paintChat() {
+    var box = document.getElementById('chatBody');
+    box.innerHTML = turns.length
+      ? turns.map(bubble).join('')
+      : '<div class="empty"><i class="fa-regular fa-comments"></i><div>您好，我是XXXX市房产交易智能助手<br>' +
+        '可咨询政策法规与办事指引，或点下方常见问题</div></div>';
+    box.scrollTop = box.scrollHeight;
+  }
+
+  window.ask = function (t) {
+    document.getElementById('q').value = t;
+    send();
+  };
+
+  window.send = function () {
+    var el = document.getElementById('q');
+    var v = (el.value || '').trim();
+    if (!v) { AI.toast('请输入您要咨询的问题', 'error'); return; }
+    turns.push({ me: 1, text: v });
+    turns.push({ typing: 1 });
+    paintChat();
+    el.value = '';
+    setTimeout(function () {
+      turns.pop();
+      var o = AI.act.ask(v, '1');
+      if (!o) {
+        turns.push({ text: '您的问题命中内容合规规则，已按规则处置，请调整表述后重试。', blocked: 1 });
+      } else {
+        turns.push({ text: o.text, outId: o.id, blocked: o.blocked });
+      }
+      paintChat();
+    }, 550);
+  };
+
+  window.toHuman = function () {
+    var c = AI.get('chats')[0];
+    if (c) AI.act.toHuman(c.id);
+    else AI.toast('已转接人工坐席', 'success');
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    paintQuick();
+    paintChat();
+    AI.on(function () { paintChat(); });
+  });
+})();
+</script>
+</body>
+</html>

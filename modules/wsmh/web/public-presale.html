@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>预售楼盘与可售房源公示 · 统一服务门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  /* 本页专属布局 */
+  .ps-scroll { overflow-x: auto; }
+  .ps-scroll table { min-width: 1230px; }
+  .ps-kw { display: flex; gap: 8px; align-items: center; }
+  .ps-kw .input { height: 32px; max-width: 300px; }
+  .pub-table td .sub2 { font-size: 12px; color: var(--text-3); margin-top: 3px; }
+</style>
+</head>
+<body data-nav="public">
+
+<div class="wrap">
+  <div class="crumb"><a href="home.html">首页</a><i class="fa-solid fa-angle-right"></i>信息公示<i class="fa-solid fa-angle-right"></i>预售楼盘与可售房源公示</div>
+</div>
+
+<div class="wrap" style="padding-bottom:40px">
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <span>本表公示全市已取得<b>商品房预售许可</b>与已办理<b>现售备案</b>的项目。购房前请核对项目是否在本表内、
+      预售许可证号是否一致、所购房号是否在可售范围内，并对照<a href="public-fund.html?tab=pf-account">监管账户公示</a>核对缴款账户。</span>
+  </div>
+
+  <!-- 关键指标 -->
+  <div class="stat-grid mb-16" id="ps-stat"></div>
+
+  <!-- 筛选 -->
+  <div class="filter-panel mb-16">
+    <div class="filter-row" data-key="qx">
+      <span class="fr-label">所在区域</span><span class="fr-opts" id="f-qx"></span>
+    </div>
+    <div class="filter-row" data-key="zt">
+      <span class="fr-label">销售状态</span>
+      <span class="fr-opts">
+        <a class="on" data-v="" data-fp="wsmh-05-02">全部</a>
+        <a data-v="预售" data-fp="wsmh-05-02">预售</a>
+        <a data-v="现售" data-fp="wsmh-05-02">现售</a>
+      </span>
+    </div>
+    <div class="filter-row" data-key="qy">
+      <span class="fr-label">开发企业</span><span class="fr-opts" id="f-qy"></span>
+    </div>
+    <div class="filter-row" data-key="nd">
+      <span class="fr-label">发证年度</span><span class="fr-opts" id="f-nd"></span>
+    </div>
+    <div class="filter-row">
+      <span class="fr-label">关键字</span>
+      <span class="fr-opts ps-kw" style="padding:0">
+        <input class="input" id="ps-kw" placeholder="项目名称 / 开发企业 / 预售许可证号">
+        <button class="btn btn-sm btn-primary" id="ps-go" data-fp="wsmh-05-02"><i class="fa-solid fa-magnifying-glass"></i> 检索</button>
+        <button class="btn btn-sm" id="ps-reset" data-fp="wsmh-05-02">重置</button>
+      </span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-building-flag text-primary"></i> 预售楼盘与可售房源公示表</h3>
+      <span class="sub" id="ps-count"></span>
+      <div class="ca">
+        <a class="btn btn-sm" href="new-house.html" data-fp="wsmh-05-02"><i class="fa-solid fa-store"></i> 到新房专区找房</a>
+        <button class="btn btn-sm" id="ps-export" data-fp="wsmh-05-02"><i class="fa-solid fa-file-csv"></i> 导出本表</button>
+      </div>
+    </div>
+    <div class="card-body np">
+      <div class="ps-scroll">
+        <table class="pub-table">
+          <thead><tr>
+            <th style="width:150px">项目名称</th>
+            <th style="width:170px">开发企业</th>
+            <th style="width:80px">区域</th>
+            <th style="width:150px">预售许可证号</th>
+            <th style="width:100px">发证日期</th>
+            <th style="width:100px">建筑面积(㎡)</th>
+            <th style="width:76px">总套数</th>
+            <th style="width:82px">可售套数</th>
+            <th style="width:112px">备案拟售均价</th>
+            <th style="width:130px">价格区间(元/㎡)</th>
+            <th style="width:76px">状态</th>
+            <th style="width:196px">操作</th>
+          </tr></thead>
+          <tbody id="ps-list"></tbody>
+        </table>
+      </div>
+      <div class="table-note" id="ps-note"></div>
+    </div>
+  </div>
+
+  <div id="ps-pager"></div>
+  <div id="src-note"></div>
+</div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+var psPage = 1, psSize = 8, psKw = '';
+
+function pageInit() {
+  var all = PORTAL.projects();
+
+  /* 区域筛选：只列出有项目的区县 */
+  var qxs = [];
+  PDATA.QX.forEach(function (q) { if (all.filter(function (p) { return p.qx === q; }).length) qxs.push(q); });
+  document.getElementById('f-qx').innerHTML = '<a class="on" data-v="" data-fp="wsmh-05-02">全部</a>'
+    + qxs.map(function (q) {
+      return '<a data-v="' + q + '" data-fp="wsmh-05-02">' + q + '（' + all.filter(function (p) { return p.qx === q; }).length + '）</a>';
+    }).join('');
+
+  /* 开发企业 */
+  var qys = [];
+  all.forEach(function (p) { if (qys.indexOf(p.kfqy) < 0) qys.push(p.kfqy); });
+  document.getElementById('f-qy').innerHTML = '<a class="on" data-v="" data-fp="wsmh-05-02">全部</a>'
+    + qys.map(function (q) {
+      return '<a data-v="' + UI.esc(q) + '" data-fp="wsmh-05-02">' + shortQy(q) + '</a>';
+    }).join('');
+
+  /* 发证年度 */
+  var nds = [];
+  all.forEach(function (p) { var y = p.ysrq.slice(0, 4); if (nds.indexOf(y) < 0) nds.push(y); });
+  nds.sort(function (a, b) { return b - a; });
+  document.getElementById('f-nd').innerHTML = '<a class="on" data-v="" data-fp="wsmh-05-02">全部</a>'
+    + nds.map(function (y) {
+      return '<a data-v="' + y + '" data-fp="wsmh-05-02">' + y + ' 年（'
+        + all.filter(function (p) { return p.ysrq.slice(0, 4) === y; }).length + '）</a>';
+    }).join('');
+
+  window.onFilterChange = function () { psPage = 1; render(); };
+
+  document.getElementById('ps-go').onclick = function () {
+    psKw = document.getElementById('ps-kw').value.trim(); psPage = 1; render();
+    UI.toast(psKw ? '已按关键字「' + psKw + '」检索预售楼盘' : '已展示全部预售楼盘', 'info');
+  };
+  document.getElementById('ps-kw').onkeydown = function (e) { if (e.key === 'Enter') document.getElementById('ps-go').click(); };
+  document.getElementById('ps-reset').onclick = function () {
+    document.getElementById('ps-kw').value = ''; psKw = ''; psPage = 1;
+    var rows = document.querySelectorAll('.filter-row');
+    for (var i = 0; i < rows.length; i++) {
+      var as = rows[i].querySelectorAll('.fr-opts a');
+      for (var j = 0; j < as.length; j++) as[j].classList.remove('on');
+      if (as.length) as[0].classList.add('on');
+    }
+    render(); UI.toast('已重置筛选条件', 'info');
+  };
+  document.getElementById('ps-export').onclick = function () {
+    UI.toast('已导出 ' + filtered().length + ' 条预售楼盘公示记录（CSV）', 'success');
+  };
+
+  /* 关键指标 */
+  var ksts = 0, jjSum = 0, thisMonth = UI.today().slice(0, 7), thisYear = UI.today().slice(0, 4), addM = 0, addY = 0;
+  all.forEach(function (p) {
+    ksts += p.ksts; jjSum += p.junjia;
+    if (p.ysrq.slice(0, 7) === thisMonth) addM++;
+    if (p.ysrq.slice(0, 4) === thisYear) addY++;
+  });
+  document.getElementById('ps-stat').innerHTML = [
+    ['在售项目数', all.length, '个', 'fa-building-flag', 'blue'],
+    ['可售套数合计', UI.money(ksts, 0), '套', 'fa-door-open', 'green'],
+    ['本月新增预售证（' + thisYear + ' 年累计 ' + addY + ' 个）', addM, '个', 'fa-certificate', 'orange'],
+    ['平均备案拟售价', UI.money(Math.round(jjSum / all.length), 0), '元/㎡', 'fa-tags', 'red']
+  ].map(function (x) {
+    return '<div class="stat-card"><span class="s-ico ' + x[4] + '"><i class="fa-solid ' + x[3] + '"></i></span>'
+      + '<div><div class="s-value">' + x[1] + '<em>' + x[2] + '</em></div>'
+      + '<div class="s-label">' + x[0] + '</div></div></div>';
+  }).join('');
+
+  render();
+  document.getElementById('src-note').innerHTML =
+    UI.sourceNote('本页可售套数与一房一价数据与房源超市新房专区同源，销控状态实时同步。');
+}
+
+function shortQy(q) { return q.replace('XXXX市', '').replace('广西', '').replace('有限公司', '').replace('集团', ''); }
+
+function filtered() {
+  var qx = UI.filterVal('qx'), zt = UI.filterVal('zt'), qy = UI.filterVal('qy'), nd = UI.filterVal('nd');
+  return PORTAL.projects().filter(function (p) {
+    if (qx && p.qx !== qx) return false;
+    if (zt && p.zt !== zt) return false;
+    if (qy && p.kfqy !== qy) return false;
+    if (nd && p.ysrq.slice(0, 4) !== nd) return false;
+    if (psKw && (p.xmmc + p.kfqy + p.yszh + p.qx).indexOf(psKw) < 0) return false;
+    return true;
+  });
+}
+
+function render() {
+  var arr = filtered();
+  document.getElementById('ps-count').textContent = '共 ' + arr.length + ' 个项目'
+    + (psKw ? '　关键字：' + psKw : '');
+
+  var page = arr.slice((psPage - 1) * psSize, psPage * psSize);
+  document.getElementById('ps-list').innerHTML = page.length ? page.map(function (p) {
+    return '<tr>'
+      + '<td class="strong"><a href="new-house-detail.html?id=' + p.id + '" data-fp="wsmh-05-02">' + UI.esc(p.xmmc) + '</a>'
+      + (p.good ? ' <span class="badge green">好房子</span>' : '')
+      + (p.risk ? ' <span class="badge red">风险提示</span>' : '')
+      + '<div class="sub2">' + UI.esc(p.dz) + '</div></td>'
+      + '<td>' + UI.esc(shortQy(p.kfqy)) + '<div class="sub2">' + UI.esc(p.kfqy) + '</div></td>'
+      + '<td>' + p.qx + '</td>'
+      + '<td>' + p.yszh + '</td>'
+      + '<td>' + p.ysrq + '</td>'
+      + '<td class="num">' + UI.money(p.jzmj, 0) + '</td>'
+      + '<td class="num">' + p.zts + '</td>'
+      + '<td class="num"><b class="text-accent">' + p.ksts + '</b></td>'
+      + '<td class="num">' + UI.money(p.junjia, 0) + '</td>'
+      + '<td class="num">' + p.jgqj + '</td>'
+      + '<td>' + PORTAL.badge(p.zt, p.zt === '预售' ? 'blue' : 'green') + '</td>'
+      + '<td class="acts">'
+      + '<a href="new-house-detail.html?id=' + p.id + '" data-fp="wsmh-05-02">查看可售房源</a>'
+      + '<a href="price-table.html?id=' + p.id + '" data-fp="wsmh-05-02">一房一价</a>'
+      + '<a href="public-fund.html?tab=pf-account" data-fp="wsmh-05-03">监管账户</a>'
+      + '</td></tr>';
+  }).join('') : '<tr><td colspan="12">' + UI.empty('没有符合条件的预售楼盘',
+    '可放宽区域、销售状态、开发企业或发证年度条件',
+    '<button class="btn btn-primary" id="pe-reset" data-fp="wsmh-05-02">重置筛选条件</button>') + '</td></tr>';
+
+  var pe = document.getElementById('pe-reset');
+  if (pe) pe.onclick = function () { document.getElementById('ps-reset').click(); };
+
+  document.getElementById('ps-note').innerHTML =
+    '<b>数据来源：</b>商品房网签备案管理系统（预售许可与现售备案台账）　|　'
+    + '<b>统计口径：</b>公示范围为已取得预售许可或已办理现售备案且未售罄的项目；'
+    + '「可售套数」按楼盘销控表实时扣减已认购、已签约、已备案与限制交易房源；'
+    + '「备案拟售均价」为企业申报并备案的拟售价格，<b>实际成交价以网签备案合同为准</b>，本表不构成价格承诺；'
+    + '建筑面积为预测建筑面积，实测面积以测绘成果公示为准　|　'
+    + '<b>更新时间：</b>' + UI.today() + ' 06:00';
+
+  UI.pager(document.getElementById('ps-pager'), arr.length, psPage, psSize, function (p) {
+    psPage = p; render(); window.scrollTo({ top: 380, behavior: 'smooth' });
+  });
+}
+</script>
+</body>
+</html>

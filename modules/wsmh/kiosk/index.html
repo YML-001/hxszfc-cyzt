@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>房产交易自助服务终端</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  /* 自助终端专属：1080×1920 竖屏触控，正文 ≥18px，按钮高 ≥64px */
+  .k-tip {
+    background: #fff; border-radius: 18px; padding: 30px 34px; margin-bottom: 30px;
+    box-shadow: 0 6px 20px rgba(16, 38, 76, .1); display: flex; align-items: center; gap: 28px;
+    border-left: 10px solid var(--accent);
+  }
+  .k-tip.done { border-left-color: var(--success); }
+  .k-tip .kt-i {
+    width: 84px; height: 84px; border-radius: 24px; flex: none; display: flex; align-items: center;
+    justify-content: center; font-size: 38px; background: var(--accent-soft); color: var(--accent);
+  }
+  .k-tip.done .kt-i { background: var(--success-light); color: var(--success); }
+  .k-tip .kt-t { font-size: 30px; font-weight: 700; line-height: 1.4; }
+  .k-tip .kt-d { font-size: 19px; color: var(--text-2); margin-top: 10px; line-height: 1.7; }
+  .k-btn {
+    height: 84px; padding: 0 40px; font-size: 28px; font-weight: 700; border-radius: 14px;
+    border: 0; background: var(--primary); color: #fff; cursor: pointer; font-family: var(--font);
+    display: inline-flex; align-items: center; justify-content: center; gap: 14px; flex: none;
+  }
+  .k-btn:hover { background: var(--primary-hover); }
+  .k-btn.ghost { background: #fff; color: var(--primary); border: 3px solid var(--primary); }
+  .k-btn.accent { background: var(--accent); }
+  .k-btn.accent:hover { background: #d8352b; }
+  .k-btn.gray { background: #e2e7f0; color: var(--text-2); }
+  .kiosk-btn.lock { opacity: .55; }
+  .kiosk-btn .kb-lock { font-size: 17px; color: var(--accent); margin-top: 12px; }
+  .k-sec-t { font-size: 26px; font-weight: 700; margin: 0 0 20px; display: flex; align-items: center; gap: 12px; }
+  .k-sec-t span { font-size: 18px; color: var(--text-3); font-weight: 400; }
+  /* 全屏弹层（终端无 UI.modal 容器，弹层自行实现） */
+  .k-layer {
+    position: fixed; left: 0; top: 0; right: 0; bottom: 0; background: rgba(8, 20, 45, .74);
+    z-index: 900; display: none; align-items: center; justify-content: center; padding: 60px 40px;
+  }
+  .k-layer.on { display: flex; }
+  .k-panel {
+    background: #f5f8fc; border-radius: 26px; width: 100%; max-width: 900px; max-height: 88vh;
+    overflow: auto; box-shadow: 0 30px 90px rgba(0, 0, 0, .45);
+  }
+  .k-panel .kp-h {
+    background: linear-gradient(135deg, var(--primary), var(--primary-deep)); color: #fff;
+    padding: 26px 34px; font-size: 30px; font-weight: 700; display: flex; align-items: center; gap: 14px;
+  }
+  .k-panel .kp-b { padding: 30px 34px; font-size: 20px; line-height: 1.85; color: var(--text-1); }
+  .k-panel .kp-f { padding: 0 34px 30px; display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; }
+  .k-in {
+    width: 100%; height: 78px; font-size: 30px; padding: 0 22px; letter-spacing: 3px;
+    border: 2px solid var(--border-strong); border-radius: 12px; background: #fff;
+    font-family: var(--font); color: var(--text-1); outline: 0;
+  }
+  .k-in:focus { border-color: var(--primary); }
+  .k-lb { font-size: 20px; font-weight: 700; margin-bottom: 12px; display: block; }
+  .k-key-wrap { display: flex; gap: 26px; align-items: flex-start; margin-top: 24px; }
+  .k-way { flex: 1; }
+  .k-way button {
+    width: 100%; height: 74px; font-size: 22px; margin-bottom: 16px; border-radius: 12px;
+    border: 2px solid var(--primary); background: #fff; color: var(--primary); cursor: pointer;
+    font-family: var(--font); display: flex; align-items: center; justify-content: center; gap: 12px;
+  }
+  .k-way button:hover { background: var(--primary-light); }
+  .k-note {
+    background: var(--warning-light); border: 1px solid #f5dab0; color: #b45309;
+    border-radius: 12px; padding: 16px 20px; font-size: 18px; line-height: 1.8; margin-top: 22px;
+  }
+  .k-glist button {
+    width: 100%; text-align: left; background: #fff; border: 2px solid var(--border);
+    border-radius: 14px; padding: 22px 24px; font-size: 22px; margin-bottom: 14px; cursor: pointer;
+    font-family: var(--font); color: var(--text-1); display: flex; align-items: center; gap: 16px;
+  }
+  .k-glist button:hover { border-color: var(--primary); color: var(--primary); }
+  .k-glist button .gl-d { font-size: 17px; color: var(--text-3); display: block; margin-top: 6px; }
+  .k-glist button.on { border-color: var(--primary); background: var(--primary-light-2); }
+  .k-dl dl { display: flex; flex-wrap: wrap; margin: 0; border: 2px solid var(--border); border-radius: 14px; overflow: hidden; background: #fff; }
+  .k-dl dt, .k-dl dd { margin: 0; padding: 18px 22px; font-size: 19px; border-bottom: 1px solid var(--row-line); }
+  .k-dl dt { width: 210px; flex: none; background: var(--bg-soft); color: var(--text-3); }
+  .k-dl dd { flex: 1; min-width: 260px; color: var(--text-1); }
+  .kiosk-foot a { font-size: 19px; }
+</style>
+</head>
+<body class="kiosk">
+
+<div class="kiosk-frame">
+  <div class="kiosk-head">
+    <div>
+      <div class="kh-t1">房产交易自助服务终端</div>
+      <div class="kh-t2">与网上入口同源同数据 · 7×22 小时服务</div>
+    </div>
+    <div class="kh-r">
+      <div id="clock" style="font-size:24px;font-weight:700">--:--:--</div>
+      <div style="margin-top:6px">终端编号：文昌大厅 T01</div>
+    </div>
+  </div>
+
+  <div class="kiosk-body">
+    <div class="k-tip" id="auth-bar"></div>
+
+    <div class="k-sec-t"><i class="fa-solid fa-grip text-primary"></i> 请选择要办理的业务
+      <span>触摸屏幕直接点击</span></div>
+    <div class="kiosk-grid" id="grid"></div>
+
+    <div class="k-note" style="margin-top:30px">
+      <i class="fa-solid fa-circle-info"></i>
+      本终端与网上办事入口<b>同一套数据</b>：在终端办理的申报、缴款、取号与打印记录，
+      可在网页版「个人中心」继续查看与办理；网上未提交的草稿也可在终端接着办。
+      办理过程涉及的查询与出证全程留痕，请勿将证件与凭证遗留在终端。
+    </div>
+  </div>
+
+  <div class="kiosk-foot">
+    <span><i class="fa-solid fa-phone"></i> 咨询电话 <b id="f-tel">—</b></span>
+    <span><i class="fa-solid fa-clock"></i> <span id="f-time">—</span></span>
+    <span style="margin-left:auto"></span>
+    <button class="k-btn gray" style="height:64px;font-size:22px;padding:0 28px" id="f-exit" data-fp="wsmh-28">
+      <i class="fa-solid fa-power-off"></i> 退出核验</button>
+    <a class="k-btn ghost" style="height:64px;font-size:22px;padding:0 28px" href="../web/home.html" data-fp="wsmh-28">
+      <i class="fa-solid fa-globe"></i> 网页版办理</a>
+  </div>
+</div>
+
+<!-- 全屏弹层 -->
+<div class="k-layer" id="layer">
+  <div class="k-panel">
+    <div class="kp-h" id="lay-h"></div>
+    <div class="kp-b" id="lay-b"></div>
+    <div class="kp-f" id="lay-f"></div>
+  </div>
+</div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+/* ===== 终端通用：核验状态、弹层、数字键盘（终端页不使用 UI.modal / UI.drawer） ===== */
+var KUSER = '韦*强';
+var KV = false;
+var PEND = null;
+function kvGet() { try { return sessionStorage.getItem('wsmh.kiosk.v') === '1'; } catch (e) { return KV; } }
+function kvSet(v) { KV = v; try { sessionStorage.setItem('wsmh.kiosk.v', v ? '1' : '0'); } catch (e) { } }
+
+function layer(title, body, foot) {
+  document.getElementById('lay-h').innerHTML = title;
+  document.getElementById('lay-b').innerHTML = body;
+  document.getElementById('lay-f').innerHTML = foot || '<button class="k-btn ghost" onclick="layerClose()">关闭</button>';
+  document.getElementById('layer').classList.add('on');
+}
+function layerClose() { document.getElementById('layer').classList.remove('on'); }
+
+/* 数字键盘：为 id 指定的输入框提供触控输入 */
+function keypad(targetId, maxLen) {
+  var K = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'X', '0', 'del'];
+  return '<div class="kiosk-key">' + K.map(function (k) {
+    var t = k === 'del' ? '<i class="fa-solid fa-delete-left"></i>' : k;
+    return '<button data-fp="wsmh-28" onclick="kpTap(\'' + targetId + '\',\'' + k + '\',' + (maxLen || 18) + ')">' + t + '</button>';
+  }).join('') + '</div>';
+}
+function kpTap(id, k, maxLen) {
+  var el = document.getElementById(id); if (!el) return;
+  if (k === 'del') { el.value = el.value.slice(0, -1); return; }
+  if (el.value.length >= maxLen) { UI.toast('已达到最大输入长度', 'warning'); return; }
+  el.value += k;
+}
+
+/* 身份核验层 */
+function authOpen(afterName) {
+  layer('<i class="fa-solid fa-id-card"></i> 身份核验',
+    '<div style="font-size:20px;line-height:1.9;margin-bottom:22px">'
+    + '按对外服务口径，终端查询、打印与办理均须先核验身份，核验与查询全过程留痕。'
+    + '可<b>输入身份证号</b>、<b>刷身份证</b>或<b>人脸识别</b>三种方式任选一种。</div>'
+    + '<label class="k-lb">身份证号码</label>'
+    + '<input class="k-in" id="au-id" placeholder="请点击右侧数字键盘输入" readonly>'
+    + '<div class="k-key-wrap">'
+    + keypad('au-id', 18)
+    + '<div class="k-way">'
+    + '<button data-fp="wsmh-28" onclick="authCard()"><i class="fa-solid fa-id-card-clip"></i> 刷身份证（读卡区）</button>'
+    + '<button data-fp="wsmh-28" onclick="authFace()"><i class="fa-solid fa-face-smile"></i> 人脸识别（对准摄像头）</button>'
+    + '<div style="font-size:17px;color:var(--text-3);line-height:1.8">'
+    + '演示环境：数字键盘输入 6 位以上即可通过；刷卡与人脸识别为模拟过程。</div>'
+    + '</div></div>'
+    + '<div class="k-note"><i class="fa-solid fa-shield-halved"></i> '
+    + '本终端不留存您的证件信息，核验结束或离开后自动清除。'
+    + (afterName ? '核验通过后将继续办理「' + UI.esc(afterName) + '」。' : '') + '</div>',
+    '<button class="k-btn ghost" data-fp="wsmh-28" onclick="layerClose()">取消</button>'
+    + '<button class="k-btn" data-fp="wsmh-28" onclick="authOk()"><i class="fa-solid fa-check"></i> 核验并继续</button>');
+}
+function authCard() {
+  var el = document.getElementById('au-id');
+  if (el) el.value = '450202198703150000';
+  UI.toast('已读取身份证信息，请点击「核验并继续」', 'success');
+}
+function authFace() {
+  UI.toast('正在进行人脸识别，请对准摄像头…', 'info');
+  setTimeout(function () {
+    var el = document.getElementById('au-id');
+    if (el) el.value = '450202198703150000';
+    UI.toast('人脸识别通过，与公安人口库比对一致', 'success');
+    setTimeout(authOk, 500);
+  }, 1400);
+}
+function authOk() {
+  var el = document.getElementById('au-id');
+  var v = el ? el.value : '';
+  if (v.length < 6) { UI.toast('请输入身份证号码（演示环境 6 位以上即可）', 'warning'); return; }
+  kvSet(true);
+  layerClose();
+  UI.toast('身份核验通过，已核验：' + KUSER + '，本次核验已记入查询留痕', 'success');
+  renderAuth(); renderGrid();
+  if (PEND) { var f = PEND; PEND = null; setTimeout(f, 400); }
+}
+
+/* ===== 页面 ===== */
+var INITED = 0;
+function pageInit() {
+  if (INITED) return; INITED = 1;
+  var s = PORTAL.site();
+  document.getElementById('f-tel').textContent = s.tel;
+  document.getElementById('f-time').textContent = '自助服务时间 07:00-22:00　窗口时间 ' + s.gzsj.split('（')[0];
+
+  tick(); setInterval(tick, 1000);
+  renderAuth(); renderGrid();
+
+  document.getElementById('f-exit').onclick = function () {
+    if (!kvGet()) { UI.toast('当前未核验身份，无需退出', 'info'); return; }
+    kvSet(false); renderAuth(); renderGrid();
+    UI.toast('已退出核验，个人信息已从本终端清除', 'success');
+  };
+}
+function tick() {
+  var d = new Date();
+  function p(n) { return n < 10 ? '0' + n : n; }
+  var W = ['日', '一', '二', '三', '四', '五', '六'];
+  document.getElementById('clock').textContent =
+    d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' 星期' + W[d.getDay()]
+    + '　' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+}
+
+function renderAuth() {
+  var ok = kvGet();
+  document.getElementById('auth-bar').className = 'k-tip' + (ok ? ' done' : '');
+  document.getElementById('auth-bar').innerHTML = ok
+    ? '<span class="kt-i"><i class="fa-solid fa-user-check"></i></span>'
+    + '<div style="flex:1"><div class="kt-t">已核验：' + KUSER + '　<span style="font-size:20px;color:var(--success)">（身份核验通过）</span></div>'
+    + '<div class="kt-d">下方功能已解锁，可自助查询、打印证明、申报备案、缴存购房款与取号。'
+    + '办完请点右下角「退出核验」清除个人信息。</div></div>'
+    + '<button class="k-btn ghost" onclick="authOpen()" data-fp="wsmh-28"><i class="fa-solid fa-repeat"></i> 重新核验</button>'
+    : '<span class="kt-i"><i class="fa-solid fa-id-card"></i></span>'
+    + '<div style="flex:1"><div class="kt-t">请先完成身份核验，核验后可查询、打印与办理</div>'
+    + '<div class="kt-d">支持身份证号输入、刷身份证与人脸识别三种方式；'
+    + '政策与办事指南为公开信息，无需核验即可查看。</div></div>'
+    + '<button class="k-btn accent" onclick="authOpen()" data-fp="wsmh-28"><i class="fa-solid fa-fingerprint"></i> 身份核验</button>';
+}
+
+var FN = [
+  ['自助查询', '名下房产、办件进度、政策指南', 'fa-magnifying-glass', 'blue', 'query-print.html?fn=query', 1, 'wsmh-28-01'],
+  ['自助打印证明', '备案证明与查询结果证明，带二维码防伪', 'fa-print', 'red', 'query-print.html?fn=print', 1, 'wsmh-28-02'],
+  ['存量房自助申报', '二手房买卖合同网签备案，3 步完成', 'fa-file-signature', 'green', 'apply.html?fn=apply', 1, 'wsmh-16-04'],
+  ['购房款缴存', '缴入预售资金监管账户，出缴款凭证', 'fa-money-check-dollar', 'orange', 'apply.html?fn=pay', 1, 'wsmh-28-03'],
+  ['业务取号', '选网点与业务类型，出号票', 'fa-ticket', 'cyan', 'apply.html?fn=queue', 1, 'wsmh-28-03'],
+  ['政策与办事指南', '公开信息，无需核验', 'fa-book-open', 'purple', '', 0, 'wsmh-28-01']
+];
+function renderGrid() {
+  var ok = kvGet();
+  document.getElementById('grid').innerHTML = FN.map(function (f, i) {
+    var lock = f[5] && !ok;
+    return '<div class="kiosk-btn' + (lock ? ' lock' : '') + '" data-fn="' + i + '" data-fp="' + f[6] + '">'
+      + '<span class="kb-i si-ico ' + f[3] + '"><i class="fa-solid ' + f[2] + '"></i></span>'
+      + '<div class="kb-t">' + f[0] + '</div>'
+      + '<div class="kb-d">' + f[1] + '</div>'
+      + (lock ? '<div class="kb-lock"><i class="fa-solid fa-lock"></i> 需先核验身份</div>'
+        : '<div class="kb-lock" style="color:var(--success)"><i class="fa-solid fa-circle-check"></i> '
+        + (f[5] ? '已解锁' : '可直接查看') + '</div>')
+      + '</div>';
+  }).join('');
+
+  document.querySelectorAll('[data-fn]').forEach(function (el) {
+    el.onclick = function () {
+      var f = FN[Number(el.getAttribute('data-fn'))];
+      if (f[5] && !kvGet()) {
+        UI.toast('请先完成身份核验', 'warning');
+        PEND = function () { if (f[4]) location.href = f[4]; };
+        authOpen(f[0]);
+        return;
+      }
+      if (!f[4]) { guideOpen(); return; }
+      location.href = f[4];
+    };
+  });
+}
+
+/* 政策与办事指南（公开信息，无需核验） */
+function guideOpen() {
+  var items = PORTAL.items().slice(0, 8);
+  layer('<i class="fa-solid fa-book-open"></i> 政策与办事指南',
+    '<div style="font-size:19px;color:var(--text-2);margin-bottom:20px">'
+    + '点击下方事项查看办理条件、材料清单、时限与办理地点；完整政策原文可在网页版「业务指南 → 政策解读」查看。</div>'
+    + '<div class="k-glist" id="g-list">'
+    + items.map(function (it, i) {
+      return '<button data-gi="' + i + '" data-fp="wsmh-28-01"><i class="fa-solid fa-file-lines text-primary"></i>'
+        + '<span>' + UI.esc(it.name)
+        + '<span class="gl-d">' + it.dept + '　承诺 ' + it.nsrq + ' 个工作日　'
+        + it.clnum + ' 份材料　' + (it.wb ? '全程网办' : '需到窗口') + '</span></span></button>';
+    }).join('') + '</div>'
+    + '<div id="g-detail"></div>',
+    '<button class="k-btn ghost" onclick="layerClose()">关闭</button>'
+    + '<a class="k-btn" href="../web/guide.html" data-fp="wsmh-28-01"><i class="fa-solid fa-globe"></i> 网页版看全部指南</a>');
+
+  document.querySelectorAll('[data-gi]').forEach(function (b) {
+    b.onclick = function () {
+      document.querySelectorAll('[data-gi]').forEach(function (x) { x.classList.remove('on'); });
+      b.classList.add('on');
+      var it = items[Number(b.getAttribute('data-gi'))];
+      document.getElementById('g-detail').innerHTML =
+        '<div class="k-dl" style="margin-top:8px"><dl>'
+        + '<dt>事项名称</dt><dd><b>' + UI.esc(it.name) + '</b></dd>'
+        + '<dt>承办科室</dt><dd>' + UI.esc(it.dept) + '</dd>'
+        + '<dt>办理时限</dt><dd>法定 ' + it.fdrq + ' 个工作日，承诺 <b>' + it.nsrq + '</b> 个工作日</dd>'
+        + '<dt>办理方式</dt><dd>' + (it.wb ? '全程网办，也可在本终端或窗口办理' : '需到窗口办理，可在本终端预约取号') + '</dd>'
+        + '<dt>办理条件</dt><dd>' + UI.esc(it.tj) + '</dd>'
+        + '<dt>申请材料</dt><dd>' + it.cl.map(function (c) {
+          return UI.esc(c.mc) + (c.mian ? '（可免提交，电子证照调用）' : '');
+        }).join('、') + '</dd>'
+        + '<dt>收费标准</dt><dd>' + UI.esc(it.sf) + '</dd>'
+        + '<dt>办理地点</dt><dd>' + UI.esc(it.dd) + '</dd>'
+        + '<dt>常见退件原因</dt><dd>' + it.tjyy.join('；') + '</dd>'
+        + '</dl></div>';
+      UI.toast('已展示「' + it.name + '」办理要点', 'info');
+    };
+  });
+}
+
+/* 无 data-nav 时 portal.js 仍会调用 pageInit；此处兜底调用一次，重复调用被 INITED 拦住 */
+pageInit();
+</script>
+</body>
+</html>

@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>档案鉴定与销毁审批 · 房屋交易档案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  .no-code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; }
+  .step-panel { display: none; }
+  .step-panel.active { display: block; }
+  /* 本页特有：卡片式单选 */
+  .pick-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 8px; }
+  .pick {
+    border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; cursor: pointer;
+    display: flex; align-items: center; gap: 9px; font-size: 13px; background: #fff; transition: .15s;
+  }
+  .pick:hover { border-color: var(--primary); }
+  .pick.on { border-color: var(--primary); background: var(--primary-bg); color: var(--primary); font-weight: 600; }
+  .pick i { font-size: 15px; }
+  .pick small { display: block; font-weight: 400; color: var(--text-3); font-size: 11.5px; margin-top: 1px; }
+  .pick.on small { color: var(--primary); opacity: .85; }
+  /* 本页特有：筛出结果统计 */
+  .fx-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+  .fx {
+    border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; background: #fff;
+  }
+  .fx .v { font-size: 24px; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; }
+  .fx .l { font-size: 12.5px; color: var(--text-3); margin-top: 2px; }
+  .fx.hi { border-color: var(--primary); background: var(--primary-bg); }
+  .fx.hi .v { color: var(--primary); }
+  .ex-bar {
+    display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: #eef1f6; color: var(--text-2);
+    border-radius: 8px; font-size: 13px; margin-top: 10px;
+  }
+  /* 本页特有：判定统计条 */
+  .jd-bar {
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap; padding: 12px 14px;
+    border: 1px solid var(--border); border-radius: 10px; background: var(--bg-soft); font-size: 13.5px;
+  }
+  .jd-bar b { font-size: 19px; font-variant-numeric: tabular-nums; }
+  /* 本页特有：三级审批流程条 */
+  .sp-flow { display: flex; gap: 0; flex-wrap: wrap; }
+  .sp-node {
+    flex: 1; min-width: 220px; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px;
+    position: relative; margin-right: 22px; background: #fff;
+  }
+  .sp-node:last-child { margin-right: 0; }
+  .sp-node::after {
+    content: "\f105"; font-family: "Font Awesome 6 Free"; font-weight: 900;
+    position: absolute; right: -16px; top: 50%; transform: translateY(-50%); color: var(--border-strong); font-size: 16px;
+  }
+  .sp-node:last-child::after { content: none; }
+  .sp-node.done { border-color: #bbf0cd; background: #f4fdf7; }
+  .sp-node.now { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+  .sp-node .h { display: flex; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 700; margin-bottom: 7px; }
+  .sp-node .kv { display: flex; gap: 8px; font-size: 12.5px; padding: 2px 0; }
+  .sp-node .kv .k { width: 58px; color: var(--text-3); flex-shrink: 0; }
+  /* 本页特有：销毁前强制校验面板 */
+  .ck-panel { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .ck-h {
+    display: flex; align-items: center; gap: 9px; padding: 11px 16px; font-size: 14.5px; font-weight: 700;
+    background: var(--bg-soft);
+  }
+  .ck-h .st { margin-left: auto; font-weight: 400; font-size: 13px; }
+  .ck-row {
+    display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-top: 1px solid var(--border);
+    font-size: 13.5px;
+  }
+  .ck-row .ic {
+    width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center;
+    justify-content: center; font-size: 13px; color: #fff;
+  }
+  .ck-row .nm { width: 178px; flex-shrink: 0; font-weight: 600; }
+  .ck-row .ds { flex: 1; color: var(--text-2); line-height: 1.6; }
+  .ck-row .rs { flex-shrink: 0; }
+  .ck-row.pass .ic { background: var(--success); }
+  .ck-row.fail { background: #fdecec; }
+  .ck-row.fail .ic { background: var(--danger); }
+  .ck-row.fail .nm, .ck-row.fail .ds { color: var(--danger); }
+  .ck-panel.locked { border-color: #f6c9c9; }
+  .ck-panel.locked .ck-h { background: #fdecec; color: var(--danger); }
+  .lock-tip {
+    display: flex; align-items: center; gap: 8px; padding: 11px 16px; background: #fdecec; color: var(--danger);
+    font-size: 13.5px; font-weight: 600; border-top: 1px solid #f6c9c9;
+  }
+  /* 本页特有：A4 销毁清册 */
+  .a4 {
+    background: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 34px 42px;
+    max-width: 780px; margin: 0 auto; box-shadow: var(--shadow-sm);
+  }
+  .a4 h2 { text-align: center; font-size: 20px; letter-spacing: 2px; margin: 0 0 4px; }
+  .a4 .sub { text-align: center; font-size: 12.5px; color: var(--text-3); margin-bottom: 16px; }
+  .a4 .mtb { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .a4 .mtb th, .a4 .mtb td { border: 1px solid #c9d3e0; padding: 6px 8px; }
+  .a4 .mtb th { background: #f4f7fb; font-weight: 600; }
+  .a4 .sign { display: flex; gap: 34px; margin-top: 24px; font-size: 13px; }
+  .a4 .sign .sg { flex: 1; }
+  .a4 .sign .sg .ln { border-bottom: 1px solid #96a5b8; height: 28px; margin-top: 4px; }
+  /* 本页特有：执行成功页 */
+  .ok-card {
+    border: 1px solid #bbf0cd; background: #f4fdf7; border-radius: 12px; padding: 22px; text-align: center;
+  }
+  .ok-card .ico { font-size: 42px; color: var(--success); }
+  .ok-card .t { font-size: 18px; font-weight: 700; margin: 10px 0 4px; }
+  .ok-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-top: 18px; text-align: left;
+  }
+  .ok-grid .c { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .ok-grid .c .k { font-size: 12px; color: var(--text-3); }
+  .ok-grid .c .v { font-size: 14px; font-weight: 600; margin-top: 2px; }
+  .type-txt { font-family: Consolas, monospace; letter-spacing: 3px; }
+  .modal-head { display: flex; align-items: center; gap: 10px; }
+  .modal-head h3 { font-size: 16px; font-weight: 700; }
+  .modal-head .close { margin-left: auto; cursor: pointer; color: var(--text-3); font-size: 18px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: none; border: 0; }
+  .modal-head .close:hover { background: var(--bg-soft); color: var(--text-1); }
+  .form-foot { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+  .foot-tip { margin-right: auto; font-size: 12.5px; color: var(--text-3); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdagl-12">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> <a class="link" href="index.html">房屋交易档案管理系统</a>
+        <span class="sep">/</span> 档案保管利用
+        <span class="sep">/</span> <span class="cur">档案鉴定与销毁审批</span>
+      </div>
+      <div class="page-title">
+        档案鉴定与销毁审批
+        <span class="badge blue no-code">JD2026002</span>
+        <span class="badge orange">待审批销毁清册</span>
+      </div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="backup.html"><i class="fa-solid fa-database"></i> 档案备份</a>
+      <button type="button" class="btn" onclick="PMS.toast('已导出鉴定报告','success')"><i class="fa-solid fa-download"></i> 导出鉴定报告</button>
+    </div>
+  </div>
+
+  <div class="wizard" id="wz">
+    <div class="w-step active" data-step="1" onclick="goStep(1)"><span class="w-num">1</span><span class="w-label">到期档案筛出</span></div>
+    <div class="w-line"></div>
+    <div class="w-step" data-step="2" onclick="goStep(2)"><span class="w-num">2</span><span class="w-label">组织鉴定</span></div>
+    <div class="w-line"></div>
+    <div class="w-step" data-step="3" onclick="goStep(3)"><span class="w-num">3</span><span class="w-label">销毁清册与分级审批</span></div>
+    <div class="w-line"></div>
+    <div class="w-step" data-step="4" onclick="goStep(4)"><span class="w-num">4</span><span class="w-label">备份校验与执行销毁</span></div>
+  </div>
+
+  <form onsubmit="return false">
+
+    <div class="step-panel active" data-panel="1">
+      <div class="card mb-16">
+        <div class="card-head"><h3><i class="fa-solid fa-filter"></i> 筛出条件</h3></div>
+        <div class="card-body">
+          <div class="form-grid form-align">
+            <div class="form-item">
+              <label>截止日期<span class="req">*</span></label>
+              <input type="date" value="2026-08-01">
+              <span class="hint">按保管到期日期筛出，默认今日</span>
+            </div>
+            <div class="form-item">
+              <label>年度范围</label>
+              <div class="flex items-center gap-8">
+                <select style="flex:1"><option>2010</option><option selected>2014</option></select>
+                <span class="text-3">至</span>
+                <select style="flex:1"><option selected>2016</option><option>2018</option></select>
+              </div>
+            </div>
+            <div class="form-item">
+              <label>档案类型</label>
+              <select><option>全部类型</option><option>存量房交易档案</option><option>商品房交易档案</option><option>房屋租赁档案</option><option>综合管理档案</option></select>
+            </div>
+            <div class="form-item">
+              <label>保管期限</label>
+              <select><option>定期 10 年 + 定期 5 年 + 短期</option><option>定期 10 年</option><option>定期 5 年</option><option>短期</option></select>
+              <span class="hint">永久与长期不可选，系统自动排除</span>
+            </div>
+            <div class="form-item col-full">
+              <div class="btn-row">
+                <button type="button" class="btn btn-primary" onclick="PMS.toast('已筛出符合条件的到期档案 1,286 卷','success')"><i class="fa-solid fa-magnifying-glass"></i> 执行筛出</button>
+                <button type="button" class="btn" onclick="PMS.toast('已导出待鉴定清单')"><i class="fa-solid fa-download"></i> 导出待鉴定清单</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-16">
+        <div class="card-head"><h3><i class="fa-solid fa-chart-simple"></i> 筛出结果统计</h3><span class="text-3 text-sm">截止 2026-08-01</span></div>
+        <div class="card-body">
+          <div class="fx-row">
+            <div class="fx hi"><div class="v">1,286</div><div class="l">符合条件（卷）</div></div>
+            <div class="fx"><div class="v">862</div><div class="l">定期 10 年</div></div>
+            <div class="fx"><div class="v">386</div><div class="l">定期 5 年</div></div>
+            <div class="fx"><div class="v">38</div><div class="l">短期</div></div>
+            <div class="fx"><div class="v">1,286</div><div class="l">已数字化（100%）</div></div>
+          </div>
+          <div class="ex-bar">
+            <i class="fa-solid fa-shield-halved"></i>
+            已自动排除 <b>永久 4,286 卷</b>、<b>长期 862 卷</b>，此类档案不纳入销毁鉴定；保管期限为「永久」的档案在第 2 步也不允许提出销毁建议。
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3><i class="fa-solid fa-list-check"></i> 待鉴定清单</h3><span class="badge gray">1,286 卷</span></div>
+        <div class="card-body">
+          <div class="table-wrap">
+            <table class="data-table compact" id="tblDq" data-static>
+              <thead>
+                <tr>
+                  <th>档案号</th><th>档案名称</th><th>档案类型</th><th>年度</th>
+                  <th>保管期限</th><th>保管到期日期</th><th class="num">已超期</th>
+                  <th>载体</th><th>数字化状态</th><th>当前库位</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="nowrap no-code">DA450202201600186</td>
+                  <td class="cell-lg">2016 年度存量房买卖合同备案档案（第一卷）</td>
+                  <td class="nowrap"><span class="badge cyan">存量房交易</span></td>
+                  <td class="nowrap">2016</td>
+                  <td class="nowrap"><span class="badge gray">定期 10 年</span></td>
+                  <td class="nowrap">2026-06-30</td>
+                  <td class="num text-warning">32 天</td>
+                  <td class="nowrap">双套</td>
+                  <td class="nowrap"><span class="badge green">已数字化</span></td>
+                  <td class="nowrap no-code">KF02-J06-J1-C2-G3-H018</td>
+                </tr>
+                <tr>
+                  <td class="nowrap no-code">DA450202201600242</td>
+                  <td class="cell-lg">2016 年度商品房买卖合同备案档案（第三卷）</td>
+                  <td class="nowrap"><span class="badge blue">商品房交易</span></td>
+                  <td class="nowrap">2016</td>
+                  <td class="nowrap"><span class="badge gray">定期 10 年</span></td>
+                  <td class="nowrap">2026-06-30</td>
+                  <td class="num text-warning">32 天</td>
+                  <td class="nowrap">双套</td>
+                  <td class="nowrap"><span class="badge green">已数字化</span></td>
+                  <td class="nowrap no-code">KF02-J06-J2-C1-G5-H042</td>
+                </tr>
+                <tr>
+                  <td class="nowrap no-code">DA450203201600518</td>
+                  <td class="cell-lg">2016 年度房屋租赁备案档案（第二卷）</td>
+                  <td class="nowrap"><span class="badge green">房屋租赁</span></td>
+                  <td class="nowrap">2016</td>
+                  <td class="nowrap"><span class="badge gray">定期 5 年</span></td>
+                  <td class="nowrap">2021-12-31</td>
+                  <td class="num text-danger">1,674 天</td>
+                  <td class="nowrap">纯纸质</td>
+                  <td class="nowrap"><span class="badge green">已数字化</span></td>
+                  <td class="nowrap no-code">KF02-J12-J3-C4-G2-H126</td>
+                </tr>
+                <tr>
+                  <td class="nowrap no-code">DA450204201600882</td>
+                  <td class="cell-lg">2016 年度存量房交易咨询登记（第八卷）</td>
+                  <td class="nowrap"><span class="badge gray">综合管理</span></td>
+                  <td class="nowrap">2016</td>
+                  <td class="nowrap"><span class="badge gray">短期</span></td>
+                  <td class="nowrap">2019-12-31</td>
+                  <td class="num text-danger">2,405 天</td>
+                  <td class="nowrap">纯纸质</td>
+                  <td class="nowrap"><span class="badge green">已数字化</span></td>
+                  <td class="nowrap no-code">KF04-J02-J1-C1-G2-H008</td>
+                </tr>
+                <tr>
+                  <td class="nowrap no-code">DA450205201600124</td>
+                  <td class="cell-lg">2016 年度公有住房租金收缴台账</td>
+                  <td class="nowrap"><span class="badge purple">公有住房与房改</span></td>
+                  <td class="nowrap">2016</td>
+                  <td class="nowrap"><span class="badge gray">定期 10 年</span></td>
+                  <td class="nowrap">2026-07-31</td>
+                  <td class="num text-warning">1 天</td>
+                  <td class="nowrap">双套</td>
+                  <td class="nowrap"><span class="badge green">已数字化</span></td>
+                  <td class="nowrap no-code">KF02-J20-J2-C3-G1-H062</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-panel" data-panel="2">
+      <div class="card mb-16">
+        <div class="card-head"><h3><i class="fa-solid fa-users"></i> 鉴定基本信息</h3></div>
+        <div class="card-body">
+          <div class="form-grid form-align">
+            <div class="form-item">
+              <label>鉴定编号</label>
+              <input type="text" class="no-code" value="JD2026002" readonly>
+            </div>
+            <div class="form-item col-full">
+              <label>鉴定类型<span class="req">*</span></label>
+              <div class="pick-row" style="max-width:560px">
+                <div class="pick on" onclick="pick(this)"><i class="fa-solid fa-calendar-check"></i><span>到期鉴定<small>按保管期限到期</small></span></div>
+                <div class="pick" onclick="pick(this)"><i class="fa-solid fa-crosshairs"></i><span>专项鉴定<small>指定范围</small></span></div>
+                <div class="pick" onclick="pick(this)"><i class="fa-solid fa-scale-unbalanced"></i><span>价值重估<small>重新评估价值</small></span></div>
+              </div>
+            </div>
+            <div class="form-item col-2">
+              <label>鉴定范围说明<span class="req">*</span></label>
+              <input type="text" value="2016 年度保管期限到期的定期 10 年、定期 5 年与短期档案，共 1,286 卷">
+            </div>
+            <div class="form-item">
+              <label>鉴定年度范围</label>
+              <input type="text" value="2014 ~ 2016">
+            </div>
+            <div class="form-item">
+              <label>鉴定日期<span class="req">*</span></label>
+              <input type="date" value="2026-07-28">
+            </div>
+            <div class="form-item col-2">
+              <label>鉴定小组成员<span class="req">*</span></label>
+              <input type="text" value="韦国强（组长）、覃永明、蒙丽华、莫晓东、XXXX市档案馆 黄**（外聘）">
+              <span class="hint">鉴定小组不少于 3 人，涉及跨部门档案的应邀请档案馆或业务主管部门参加</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-16">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-gavel"></i> 逐卷判定</h3>
+          <div class="btn-row" style="margin-left:auto">
+            <button type="button" class="btn btn-sm" onclick="batchJd('建议销毁')">批量设为建议销毁</button>
+            <button type="button" class="btn btn-sm" onclick="batchJd('建议续存')">批量设为建议续存</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="table-wrap">
+            <table class="data-table compact" data-static>
+              <thead>
+                <tr>
+                  <th style="width:38px"><input type="checkbox" id="ckAll"></th>
+                  <th>档案号</th><th>档案名称</th><th>保管期限</th><th>到期日期</th>
+                  <th>数字化状态</th><th style="width:150px">鉴定结论</th><th>结论理由</th><th>判定人</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><input type="checkbox" class="ck" checked></td>
+                  <td class="nowrap no-code">DA450202201600186</td>
+                  <td class="cell-lg">2016 年度存量房买卖合同备案档案（第一卷）</td>
+                  <td class="nowrap"><span class="badge gray">定期 10 年</span></td>
+                  <td class="nowrap">2026-06-30</td>
+                  <td class="nowrap"><span class="badge green">已数字化</span></td>
+                  <td><select class="jd"><option>建议销毁</option><option>建议续存</option><option>建议转换保管期限</option></select></td>
+                  <td><input type="text" value="已完成数字化，电子副本永久保存，纸质原件无继续保存价值"></td>
+                  <td class="nowrap">覃永明</td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" class="ck" checked></td>
+                  <td class="nowrap no-code">DA450202201600242</td>
+                  <td class="cell-lg">2016 年度商品房买卖合同备案档案（第三卷）</td>
+                  <td class="nowrap"><span class="badge gray">定期 10 年</span></td>
+                  <td class="nowrap">2026-06-30</td>
+                  <td class="nowrap"><span class="badge green">已数字化</span></td>
+                  <td><select class="jd"><option>建议销毁</option><option>建议续存</option><option>建议转换保管期限</option></select></td>
+                  <td><input type="text" value="已完成数字化，无涉诉与权属争议记录"></td>
+                  <td class="nowrap">覃永明</td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" class="ck"></td>
+                  <td class="nowrap no-code">DA450205201600124</td>
+                  <td class="cell-lg">2016 年度公有住房租金收缴台账</td>
+                  <td class="nowrap"><span class="badge gray">定期 10 年</span></td>
+                  <td class="nowrap">2026-07-31</td>
+                  <td class="nowrap"><span class="badge green">已数字化</span></td>
+                  <td><select class="jd"><option>建议续存</option><option>建议销毁</option><option>建议转换保管期限</option></select></td>
+                  <td><input type="text" value="公有住房承租关系仍在延续，台账为历史租金核算依据，建议续存"></td>
+                  <td class="nowrap">蒙丽华</td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" class="ck"></td>
+                  <td class="nowrap no-code">DA450203201600518</td>
+                  <td class="cell-lg">2016 年度房屋租赁备案档案（第二卷）</td>
+                  <td class="nowrap"><span class="badge gray">定期 5 年</span></td>
+                  <td class="nowrap">2021-12-31</td>
+                  <td class="nowrap"><span class="badge green">已数字化</span></td>
+                  <td><select class="jd"><option>建议转换保管期限</option><option>建议续存</option><option>建议销毁</option></select></td>
+                  <td><input type="text" value="含保障性租赁住房台账线索，建议转为定期 30 年"></td>
+                  <td class="nowrap">莫晓东</td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" class="ck" checked></td>
+                  <td class="nowrap no-code">DA450204201600882</td>
+                  <td class="cell-lg">2016 年度存量房交易咨询登记（第八卷）</td>
+                  <td class="nowrap"><span class="badge gray">短期</span></td>
+                  <td class="nowrap">2019-12-31</td>
+                  <td class="nowrap"><span class="badge green">已数字化</span></td>
+                  <td><select class="jd"><option>建议销毁</option><option>建议续存</option><option>建议转换保管期限</option></select></td>
+                  <td><input type="text" value="一般性咨询登记，无凭证价值，超期六年"></td>
+                  <td class="nowrap">莫晓东</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="jd-bar mt-16">
+            <span>鉴定案卷 <b>1,286</b> 卷</span>
+            <span class="text-3">|</span>
+            <span>建议续存 <b class="text-success">762</b> 卷</span>
+            <span>建议销毁 <b class="text-danger">486</b> 卷</span>
+            <span>建议转换保管期限 <b class="text-warning">38</b> 卷</span>
+            <span style="margin-left:auto" class="text-3 text-sm">
+              <i class="fa-solid fa-shield-halved"></i> 保管期限为「永久」的档案不允许提出销毁建议
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3><i class="fa-solid fa-file-pen"></i> 鉴定意见与报告</h3></div>
+        <div class="card-body">
+          <div class="form-grid form-align">
+            <div class="form-item col-full">
+              <label>鉴定意见<span class="req">*</span></label>
+              <textarea rows="4">鉴定小组于 2026-07-28 对 2014 ~ 2016 年度保管期限到期的 1,286 卷档案逐卷进行了价值判定。其中 762 卷因涉及权属延续、公有住房承租关系、历史遗留问题处置等原因仍具保存价值，建议续存；38 卷建议由定期 5 年转为定期 30 年；486 卷为一般性登记、咨询与重复性材料，均已完成数字化且电子副本长期保存，纸质原件无继续保存价值，建议销毁。全部拟销毁档案均不含永久与长期保管期限档案。</textarea>
+            </div>
+            <div class="form-item col-full">
+              <label>鉴定报告文件<span class="req">*</span></label>
+              <div class="file-up">
+                <input type="hidden" class="file-up-val" value="JD2026002_档案鉴定报告.pdf,鉴定小组签字表.pdf">
+                <div class="file-up-grid">
+                  <div class="file-up-tile file-up-add" title="添加文件（可多选）">
+                    <input type="file" multiple accept=".pdf,.doc,.docx">
+                    <i class="fa-solid fa-plus"></i><span>上传</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-panel" data-panel="3">
+      <div class="card mb-16">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-file-invoice"></i> 销毁清册</h3>
+          <div class="btn-row" style="margin-left:auto">
+            <button type="button" class="btn btn-sm" onclick="PMS.toast('已导出销毁清册 Excel','success')"><i class="fa-solid fa-download"></i> 导出</button>
+            <button type="button" class="btn btn-sm" onclick="window.print()"><i class="fa-solid fa-print"></i> 打印（A4 纵向）</button>
+          </div>
+        </div>
+        <div class="card-body" style="background:#eef2f7">
+          <div class="a4">
+            <h2>档案销毁清册</h2>
+            <div class="sub">XXXX市房产交易所（全宗号 J028）　鉴定编号 JD2026002　共 486 卷</div>
+            <table class="mtb">
+              <thead>
+                <tr>
+                  <th style="width:42px">序号</th><th>档案号</th><th>档案名称</th><th style="width:90px">档案类型</th>
+                  <th style="width:48px">年度</th><th style="width:76px">保管期限</th>
+                  <th style="width:44px">件数</th><th style="width:44px">页数</th><th style="width:56px">载体</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>1</td><td class="no-code">DA450202201600186</td><td>2016 年度存量房买卖合同备案档案（第一卷）</td><td>存量房交易</td><td>2016</td><td>定期 10 年</td><td>18</td><td>62</td><td>双套</td></tr>
+                <tr><td>2</td><td class="no-code">DA450202201600242</td><td>2016 年度商品房买卖合同备案档案（第三卷）</td><td>商品房交易</td><td>2016</td><td>定期 10 年</td><td>22</td><td>86</td><td>双套</td></tr>
+                <tr><td>3</td><td class="no-code">DA450204201600882</td><td>2016 年度存量房交易咨询登记（第八卷）</td><td>综合管理</td><td>2016</td><td>短期</td><td>36</td><td>108</td><td>纯纸质</td></tr>
+                <tr><td>4</td><td class="no-code">DA450202201500426</td><td>2015 年度商品房认购登记档案（第六卷）</td><td>商品房交易</td><td>2015</td><td>定期 5 年</td><td>28</td><td>92</td><td>纯纸质</td></tr>
+                <tr><td>5</td><td class="no-code">DA450203201400318</td><td>2014 年度房屋租赁备案档案（第四卷）</td><td>房屋租赁</td><td>2014</td><td>定期 5 年</td><td>24</td><td>74</td><td>纯纸质</td></tr>
+                <tr><td colspan="6" style="text-align:right"><b>合计（486 卷）</b></td><td><b>12,846</b></td><td><b>68,420</b></td><td>—</td></tr>
+              </tbody>
+            </table>
+            <p class="text-3 text-sm mt-8">注：清册完整版共 486 行，此处展示前 5 行样例；全部拟销毁档案均已完成数字化，电子副本长期保存。</p>
+            <div class="sign">
+              <div class="sg">编制人：覃永明<div class="ln"></div></div>
+              <div class="sg">审核人：韦国强<div class="ln"></div></div>
+              <div class="sg">日期：2026 年 07 月 30 日<div class="ln"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-16">
+        <div class="card-head"><h3><i class="fa-solid fa-diagram-project"></i> 分级审批</h3><span class="badge orange">当前：主管单位批准</span></div>
+        <div class="card-body">
+          <div class="sp-flow">
+            <div class="sp-node done">
+              <div class="h"><i class="fa-solid fa-circle-check text-success"></i> 一级 · 档案部门审核</div>
+              <div class="kv"><span class="k">审批人</span><span>韦国强　XXXX市房产交易所档案室</span></div>
+              <div class="kv"><span class="k">时间</span><span>2026-07-30 15:26</span></div>
+              <div class="kv"><span class="k">结果</span><span><span class="badge green">同意销毁</span></span></div>
+              <div class="kv"><span class="k">意见</span><span>鉴定程序合规，清册与判定结果一致，同意报上级审批。</span></div>
+            </div>
+            <div class="sp-node done">
+              <div class="h"><i class="fa-solid fa-circle-check text-success"></i> 二级 · 分管领导审批</div>
+              <div class="kv"><span class="k">审批人</span><span>李**　XXXX市房产交易所 分管副所长</span></div>
+              <div class="kv"><span class="k">时间</span><span>2026-07-31 10:08</span></div>
+              <div class="kv"><span class="k">结果</span><span><span class="badge green">同意销毁</span></span></div>
+              <div class="kv"><span class="k">意见</span><span>同意，销毁前须完成电子影像备份并通过恢复验证。</span></div>
+            </div>
+            <div class="sp-node now">
+              <div class="h"><i class="fa-solid fa-hourglass-half text-primary"></i> 三级 · 主管单位批准</div>
+              <div class="kv"><span class="k">审批单位</span><span>XXXX市住房和城乡建设局</span></div>
+              <div class="kv"><span class="k">审批文号</span><span>柳建档〔2026〕18 号</span></div>
+              <div class="kv"><span class="k">审批日期</span><span>2026-08-01</span></div>
+              <div class="kv"><span class="k">结果</span><span><span class="badge blue">待批准</span></span></div>
+            </div>
+          </div>
+
+          <div class="form-grid form-align mt-16">
+            <div class="form-item">
+              <label>审批单位名称<span class="req">*</span></label>
+              <input type="text" value="XXXX市住房和城乡建设局">
+            </div>
+            <div class="form-item">
+              <label>审批文号<span class="req">*</span></label>
+              <input type="text" value="柳建档〔2026〕18 号">
+            </div>
+            <div class="form-item">
+              <label>审批日期<span class="req">*</span></label>
+              <input type="date" value="2026-08-01">
+            </div>
+            <div class="form-item">
+              <label>审批结果<span class="req">*</span></label>
+              <select id="spRs" onchange="togglePart()">
+                <option>同意销毁</option><option>部分同意</option><option>不同意</option>
+              </select>
+            </div>
+            <div class="form-item col-full" id="partBox" style="display:none">
+              <label>批准销毁范围<span class="req">*</span></label>
+              <div class="alert alert-warning" style="margin-bottom:8px">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <div>选择「部分同意」时须逐卷勾选批准销毁的范围，未勾选的维持保管并说明理由。</div>
+              </div>
+              <input type="text" value="批准销毁 448 卷，其中 38 卷（涉及历史遗留问题处置）暂缓销毁，维持保管">
+            </div>
+            <div class="form-item col-full">
+              <label>审批意见<span class="req">*</span></label>
+              <textarea rows="3">经审查，本次鉴定程序符合《档案法》与本市档案管理规定，拟销毁档案均已完成数字化并具备电子副本，同意按销毁清册执行销毁。销毁前须完成备份恢复验证，销毁时须有监销人在场并留存凭证。</textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-panel" data-panel="4">
+      <div class="card mb-16">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-shield-halved"></i> 销毁前强制校验</h3>
+          <div class="btn-row" style="margin-left:auto">
+            <button type="button" class="btn btn-sm" id="btnSim" onclick="toggleCheck()"><i class="fa-solid fa-arrows-rotate"></i> 演示：切换到备份未完成状态</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="ck-panel" id="ckPanel">
+            <div class="ck-h">
+              <i class="fa-solid fa-list-check"></i> 三项校验全部通过才解锁销毁按钮
+              <span class="st" id="ckState"><span class="badge green">3 / 3 通过，已解锁</span></span>
+            </div>
+            <div class="ck-row pass" id="ck1">
+              <span class="ic"><i class="fa-solid fa-check"></i></span>
+              <span class="nm">分级审批完成</span>
+              <span class="ds">已获主管单位批准，审批文号 <b>柳建档〔2026〕18 号</b>，三级审批节点全部通过。</span>
+              <span class="rs"><span class="badge green">通过</span></span>
+            </div>
+            <div class="ck-row pass" id="ck2">
+              <span class="ic"><i class="fa-solid fa-check"></i></span>
+              <span class="nm">电子影像备份完成</span>
+              <span class="ds" id="ck2ds">
+                备份编号 <b class="no-code">BF2026080101</b>，全量备份 486 卷 / 12,846 件 / 86.42 GB，
+                介质：磁盘阵列 + 异地机房双份，校验值一致。
+              </span>
+              <span class="rs" id="ck2rs"><span class="badge green">通过</span></span>
+            </div>
+            <div class="ck-row pass" id="ck3">
+              <span class="ic"><i class="fa-solid fa-check"></i></span>
+              <span class="nm">备份恢复验证通过</span>
+              <span class="ds" id="ck3ds">
+                2026-07-30 完成恢复验证，抽验比例 1%，抽验 128 件全部成功恢复，结果「可恢复」，校验值一致。
+              </span>
+              <span class="rs" id="ck3rs"><span class="badge green">通过</span></span>
+            </div>
+            <div class="lock-tip" id="lockTip" style="display:none">
+              <i class="fa-solid fa-lock"></i>
+              电子影像备份未完成或未通过恢复验证，不允许执行销毁
+              <a class="link" style="margin-left:auto;color:var(--danger);text-decoration:underline" href="backup.html">去处理 <i class="fa-solid fa-angle-right"></i></a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-16">
+        <div class="card-head"><h3><i class="fa-solid fa-fire"></i> 销毁执行信息</h3></div>
+        <div class="card-body">
+          <div class="form-grid form-align">
+            <div class="form-item col-full">
+              <label>销毁方式<span class="req">*</span></label>
+              <div class="pick-row" style="max-width:700px">
+                <div class="pick on" onclick="pick(this)"><i class="fa-solid fa-scissors"></i><span>碎纸<small>专业碎纸机粉碎</small></span></div>
+                <div class="pick" onclick="pick(this)"><i class="fa-solid fa-fire-flame-curved"></i><span>焚烧<small>指定焚烧场地</small></span></div>
+                <div class="pick" onclick="pick(this)"><i class="fa-solid fa-droplet"></i><span>化浆<small>造纸厂化浆</small></span></div>
+                <div class="pick" onclick="pick(this)"><i class="fa-solid fa-eraser"></i><span>电子彻底删除<small>不可恢复擦除</small></span></div>
+              </div>
+            </div>
+            <div class="form-item">
+              <label>销毁日期<span class="req">*</span></label>
+              <input type="date" value="2026-08-05">
+            </div>
+            <div class="form-item col-2">
+              <label>销毁地点<span class="req">*</span></label>
+              <input type="text" value="柳州市城中区三中路 12 号房产交易大楼负一层档案销毁作业间">
+            </div>
+            <div class="form-item col-2">
+              <label>监销人<span class="req">*</span></label>
+              <input type="text" value="黄**（XXXX市住房和城乡建设局办公室）、蓝**（XXXX市档案馆）">
+              <span class="hint">监销人须在场并签字，可填多人</span>
+            </div>
+            <div class="form-item">
+              <label>销毁执行人<span class="req">*</span></label>
+              <input type="text" value="覃永明、莫晓东">
+            </div>
+            <div class="form-item">
+              <label>实际销毁卷数<span class="req">*</span></label>
+              <input type="text" value="486">
+            </div>
+            <div class="form-item">
+              <label>电子副本保留至</label>
+              <input type="text" value="2056-08-05（30 年）" readonly>
+            </div>
+            <div class="form-item col-full">
+              <label>销毁凭证文件</label>
+              <div class="file-up">
+                <input type="hidden" class="file-up-val" value="销毁现场照片.jpg,监销签字表.pdf">
+                <div class="file-up-grid">
+                  <div class="file-up-tile file-up-add" title="添加文件（可多选）">
+                    <input type="file" multiple accept=".pdf,.jpg,.png">
+                    <i class="fa-solid fa-plus"></i><span>上传</span>
+                  </div>
+                </div>
+              </div>
+              <span class="hint">销毁凭证与销毁清册永久留存，不可删除</span>
+            </div>
+          </div>
+
+          <div class="btn-row mt-16">
+            <button type="button" class="btn btn-danger" id="btnDestroy" onclick="openDestroy()">
+              <i class="fa-solid fa-trash"></i> 执行销毁
+            </button>
+            <span class="text-3 text-sm" id="destroyTip">三项校验已全部通过，销毁按钮已解锁</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="okCard" style="display:none">
+        <div class="card-body">
+          <div class="ok-card">
+            <div class="ico"><i class="fa-solid fa-circle-check"></i></div>
+            <div class="t">销毁执行完成</div>
+            <div class="text-3">销毁记录已永久留存，不可删除；电子影像备份保留至 2056 年</div>
+            <div class="ok-grid">
+              <div class="c"><div class="k">鉴定编号</div><div class="v no-code">JD2026002</div></div>
+              <div class="c"><div class="k">销毁日期</div><div class="v">2026-08-05</div></div>
+              <div class="c"><div class="k">销毁方式</div><div class="v">碎纸</div></div>
+              <div class="c"><div class="k">实际销毁卷数</div><div class="v">486 卷 / 12,846 件</div></div>
+              <div class="c"><div class="k">监销人</div><div class="v">黄**、蓝**</div></div>
+              <div class="c"><div class="k">销毁凭证编号</div><div class="v no-code">XHPZ2026080500486</div></div>
+            </div>
+            <div class="btn-row mt-16" style="justify-content:center">
+              <button type="button" class="btn" onclick="PMS.toast('已打印销毁清册与销毁凭证','success')"><i class="fa-solid fa-print"></i> 打印凭证</button>
+              <a class="btn" href="backup.html"><i class="fa-solid fa-database"></i> 查看备份记录</a>
+              <a class="btn" href="archive-list.html"><i class="fa-solid fa-list"></i> 返回档案台账</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="navCard">
+      <div class="form-foot">
+        <span class="foot-tip">带 <span class="text-danger">*</span> 为必填项；步骤条可点击回退，不可跳步前进</span>
+        <button type="button" class="btn" id="btnPrev" onclick="goStep(cur - 1)" disabled><i class="fa-solid fa-angle-left"></i> 上一步</button>
+        <button type="button" class="btn btn-primary" id="btnNext" onclick="next()">下一步 <i class="fa-solid fa-angle-right"></i></button>
+      </div>
+    </div>
+
+  </form>
+
+  <div class="modal-mask" id="mdDestroy">
+    <div class="modal modal-sm">
+      <div class="modal-head">
+        <h3 class="text-danger"><i class="fa-solid fa-triangle-exclamation"></i> 执行销毁确认</h3>
+        <button type="button" class="close" onclick="PMS.closeModal('mdDestroy')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-danger">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <div>
+            <b>销毁操作不可逆。</b>486 卷档案实体将被永久销毁，档案状态将置为「已销毁」，对应库位释放。
+            请确认监销人 <b>黄**、蓝**</b> 已在销毁现场。
+          </div>
+        </div>
+        <dl class="desc-list">
+          <div class="desc-item"><dt>鉴定编号</dt><dd class="no-code">JD2026002</dd></div>
+          <div class="desc-item"><dt>审批文号</dt><dd>柳建档〔2026〕18 号</dd></div>
+          <div class="desc-item"><dt>销毁方式</dt><dd>碎纸</dd></div>
+          <div class="desc-item"><dt>销毁卷数</dt><dd>486 卷 / 12,846 件 / 68,420 页</dd></div>
+          <div class="desc-item"><dt>备份编号</dt><dd class="no-code">BF2026080101（恢复验证通过）</dd></div>
+          <div class="desc-item"><dt>销毁执行人</dt><dd>覃永明、莫晓东</dd></div>
+        </dl>
+        <div class="form-item mt-16">
+          <label>请键入「<b class="text-danger">确认销毁</b>」四字以继续<span class="req">*</span></label>
+          <input type="text" class="type-txt" id="typeIn" placeholder="确认销毁" oninput="checkType()">
+          <span class="hint" id="typeTip">键入完全一致后「确认执行销毁」按钮方可点击</span>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="PMS.closeModal('mdDestroy')">取消</button>
+        <button type="button" class="btn btn-danger" id="btnDoDestroy" disabled onclick="doDestroy()">确认执行销毁</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+var cur = 1, maxStep = 1, passed = true;
+
+function goStep(n) {
+  if (n < 1 || n > 4 || n > maxStep) return;
+  cur = n;
+  document.querySelectorAll('#wz .w-step').forEach(function (s) {
+    var i = parseInt(s.getAttribute('data-step'), 10);
+    s.classList.toggle('active', i === n);
+    s.classList.toggle('done', i < n);
+  });
+  document.querySelectorAll('.step-panel').forEach(function (p) {
+    p.classList.toggle('active', p.getAttribute('data-panel') === String(n));
+  });
+  document.getElementById('btnPrev').disabled = n === 1;
+  document.getElementById('btnNext').style.display = n === 4 ? 'none' : '';
+  window.scrollTo(0, 0);
+}
+function next() { maxStep = Math.max(maxStep, cur + 1); goStep(cur + 1); }
+function pick(el) {
+  el.parentNode.querySelectorAll('.pick').forEach(function (p) { p.classList.remove('on'); });
+  el.classList.add('on');
+}
+function batchJd(v) {
+  var n = 0;
+  document.querySelectorAll('.ck:checked').forEach(function (c) {
+    var sel = c.closest('tr').querySelector('.jd');
+    for (var i = 0; i < sel.options.length; i++) if (sel.options[i].text === v) sel.selectedIndex = i;
+    n++;
+  });
+  PMS.toast('已将勾选的 ' + n + ' 卷批量设为「' + v + '」', 'success');
+}
+function togglePart() {
+  document.getElementById('partBox').style.display =
+    (document.getElementById('spRs').value === '部分同意') ? '' : 'none';
+}
+function toggleCheck() {
+  passed = !passed;
+  var panel = document.getElementById('ckPanel');
+  var r2 = document.getElementById('ck2'), r3 = document.getElementById('ck3');
+  var btn = document.getElementById('btnDestroy'), tip = document.getElementById('destroyTip');
+  panel.classList.toggle('locked', !passed);
+  r2.className = 'ck-row ' + (passed ? 'pass' : 'fail');
+  r3.className = 'ck-row ' + (passed ? 'pass' : 'fail');
+  r2.querySelector('.ic i').className = passed ? 'fa-solid fa-check' : 'fa-solid fa-xmark';
+  r3.querySelector('.ic i').className = passed ? 'fa-solid fa-check' : 'fa-solid fa-xmark';
+  document.getElementById('ck2rs').innerHTML = passed
+    ? '<span class="badge green">通过</span>' : '<span class="badge red">未通过</span>';
+  document.getElementById('ck3rs').innerHTML = passed
+    ? '<span class="badge green">通过</span>' : '<span class="badge red">未通过</span>';
+  document.getElementById('ck2ds').innerHTML = passed
+    ? '备份编号 <b class="no-code">BF2026080101</b>，全量备份 486 卷 / 12,846 件 / 86.42 GB，介质：磁盘阵列 + 异地机房双份，校验值一致。'
+    : '备份任务 <b class="no-code">BF2026080101</b> 仅完成 62.4%（303 卷 / 486 卷），剩余 183 卷尚未备份。';
+  document.getElementById('ck3ds').innerHTML = passed
+    ? '2026-07-30 完成恢复验证，抽验比例 1%，抽验 128 件全部成功恢复，结果「可恢复」，校验值一致。'
+    : '备份未完成，恢复验证尚未执行，恢复验证结果为「未验证」。';
+  document.getElementById('ckState').innerHTML = passed
+    ? '<span class="badge green">3 / 3 通过，已解锁</span>' : '<span class="badge red">1 / 3 通过，已拦截</span>';
+  document.getElementById('lockTip').style.display = passed ? 'none' : '';
+  btn.disabled = !passed;
+  btn.style.opacity = passed ? '' : '.55';
+  btn.style.cursor = passed ? '' : 'not-allowed';
+  tip.textContent = passed ? '三项校验已全部通过，销毁按钮已解锁' : '电子影像备份未完成或未通过恢复验证，不允许执行销毁';
+  tip.className = passed ? 'text-3 text-sm' : 'text-danger text-sm fw-600';
+  document.getElementById('btnSim').innerHTML = passed
+    ? '<i class="fa-solid fa-arrows-rotate"></i> 演示：切换到备份未完成状态'
+    : '<i class="fa-solid fa-arrows-rotate"></i> 演示：切换到全部通过状态';
+}
+function openDestroy() {
+  if (!passed) { PMS.toast('电子影像备份未完成或未通过恢复验证，不允许执行销毁', 'error'); return; }
+  document.getElementById('typeIn').value = '';
+  checkType();
+  PMS.openModal('mdDestroy');
+}
+function checkType() {
+  var ok = document.getElementById('typeIn').value.trim() === '确认销毁';
+  var b = document.getElementById('btnDoDestroy');
+  b.disabled = !ok;
+  document.getElementById('typeTip').textContent = ok
+    ? '校验通过，可执行销毁' : '键入完全一致后「确认执行销毁」按钮方可点击';
+}
+function doDestroy() {
+  PMS.closeModal('mdDestroy');
+  document.getElementById('okCard').style.display = '';
+  document.getElementById('btnDestroy').disabled = true;
+  PMS.toast('销毁已执行：486 卷档案状态置为「已销毁」，库位已释放，销毁凭证已留存', 'success');
+  setTimeout(function () {
+    document.getElementById('okCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 260);
+}
+(function () {
+  var st = parseInt(new URLSearchParams(location.search).get('step'), 10);
+  if (st >= 1 && st <= 4) { maxStep = 4; goStep(st); }
+})();
+</script>
+</body>
+</html>

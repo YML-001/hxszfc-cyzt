@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数据总览 · 房产交易数据中心</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 数据中心总览头图：全系统数据体量 */
+  .dc-hero {
+    display: flex; align-items: center; justify-content: space-between; gap: 20px;
+    padding: 18px 22px; margin-bottom: 8px; border-radius: var(--radius-lg); color: #fff;
+    background: linear-gradient(125deg, #0a2f7a 0%, #123fa8 46%, #2656bb 100%);
+    box-shadow: 0 10px 26px rgba(11, 40, 107, .22);
+  }
+  .dc-hero .dh-title { font-size: 19px; font-weight: 700; letter-spacing: .5px; }
+  .dc-hero .dh-sub { font-size: 12.5px; opacity: .85; margin-top: 5px; line-height: 1.5; }
+  .dc-hero .dh-r { display: flex; align-items: center; gap: 22px; flex-shrink: 0; }
+  .dc-hero .dh-s { text-align: center; }
+  .dc-hero .dh-v { font-size: 24px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .dc-hero .dh-v small { font-size: 13px; font-weight: 600; margin-left: 2px; }
+  .dc-hero .dh-l { font-size: 12px; opacity: .82; margin-top: 4px; }
+  .dc-hero .dh-div { width: 1px; height: 40px; background: rgba(255, 255, 255, .22); }
+
+  /* 折线/柱状趋势图 */
+  .ov-chart { width: 100%; }
+  .ov-chart svg { width: 100%; height: 230px; display: block; }
+  .ov-chart .grid line { stroke: var(--border); stroke-width: 1; }
+  .ov-chart .bar { fill: url(#dcGrad); }
+  .ov-chart .line { fill: none; stroke: #f59e0b; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .ov-chart .dot { fill: #fff; stroke: #f59e0b; stroke-width: 2; }
+  .ov-chart .xlbl { fill: var(--text-3); font-size: 10.5px; text-anchor: middle; }
+  .ov-chart .ylbl { fill: var(--text-3); font-size: 10.5px; text-anchor: end; }
+
+  /* 水平占比条 */
+  .ov-dist { display: flex; flex-direction: column; gap: 12px; padding: 4px 2px; }
+  .ov-dist .db-row { display: grid; grid-template-columns: 130px 1fr 96px; align-items: center; gap: 10px; }
+  .ov-dist .db-name { font-size: 12.5px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ov-dist .db-track { height: 12px; border-radius: 6px; background: var(--bg-soft); overflow: hidden; }
+  .ov-dist .db-fill { height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--primary) 0%, #6ea8ff 100%); }
+  .ov-dist .db-val { font-size: 12px; color: var(--text-3); text-align: right; font-variant-numeric: tabular-nums; }
+  .ov-legend { font-size: 12px; color: var(--text-3); display: flex; gap: 16px; align-items: center; }
+  .ov-legend i { font-style: normal; display: inline-flex; align-items: center; gap: 5px; }
+  .ov-legend .dot-b { width: 9px; height: 9px; border-radius: 2px; background: var(--primary); display: inline-block; }
+  .ov-legend .dot-l { width: 12px; height: 3px; border-radius: 2px; background: #f59e0b; display: inline-block; }
+</style>
+</head>
+<body data-role="admin" data-active="wsdata-01">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房产交易数据中心
+        <span class="sep">/</span> <span class="cur">数据总览</span>
+      </div>
+      <div class="page-title">数据总览</div>
+    </div>
+    <div class="ph-r">
+      <span class="text-3" style="font-size:12.5px;margin-right:10px"><i class="fa-regular fa-clock"></i> 数据截至 <b id="upTime">—</b></span>
+      <button class="btn" onclick="PMS.toast('已触发全库数据刷新，预计 5 分钟完成')"><i class="fa-solid fa-rotate"></i> 刷新</button>
+    </div>
+  </div>
+
+  <!-- 全系统数据体量头图 -->
+  <div class="dc-hero">
+    <div class="dh-l">
+      <div class="dh-title"><i class="fa-solid fa-database"></i> 全市房产交易数据资产 · 一数一源</div>
+      <div class="dh-sub">汇聚全平台业务系统与不动产、税务、大数据、测绘、银行等外部数据，统一治理、统一口径、统一服务</div>
+    </div>
+    <div class="dh-r">
+      <div class="dh-s"><div class="dh-v" id="hRows">—</div><div class="dh-l">累计归集数据（行）</div></div>
+      <div class="dh-div"></div>
+      <div class="dh-s"><div class="dh-v" id="hLibs">—</div><div class="dh-l">主题库 / 库表</div></div>
+      <div class="dh-div"></div>
+      <div class="dh-s"><div class="dh-v" id="hApi">—</div><div class="dh-l">共享接口</div></div>
+    </div>
+  </div>
+
+  <!-- 关键指标 -->
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-layer-group"></i></div>
+      <div>
+        <div class="s-label">今日新增归集</div>
+        <div class="s-value" id="kToday">—</div>
+        <div class="s-trend text-2" id="kTodayS">—</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div>
+        <div class="s-label">数据质量合格率</div>
+        <div class="s-value" id="kQuality">—</div>
+        <div class="s-trend text-success" id="kQualityS">—</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-share-nodes"></i></div>
+      <div>
+        <div class="s-label">今日共享交换调用</div>
+        <div class="s-value" id="kShare">—</div>
+        <div class="s-trend text-2" id="kShareS">—</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-plug-circle-bolt"></i></div>
+      <div>
+        <div class="s-label">接口在线率</div>
+        <div class="s-value" id="kApi">—</div>
+        <div class="s-trend text-warning" id="kApiS">—</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-paper-plane"></i></div>
+      <div>
+        <div class="s-label">上级报送完成率</div>
+        <div class="s-value" id="kReport">—</div>
+        <div class="s-trend text-2" id="kReportS">—</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div>
+        <div class="s-label">待处理数据问题</div>
+        <div class="s-value" id="kIssue">—</div>
+        <div class="s-trend text-2" id="kIssueS">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 归集趋势 + 主题库占比 -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-chart-column"></i> 近 12 月数据归集趋势</h3>
+        <div class="ov-legend"><i><span class="dot-b"></span>月新增（万行）</i><i><span class="dot-l"></span>累计（亿行）</i></div>
+      </div>
+      <div class="card-body"><div class="ov-chart" id="trend"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-cubes"></i> 各主题库数据量占比</h3>
+        <span class="sub">按存量行数</span>
+      </div>
+      <div class="card-body"><div class="ov-dist" id="libDist"></div></div>
+    </div>
+  </div>
+
+  <!-- 数据来源分布 + 主题库概览 -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-diagram-project"></i> 数据来源分布</h3>
+        <span class="sub">本级业务 + 跨部门汇聚</span>
+      </div>
+      <div class="card-body"><div class="ov-dist" id="srcDist"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-table-cells-large"></i> 主题库概览</h3>
+        <span class="sub">8 大主题库运行情况</span>
+      </div>
+      <div class="card-body">
+        <div class="table-wrap" style="max-height:300px">
+          <table class="data-table compact" data-static>
+            <thead><tr><th>主题库</th><th class="num">库表</th><th class="num">数据量（行）</th><th>更新周期</th><th class="num">质量</th></tr></thead>
+            <tbody id="libBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 接口监控 + 上级报送 -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-wave-square"></i> 共享交换接口运行监控</h3>
+        <span class="sub">今日 · 实时</span>
+      </div>
+      <div class="card-body">
+        <div class="table-wrap" style="max-height:288px">
+          <table class="data-table compact" data-static>
+            <thead><tr><th class="cell-lg">接口</th><th>方向</th><th class="num">今日调用</th><th class="num">成功率</th><th>状态</th></tr></thead>
+            <tbody id="apiBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-cloud-arrow-up"></i> 上级报送与联网上报</h3>
+        <span class="sub">按报送口径</span>
+      </div>
+      <div class="card-body">
+        <div class="table-wrap" style="max-height:288px">
+          <table class="data-table compact" data-static>
+            <thead><tr><th class="cell-lg">报送任务</th><th>频率</th><th>本期状态</th><th class="num">及时率</th></tr></thead>
+            <tbody id="repBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  /* ---------- 全系统数据（静态原型：稳定、可讲解） ---------- */
+  var UP = '2026-08-01 04:38';
+
+  var LIBS = [
+    { name: '商品房交易主题库', code: 'ZT_SP', tables: 12, rows: 49240000, cycle: '日 03:00', q: 99.2 },
+    { name: '存量房交易主题库', code: 'ZT_CL', tables: 8,  rows: 25166000, cycle: '日 03:00', q: 98.9 },
+    { name: '房屋租赁主题库',   code: 'ZT_ZL', tables: 7,  rows: 11452000, cycle: '日 03:10', q: 98.1 },
+    { name: '资金监管主题库',   code: 'ZT_ZJ', tables: 6,  rows: 86790000, cycle: '日 03:20', q: 99.6 },
+    { name: '项目与楼盘主题库', code: 'ZT_XM', tables: 9,  rows: 2093000,  cycle: '日 03:00', q: 99.0 },
+    { name: '市场主体与信用库', code: 'ZT_ZT', tables: 8,  rows: 388420,   cycle: '日 03:15', q: 97.4 },
+    { name: '档案与查询主题库', code: 'ZT_DA', tables: 5,  rows: 99100000, cycle: '日 04:00', q: 98.7 },
+    { name: '统计指标主题库',   code: 'ZT_TJ', tables: 8,  rows: 156000,   cycle: '日 04:30', q: 99.8 }
+  ];
+
+  var SRC = [
+    { name: '本级业务系统', rows: 165200000, memo: '网签/备案/资金/租赁' },
+    { name: '不动产登记（自然资源）', rows: 42600000, memo: '产权/登记' },
+    { name: '税务', rows: 18600000, memo: '完税/核税' },
+    { name: '大数据局共享', rows: 12800000, memo: '人口/法人/电子证照' },
+    { name: '房产测绘（EPCAD）', rows: 6800000, memo: '面积/图形' },
+    { name: '银行 / 公积金', rows: 24800000, memo: '资金对账/贷款' },
+    { name: '民政 / 公安', rows: 3480000, memo: '婚姻/身份核验' }
+  ];
+
+  var API = [
+    { name: '不动产登记查询接口', dir: '入', calls: 128400, ok: 99.98, st: 'ok' },
+    { name: '大数据局共享交换接口', dir: '双向', calls: 96200, ok: 99.90, st: 'ok' },
+    { name: '龙城市民云推送接口', dir: '出', calls: 62300, ok: 99.99, st: 'ok' },
+    { name: '税务完税信息接口', dir: '入', calls: 42600, ok: 99.95, st: 'ok' },
+    { name: '全国网签备案联网上报', dir: '出', calls: 12860, ok: 100, st: 'ok' },
+    { name: '银行资金监管对账接口', dir: '双向', calls: 8420, ok: 99.20, st: 'warn' }
+  ];
+
+  var REP = [
+    { name: '全国房地产市场监测（住建部）', freq: 'T+1', st: 'done', rate: 100 },
+    { name: '国家网签备案联网上报', freq: '实时', st: 'sync', rate: 99.97 },
+    { name: '自治区房产交易信息日报', freq: '日报', st: 'done', rate: 100 },
+    { name: '统计局月度报表（8月）', freq: '月报', st: 'doing', rate: 98.5 }
+  ];
+
+  /* 近 12 月：月新增（万行）与累计（亿行） */
+  var MONTH_ADD = [1820, 1760, 1980, 2140, 2260, 2410, 2280, 2520, 2680, 2740, 2860, 3020];
+
+  /* ---------- 工具 ---------- */
+  function group(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+  function human(n) {
+    if (n >= 1e8) return (n / 1e8).toFixed(2) + ' 亿';
+    if (n >= 1e4) return (n / 1e4).toFixed(n >= 1e6 ? 0 : 1) + ' 万';
+    return group(n);
+  }
+
+  var totalRows = LIBS.reduce(function (s, x) { return s + x.rows; }, 0);
+  var totalTables = LIBS.reduce(function (s, x) { return s + x.tables; }, 0);
+
+  /* ---------- 头图与指标 ---------- */
+  function paintHead() {
+    document.getElementById('upTime').textContent = UP;
+    document.getElementById('hRows').innerHTML = (totalRows / 1e8).toFixed(2) + '<small> 亿</small>';
+    document.getElementById('hLibs').innerHTML = LIBS.length + '<small> / ' + totalTables + '</small>';
+    document.getElementById('hApi').innerHTML = '28<small> 个</small>';
+
+    set('kToday', '302 万', 'kTodayS', '较昨日 +6.2%');
+    set('kQuality', '98.6%', 'kQualityS', '<i class="fa-solid fa-arrow-up"></i> 环比 +0.4%');
+    set('kShare', '42.8 万', 'kShareS', '成功率 99.97%');
+    set('kApi', '27 / 28', 'kApiS', '1 个降级（银行对账）');
+    set('kReport', '100%', 'kReportS', '全国联网上报 T+1');
+    set('kIssue', '23', 'kIssueS', '质量/空值/重复，待治理');
+  }
+  function set(v, val, s, sub) {
+    document.getElementById(v).textContent = val;
+    document.getElementById(s).innerHTML = sub;
+  }
+
+  /* ---------- 归集趋势（柱=月新增，折线=累计） ---------- */
+  function paintTrend() {
+    var days = [];
+    var now = new Date('2026-08-01');
+    for (var i = 11; i >= 0; i--) {
+      var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      days.push((d.getMonth() + 1) + '月');
+    }
+    /* 累计（亿行）：以当前总量倒推 */
+    var cum = [], acc = totalRows / 1e8;
+    var addSum = MONTH_ADD.reduce(function (s, x) { return s + x; }, 0);
+    var startAcc = acc - addSum / 1e4; /* 万行->亿行 */
+    var run = startAcc;
+    MONTH_ADD.forEach(function (m) { run += m / 1e4; cum.push(run); });
+
+    var W = 660, H = 230, padL = 46, padR = 40, padT = 16, padB = 26;
+    var iw = W - padL - padR, ih = H - padT - padB;
+    var maxAdd = Math.max.apply(null, MONTH_ADD) * 1.2;
+    var maxCum = Math.max.apply(null, cum) * 1.08;
+    var n = MONTH_ADD.length, bw = iw / n * 0.52, step = iw / n;
+
+    var grid = '', g;
+    for (g = 0; g <= 4; g++) {
+      var gy = padT + ih - (ih / 4) * g;
+      grid += '<line x1="' + padL + '" y1="' + gy.toFixed(1) + '" x2="' + (W - padR) + '" y2="' + gy.toFixed(1) + '"></line>';
+      grid += '<text class="ylbl" x="' + (padL - 8) + '" y="' + (gy + 4).toFixed(1) + '">' + Math.round(maxAdd / 4 * g) + '</text>';
+    }
+    var bars = '', xl = '', dots = '', linePts = [];
+    MONTH_ADD.forEach(function (v, i) {
+      var cx = padL + step * i + step / 2;
+      var bh = (v / maxAdd) * ih;
+      var by = padT + ih - bh;
+      bars += '<rect class="bar" x="' + (cx - bw / 2).toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="3"></rect>';
+      xl += '<text class="xlbl" x="' + cx.toFixed(1) + '" y="' + (H - 8) + '">' + days[i] + '</text>';
+      var ly = padT + ih - (cum[i] / maxCum) * ih;
+      linePts.push({ x: cx, y: ly });
+    });
+    var line = linePts.map(function (p, i) { return (i ? 'L' : 'M') + p.x.toFixed(1) + ' ' + p.y.toFixed(1); }).join(' ');
+    dots = linePts.map(function (p) { return '<circle class="dot" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="3"></circle>'; }).join('');
+
+    document.getElementById('trend').innerHTML =
+      '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' +
+      '<defs><linearGradient id="dcGrad" x1="0" y1="0" x2="0" y2="1">' +
+        '<stop offset="0" stop-color="#2656bb"></stop><stop offset="1" stop-color="#6ea8ff"></stop>' +
+      '</linearGradient></defs>' +
+      '<g class="grid">' + grid + '</g>' + bars +
+      '<path class="line" d="' + line + '"></path>' + dots + xl + '</svg>';
+  }
+
+  /* ---------- 主题库占比条 ---------- */
+  function paintLibDist() {
+    var arr = LIBS.slice().sort(function (a, b) { return b.rows - a.rows; });
+    var max = arr[0].rows;
+    document.getElementById('libDist').innerHTML = arr.map(function (x) {
+      var pct = Math.max(4, Math.round(x.rows / max * 100));
+      var share = (x.rows / totalRows * 100).toFixed(1);
+      return '<div class="db-row"><div class="db-name" title="' + x.name + '">' + x.name + '</div>' +
+        '<div class="db-track"><div class="db-fill" style="width:' + pct + '%"></div></div>' +
+        '<div class="db-val">' + human(x.rows) + ' · ' + share + '%</div></div>';
+    }).join('');
+  }
+
+  /* ---------- 数据来源分布条 ---------- */
+  function paintSrcDist() {
+    var arr = SRC.slice().sort(function (a, b) { return b.rows - a.rows; });
+    var max = arr[0].rows;
+    var total = SRC.reduce(function (s, x) { return s + x.rows; }, 0);
+    document.getElementById('srcDist').innerHTML = arr.map(function (x) {
+      var pct = Math.max(4, Math.round(x.rows / max * 100));
+      var share = (x.rows / total * 100).toFixed(1);
+      return '<div class="db-row"><div class="db-name" title="' + x.name + '（' + x.memo + '）">' + x.name + '</div>' +
+        '<div class="db-track"><div class="db-fill" style="width:' + pct + '%;background:linear-gradient(90deg,#0891b2 0%,#67d5e8 100%)"></div></div>' +
+        '<div class="db-val">' + human(x.rows) + ' · ' + share + '%</div></div>';
+    }).join('');
+  }
+
+  /* ---------- 主题库概览表 ---------- */
+  function paintLibTable() {
+    document.getElementById('libBody').innerHTML = LIBS.map(function (x) {
+      var qc = x.q >= 99 ? 'green' : (x.q >= 98 ? 'blue' : 'orange');
+      return '<tr><td>' + x.name + ' <code>' + x.code + '</code></td>' +
+        '<td class="num">' + x.tables + '</td>' +
+        '<td class="num nowrap">' + group(x.rows) + '</td>' +
+        '<td class="nowrap">' + x.cycle + '</td>' +
+        '<td class="num"><span class="badge ' + qc + '">' + x.q + '%</span></td></tr>';
+    }).join('');
+  }
+
+  /* ---------- 接口监控表 ---------- */
+  function paintApi() {
+    var dirBadge = { '入': 'blue', '出': 'cyan', '双向': 'purple' };
+    document.getElementById('apiBody').innerHTML = API.map(function (x) {
+      var st = x.st === 'ok'
+        ? '<span class="badge green">正常</span>'
+        : '<span class="badge orange">降级</span>';
+      return '<tr><td class="cell-lg">' + x.name + '</td>' +
+        '<td><span class="badge ' + (dirBadge[x.dir] || 'gray') + '">' + x.dir + '</span></td>' +
+        '<td class="num nowrap">' + group(x.calls) + '</td>' +
+        '<td class="num">' + x.ok.toFixed(2) + '%</td>' +
+        '<td>' + st + '</td></tr>';
+    }).join('');
+  }
+
+  /* ---------- 上级报送表 ---------- */
+  function paintRep() {
+    var stMap = {
+      done: '<span class="badge green">已报送</span>',
+      sync: '<span class="badge blue">同步中</span>',
+      doing: '<span class="badge orange">进行中</span>'
+    };
+    document.getElementById('repBody').innerHTML = REP.map(function (x) {
+      return '<tr><td class="cell-lg">' + x.name + '</td>' +
+        '<td class="nowrap">' + x.freq + '</td>' +
+        '<td>' + (stMap[x.st] || '—') + '</td>' +
+        '<td class="num">' + x.rate + '%</td></tr>';
+    }).join('');
+  }
+
+  paintHead();
+  paintTrend();
+  paintLibDist();
+  paintSrcDist();
+  paintLibTable();
+  paintApi();
+  paintRep();
+})();
+</script>
+</body>
+</html>

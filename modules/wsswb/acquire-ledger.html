@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>收购台账与配售配租衔接 · 新建商品房网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：付款进度与封闭流转限制标 */
+  .pg { display: flex; align-items: center; gap: 8px; min-width: 120px; }
+  .pg .progress { flex: 1; display: block; min-width: 56px; }
+  .pg b { font-variant-numeric: tabular-nums; font-size: 12.5px; width: 42px; text-align: right; }
+  .cond-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  tr.row-blue td:first-child { box-shadow: inset 3px 0 0 var(--primary); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsswb-21">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房网签备案管理系统
+        <span class="sep">/</span> <a class="link" href="acquire-collect.html">存量房收购</a>
+        <span class="sep">/</span> <span class="cur">收购台账</span>
+      </div>
+      <div class="page-title">收购台账与配售配租衔接</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" data-open-drawer="dwAdd"><i class="fa-solid fa-plus"></i> 新增收购登记</button>
+      <button type="button" class="btn" onclick="location.href='acquire-collect.html'"><i class="fa-solid fa-arrow-left"></i> 返回征集</button>
+      <button type="button" class="btn" onclick="location.href='policy-list.html'">政策性住房备案</button>
+      <button type="button" class="btn" onclick="PMS.toast('《收购台账》Excel 已生成','success')"><i class="fa-solid fa-download"></i> 导出台账</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-folder-open"></i></div>
+      <div><div class="s-label">收购项目</div><div class="s-value">18</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-building"></i></div>
+      <div><div class="s-label">收购房源</div><div class="s-value">942</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-coins"></i></div>
+      <div><div class="s-label">收购金额</div><div class="s-value">5.86 亿</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-money-bill-transfer"></i></div>
+      <div><div class="s-label">已付款</div><div class="s-value">4.12 亿</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-percent"></i></div>
+      <div><div class="s-label">付款进度</div><div class="s-value">70.3%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-right-left"></i></div>
+      <div><div class="s-label">已过户 / 已转保障房</div><div class="s-value">786</div><div class="s-trend text-3">转保障 642</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-lock"></i>
+    <div>转作保障性住房后登记封闭流转限制并回写交易限制状态，网签时拦截；上市须满年限、补缴土地收益、政府放弃优先回购三项齐备。收购资金来源须封闭流转，专项债券 / 再贷款 / 财政资金不得挪用。</div>
+  </div>
+
+  <div class="card">
+    <div class="tabs" id="alTabs">
+      <div class="tab active" data-tab="t1">收购台账</div>
+      <div class="tab" data-tab="t2">配售配租衔接</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="t1">
+      <div class="filter-bar">
+        <div class="filter-item"><label>收购项目</label><input type="text" placeholder="项目名称关键词"></div>
+        <div class="filter-item"><label>收购主体</label><select><option value="">全部</option><option>政府平台公司</option><option>国有企业</option></select></div>
+        <div class="filter-item"><label>资金来源</label><select><option value="">全部</option><option>专项债券</option><option>保障性住房再贷款</option><option>财政资金</option></select></div>
+        <div class="filter-item"><label>付款状态</label><select><option value="">全部</option><option>已付清</option><option>付款中</option><option>未付款</option></select></div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 18 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="tb1" data-static>
+          <thead>
+            <tr>
+              <th>收购项目</th>
+              <th>收购主体</th>
+              <th>房源套数 / 面积</th>
+              <th class="num">收购单价（元/㎡）</th>
+              <th class="num">收购总价（万元）</th>
+              <th>签约日期</th>
+              <th>付款进度</th>
+              <th>资金来源</th>
+              <th>过户情况</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="nowrap fw-600">彰泰滨江学府（二期）收购</td>
+              <td class="nowrap">XXXX市城投集团（平台）</td>
+              <td class="nowrap">86 套 / 9,862㎡</td>
+              <td class="num nowrap">6,680</td>
+              <td class="num nowrap">6,588</td>
+              <td class="nowrap">2026-07-28</td>
+              <td><div class="pg"><span class="progress green"><span style="width:70%"></span></span><b>70%</b></div></td>
+              <td class="nowrap"><span class="badge blue">专项债券</span></td>
+              <td class="nowrap"><span class="badge orange">过户中 52/86</span></td>
+              <td class="col-ops"><span class="link" onclick="openRooms('彰泰滨江学府（二期）')">房源明细</span><span class="link" onclick="openPay('彰泰滨江学府（二期）')">付款明细</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">荣和公园大道收购</td>
+              <td class="nowrap">XXXX市保障房建设投资有限公司</td>
+              <td class="nowrap">120 套 / 9,240㎡</td>
+              <td class="num nowrap">6,360</td>
+              <td class="num nowrap">5,876</td>
+              <td class="nowrap">2026-07-20</td>
+              <td><div class="pg"><span class="progress green"><span style="width:100%"></span></span><b>100%</b></div></td>
+              <td class="nowrap"><span class="badge cyan">保障性住房再贷款</span></td>
+              <td class="nowrap"><span class="badge green">已过户 120/120</span></td>
+              <td class="col-ops"><span class="link" onclick="openRooms('荣和公园大道')">房源明细</span><span class="link" onclick="openPay('荣和公园大道')">付款明细</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">龙光玖誉城（四期）收购</td>
+              <td class="nowrap">XXXX市城投集团（平台）</td>
+              <td class="nowrap">96 套 / 7,680㎡</td>
+              <td class="num nowrap">6,280</td>
+              <td class="num nowrap">4,823</td>
+              <td class="nowrap">2026-07-08</td>
+              <td><div class="pg"><span class="progress orange"><span style="width:40%"></span></span><b>40%</b></div></td>
+              <td class="nowrap"><span class="badge blue">专项债券</span></td>
+              <td class="nowrap"><span class="badge gray">未过户</span></td>
+              <td class="col-ops"><span class="link" onclick="openRooms('龙光玖誉城（四期）')">房源明细</span><span class="link" onclick="openPay('龙光玖誉城（四期）')">付款明细</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">华润幸福里收购</td>
+              <td class="nowrap">XXXX市保障房建设投资有限公司</td>
+              <td class="nowrap">64 套 / 5,120㎡</td>
+              <td class="num nowrap">6,820</td>
+              <td class="num nowrap">3,492</td>
+              <td class="nowrap">2026-06-26</td>
+              <td><div class="pg"><span class="progress green"><span style="width:80%"></span></span><b>80%</b></div></td>
+              <td class="nowrap"><span class="badge purple">财政资金</span></td>
+              <td class="nowrap"><span class="badge orange">过户中 48/64</span></td>
+              <td class="col-ops"><span class="link" onclick="openRooms('华润幸福里')">房源明细</span><span class="link" onclick="openPay('华润幸福里')">付款明细</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">保利大江郡收购</td>
+              <td class="nowrap">XXXX市东城投资开发集团</td>
+              <td class="nowrap">52 套 / 5,720㎡</td>
+              <td class="num nowrap">6,960</td>
+              <td class="num nowrap">3,981</td>
+              <td class="nowrap">2026-06-18</td>
+              <td><div class="pg"><span class="progress green"><span style="width:60%"></span></span><b>60%</b></div></td>
+              <td class="nowrap"><span class="badge cyan">保障性住房再贷款</span></td>
+              <td class="nowrap"><span class="badge orange">过户中 20/52</span></td>
+              <td class="col-ops"><span class="link" onclick="openRooms('保利大江郡')">房源明细</span><span class="link" onclick="openPay('保利大江郡')">付款明细</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">桂中华府收购</td>
+              <td class="nowrap">XXXX市城市投资建设发展有限公司</td>
+              <td class="nowrap">36 套 / 1,980㎡</td>
+              <td class="num nowrap">6,120</td>
+              <td class="num nowrap">1,212</td>
+              <td class="nowrap">2026-06-08</td>
+              <td><div class="pg"><span class="progress green"><span style="width:100%"></span></span><b>100%</b></div></td>
+              <td class="nowrap"><span class="badge purple">财政资金</span></td>
+              <td class="nowrap"><span class="badge green">已过户 36/36</span></td>
+              <td class="col-ops"><span class="link" onclick="openRooms('桂中华府')">房源明细</span><span class="link" onclick="openPay('桂中华府')">付款明细</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">柳州万科城（五期）收购</td>
+              <td class="nowrap">XXXX市城投集团（平台）</td>
+              <td class="nowrap">40 套 / 4,480㎡</td>
+              <td class="num nowrap">7,080</td>
+              <td class="num nowrap">3,172</td>
+              <td class="nowrap">2026-05-28</td>
+              <td><div class="pg"><span class="progress green"><span style="width:50%"></span></span><b>50%</b></div></td>
+              <td class="nowrap"><span class="badge blue">专项债券</span></td>
+              <td class="nowrap"><span class="badge gray">未过户</span></td>
+              <td class="col-ops"><span class="link" onclick="openRooms('柳州万科城（五期）')">房源明细</span><span class="link" onclick="openPay('柳州万科城（五期）')">付款明细</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">中海寰宇天下收购</td>
+              <td class="nowrap">XXXX市保障房建设投资有限公司</td>
+              <td class="nowrap">44 套 / 4,840㎡</td>
+              <td class="num nowrap">6,760</td>
+              <td class="num nowrap">3,272</td>
+              <td class="nowrap">2026-05-16</td>
+              <td><div class="pg"><span class="progress green"><span style="width:90%"></span></span><b>90%</b></div></td>
+              <td class="nowrap"><span class="badge cyan">保障性住房再贷款</span></td>
+              <td class="nowrap"><span class="badge orange">过户中 40/44</span></td>
+              <td class="col-ops"><span class="link" onclick="openRooms('中海寰宇天下')">房源明细</span><span class="link" onclick="openPay('中海寰宇天下')">付款明细</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">建发璟园收购（待签约）</td>
+              <td class="nowrap">XXXX市城投集团（平台）</td>
+              <td class="nowrap">40 套 / 4,200㎡</td>
+              <td class="num nowrap">6,500（拟）</td>
+              <td class="num nowrap">2,730</td>
+              <td class="nowrap text-3">—</td>
+              <td><div class="pg"><span class="progress"><span style="width:0%"></span></span><b>0%</b></div></td>
+              <td class="nowrap"><span class="badge blue">专项债券</span></td>
+              <td class="nowrap"><span class="badge gray">未签约</span></td>
+              <td class="col-ops"><span class="link" onclick="PMS.toast('权属抵押未解，暂不可签约','error')">房源明细</span><a class="link" href="acquire-collect.html">返回征集</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="t2">
+      <div class="alert alert-info">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>封闭流转限制回写交易限制状态后，网签时自动拦截；带蓝色左边线的行为限制中、网签拦截状态。</div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="tb2" data-static>
+          <thead>
+            <tr>
+              <th>房源</th>
+              <th>原收购项目</th>
+              <th>转换用途</th>
+              <th>转换依据 / 日期</th>
+              <th>封闭流转限制</th>
+              <th>解禁条件</th>
+              <th>交易限制回写</th>
+              <th>上市三项条件</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="row-blue">
+              <td class="nowrap fw-600">荣和公园大道 3-1-1002</td>
+              <td class="nowrap">荣和公园大道收购</td>
+              <td class="nowrap"><span class="badge purple">配售型保障性住房</span></td>
+              <td class="nowrap">柳建房〔2026〕32 号 · 2026-07-22</td>
+              <td class="nowrap"><span class="badge blue">封闭流转 · 网签拦截</span></td>
+              <td class="nowrap">满 5 年 + 补缴 + 政府放弃优先回购</td>
+              <td class="nowrap"><span class="badge green">已回写</span></td>
+              <td><div class="cond-row"><span class="badge red">未满年限</span><span class="badge gray">未补缴</span><span class="badge gray">未放弃</span></div></td>
+              <td class="col-ops"><span class="link" onclick="openUse('荣和公园大道 3-1-1002')">登记用途</span><span class="link" onclick="openListChk('荣和公园大道 3-1-1002')">校验上市条件</span></td>
+            </tr>
+            <tr class="row-blue">
+              <td class="nowrap fw-600">荣和公园大道 3-1-1006</td>
+              <td class="nowrap">荣和公园大道收购</td>
+              <td class="nowrap"><span class="badge cyan">保障性租赁住房</span></td>
+              <td class="nowrap">柳建房〔2026〕32 号 · 2026-07-22</td>
+              <td class="nowrap"><span class="badge blue">封闭流转 · 网签拦截</span></td>
+              <td class="nowrap">退出保租房用途后方可上市</td>
+              <td class="nowrap"><span class="badge green">已回写</span></td>
+              <td><div class="cond-row"><span class="badge red">未满年限</span><span class="badge gray">未补缴</span><span class="badge gray">未放弃</span></div></td>
+              <td class="col-ops"><span class="link" onclick="openUse('荣和公园大道 3-1-1006')">登记用途</span><span class="link" onclick="openListChk('荣和公园大道 3-1-1006')">校验上市条件</span></td>
+            </tr>
+            <tr class="row-blue">
+              <td class="nowrap fw-600">桂中华府 2-2-0501</td>
+              <td class="nowrap">桂中华府收购</td>
+              <td class="nowrap"><span class="badge purple">配售型保障性住房</span></td>
+              <td class="nowrap">柳建房〔2026〕28 号 · 2026-06-18</td>
+              <td class="nowrap"><span class="badge blue">封闭流转 · 网签拦截</span></td>
+              <td class="nowrap">满 5 年 + 补缴 + 政府放弃优先回购</td>
+              <td class="nowrap"><span class="badge green">已回写</span></td>
+              <td><div class="cond-row"><span class="badge red">未满年限</span><span class="badge gray">未补缴</span><span class="badge gray">未放弃</span></div></td>
+              <td class="col-ops"><span class="link" onclick="openUse('桂中华府 2-2-0501')">登记用途</span><span class="link" onclick="openListChk('桂中华府 2-2-0501')">校验上市条件</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">华润幸福里 5-1-1202</td>
+              <td class="nowrap">华润幸福里收购</td>
+              <td class="nowrap"><span class="badge purple">配售型保障性住房</span></td>
+              <td class="nowrap">柳建房〔2026〕30 号 · 2026-07-02</td>
+              <td class="nowrap"><span class="badge blue">封闭流转 · 网签拦截</span></td>
+              <td class="nowrap">满 5 年 + 补缴 + 政府放弃优先回购</td>
+              <td class="nowrap"><span class="badge green">已回写</span></td>
+              <td><div class="cond-row"><span class="badge red">未满年限</span><span class="badge gray">未补缴</span><span class="badge gray">未放弃</span></div></td>
+              <td class="col-ops"><span class="link" onclick="openUse('华润幸福里 5-1-1202')">登记用途</span><span class="link" onclick="openListChk('华润幸福里 5-1-1202')">校验上市条件</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">彰泰滨江学府 12-1-0802</td>
+              <td class="nowrap">彰泰滨江学府（二期）收购</td>
+              <td class="nowrap"><span class="badge orange">待转换</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap"><span class="badge gray">未设限</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="nowrap"><span class="badge gray">未回写</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="col-ops"><span class="link" onclick="openUse('彰泰滨江学府 12-1-0802')">登记用途</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">中海寰宇天下 2-1-0802</td>
+              <td class="nowrap">中海寰宇天下收购</td>
+              <td class="nowrap"><span class="badge cyan">保障性租赁住房</span></td>
+              <td class="nowrap">柳建房〔2026〕26 号 · 2026-05-28</td>
+              <td class="nowrap"><span class="badge blue">封闭流转 · 网签拦截</span></td>
+              <td class="nowrap">退出保租房用途后方可上市</td>
+              <td class="nowrap"><span class="badge green">已回写</span></td>
+              <td><div class="cond-row"><span class="badge red">未满年限</span><span class="badge gray">未补缴</span><span class="badge gray">未放弃</span></div></td>
+              <td class="col-ops"><span class="link" onclick="openUse('中海寰宇天下 2-1-0802')">登记用途</span><span class="link" onclick="openListChk('中海寰宇天下 2-1-0802')">校验上市条件</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">保利大江郡 4-2-1601</td>
+              <td class="nowrap">保利大江郡收购</td>
+              <td class="nowrap"><span class="badge purple">配售型保障性住房</span></td>
+              <td class="nowrap">柳建房〔2026〕24 号 · 2026-06-26</td>
+              <td class="nowrap"><span class="badge blue">封闭流转 · 网签拦截</span></td>
+              <td class="nowrap">满 5 年 + 补缴 + 政府放弃优先回购</td>
+              <td class="nowrap"><span class="badge orange">回写中</span></td>
+              <td><div class="cond-row"><span class="badge red">未满年限</span><span class="badge gray">未补缴</span><span class="badge gray">未放弃</span></div></td>
+              <td class="col-ops"><span class="link" onclick="openUse('保利大江郡 4-2-1601')">登记用途</span><span class="link" onclick="openListChk('保利大江郡 4-2-1601')">校验上市条件</span></td>
+            </tr>
+            <tr>
+              <td class="nowrap fw-600">桂中华府 1-1-0302（示范解禁）</td>
+              <td class="nowrap">桂中华府收购（历史批次）</td>
+              <td class="nowrap"><span class="badge purple">配售型保障性住房</span></td>
+              <td class="nowrap">柳建房〔2020〕18 号 · 2020-06-18</td>
+              <td class="nowrap"><span class="badge green">已解禁</span></td>
+              <td class="nowrap">三项条件已齐备</td>
+              <td class="nowrap"><span class="badge green">已解除</span></td>
+              <td><div class="cond-row"><span class="badge green">满年限</span><span class="badge green">已补缴</span><span class="badge green">已放弃</span></div></td>
+              <td class="col-ops"><a class="link" href="policy-list.html">办理上市</a><span class="link" onclick="openListChk('桂中华府 1-1-0302')">校验上市条件</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="drawer-mask"></div>
+
+  <div class="drawer" id="dwPay">
+    <div class="drawer-head">
+      <h3>付款明细 · <span id="payPj">—</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-warning">
+        <i class="fa-solid fa-lock"></i>
+        <div>资金来源为专项债券，须封闭流转至收购专户，不得挪用于其他用途。</div>
+      </div>
+      <div class="timeline mt-16">
+        <div class="tl-item done"><div class="tl-dot"></div>
+          <div class="tl-title">首付款 40%</div>
+          <div class="tl-meta">2026-07-30 · 2,635.20 万元 · 已到账 · 专项债券专户</div>
+        </div>
+        <div class="tl-item done"><div class="tl-dot"></div>
+          <div class="tl-title">二期款 30%</div>
+          <div class="tl-meta">2026-08-15（计划）· 1,976.40 万元 · 待支付</div>
+        </div>
+        <div class="tl-item pending"><div class="tl-dot"></div>
+          <div class="tl-title">尾款 30%（过户后）</div>
+          <div class="tl-meta">过户完成后 10 个工作日内 · 1,976.40 万元</div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+    </div>
+  </div>
+
+  <div class="drawer drawer-lg" id="dwRooms">
+    <div class="drawer-head">
+      <h3>收购房源明细 · <span id="rmPj">—</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <table class="data-table compact">
+        <thead><tr><th>房号</th><th class="num">建筑面积（㎡）</th><th class="num">收购单价</th><th class="num">收购总价（万元）</th><th>过户状态</th><th>用途转换</th></tr></thead>
+        <tbody>
+          <tr><td class="nowrap">12-1-0802</td><td class="num nowrap">118.60</td><td class="num nowrap">6,680</td><td class="num nowrap">79.22</td><td class="nowrap"><span class="badge green">已过户</span></td><td class="nowrap"><span class="badge orange">待转换</span></td></tr>
+          <tr><td class="nowrap">12-1-0806</td><td class="num nowrap">118.60</td><td class="num nowrap">6,680</td><td class="num nowrap">79.22</td><td class="nowrap"><span class="badge green">已过户</span></td><td class="nowrap"><span class="badge purple">配售型</span></td></tr>
+          <tr><td class="nowrap">12-2-0902</td><td class="num nowrap">108.26</td><td class="num nowrap">6,680</td><td class="num nowrap">72.32</td><td class="nowrap"><span class="badge orange">过户中</span></td><td class="nowrap text-3">—</td></tr>
+          <tr><td class="nowrap">12-2-1002</td><td class="num nowrap">108.26</td><td class="num nowrap">6,680</td><td class="num nowrap">72.32</td><td class="nowrap"><span class="badge gray">未过户</span></td><td class="nowrap text-3">—</td></tr>
+          <tr><td class="nowrap">12-2-1102</td><td class="num nowrap">96.42</td><td class="num nowrap">6,680</td><td class="num nowrap">64.41</td><td class="nowrap"><span class="badge green">已过户</span></td><td class="nowrap"><span class="badge cyan">保租房</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+      <button type="button" class="btn" onclick="location.href='acquire-collect.html'">返回征集核验</button>
+    </div>
+  </div>
+
+  <div class="drawer" id="dwUse">
+    <div class="drawer-head">
+      <h3>登记转换用途 · <span id="useRm">—</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="form-grid form-align">
+        <div class="form-item col-full">
+          <label>转换用途<span class="req">*</span></label>
+          <div class="radio-line">
+            <label><input type="radio" name="use" value="ps" checked> 配售型保障性住房</label>
+            <label><input type="radio" name="use" value="zl"> 保障性租赁住房</label>
+          </div>
+        </div>
+        <div class="form-item"><label>转换依据文号<span class="req">*</span></label><input type="text" value="柳建房〔2026〕32 号"></div>
+        <div class="form-item"><label>转换日期<span class="req">*</span></label><input type="date" value="2026-07-31"></div>
+        <div class="form-item col-full">
+          <label>封闭流转限制<span class="req">*</span></label>
+          <div class="radio-line">
+            <label><input type="radio" name="lock" checked> 登记限制并回写交易限制（网签拦截）</label>
+          </div>
+        </div>
+      </div>
+      <div class="alert alert-warning mt-16">
+        <i class="fa-solid fa-lock"></i>
+        <div>提交后立即回写交易限制状态，商品房网签将拦截该房源对外销售。</div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer('dwUse');PMS.toast('用途已登记，封闭流转限制已回写，网签拦截生效','success')"><i class="fa-solid fa-paper-plane"></i> 提交登记</button>
+    </div>
+  </div>
+
+  <div class="drawer" id="dwListChk">
+    <div class="drawer-head">
+      <h3>上市交易条件校验 · <span id="lcRm">—</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <table class="data-table compact">
+        <thead><tr><th>条件</th><th>要求</th><th>实际</th><th>结论</th></tr></thead>
+        <tbody>
+          <tr><td class="nowrap">满年限</td><td class="nowrap">自转换日起满 5 年</td><td class="nowrap">尚差 3 年 11 个月</td><td class="nowrap"><span class="badge red">不满足</span></td></tr>
+          <tr><td class="nowrap">补缴土地收益</td><td class="nowrap">应缴部分须缴清</td><td class="nowrap">未核算</td><td class="nowrap"><span class="badge red">不满足</span></td></tr>
+          <tr><td class="nowrap">政府优先回购放弃</td><td class="nowrap">须出具放弃文件</td><td class="nowrap">未出具</td><td class="nowrap"><span class="badge red">不满足</span></td></tr>
+        </tbody>
+      </table>
+      <div class="alert alert-danger mt-16">
+        <i class="fa-solid fa-circle-xmark"></i>
+        <div>三项条件未齐备，<b>不予上市</b>；封闭流转限制继续有效，网签拦截。</div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+      <button type="button" class="btn" onclick="location.href='policy-list.html'">政策性住房上市</button>
+    </div>
+  </div>
+
+  <div class="drawer" id="dwAdd">
+    <div class="drawer-head">
+      <h3>新增收购登记</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="form-grid form-align">
+        <div class="form-item"><label>收购项目<span class="req">*</span></label>
+          <select><option>彰泰滨江学府（二期）</option><option>荣和公园大道</option><option>保利大江郡</option></select>
+        </div>
+        <div class="form-item"><label>收购主体<span class="req">*</span></label>
+          <select><option>政府平台公司 · XXXX市城投集团</option><option>国有企业 · XXXX市保障房建设投资有限公司</option></select>
+        </div>
+        <div class="form-item"><label>收购套数<span class="req">*</span></label><input type="number" value="86"></div>
+        <div class="form-item"><label>收购单价（元/㎡）<span class="req">*</span></label><input type="number" value="6680"></div>
+        <div class="form-item col-full">
+          <label>资金来源<span class="req">*</span></label>
+          <div class="radio-line">
+            <label><input type="radio" name="fund" checked> 专项债券</label>
+            <label><input type="radio" name="fund"> 保障性住房再贷款</label>
+            <label><input type="radio" name="fund"> 财政资金</label>
+          </div>
+        </div>
+        <div class="form-item"><label>签约日期<span class="req">*</span></label><input type="date" value="2026-07-31"></div>
+      </div>
+      <div class="alert alert-warning mt-16">
+        <i class="fa-solid fa-lock"></i>
+        <div>收购价不得高于收购限价；资金须进入收购专户封闭流转。</div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer('dwAdd');PMS.toast('收购登记已保存','success')"><i class="fa-solid fa-paper-plane"></i> 保存登记</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  document.getElementById('alTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var name = tab.getAttribute('data-tab');
+    document.querySelectorAll('#alTabs .tab').forEach(function (t) {
+      t.classList.toggle('active', t.getAttribute('data-tab') === name);
+    });
+    document.querySelectorAll('.tab-panel').forEach(function (p) {
+      p.classList.toggle('active', p.getAttribute('data-panel') === name);
+    });
+  });
+  [['tb1', 18], ['tb2', 642]].forEach(function (it) {
+    PMS.renderPager(document.getElementById(it[0]), {
+      pageNum: 1, pageSize: 20, total: it[1],
+      onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+    });
+  });
+})();
+
+function openPay(pj) {
+  document.getElementById('payPj').textContent = pj;
+  PMS.openDrawer('dwPay');
+}
+
+function openRooms(pj) {
+  document.getElementById('rmPj').textContent = pj;
+  PMS.openDrawer('dwRooms');
+}
+
+function openUse(rm) {
+  document.getElementById('useRm').textContent = rm;
+  PMS.openDrawer('dwUse');
+}
+
+function openListChk(rm) {
+  document.getElementById('lcRm').textContent = rm;
+  PMS.openDrawer('dwListChk');
+}
+</script>
+</body>
+</html>

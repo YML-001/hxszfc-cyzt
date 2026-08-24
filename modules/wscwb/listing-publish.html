@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>已核验房源发布授权 · 存量房交易网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：核验码等宽呈现，失效行整行降饱和 */
+  .hy-code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; letter-spacing: .3px; }
+  .hy-code.dead { color: var(--text-3); text-decoration: line-through; }
+  tr.row-block td { background: #fffbfa; }
+  tr.row-block:hover > td { background: #fff4f2; }
+  .btn-mini {
+    border: 1px solid var(--border-strong); background: #fff; border-radius: var(--radius);
+    padding: 2px 9px; font-size: 12px; color: var(--text-2); cursor: pointer; white-space: nowrap;
+  }
+  .btn-mini:hover { border-color: var(--primary); color: var(--primary); }
+  .btn-mini[disabled] { cursor: not-allowed; opacity: .5; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wscwb-09">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 存量房交易网签备案管理系统
+        <span class="sep">/</span> <a class="link" href="listing-list.html">房源采集核验</a>
+        <span class="sep">/</span> <span class="cur">发布授权</span>
+      </div>
+      <div class="page-title">已核验房源发布授权</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" onclick="batchPublish()"><i class="fa-solid fa-bullhorn"></i> 批量授权发布</button>
+      <button type="button" class="btn" onclick="batchWithdraw()"><i class="fa-solid fa-rotate-left"></i> 批量撤回</button>
+      <a class="btn" href="listing-status.html"><i class="fa-solid fa-screwdriver-wrench"></i> 核验状态维护</a>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">待授权</div><div class="s-value">38</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-tower-broadcast"></i></div>
+      <div><div class="s-label">已发布</div><div class="s-value">3,214</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-ban"></i></div>
+      <div><div class="s-label">已撤回</div><div class="s-value">46</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-arrow-trend-up"></i></div>
+      <div><div class="s-label">本月新增发布</div><div class="s-value">512</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-danger">
+    <i class="fa-solid fa-shield-halved"></i>
+    <div>未取得有效核验码的房源一律不得对外发布展示，系统在授权环节强制拦截；核验码到期后已发布房源自动转为「已过期」并从展示端下架。</div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>关键词</label>
+        <input type="text" placeholder="挂牌编号 / 坐落 / 核验码">
+      </div>
+      <div class="filter-item">
+        <label>行政区划</label>
+        <select><option value="">全部</option><option>城中区</option><option>柳南区</option><option>鱼峰区</option><option>柳北区</option><option>柳江区</option><option>柳城县</option><option>鹿寨县</option></select>
+      </div>
+      <div class="filter-item">
+        <label>发布状态</label>
+        <select><option value="">全部</option><option>待发布</option><option>已挂牌</option><option>已成交</option><option>已下架</option><option>已过期</option></select>
+      </div>
+      <div class="filter-item">
+        <label>经纪机构</label>
+        <select><option value="">全部</option><option>XXXX市优居房地产经纪有限公司</option><option>柳州链家房地产经纪有限公司</option><option>XXXX市安家房地产经纪有限公司</option><option>个人自主挂牌</option></select>
+      </div>
+      <div class="filter-item">
+        <label>挂牌价区间（万元）</label>
+        <input type="text" placeholder="如 60-120">
+      </div>
+      <div class="filter-item">
+        <label>核验有效期止</label>
+        <input type="date" value="2026-12-31">
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 3,298 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="wait">待发布 <span class="badge orange">38</span></div>
+      <div class="tab" data-tab="on">已挂牌</div>
+      <div class="tab" data-tab="deal">已成交</div>
+      <div class="tab" data-tab="off">已下架</div>
+      <div class="tab" data-tab="dead">已过期 <span class="badge red">2</span></div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblPub" data-static>
+        <thead>
+          <tr>
+            <th style="width:38px"><input type="checkbox" id="ckAll"></th>
+            <th>挂牌编号</th>
+            <th>房源坐落</th>
+            <th>核验码</th>
+            <th>核验有效期止</th>
+            <th class="num">挂牌价(元)</th>
+            <th class="num">单价(元/㎡)</th>
+            <th>委托方式</th>
+            <th>委托期限</th>
+            <th>经纪机构</th>
+            <th>经纪人</th>
+            <th>发布状态</th>
+            <th>浏览 / 关注</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="wait">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600">GP20260731028</td>
+            <td class="cell-lg">彰泰滨江学府 12-2-1802</td>
+            <td class="nowrap"><span class="hy-code">HY450200202600512</span></td>
+            <td class="nowrap">2026-10-29</td>
+            <td class="num">1,268,000</td>
+            <td class="num">12,524</td>
+            <td class="nowrap">独家委托</td>
+            <td class="nowrap">2026-07-30 至 2026-10-29</td>
+            <td class="cell-lg">XXXX市优居房地产经纪有限公司</td>
+            <td class="nowrap">梁思敏</td>
+            <td class="nowrap"><span class="badge orange">待发布</span></td>
+            <td class="nowrap text-3">— / —</td>
+            <td class="col-ops">
+              <span class="link" onclick="publish(this,'GP20260731028')">授权发布</span>
+              <a class="link" href="listing-detail.html">查看房源</a>
+            </td>
+          </tr>
+          <tr data-st="wait">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600">GP20260731027</td>
+            <td class="cell-lg">保利大江郡 3-1-1101</td>
+            <td class="nowrap"><span class="hy-code">HY450200202600508</span></td>
+            <td class="nowrap">2026-10-28</td>
+            <td class="num">1,896,000</td>
+            <td class="num">15,880</td>
+            <td class="nowrap">一般委托</td>
+            <td class="nowrap">2026-07-29 至 2027-01-28</td>
+            <td class="cell-lg">柳州链家房地产经纪有限公司</td>
+            <td class="nowrap">陈立群</td>
+            <td class="nowrap"><span class="badge orange">待发布</span></td>
+            <td class="nowrap text-3">— / —</td>
+            <td class="col-ops">
+              <span class="link" onclick="publish(this,'GP20260731027')">授权发布</span>
+              <a class="link" href="listing-detail.html">查看房源</a>
+            </td>
+          </tr>
+          <tr data-st="dead" class="row-block">
+            <td><input type="checkbox" class="ck" disabled></td>
+            <td class="nowrap fw-600">GP20260614009</td>
+            <td class="cell-lg">恒大城 6-1-1802</td>
+            <td class="nowrap"><span class="hy-code dead">HY450200202600317</span> <span class="badge red">核验失效</span></td>
+            <td class="nowrap text-danger">2026-07-14（已过期 17 天）</td>
+            <td class="num">654,000</td>
+            <td class="num">6,240</td>
+            <td class="nowrap">一般委托</td>
+            <td class="nowrap">2026-04-15 至 2026-07-14</td>
+            <td class="cell-lg">XXXX市安家房地产经纪有限公司</td>
+            <td class="nowrap">黄志远</td>
+            <td class="nowrap"><span class="badge red">已过期</span></td>
+            <td class="nowrap">2,146 / 38</td>
+            <td class="col-ops">
+              <button type="button" class="btn-mini" disabled title="核验码已过期，须先办理核验延期后方可发布">授权发布</button>
+              <a class="link" href="listing-status.html">去延期</a>
+            </td>
+          </tr>
+          <tr data-st="dead" class="row-block">
+            <td><input type="checkbox" class="ck" disabled></td>
+            <td class="nowrap fw-600">GP20260620014</td>
+            <td class="cell-lg">阳光 100 城市广场 A 座 1608</td>
+            <td class="nowrap"><span class="text-danger">未取得核验码</span> <span class="badge red">核验失效</span></td>
+            <td class="nowrap text-3">—</td>
+            <td class="num">628,000</td>
+            <td class="num">5,981</td>
+            <td class="nowrap">个人自主</td>
+            <td class="nowrap text-3">—</td>
+            <td class="cell-lg text-3">个人自主挂牌</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap"><span class="badge red">已过期</span></td>
+            <td class="nowrap text-3">— / —</td>
+            <td class="col-ops">
+              <button type="button" class="btn-mini" disabled title="该房源尚未通过权属核验，不得对外发布">授权发布</button>
+              <a class="link" href="listing-verify.html">去核验</a>
+            </td>
+          </tr>
+          <tr data-st="on">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600">GP20260726021</td>
+            <td class="cell-lg">中航郡府 8-1-3301</td>
+            <td class="nowrap"><span class="hy-code">HY450200202600487</span></td>
+            <td class="nowrap">2026-10-24</td>
+            <td class="num">3,152,000</td>
+            <td class="num">21,017</td>
+            <td class="nowrap">独家委托</td>
+            <td class="nowrap">2026-07-25 至 2026-10-24</td>
+            <td class="cell-lg">柳州链家房地产经纪有限公司</td>
+            <td class="nowrap">陈立群</td>
+            <td class="nowrap"><span class="badge green">已挂牌</span></td>
+            <td class="nowrap">3,861 / 172</td>
+            <td class="col-ops">
+              <span class="link danger" onclick="withdraw(this,'GP20260726021')">撤回发布</span>
+              <a class="link" href="listing-detail.html">查看房源</a>
+            </td>
+          </tr>
+          <tr data-st="on">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600">GP20260722018</td>
+            <td class="cell-lg">荣和千千树 2-1-401</td>
+            <td class="nowrap"><span class="hy-code">HY450200202600461</span></td>
+            <td class="nowrap">2026-10-20</td>
+            <td class="num">812,000</td>
+            <td class="num">9,022</td>
+            <td class="nowrap">一般委托</td>
+            <td class="nowrap">2026-07-21 至 2027-01-20</td>
+            <td class="cell-lg">XXXX市优居房地产经纪有限公司</td>
+            <td class="nowrap">梁思敏</td>
+            <td class="nowrap"><span class="badge green">已挂牌</span></td>
+            <td class="nowrap">1,509 / 64</td>
+            <td class="col-ops">
+              <span class="link danger" onclick="withdraw(this,'GP20260722018')">撤回发布</span>
+              <a class="link" href="listing-detail.html">查看房源</a>
+            </td>
+          </tr>
+          <tr data-st="deal">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600">GP20260705006</td>
+            <td class="cell-lg">万科城 12-2-905</td>
+            <td class="nowrap"><span class="hy-code">HY450200202600402</span></td>
+            <td class="nowrap">2026-10-03</td>
+            <td class="num">1,638,000</td>
+            <td class="num">13,650</td>
+            <td class="nowrap">独家委托</td>
+            <td class="nowrap">2026-07-04 至 2026-10-03</td>
+            <td class="cell-lg">XXXX市安家房地产经纪有限公司</td>
+            <td class="nowrap">黄志远</td>
+            <td class="nowrap"><span class="badge blue">已成交</span></td>
+            <td class="nowrap">2,733 / 118</td>
+            <td class="col-ops">
+              <a class="link" href="contract-detail.html">看合同</a>
+              <a class="link" href="listing-detail.html">查看房源</a>
+            </td>
+          </tr>
+          <tr data-st="off">
+            <td><input type="checkbox" class="ck"></td>
+            <td class="nowrap fw-600">GP20260618011</td>
+            <td class="cell-lg">金龙湾 9-3-2201</td>
+            <td class="nowrap"><span class="hy-code">HY450200202600358</span></td>
+            <td class="nowrap">2026-09-16</td>
+            <td class="num">728,000</td>
+            <td class="num">6,880</td>
+            <td class="nowrap">一般委托</td>
+            <td class="nowrap">2026-06-17 至 2026-12-16</td>
+            <td class="cell-lg text-3">个人自主挂牌</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap"><span class="badge">已下架</span></td>
+            <td class="nowrap">896 / 21</td>
+            <td class="col-ops">
+              <span class="link" onclick="publish(this,'GP20260618011')">重新发布</span>
+              <a class="link" href="listing-detail.html">查看房源</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  var table = document.getElementById('tblPub');
+  document.getElementById('stTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var name = tab.getAttribute('data-tab');
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.style.display = (name === 'all' || tr.getAttribute('data-st') === name) ? '' : 'none';
+    });
+  });
+  document.getElementById('ckAll').addEventListener('change', function () {
+    var on = this.checked;
+    table.querySelectorAll('tbody .ck:not([disabled])').forEach(function (c) {
+      if (c.closest('tr').style.display !== 'none') c.checked = on;
+    });
+  });
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 3298,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+
+function checkedRows() {
+  return [].slice.call(document.querySelectorAll('#tblPub tbody .ck:checked'));
+}
+
+function setRow(tr, st, badgeCls, badgeText, opsHtml) {
+  tr.setAttribute('data-st', st);
+  tr.children[11].innerHTML = '<span class="badge ' + badgeCls + '">' + badgeText + '</span>';
+  tr.querySelector('.col-ops').innerHTML = opsHtml;
+}
+
+function publish(el, no) {
+  var tr = el.closest('tr');
+  PMS.confirm({
+    title: '授权发布房源',
+    message: '确认授权发布挂牌 ' + no + '？',
+    detail: '发布后房源将在市住建局官网、掌上柳州与各经纪机构展示端同步展示，展示内容含核验码，公众可扫码验真。',
+    okText: '确认发布',
+    onOk: function () {
+      setRow(tr, 'on', 'green', '已挂牌',
+        '<span class="link danger" onclick="withdraw(this,\'' + no + '\')">撤回发布</span>' +
+        '<a class="link" href="listing-detail.html">查看房源</a>');
+      tr.children[12].textContent = '0 / 0';
+      PMS.toast('挂牌 ' + no + ' 已授权发布', 'success');
+    }
+  });
+}
+
+function withdraw(el, no) {
+  var tr = el.closest('tr');
+  PMS.confirm({
+    title: '撤回房源发布',
+    message: '确认撤回挂牌 ' + no + '？',
+    detail: '撤回后房源立即从各展示端下架，核验码保持有效，可随时重新授权发布。',
+    type: 'warning',
+    okText: '确认撤回',
+    onOk: function () {
+      setRow(tr, 'off', '', '已下架',
+        '<span class="link" onclick="publish(this,\'' + no + '\')">重新发布</span>' +
+        '<a class="link" href="listing-detail.html">查看房源</a>');
+      PMS.toast('挂牌 ' + no + ' 已撤回发布', 'success');
+    }
+  });
+}
+
+function batchPublish() {
+  var rows = checkedRows();
+  if (!rows.length) { PMS.toast('请先勾选待授权的房源', 'error'); return; }
+  PMS.confirm({
+    title: '批量授权发布',
+    message: '已勾选 ' + rows.length + ' 条房源，确认批量授权发布？',
+    detail: '核验码失效或未取得核验码的房源已被系统拦截，不在本次批量范围内。',
+    okText: '确认发布',
+    onOk: function () {
+      rows.forEach(function (c) {
+        var tr = c.closest('tr');
+        c.checked = false;
+        setRow(tr, 'on', 'green', '已挂牌',
+          '<span class="link danger" onclick="withdraw(this,\'批量\')">撤回发布</span>' +
+          '<a class="link" href="listing-detail.html">查看房源</a>');
+      });
+      document.getElementById('ckAll').checked = false;
+      PMS.toast('已批量授权发布 ' + rows.length + ' 条房源', 'success');
+    }
+  });
+}
+
+function batchWithdraw() {
+  var rows = checkedRows();
+  if (!rows.length) { PMS.toast('请先勾选需撤回的房源', 'error'); return; }
+  PMS.confirm({
+    title: '批量撤回发布',
+    message: '已勾选 ' + rows.length + ' 条房源，确认批量撤回？',
+    type: 'warning',
+    okText: '确认撤回',
+    onOk: function () {
+      rows.forEach(function (c) {
+        var tr = c.closest('tr');
+        c.checked = false;
+        setRow(tr, 'off', '', '已下架',
+          '<span class="link" onclick="publish(this,\'批量\')">重新发布</span>' +
+          '<a class="link" href="listing-detail.html">查看房源</a>');
+      });
+      document.getElementById('ckAll').checked = false;
+      PMS.toast('已批量撤回 ' + rows.length + ' 条房源', 'success');
+    }
+  });
+}
+</script>
+</body>
+</html>

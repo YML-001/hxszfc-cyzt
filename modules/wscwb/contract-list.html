@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>存量房买卖合同台账 · 存量房交易网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：签署进度用四格小圆点表示买方/卖方/机构/见证 */
+  .sign-dots { display: inline-flex; gap: 4px; }
+  .sign-dots i {
+    width: 16px; height: 16px; border-radius: 50%; font-size: 9px; color: #fff;
+    display: inline-flex; align-items: center; justify-content: center; background: #dfe3ea;
+  }
+  .sign-dots i.on { background: var(--success); }
+  .sign-dots i.wait { background: var(--warning); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wscwb-03">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 存量房交易网签备案管理系统
+        <span class="sep">/</span> 合同签约管理
+        <span class="sep">/</span> <span class="cur">存量房买卖合同台账</span>
+      </div>
+      <div class="page-title">存量房买卖合同台账</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn btn-primary" href="contract-create.html"><i class="fa-solid fa-plus"></i> 拟定合同</a>
+      <a class="btn" href="contract-sign.html"><i class="fa-solid fa-signature"></i> 签约通道</a>
+      <a class="btn" href="contract-template.html"><i class="fa-solid fa-file-contract"></i> 模板配置</a>
+      <a class="btn" href="agent-authorize.html"><i class="fa-solid fa-user-tie"></i> 委托代理</a>
+      <a class="btn" href="enterprise-deal.html"><i class="fa-solid fa-building"></i> 企业交易协同</a>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《合同台账》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-regular fa-file-lines"></i></div>
+      <div><div class="s-label">草稿 / 拟定中</div><div class="s-value">58</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-pen-nib"></i></div>
+      <div><div class="s-label">签署中</div><div class="s-value">96</div><div class="s-trend text-danger">12 宗超 48 小时未签完</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-file-circle-check"></i></div>
+      <div><div class="s-label">已签署（待备案）</div><div class="s-value">60</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-stamp"></i></div>
+      <div><div class="s-label">本月已备案</div><div class="s-value">386</div><div class="s-trend text-success">↑ 环比 12.4%</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>合同编号</label>
+        <input type="text" placeholder="如 CLF450200202600318">
+      </div>
+      <div class="filter-item">
+        <label>核验码</label>
+        <input type="text" placeholder="HY-450200-2026-…">
+      </div>
+      <div class="filter-item">
+        <label>坐落 / 小区</label>
+        <input type="text" placeholder="支持模糊查询">
+      </div>
+      <div class="filter-item">
+        <label>出卖人</label>
+        <input type="text" placeholder="姓名 / 名称">
+      </div>
+      <div class="filter-item">
+        <label>买受人</label>
+        <input type="text" placeholder="姓名 / 名称">
+      </div>
+      <div class="filter-item">
+        <label>签约通道</label>
+        <select>
+          <option value="">全部</option>
+          <option>中介机构代理</option>
+          <option>交易窗口</option>
+          <option>个人自助（PC）</option>
+          <option>移动端自助</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>合同状态</label>
+        <select>
+          <option value="">全部</option>
+          <option>草稿</option>
+          <option>待签署</option>
+          <option>签署中</option>
+          <option>已签署</option>
+          <option>已备案</option>
+          <option>已解除</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>签约日期</label>
+        <input type="date" value="2026-07-01">
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 1,286 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="draft">草稿 <span class="badge gray">58</span></div>
+      <div class="tab" data-tab="signing">签署中 <span class="badge orange">96</span></div>
+      <div class="tab" data-tab="signed">已签署待备案 <span class="badge green">60</span></div>
+      <div class="tab" data-tab="filed">已备案</div>
+      <div class="tab" data-tab="canceled">已解除</div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblContract" data-static>
+        <thead>
+          <tr>
+            <th>合同编号</th>
+            <th>房屋坐落</th>
+            <th>核验码</th>
+            <th>出卖人</th>
+            <th>买受人</th>
+            <th class="num">成交价(万元)</th>
+            <th>签约通道</th>
+            <th>签署进度</th>
+            <th>合同状态</th>
+            <th>更新时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="signing" class="clickable" onclick="location.href='contract-detail.html'">
+            <td class="nowrap fw-600">CLF450200202600318</td>
+            <td class="cell-lg">彰泰滨江学府 12-2-1802</td>
+            <td class="nowrap">HY-450200-2026-0512</td>
+            <td class="nowrap">陈志远</td>
+            <td class="nowrap">李明轩</td>
+            <td class="num">148.60</td>
+            <td class="nowrap">中介机构代理</td>
+            <td class="nowrap">
+              <span class="sign-dots" title="出卖人已签 / 买受人待签 / 机构已签 / 见证待签">
+                <i class="on"><i class="fa-solid fa-check"></i></i><i class="wait"></i><i class="on"><i class="fa-solid fa-check"></i></i><i></i>
+              </span>
+              <span class="text-3 text-sm">2/4</span>
+            </td>
+            <td class="nowrap"><span class="badge orange">签署中</span></td>
+            <td class="nowrap">2026-07-31 10:22</td>
+            <td class="col-ops">
+              <a class="link" href="contract-detail.html">详情</a>
+              <a class="link" href="sign-agency.html">继续签约</a>
+              <span class="link" onclick="event.stopPropagation();PMS.toast('已向买受人李明轩发送签署提醒短信','success')">催办</span>
+            </td>
+          </tr>
+          <tr data-st="signed" class="clickable" onclick="location.href='contract-detail.html'">
+            <td class="nowrap fw-600">CLF450200202600317</td>
+            <td class="cell-lg">桂景湾 3-1-602</td>
+            <td class="nowrap">HY-450200-2026-0509</td>
+            <td class="nowrap">梁少华</td>
+            <td class="nowrap">邓文雅</td>
+            <td class="num">82.50</td>
+            <td class="nowrap">个人自助（PC）</td>
+            <td class="nowrap">
+              <span class="sign-dots"><i class="on"><i class="fa-solid fa-check"></i></i><i class="on"><i class="fa-solid fa-check"></i></i><i class="on"><i class="fa-solid fa-check"></i></i><i class="on"><i class="fa-solid fa-check"></i></i></span>
+              <span class="text-3 text-sm">4/4</span>
+            </td>
+            <td class="nowrap"><span class="badge green">已签署</span></td>
+            <td class="nowrap">2026-07-31 09:48</td>
+            <td class="col-ops">
+              <a class="link" href="contract-detail.html">详情</a>
+              <a class="link" href="filing-detail.html">办理备案</a>
+            </td>
+          </tr>
+          <tr data-st="filed" class="clickable" onclick="location.href='contract-detail.html'">
+            <td class="nowrap fw-600">CLF450200202600316</td>
+            <td class="cell-lg">保利大江郡 9-2-2201</td>
+            <td class="nowrap">HY-450200-2026-0507</td>
+            <td class="nowrap">周文彬</td>
+            <td class="nowrap">XXXX市恒锐科技有限公司</td>
+            <td class="num">168.00</td>
+            <td class="nowrap">交易窗口</td>
+            <td class="nowrap">
+              <span class="sign-dots"><i class="on"><i class="fa-solid fa-check"></i></i><i class="on"><i class="fa-solid fa-check"></i></i><i class="on"><i class="fa-solid fa-check"></i></i><i class="on"><i class="fa-solid fa-check"></i></i></span>
+              <span class="text-3 text-sm">4/4</span>
+            </td>
+            <td class="nowrap"><span class="badge cyan">已备案</span></td>
+            <td class="nowrap">2026-07-30 16:31</td>
+            <td class="col-ops">
+              <a class="link" href="contract-detail.html">详情</a>
+              <a class="link" href="filing-detail.html">备案证明</a>
+            </td>
+          </tr>
+          <tr data-st="signing" class="clickable" onclick="location.href='contract-detail.html'">
+            <td class="nowrap fw-600">CLF450200202600315</td>
+            <td class="cell-lg">万科城 21-1-1503</td>
+            <td class="nowrap">HY-450200-2026-0506</td>
+            <td class="nowrap">谭雅琴</td>
+            <td class="nowrap">石俊峰</td>
+            <td class="num">115.80</td>
+            <td class="nowrap">移动端自助</td>
+            <td class="nowrap">
+              <span class="sign-dots"><i class="on"><i class="fa-solid fa-check"></i></i><i class="on"><i class="fa-solid fa-check"></i></i><i class="wait"></i><i></i></span>
+              <span class="text-3 text-sm">2/4</span>
+            </td>
+            <td class="nowrap"><span class="badge orange">签署中</span></td>
+            <td class="nowrap">2026-07-31 08:57</td>
+            <td class="col-ops">
+              <a class="link" href="contract-detail.html">详情</a>
+              <a class="link" href="contract-sign.html">签约通道</a>
+            </td>
+          </tr>
+          <tr data-st="draft" class="clickable" onclick="location.href='contract-create.html'">
+            <td class="nowrap fw-600">CLF450200202600319</td>
+            <td class="cell-lg">龙光玖誉府 2-1-806</td>
+            <td class="nowrap">HY-450200-2026-0505</td>
+            <td class="nowrap">莫远航</td>
+            <td class="nowrap">冯瑞琪</td>
+            <td class="num">126.00</td>
+            <td class="nowrap">中介机构代理</td>
+            <td class="nowrap"><span class="text-3">未开始</span></td>
+            <td class="nowrap"><span class="badge gray">草稿</span></td>
+            <td class="nowrap">2026-07-31 11:05</td>
+            <td class="col-ops">
+              <a class="link" href="contract-create.html">继续编辑</a>
+              <span class="link danger" onclick="event.stopPropagation();PMS.delRow(this.closest('tr'),'该合同草稿')">删除</span>
+            </td>
+          </tr>
+          <tr data-st="filed" class="clickable" onclick="location.href='contract-detail.html'">
+            <td class="nowrap fw-600">CLF450200202600314</td>
+            <td class="cell-lg">雅居乐花园 12-3-706</td>
+            <td class="nowrap">HY-450200-2026-0503</td>
+            <td class="nowrap">秦振邦</td>
+            <td class="nowrap">杨思婷</td>
+            <td class="num">94.20</td>
+            <td class="nowrap">中介机构代理</td>
+            <td class="nowrap">
+              <span class="sign-dots"><i class="on"><i class="fa-solid fa-check"></i></i><i class="on"><i class="fa-solid fa-check"></i></i><i class="on"><i class="fa-solid fa-check"></i></i><i class="on"><i class="fa-solid fa-check"></i></i></span>
+              <span class="text-3 text-sm">4/4</span>
+            </td>
+            <td class="nowrap"><span class="badge cyan">已备案</span></td>
+            <td class="nowrap">2026-07-29 15:12</td>
+            <td class="col-ops">
+              <a class="link" href="contract-detail.html">详情</a>
+              <a class="link" href="onething-detail.html">一件事进度</a>
+            </td>
+          </tr>
+          <tr data-st="signing" class="clickable" onclick="location.href='contract-detail.html'">
+            <td class="nowrap fw-600">CLF450200202600313</td>
+            <td class="cell-lg">恒大城 18-2-2405</td>
+            <td class="nowrap">HY-450200-2026-0502</td>
+            <td class="nowrap">卢金梅</td>
+            <td class="nowrap">白宇航</td>
+            <td class="num">108.00</td>
+            <td class="nowrap">交易窗口</td>
+            <td class="nowrap">
+              <span class="sign-dots"><i class="wait"></i><i></i><i></i><i></i></span>
+              <span class="text-danger text-sm">0/4 超 48h</span>
+            </td>
+            <td class="nowrap"><span class="badge orange">签署中</span></td>
+            <td class="nowrap">2026-07-28 17:40</td>
+            <td class="col-ops">
+              <a class="link" href="contract-detail.html">详情</a>
+              <a class="link" href="sign-window.html">窗口签约</a>
+              <span class="link" onclick="event.stopPropagation();PMS.toast('已向双方发送签署提醒短信','success')">催办</span>
+            </td>
+          </tr>
+          <tr data-st="canceled" class="clickable" onclick="location.href='contract-detail.html'">
+            <td class="nowrap fw-600">CLF450200202600288</td>
+            <td class="cell-lg">金龙湾 6-2-1201</td>
+            <td class="nowrap">HY-450200-2026-0418</td>
+            <td class="nowrap">曾丽华</td>
+            <td class="nowrap">孙嘉禾</td>
+            <td class="num">88.00</td>
+            <td class="nowrap">个人自助（PC）</td>
+            <td class="nowrap">
+              <span class="sign-dots"><i class="on"><i class="fa-solid fa-check"></i></i><i class="on"><i class="fa-solid fa-check"></i></i><i class="on"><i class="fa-solid fa-check"></i></i><i class="on"><i class="fa-solid fa-check"></i></i></span>
+              <span class="text-3 text-sm">4/4</span>
+            </td>
+            <td class="nowrap"><span class="badge red">已解除</span></td>
+            <td class="nowrap">2026-07-22 10:03</td>
+            <td class="col-ops">
+              <a class="link" href="contract-detail.html">详情</a>
+              <span class="link" onclick="event.stopPropagation();PMS.toast('解除协议与注销回执已打包下载')">下载回执</span>
+            </td>
+          </tr>
+          <tr data-st="signed" class="clickable" onclick="location.href='contract-detail.html'">
+            <td class="nowrap fw-600">CLF450200202600312</td>
+            <td class="cell-lg">中航郡府 4-1-1902</td>
+            <td class="nowrap">HY-450200-2026-0504</td>
+            <td class="nowrap">XXXX市城投置业有限公司</td>
+            <td class="nowrap">覃宇轩</td>
+            <td class="num">198.50</td>
+            <td class="nowrap">交易窗口</td>
+            <td class="nowrap">
+              <span class="sign-dots"><i class="on"><i class="fa-solid fa-check"></i></i><i class="on"><i class="fa-solid fa-check"></i></i><i class="on"><i class="fa-solid fa-check"></i></i><i class="on"><i class="fa-solid fa-check"></i></i></span>
+              <span class="text-3 text-sm">4/4</span>
+            </td>
+            <td class="nowrap"><span class="badge green">已签署</span></td>
+            <td class="nowrap">2026-07-30 11:26</td>
+            <td class="col-ops">
+              <a class="link" href="contract-detail.html">详情</a>
+              <a class="link" href="filing-detail.html">办理备案</a>
+            </td>
+          </tr>
+          <tr data-st="draft" class="clickable" onclick="location.href='contract-create.html'">
+            <td class="nowrap fw-600">CLF450200202600320</td>
+            <td class="cell-lg">彰泰春天 7-1-903</td>
+            <td class="nowrap"><span class="text-danger">核验中，暂无核验码</span></td>
+            <td class="nowrap">黄美凤</td>
+            <td class="nowrap">—</td>
+            <td class="num">—</td>
+            <td class="nowrap">个人自助（PC）</td>
+            <td class="nowrap"><span class="text-3">未开始</span></td>
+            <td class="nowrap"><span class="badge gray">草稿</span></td>
+            <td class="nowrap">2026-07-31 11:18</td>
+            <td class="col-ops">
+              <span class="link" onclick="event.stopPropagation();PMS.toast('房源尚未取得有效核验码，无法进入签约','error')">继续编辑</span>
+              <a class="link" href="listing-verify.html">查看核验</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  var table = document.getElementById('tblContract');
+  var tabs = document.getElementById('stTabs');
+  tabs.addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var name = tab.getAttribute('data-tab');
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.style.display = (name === 'all' || tr.getAttribute('data-st') === name) ? '' : 'none';
+    });
+  });
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 1286,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>资金运行监测 · 住宅专项维修资金管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../../assets/css/app.css">
+<style>
+  .tbl-static { overflow: auto; }
+  /* 维修资金一张图：以色块模拟 GIS 小区分布 */
+  .gis { position: relative; height: 320px; border-radius: var(--radius); overflow: hidden; background-size: cover; background-position: center; }
+  .gis::after { content: ''; position: absolute; inset: 0; background: rgba(20, 50, 116, .58); }
+  .gis .pin { position: absolute; z-index: 1; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; border: 2px solid rgba(255,255,255,.9); box-shadow: 0 3px 10px rgba(0,0,0,.28); cursor: pointer; }
+  .gis .pin.blue { background: var(--lv-blue); }
+  .gis .pin.yellow { background: var(--lv-yellow); }
+  .gis .pin.orange { background: var(--lv-orange); }
+  .gis .pin.red { background: var(--lv-red); }
+  .gis .pin span { pointer-events: none; }
+  .gis .gis-lg { position: absolute; z-index: 1; right: 14px; bottom: 14px; background: rgba(255,255,255,.94); border-radius: var(--radius); padding: 10px 12px; font-size: 12.5px; }
+  .gis .gis-lg div { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
+  .gis .gis-lg i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+</style>
+</head>
+<body data-role="manager" data-active="wswxzj-08">
+<main class="app-main" data-flow>
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 住宅专项维修资金管理系统
+        <span class="sep">/</span> 监测公示 <span class="sep">/</span> <span class="cur">资金运行监测</span>
+      </div>
+      <div class="page-title">资金运行监测</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="public.html"><i class="fa-solid fa-bullhorn"></i> 查询服务公示</a>
+      <button class="btn" onclick="PMS.toast('监测报告已导出','success')"><i class="fa-solid fa-download"></i> 导出监测报告</button>
+      <button class="btn btn-danger" onclick="PMS.confirm({title:'批量督办',message:'确认对 2 个余额告急小区发起续筹督办？',type:'warning',okText:'督办',onOk:function(){PMS.toast('已发起督办并通知街道与业委会','success')}})"><i class="fa-solid fa-flag"></i> 督办余额告急 2</button>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-chart-line"></i>
+    <div><b>监测的核心不是看总量，是看结构</b>。全市归集 42.68 亿元、使用率仅 8.6%，
+      账面数字很好看，但拆开看<b>2010 年前建成的小区使用率已达 24.2%、余额充足度普遍低于 40%</b>，
+      而这批房子恰恰进入电梯、管网、屋面的集中大修期。
+      <b>资金缺口是结构性的，不是总量性的</b>——这是房屋养老金试点要解决的根本问题。</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-piggy-bank"></i></div>
+      <div><div class="s-label">归集总额(亿元)</div><div class="s-value">42.68</div><div class="s-trend">本年新增 2.86</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-city"></i></div>
+      <div><div class="s-label">覆盖小区</div><div class="s-value">1,286</div><div class="s-trend">186,420 户</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-percent"></i></div>
+      <div><div class="s-label">累计使用率</div><div class="s-value">8.6%</div><div class="s-trend">已用 3.68 亿元</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><div class="s-label">余额告急小区</div><div class="s-value">86</div><div class="s-trend text-danger">充足度低于 30%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-house-crack"></i></div>
+      <div><div class="s-label">2010 年前小区</div><div class="s-value">386</div><div class="s-trend text-danger">使用率 24.2%</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3><i class="fa-solid fa-map-location-dot"></i> 维修资金一张图</h3><span class="sub">按小区展示归集使用与余额情况，余额不足或异常动账时地图预警定位</span></div>
+    <div class="card-body">
+      <div class="gis" style="background-image:url('https://images.unsplash.com/photo-1524661135-423995f22d0b?w=1600&q=80')">
+        <div class="pin blue" style="left:16%;top:22%" onclick="PMS.toast('荣和公园里：余额充足度 92.7%，1,842 万元')"><span>92</span></div>
+        <div class="pin blue" style="left:34%;top:38%" onclick="PMS.toast('天源国际社区：余额充足度 78.4%，2,164 万元')"><span>78</span></div>
+        <div class="pin yellow" style="left:52%;top:26%" onclick="PMS.toast('雅儒新苑：余额充足度 69.4%，986 万元')"><span>69</span></div>
+        <div class="pin yellow" style="left:26%;top:58%" onclick="PMS.toast('桂中海讯小区：余额充足度 49.9%，642 万元')"><span>50</span></div>
+        <div class="pin orange" style="left:66%;top:52%" onclick="PMS.toast('五一佳园：余额充足度 26.2%，268 万元，建议续筹')"><span>26</span></div>
+        <div class="pin red" style="left:44%;top:70%" onclick="PMS.toast('胜利小区：余额充足度 21.6%，186 万元，已发起续筹')"><span>22</span></div>
+        <div class="pin red" style="left:76%;top:34%" onclick="PMS.toast('河东小区：余额充足度 18.2%，96 万元，续筹表决未通过')"><span>18</span></div>
+        <div class="pin blue" style="left:82%;top:66%" onclick="PMS.toast('龙城之星：余额充足度 88.6%，1,286 万元')"><span>89</span></div>
+        <div class="gis-lg">
+          <div><i style="background:var(--lv-blue)"></i> 充足度 ≥ 60%　862 个</div>
+          <div><i style="background:var(--lv-yellow)"></i> 40%~60%　268 个</div>
+          <div><i style="background:var(--lv-orange)"></i> 30%~40%　70 个</div>
+          <div style="margin-bottom:0"><i style="background:var(--lv-red)"></i> 低于 30%　86 个</div>
+        </div>
+      </div>
+      <p class="hint mt-16"><i class="fa-solid fa-circle-info"></i>
+        地图按小区聚合展示余额充足度（余额 / 累计缴存），点击气泡查看明细。
+        <b>红色小区自动纳入续筹督办清单</b>，同时推送房屋养老金资金保障能力分析。</p>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-chart-column"></i> 按建成年代看使用率</h3><span class="sub">房龄越大，资金消耗越快</span></div>
+      <div class="card-body">
+        <div class="bar-chart">
+          <div class="bar-col"><span class="bar-val">1.2%</span><div class="bar" style="height:5%"></div><span class="bar-label">2020后</span></div>
+          <div class="bar-col"><span class="bar-val">3.6%</span><div class="bar" style="height:15%"></div><span class="bar-label">2015-19</span></div>
+          <div class="bar-col"><span class="bar-val">8.4%</span><div class="bar" style="height:35%"></div><span class="bar-label">2010-14</span></div>
+          <div class="bar-col"><span class="bar-val">18.6%</span><div class="bar" style="height:77%"></div><span class="bar-label">2005-09</span></div>
+          <div class="bar-col"><span class="bar-val">24.2%</span><div class="bar" style="height:100%"></div><span class="bar-label">2005前</span></div>
+        </div>
+        <div class="alert alert-danger mt-16">
+          <i class="fa-solid fa-house-crack"></i>
+          <div>2005 年前建成的小区使用率已达 <b>24.2%</b>，是 2020 年后新建小区的 20 倍。
+            这批小区的电梯、管网、屋面都进入集中大修期，<b>未来 5 年将是维修资金支出的高峰</b>。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-chart-pie"></i> 资金使用去向</h3><span class="sub">本年累计 3,684 万元</span></div>
+      <div class="card-body">
+        <div class="flex items-center gap-16">
+          <div class="donut" style="background:conic-gradient(var(--primary) 0 42%, var(--info) 42% 62%, var(--success) 62% 78%, var(--warning) 78% 91%, var(--danger) 91% 100%)">
+            <div class="donut-hole"><div class="fw-700" style="font-size:20px">3,684</div><div class="text-3 text-sm">万元</div></div>
+          </div>
+          <div class="legend" style="flex:1">
+            <div class="lg-item"><span class="lg-color" style="background:var(--primary)"></span> 电梯 <b style="margin-left:auto">1,547</b></div>
+            <div class="lg-item"><span class="lg-color" style="background:var(--info)"></span> 屋面防水 <b style="margin-left:auto">737</b></div>
+            <div class="lg-item"><span class="lg-color" style="background:var(--success)"></span> 消防设施 <b style="margin-left:auto">589</b></div>
+            <div class="lg-item"><span class="lg-color" style="background:var(--warning)"></span> 二次供水 <b style="margin-left:auto">479</b></div>
+            <div class="lg-item"><span class="lg-color" style="background:var(--danger)"></span> 其他共用设施 <b style="margin-left:auto">332</b></div>
+          </div>
+        </div>
+        <p class="hint mt-16"><i class="fa-solid fa-elevator"></i>
+          <b>电梯是维修资金的头号消耗项</b>，占 42%。柳州市 2010 年前建成的高层住宅电梯陆续到达 15 年设计年限，
+          整体更换单价 40~50 万元/部，是老旧小区最大的资金压力来源。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3><i class="fa-solid fa-ranking-star"></i> 各区县归集使用情况</h3><span class="sub">按行政区划汇总</span></div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>行政区划</th><th class="num">覆盖小区</th><th class="num">分户账(户)</th><th class="num">累计归集(万元)</th><th class="num">累计使用(万元)</th><th class="num">使用率</th><th class="num">当前余额(万元)</th><th class="num">余额告急小区</th><th>整体评价</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="nowrap">城中区</td><td class="num">186</td><td class="num">28,642</td><td class="num">68,420</td><td class="num">6,284</td><td class="num">9.2%</td><td class="num">62,136</td><td class="num">12</td><td><span class="lv blue">良好</span></td></tr>
+          <tr><td class="nowrap">鱼峰区</td><td class="num">224</td><td class="num">32,486</td><td class="num">76,240</td><td class="num">7,182</td><td class="num">9.4%</td><td class="num">69,058</td><td class="num">16</td><td><span class="lv blue">良好</span></td></tr>
+          <tr><td class="nowrap">柳南区</td><td class="num">268</td><td class="num">38,204</td><td class="num">88,620</td><td class="num">9,486</td><td class="num">10.7%</td><td class="num">79,134</td><td class="num">22</td><td><span class="lv yellow">关注</span></td></tr>
+          <tr><td class="nowrap">柳北区</td><td class="num">242</td><td class="num">34,862</td><td class="num">78,420</td><td class="num">9,842</td><td class="num text-danger">12.6%</td><td class="num">68,578</td><td class="num text-danger">26</td><td><span class="lv orange">需关注</span></td></tr>
+          <tr><td class="nowrap">柳江区</td><td class="num">142</td><td class="num">21,486</td><td class="num">48,620</td><td class="num">2,864</td><td class="num">5.9%</td><td class="num">45,756</td><td class="num">6</td><td><span class="lv blue">良好</span></td></tr>
+          <tr><td class="nowrap">柳东新区</td><td class="num">128</td><td class="num">19,842</td><td class="num">42,860</td><td class="num">986</td><td class="num">2.3%</td><td class="num">41,874</td><td class="num">0</td><td><span class="lv blue">良好</span></td></tr>
+          <tr><td class="nowrap">四县合计</td><td class="num">96</td><td class="num">10,898</td><td class="num">23,620</td><td class="num">2,156</td><td class="num">9.1%</td><td class="num">21,464</td><td class="num">4</td><td><span class="lv blue">良好</span></td></tr>
+          <tr><td class="nowrap fw-600">全市合计</td><td class="num fw-600">1,286</td><td class="num fw-600">186,420</td><td class="num fw-600">426,800</td><td class="num fw-600">38,800</td><td class="num fw-600">9.1%</td><td class="num fw-600">388,000</td><td class="num fw-600">86</td><td><span class="lv yellow">关注</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+<script src="../../../assets/js/app.js"></script>
+</body>
+</html>

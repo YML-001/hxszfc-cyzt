@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>政策性住房交易备案 · 新建商品房网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：补缴土地出让金试算表 */
+  .calc { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .calc .cr { display: flex; font-size: 13.5px; padding: 9px 14px; border-bottom: 1px solid var(--row-line); }
+  .calc .cr:last-child { border-bottom: 0; }
+  .calc .cr > span:first-child { flex: 1; color: var(--text-2); }
+  .calc .cr > span:last-child { width: 190px; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .calc .cr.total { background: var(--primary-light); }
+  .calc .cr.total > span:last-child { color: var(--primary); font-size: 17px; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsswb-19">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房网签备案管理系统
+        <span class="sep">/</span> 政策性住房
+        <span class="sep">/</span> <span class="cur">政策性住房交易备案</span>
+      </div>
+      <div class="page-title">政策性住房交易备案</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" data-open-drawer="dwNew"><i class="fa-solid fa-plus"></i> 新增交易备案</button>
+      <button type="button" class="btn" onclick="location.href='public-house.html'">上市条件核验</button>
+      <button type="button" class="btn" onclick="location.href='resettle-house.html'">安置房源管理</button>
+      <button type="button" class="btn" onclick="location.href='policy-qualify.html'">共有产权份额管理</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《政策性住房交易备案台账》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-scale-balanced"></i></div>
+      <div><div class="s-label">本月交易备案</div><div class="s-value">86</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-house-chimney"></i></div>
+      <div><div class="s-label">安置房</div><div class="s-value">42</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-users"></i></div>
+      <div><div class="s-label">共有产权房</div><div class="s-value">18</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-user-graduate"></i></div>
+      <div><div class="s-label">人才住房</div><div class="s-value">26</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">待补缴核算</div><div class="s-value">18</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-lock"></i></div>
+      <div><div class="s-label">未满限售期</div><div class="s-value">1,286</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-danger">
+    <i class="fa-solid fa-lock"></i>
+    <div>政策性住房上市交易须同时满足：<b>限售期已满</b>、<b>补缴土地出让金已缴清</b>（如适用）、<b>共有产权份额已明确</b>；任一不满足不予备案，页面逐项列明差距与办理指引。</div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>备案编号</label>
+        <input type="text" placeholder="如 ZC450200202600086">
+      </div>
+      <div class="filter-item">
+        <label>住房类型</label>
+        <select><option value="">全部</option><option>安置房</option><option>共有产权房</option><option>人才住房</option><option>经济适用房</option><option>限价商品房</option></select>
+      </div>
+      <div class="filter-item">
+        <label>项目</label>
+        <input type="text" placeholder="项目名称关键词">
+      </div>
+      <div class="filter-item">
+        <label>房号</label>
+        <input type="text" placeholder="如 2-1-0802">
+      </div>
+      <div class="filter-item">
+        <label>当事人</label>
+        <input type="text" placeholder="出让方 / 受让方">
+      </div>
+      <div class="filter-item">
+        <label>限售状态</label>
+        <select><option value="">全部</option><option>已满限售期</option><option>未满限售期</option></select>
+      </div>
+      <div class="filter-item">
+        <label>补缴状态</label>
+        <select><option value="">全部</option><option>无需补缴</option><option>待补缴</option><option>已缴清</option></select>
+      </div>
+      <div class="filter-item">
+        <label>备案状态</label>
+        <select><option value="">全部</option><option>已备案</option><option>待核验</option><option>不予备案</option></select>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 86 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="wait">待核验 <span class="badge orange">18</span></div>
+      <div class="tab" data-tab="done">已备案</div>
+      <div class="tab" data-tab="no">不予备案</div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblZc" data-static>
+        <thead>
+          <tr>
+            <th>备案编号</th>
+            <th>住房类型</th>
+            <th>项目</th>
+            <th>房号</th>
+            <th>出让方</th>
+            <th>受让方</th>
+            <th class="num">建筑面积（㎡）</th>
+            <th class="num">成交总价（万元）</th>
+            <th>取得日期</th>
+            <th>限售状态</th>
+            <th>补缴状态</th>
+            <th>产权份额</th>
+            <th>备案状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="wait">
+            <td class="nowrap text-3">待生成</td>
+            <td class="nowrap"><span class="badge purple">安置房</span></td>
+            <td class="nowrap">柳州城投·和园（安置房）</td>
+            <td class="nowrap">2-1-0802</td>
+            <td class="nowrap">梁建国</td>
+            <td class="nowrap">吴丽华</td>
+            <td class="num nowrap">96.42</td>
+            <td class="num nowrap">72.60</td>
+            <td class="nowrap">2020-06-18</td>
+            <td class="nowrap"><span class="badge green">已满限售期</span> <span class="text-3 text-sm">满 5 年</span></td>
+            <td class="nowrap"><span class="badge orange">待补缴</span> <span class="text-3 text-sm">8.64 万元</span></td>
+            <td class="nowrap">个人 100%</td>
+            <td class="nowrap"><span class="badge orange">待核验</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openCheck('安置房','柳州城投·和园（安置房）','2-1-0802', true, 8.64)">上市核验</span>
+              <span class="link" onclick="PMS.toast('已向受让方推送《补缴土地出让金缴款通知》','success')">推送缴款</span>
+            </td>
+          </tr>
+          <tr data-st="wait">
+            <td class="nowrap text-3">待生成</td>
+            <td class="nowrap"><span class="badge cyan">共有产权房</span></td>
+            <td class="nowrap">柳州人才安居·锦华苑</td>
+            <td class="nowrap">5-2-1206</td>
+            <td class="nowrap">陈志远</td>
+            <td class="nowrap">XXXX市住房保障中心（回购）</td>
+            <td class="num nowrap">86.20</td>
+            <td class="num nowrap">58.40</td>
+            <td class="nowrap">2021-09-26</td>
+            <td class="nowrap"><span class="badge red">未满限售期</span> <span class="text-danger text-sm">尚差 1 年 2 个月</span></td>
+            <td class="nowrap"><span class="badge gray">无需补缴</span></td>
+            <td class="nowrap">个人 70% / 政府 30%</td>
+            <td class="nowrap"><span class="badge orange">待核验</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openCheck('共有产权房','柳州人才安居·锦华苑','5-2-1206', false, 0)">上市核验</span>
+              <span class="link" onclick="PMS.toast('未满限售期的共有产权房仅可由政府回购，不得对外上市交易','error')">政策说明</span>
+            </td>
+          </tr>
+          <tr data-st="wait">
+            <td class="nowrap text-3">待生成</td>
+            <td class="nowrap"><span class="badge orange">人才住房</span></td>
+            <td class="nowrap">柳州人才安居·锦华苑</td>
+            <td class="nowrap">3-1-1802</td>
+            <td class="nowrap">黄晓峰</td>
+            <td class="nowrap">周建华</td>
+            <td class="num nowrap">118.65</td>
+            <td class="num nowrap">102.40</td>
+            <td class="nowrap">2018-11-12</td>
+            <td class="nowrap"><span class="badge green">已满限售期</span> <span class="text-3 text-sm">满 7 年</span></td>
+            <td class="nowrap"><span class="badge orange">待补缴</span> <span class="text-3 text-sm">14.26 万元</span></td>
+            <td class="nowrap">个人 100%</td>
+            <td class="nowrap"><span class="badge orange">待核验</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openCheck('人才住房','柳州人才安居·锦华苑','3-1-1802', true, 14.26)">上市核验</span>
+              <span class="link" onclick="PMS.toast('已向受让方推送《补缴土地出让金缴款通知》','success')">推送缴款</span>
+            </td>
+          </tr>
+          <tr data-st="done">
+            <td class="nowrap fw-600">ZC450200202600086</td>
+            <td class="nowrap"><span class="badge purple">安置房</span></td>
+            <td class="nowrap">柳州城投·和园（安置房）</td>
+            <td class="nowrap">1-2-0602</td>
+            <td class="nowrap">罗美英</td>
+            <td class="nowrap">谭俊杰</td>
+            <td class="num nowrap">89.36</td>
+            <td class="num nowrap">66.80</td>
+            <td class="nowrap">2019-08-16</td>
+            <td class="nowrap"><span class="badge green">已满限售期</span></td>
+            <td class="nowrap"><span class="badge green">已缴清</span> <span class="text-3 text-sm">7.86 万元</span></td>
+            <td class="nowrap">个人 100%</td>
+            <td class="nowrap"><span class="badge green">已备案</span></td>
+            <td class="col-ops">
+              <a class="link" href="filing-detail.html">查看</a>
+              <a class="link" href="filing-cert.html">备案证明</a>
+            </td>
+          </tr>
+          <tr data-st="done">
+            <td class="nowrap fw-600">ZC450200202600082</td>
+            <td class="nowrap"><span class="badge cyan">共有产权房</span></td>
+            <td class="nowrap">柳州人才安居·锦华苑</td>
+            <td class="nowrap">6-1-0902</td>
+            <td class="nowrap">韦文彬</td>
+            <td class="nowrap">XXXX市住房保障中心（回购）</td>
+            <td class="num nowrap">86.20</td>
+            <td class="num nowrap">56.20</td>
+            <td class="nowrap">2019-05-20</td>
+            <td class="nowrap"><span class="badge green">已满限售期</span></td>
+            <td class="nowrap"><span class="badge gray">无需补缴</span></td>
+            <td class="nowrap">个人 70% / 政府 30%</td>
+            <td class="nowrap"><span class="badge green">已备案</span> <span class="badge blue">政府回购</span></td>
+            <td class="col-ops">
+              <a class="link" href="filing-detail.html">查看</a>
+              <a class="link" href="policy-qualify.html">份额变动</a>
+            </td>
+          </tr>
+          <tr data-st="no">
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap"><span class="badge purple">安置房</span></td>
+            <td class="nowrap">柳州城投·和园（安置房）</td>
+            <td class="nowrap">3-1-1102</td>
+            <td class="nowrap">莫建平</td>
+            <td class="nowrap">李国荣</td>
+            <td class="num nowrap">96.42</td>
+            <td class="num nowrap">74.20</td>
+            <td class="nowrap">2023-03-18</td>
+            <td class="nowrap"><span class="badge red">未满限售期</span> <span class="text-danger text-sm">尚差 2 年 8 个月</span></td>
+            <td class="nowrap"><span class="badge orange">待补缴</span></td>
+            <td class="nowrap">个人 100%</td>
+            <td class="nowrap"><span class="badge red">不予备案</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.toast('不予备案原因：取得日期 2023-03-18，限售期 5 年，须至 2028-03-18 后方可上市交易','error')">不予备案原因</span>
+            </td>
+          </tr>
+          <tr data-st="wait">
+            <td class="nowrap text-3">待生成</td>
+            <td class="nowrap"><span class="badge purple">安置房</span></td>
+            <td class="nowrap">柳州城投·和园（安置房）</td>
+            <td class="nowrap">4-2-1602</td>
+            <td class="nowrap">覃志刚</td>
+            <td class="nowrap">秦丽娟</td>
+            <td class="num nowrap">86.20</td>
+            <td class="num nowrap">64.20</td>
+            <td class="nowrap">2019-12-06</td>
+            <td class="nowrap"><span class="badge green">已满限售期</span> <span class="text-3 text-sm">满 6 年</span></td>
+            <td class="nowrap"><span class="badge orange">待补缴</span> <span class="text-3 text-sm">7.42 万元</span></td>
+            <td class="nowrap">个人 100%</td>
+            <td class="nowrap"><span class="badge orange">待核验</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="openCheck('安置房','柳州城投·和园（安置房）','4-2-1602', true, 7.42)">上市核验</span>
+              <span class="link" onclick="PMS.toast('已向受让方推送《补缴土地出让金缴款通知》','success')">推送缴款</span>
+            </td>
+          </tr>
+          <tr data-st="done">
+            <td class="nowrap fw-600">ZC450200202600074</td>
+            <td class="nowrap"><span class="badge orange">人才住房</span></td>
+            <td class="nowrap">柳州人才安居·锦华苑</td>
+            <td class="nowrap">2-2-0801</td>
+            <td class="nowrap">蓝海涛</td>
+            <td class="nowrap">邓文静</td>
+            <td class="num nowrap">108.26</td>
+            <td class="num nowrap">92.60</td>
+            <td class="nowrap">2018-06-28</td>
+            <td class="nowrap"><span class="badge green">已满限售期</span></td>
+            <td class="nowrap"><span class="badge green">已缴清</span> <span class="text-3 text-sm">12.86 万元</span></td>
+            <td class="nowrap">个人 100%</td>
+            <td class="nowrap"><span class="badge green">已备案</span></td>
+            <td class="col-ops">
+              <a class="link" href="filing-detail.html">查看</a>
+              <a class="link" href="filing-cert.html">备案证明</a>
+            </td>
+          </tr>
+          <tr data-st="done">
+            <td class="nowrap fw-600">ZC450200202600068</td>
+            <td class="nowrap"><span class="badge purple">安置房</span></td>
+            <td class="nowrap">柳州城投·和园（安置房）</td>
+            <td class="nowrap">5-1-0402</td>
+            <td class="nowrap">卢秀兰</td>
+            <td class="nowrap">杨明辉</td>
+            <td class="num nowrap">92.60</td>
+            <td class="num nowrap">68.40</td>
+            <td class="nowrap">2018-03-12</td>
+            <td class="nowrap"><span class="badge green">已满限售期</span></td>
+            <td class="nowrap"><span class="badge green">已缴清</span> <span class="text-3 text-sm">8.12 万元</span></td>
+            <td class="nowrap">个人 100%</td>
+            <td class="nowrap"><span class="badge green">已备案</span></td>
+            <td class="col-ops">
+              <a class="link" href="filing-detail.html">查看</a>
+              <a class="link" href="filing-cert.html">备案证明</a>
+            </td>
+          </tr>
+          <tr data-st="no">
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap"><span class="badge cyan">共有产权房</span></td>
+            <td class="nowrap">柳州人才安居·锦华苑</td>
+            <td class="nowrap">4-1-1502</td>
+            <td class="nowrap">陆志明</td>
+            <td class="nowrap">何美芳</td>
+            <td class="num nowrap">86.20</td>
+            <td class="num nowrap">62.80</td>
+            <td class="nowrap">2022-07-08</td>
+            <td class="nowrap"><span class="badge red">未满限售期</span> <span class="text-danger text-sm">尚差 1 年</span></td>
+            <td class="nowrap"><span class="badge gray">无需补缴</span></td>
+            <td class="nowrap">个人 70% / 政府 30%</td>
+            <td class="nowrap"><span class="badge red">不予备案</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="PMS.toast('不予备案原因：共有产权房未满 5 年限售期，且受让方非政府回购主体','error')">不予备案原因</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 上市条件核验 -->
+  <div class="drawer-mask"></div>
+  <div class="drawer drawer-lg" id="dwCheck">
+    <div class="drawer-head">
+      <h3>上市条件核验 · <span id="ckTitle">—</span></h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <dl class="desc-list">
+        <div class="desc-item"><dt>住房类型</dt><dd id="ckType">—</dd></div>
+        <div class="desc-item"><dt>项目</dt><dd id="ckPj">—</dd></div>
+        <div class="desc-item"><dt>房号</dt><dd id="ckRm">—</dd></div>
+        <div class="desc-item"><dt>取得方式</dt><dd>征收安置（安置协议 AZ2020-0862）</dd></div>
+        <div class="desc-item"><dt>取得日期</dt><dd>2020-06-18</dd></div>
+        <div class="desc-item"><dt>限售期</dt><dd>5 年（自取得不动产权证之日起算）</dd></div>
+      </dl>
+
+      <div class="section-title mt-16">三项上市条件</div>
+      <table class="data-table compact">
+        <thead><tr><th>条件</th><th>要求</th><th>实际</th><th>结论</th><th>办理指引</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="nowrap">限售期</td>
+            <td class="nowrap">须满 5 年</td>
+            <td class="nowrap" id="ckXs">已满 5 年 1 个月</td>
+            <td class="nowrap" id="ckXsR"><span class="badge green">满足</span></td>
+            <td id="ckXsG">—</td>
+          </tr>
+          <tr>
+            <td class="nowrap">补缴土地出让金</td>
+            <td class="nowrap">应缴部分须缴清</td>
+            <td class="nowrap" id="ckBj">应补缴 8.64 万元，未缴</td>
+            <td class="nowrap" id="ckBjR"><span class="badge red">不满足</span></td>
+            <td id="ckBjG">按下方试算金额缴款后上传缴款凭证</td>
+          </tr>
+          <tr>
+            <td class="nowrap">产权份额</td>
+            <td class="nowrap">份额已明确且无争议</td>
+            <td class="nowrap">个人 100%</td>
+            <td class="nowrap"><span class="badge green">满足</span></td>
+            <td class="text-3">—</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="section-title mt-16">补缴土地出让金试算</div>
+      <div class="calc" id="calcBox">
+        <div class="cr"><span>评估单价（元/㎡）</span><span>7,860</span></div>
+        <div class="cr"><span>建筑面积（㎡）</span><span>96.42</span></div>
+        <div class="cr"><span>评估总价（万元）</span><span>75.79</span></div>
+        <div class="cr"><span>原取得价（万元）</span><span>32.60</span></div>
+        <div class="cr"><span>增值额（万元）</span><span>43.19</span></div>
+        <div class="cr"><span>补缴比例</span><span>20%</span></div>
+        <div class="cr total"><span>应补缴土地出让金（万元）</span><span id="ckAmt">8.64</span></div>
+      </div>
+      <p class="text-3 text-sm mt-8">
+        <i class="fa-solid fa-circle-info"></i>
+        试算口径按现行政策参数（评估单价取上月同区域同类住房网签均价，补缴比例按住房类型取值），最终以缴款通知书金额为准。
+      </p>
+
+      <div class="section-title mt-16">缴款凭证</div>
+      <div class="form-item">
+        <label>缴款凭证附件</label>
+        <div class="file-up">
+          <input type="hidden" class="file-up-val" value="">
+          <div class="file-up-grid">
+            <div class="file-up-tile file-up-add"><input type="file" accept=".pdf,.jpg,.png"><i class="fa-solid fa-plus"></i><span>上传</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert alert-danger mt-16" id="ckRes">
+        <i class="fa-solid fa-circle-xmark"></i>
+        <div id="ckResTxt">补缴土地出让金未缴清，<b>暂不予备案</b>；缴清并上传缴款凭证后可重新核验。</div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>关闭</button>
+      <button type="button" class="btn" onclick="PMS.toast('已向受让方推送《补缴土地出让金缴款通知》','success')"><i class="fa-solid fa-paper-plane"></i> 推送缴款通知</button>
+      <button type="button" class="btn" onclick="PMS.toast('已登记缴款凭证，补缴状态更新为已缴清','success')"><i class="fa-regular fa-circle-check"></i> 登记缴款</button>
+      <button type="button" class="btn btn-primary" onclick="doFile()"><i class="fa-solid fa-stamp"></i> 核验通过并备案</button>
+    </div>
+  </div>
+
+  <!-- 新增交易备案 -->
+  <div class="drawer drawer-lg" id="dwNew">
+    <div class="drawer-head">
+      <h3>新增政策性住房交易备案</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="section-title">房屋与住房类型</div>
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>住房类型<span class="req">*</span></label>
+          <select><option>安置房</option><option>共有产权房</option><option>人才住房</option><option>经济适用房</option><option>限价商品房</option></select>
+        </div>
+        <div class="form-item">
+          <label>项目<span class="req">*</span></label>
+          <select><option>柳州城投·和园（安置房）</option><option>柳州人才安居·锦华苑</option></select>
+        </div>
+        <div class="form-item">
+          <label>房号<span class="req">*</span></label>
+          <input type="text" value="2-1-0802">
+        </div>
+        <div class="form-item">
+          <label>建筑面积（㎡）</label>
+          <input type="text" value="96.42" readonly>
+        </div>
+        <div class="form-item">
+          <label>取得方式<span class="req">*</span></label>
+          <select><option>征收安置</option><option>配售取得</option><option>人才配售</option><option>其他</option></select>
+        </div>
+        <div class="form-item">
+          <label>取得日期<span class="req">*</span></label>
+          <input type="date" value="2020-06-18">
+        </div>
+        <div class="form-item">
+          <label>限售期（年）<span class="req">*</span></label>
+          <input type="number" value="5" readonly>
+        </div>
+        <div class="form-item">
+          <label>产权份额<span class="req">*</span></label>
+          <input type="text" value="个人 100%">
+        </div>
+      </div>
+
+      <div class="section-title mt-16">交易双方</div>
+      <div class="form-grid form-align">
+        <div class="form-item"><label>出让方<span class="req">*</span></label><input type="text" value="梁建国"></div>
+        <div class="form-item"><label>出让方证件号<span class="req">*</span></label><input type="text" value="4502**********1826"></div>
+        <div class="form-item"><label>受让方<span class="req">*</span></label><input type="text" value="吴丽华"></div>
+        <div class="form-item"><label>受让方证件号<span class="req">*</span></label><input type="text" value="4502**********2408"></div>
+        <div class="form-item"><label>成交总价（万元）<span class="req">*</span></label><input type="number" value="72.60" step="0.01"></div>
+        <div class="form-item"><label>交易日期<span class="req">*</span></label><input type="date" value="2026-07-31"></div>
+      </div>
+
+      <div class="alert alert-info mt-16">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>保存后自动执行三项上市条件核验；共有产权房若未满限售期，受让方只能是政府回购主体。</div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn" onclick="PMS.toast('草稿已保存','success')"><i class="fa-regular fa-floppy-disk"></i> 保存草稿</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer('dwNew');PMS.toast('已保存并触发上市条件核验','success')"><i class="fa-solid fa-paper-plane"></i> 保存并核验</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  var table = document.getElementById('tblZc');
+  document.getElementById('stTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var name = tab.getAttribute('data-tab');
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.style.display = (name === 'all' || tr.getAttribute('data-st') === name) ? '' : 'none';
+    });
+  });
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 86,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+
+var passAll = false;
+
+function openCheck(type, pj, rm, xsOk, amt) {
+  document.getElementById('ckTitle').textContent = pj + ' ' + rm;
+  document.getElementById('ckType').textContent = type;
+  document.getElementById('ckPj').textContent = pj;
+  document.getElementById('ckRm').textContent = rm;
+
+  var xs = document.getElementById('ckXs'), xsR = document.getElementById('ckXsR'), xsG = document.getElementById('ckXsG');
+  if (xsOk) {
+    xs.textContent = '已满限售期';
+    xsR.innerHTML = '<span class="badge green">满足</span>';
+    xsG.innerHTML = '<span class="text-3">—</span>';
+  } else {
+    xs.textContent = '尚差 1 年 2 个月';
+    xsR.innerHTML = '<span class="badge red">不满足</span>';
+    xsG.textContent = '限售期届满后方可上市；共有产权房未满限售期只能由政府回购';
+  }
+
+  var bj = document.getElementById('ckBj'), bjR = document.getElementById('ckBjR'), bjG = document.getElementById('ckBjG');
+  if (amt > 0) {
+    bj.textContent = '应补缴 ' + amt.toFixed(2) + ' 万元，未缴';
+    bjR.innerHTML = '<span class="badge red">不满足</span>';
+    bjG.textContent = '按试算金额缴款后上传缴款凭证';
+    document.getElementById('ckAmt').textContent = amt.toFixed(2);
+    document.getElementById('calcBox').classList.remove('hidden');
+  } else {
+    bj.textContent = '无需补缴';
+    bjR.innerHTML = '<span class="badge green">满足</span>';
+    bjG.innerHTML = '<span class="text-3">—</span>';
+    document.getElementById('calcBox').classList.add('hidden');
+  }
+
+  passAll = xsOk && amt === 0;
+  var box = document.getElementById('ckRes'), txt = document.getElementById('ckResTxt');
+  if (passAll) {
+    box.className = 'alert alert-success';
+    txt.innerHTML = '三项上市条件全部满足，可核验通过并备案。';
+  } else if (!xsOk) {
+    box.className = 'alert alert-danger';
+    txt.innerHTML = '限售期未满，<b>不予备案</b>；共有产权房未满限售期仅可由政府回购。';
+  } else {
+    box.className = 'alert alert-danger';
+    txt.innerHTML = '补缴土地出让金未缴清，<b>暂不予备案</b>；缴清并上传缴款凭证后可重新核验。';
+  }
+  PMS.openDrawer('dwCheck');
+}
+
+function doFile() {
+  if (!passAll) {
+    PMS.toast('上市条件未全部满足，不予备案', 'error');
+    return;
+  }
+  PMS.closeDrawer('dwCheck');
+  PMS.toast('已备案，备案编号 ZC450200202600087，同步出具备案证明', 'success');
+}
+</script>
+</body>
+</html>

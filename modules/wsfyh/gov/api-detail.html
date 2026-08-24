@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>接口详情与报文 · 政银直连服务</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../../assets/css/app.css">
+<style>
+  .tbl-static { overflow: auto; }
+  .code { background: #0f172a; color: #e2e8f0; border-radius: var(--radius); padding: 14px 16px; font-family: Consolas, Monaco, monospace; font-size: 12.5px; line-height: 1.8; overflow-x: auto; white-space: pre; }
+  .code .k { color: #7dd3fc; }
+  .code .s { color: #bef264; }
+  .code .c { color: #94a3b8; }
+</style>
+</head>
+<body data-role="admin" data-active="wssvc-07">
+<main class="app-main" data-flow>
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 统一应用服务平台
+        <span class="sep">/</span> 政银直连 <span class="sep">/</span> <a class="link" href="api-jg.html">监管银行接口</a>
+        <span class="sep">/</span> <span class="cur">接口详情</span>
+      </div>
+      <div class="page-title">出账指令推送 · 接口详情</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="api-jg.html"><i class="fa-solid fa-arrow-left"></i> 返回接口目录</a>
+      <a class="btn" href="monitor.html"><i class="fa-solid fa-heart-pulse"></i> 运行监控</a>
+      <button class="btn" onclick="PMS.toast('接口规范已下载','success')"><i class="fa-solid fa-download"></i> 下载规范</button>
+      <button class="btn btn-primary" onclick="PMS.toast('测试请求已发送，返回 200，耗时 248ms','success')"><i class="fa-solid fa-paper-plane"></i> 发起测试调用</button>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-shield-halved"></i>
+    <div><b>出账指令是整个平台风险最高的接口</b>——它直接让银行把钱转走。
+      三条铁律：<b>必须幂等</b>（同一 instructNo 重复提交只执行一次）、
+      <b>必须验签</b>（SM2 签名校验，防止指令被伪造）、
+      <b>必须带 deadline</b>（超过时限的指令银行应拒绝执行，防止旧指令被重放）。</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-code"></i></div>
+      <div><div class="s-label">接口编码</div><div class="s-value" style="font-size:15px">fyh/order/push</div><div class="s-trend">v2.1</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-chart-simple"></i></div>
+      <div><div class="s-label">今日调用</div><div class="s-value">386</div><div class="s-trend">峰值 09:30</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">成功率</div><div class="s-value">96.8%</div><div class="s-trend text-danger">阈值 99%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-gauge-high"></i></div>
+      <div><div class="s-label">平均时延</div><div class="s-value">248 ms</div><div class="s-trend">P95 682 ms</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-hourglass-end"></i></div>
+      <div><div class="s-label">回执超时</div><div class="s-value">3</div><div class="s-trend text-danger">今日</div></div>
+    </div>
+  </div>
+
+  <h4 class="section-title" data-icon="fa-circle-info">接口基本信息</h4>
+  <dl class="desc-list">
+    <div class="desc-item"><dt>接口名称</dt><dd>出账指令推送</dd></div>
+    <div class="desc-item"><dt>接口编码</dt><dd>fyh/order/push</dd></div>
+    <div class="desc-item"><dt>版本</dt><dd>v2.1（2026-03-06 发布）</dd></div>
+    <div class="desc-item"><dt>请求方向</dt><dd>平台 → 银行</dd></div>
+    <div class="desc-item"><dt>请求方法</dt><dd>POST</dd></div>
+    <div class="desc-item"><dt>报文格式</dt><dd>JSON / UTF-8</dd></div>
+    <div class="desc-item"><dt>签名算法</dt><dd>SM2</dd></div>
+    <div class="desc-item"><dt>敏感字段加密</dt><dd>SM4（账号、证件号）</dd></div>
+    <div class="desc-item"><dt>幂等键</dt><dd class="fw-600">instructNo + bizType</dd></div>
+    <div class="desc-item"><dt>同步响应时限</dt><dd>5 秒</dd></div>
+    <div class="desc-item"><dt>异步回执时限</dt><dd class="text-danger">30 分钟（应急 15 分钟）</dd></div>
+    <div class="desc-item"><dt>失败重试</dt><dd>3 次，间隔 30 秒</dd></div>
+    <div class="desc-item full"><dt>服务业务</dt><dd>预售资金监管（用款拨付、核退）、存量房交易资金监管（划付卖方、代偿解押、退划买方、司法扣划）、住宅专项维修资金（拨付、应急拨付、结余结转、退款）</dd></div>
+    <div class="desc-item full"><dt>接入机构</dt><dd>柳州银行营业部、建设银行柳州城中支行、工商银行柳州分行、中国银行柳州分行、桂林银行柳州分行（农业银行河东支行联调中）</dd></div>
+  </dl>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="req">请求报文</div>
+      <div class="tab" data-tab="res">响应与回执</div>
+      <div class="tab" data-tab="err">错误码</div>
+      <div class="tab" data-tab="log">调用记录</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="req">
+      <div class="card-body">
+        <div class="code"><span class="c">POST /fyh/v2/order/push HTTP/1.1</span>
+<span class="k">Content-Type</span>: application/json; charset=UTF-8
+<span class="k">X-Sign-Alg</span>: SM2
+<span class="k">X-Sign</span>: MEUCIQDx8f...（对报文体的 SM2 签名）
+<span class="k">X-Req-Id</span>: 20260801110236000186
+<span class="k">X-Timestamp</span>: 1785294156
+
+{
+  <span class="k">"instructNo"</span>:  <span class="s">"HFZL-2026-06284"</span>,     <span class="c">// 指令编号，幂等键，全局唯一</span>
+  <span class="k">"bizType"</span>:     <span class="s">"CWB_HF"</span>,              <span class="c">// 业务类型：存量房资金划付</span>
+  <span class="k">"bizSubType"</span>:  <span class="s">"NORMAL"</span>,             <span class="c">// NORMAL 常规 / URGENT 应急</span>
+  <span class="k">"accountNo"</span>:   <span class="s">"SM4:9f2a...c81e"</span>,     <span class="c">// 出账账号，SM4 加密</span>
+  <span class="k">"amount"</span>:      1280486.20,             <span class="c">// 金额，单位元，两位小数</span>
+  <span class="k">"payeeName"</span>:   <span class="s">"罗建华"</span>,
+  <span class="k">"payeeAcct"</span>:   <span class="s">"SM4:3b71...4d20"</span>,     <span class="c">// 收款账号，SM4 加密</span>
+  <span class="k">"payeeBank"</span>:   <span class="s">"建设银行柳州城中支行"</span>,
+  <span class="k">"reason"</span>:      <span class="s">"不动产转移登记完成，触发划付"</span>,
+  <span class="k">"bizRefNo"</span>:    <span class="s">"CWXY-2026-0862"</span>,      <span class="c">// 关联业务单号（监管协议）</span>
+  <span class="k">"deadline"</span>:    <span class="s">"2026-08-01T11:32:36+08:00"</span>, <span class="c">// 超过此时间应拒绝执行</span>
+  <span class="k">"callbackUrl"</span>: <span class="s">"https://fyh.lzfc.gov.cn/api/callback/v2/order"</span>
+}</div>
+        <div class="tbl-static mt-16">
+          <table class="data-table compact" data-static>
+            <thead><tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+            <tbody>
+              <tr><td class="nowrap">instructNo</td><td class="nowrap">string(32)</td><td class="nowrap">是</td><td class="cell-lg">指令编号，<b>幂等键</b>，重复提交须返回首次结果</td></tr>
+              <tr><td class="nowrap">bizType</td><td class="nowrap">string(16)</td><td class="nowrap">是</td><td class="cell-lg">YSZJ_YK 预售用款 / CWB_HF 存量房划付 / WXZJ_BF 维修拨付 等</td></tr>
+              <tr><td class="nowrap">bizSubType</td><td class="nowrap">string(16)</td><td class="nowrap">是</td><td class="cell-lg">NORMAL 回执 30 分钟 / URGENT 回执 15 分钟</td></tr>
+              <tr><td class="nowrap">accountNo</td><td class="nowrap">string(128)</td><td class="nowrap">是</td><td class="cell-lg">出账账号，SM4 加密后 Base64</td></tr>
+              <tr><td class="nowrap">amount</td><td class="nowrap">decimal(16,2)</td><td class="nowrap">是</td><td class="cell-lg">金额，须大于 0 且不超过账户可用余额</td></tr>
+              <tr><td class="nowrap">payeeName</td><td class="nowrap">string(64)</td><td class="nowrap">是</td><td class="cell-lg">收款户名，银行须校验与收款账号一致</td></tr>
+              <tr><td class="nowrap">deadline</td><td class="nowrap">datetime</td><td class="nowrap">是</td><td class="cell-lg">指令有效期，超期须拒绝执行并回 E2008</td></tr>
+              <tr><td class="nowrap">callbackUrl</td><td class="nowrap">string(256)</td><td class="nowrap">是</td><td class="cell-lg">执行结果异步回执地址</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="res">
+      <div class="card-body">
+        <h4 class="section-title" data-icon="fa-reply">同步响应（受理确认，5 秒内）</h4>
+        <div class="code">{
+  <span class="k">"code"</span>:       <span class="s">"0000"</span>,
+  <span class="k">"message"</span>:    <span class="s">"受理成功"</span>,
+  <span class="k">"instructNo"</span>: <span class="s">"HFZL-2026-06284"</span>,
+  <span class="k">"bankSeqNo"</span>:  <span class="s">"LZBK20260801000186420"</span>,  <span class="c">// 银行受理流水号</span>
+  <span class="k">"acceptTime"</span>: <span class="s">"2026-08-01T11:02:38+08:00"</span>
+}</div>
+        <h4 class="section-title mt-16" data-icon="fa-paper-plane">异步回执（执行结果，30 分钟内）</h4>
+        <div class="code"><span class="c">POST https://fyh.lzfc.gov.cn/api/callback/v2/order</span>
+
+{
+  <span class="k">"instructNo"</span>:   <span class="s">"HFZL-2026-06284"</span>,
+  <span class="k">"bankSeqNo"</span>:    <span class="s">"LZBK20260801000186420"</span>,
+  <span class="k">"execResult"</span>:   <span class="s">"SUCCESS"</span>,             <span class="c">// SUCCESS / FAIL / PARTIAL</span>
+  <span class="k">"execAmount"</span>:   1280486.20,             <span class="c">// 实际出账金额</span>
+  <span class="k">"execTime"</span>:     <span class="s">"2026-08-01T11:08:42+08:00"</span>,
+  <span class="k">"balanceAfter"</span>: 0.00,                   <span class="c">// 出账后账户余额</span>
+  <span class="k">"payeeVerify"</span>:  <span class="s">"MATCHED"</span>,             <span class="c">// 收款户名核验结果</span>
+  <span class="k">"teller"</span>:       <span class="s">"梁美玲"</span>,
+  <span class="k">"checker"</span>:      <span class="s">"韦丽娟"</span>,
+  <span class="k">"voucherUrl"</span>:   <span class="s">"https://.../voucher/186420.pdf"</span>,
+  <span class="k">"remark"</span>:       <span class="s">""</span>
+}</div>
+        <div class="alert alert-warning mt-16">
+          <i class="fa-solid fa-circle-info"></i>
+          <div><b>同步受理成功不等于钱已经划走</b>。平台只有收到<b>异步回执</b>且
+            <code>execResult = SUCCESS</code> 才认定指令完成，
+            并据此更新业务状态、回写分户账。只有同步响应没有异步回执的，
+            平台会把这笔指令挂起并催办——这就是<b>双轨留痕</b>的意义。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="err">
+      <div class="card-body">
+        <div class="tbl-static">
+          <table class="data-table compact" data-static>
+            <thead><tr><th>错误码</th><th>含义</th><th>平台处置</th><th>是否重试</th></tr></thead>
+            <tbody>
+              <tr><td class="nowrap">0000</td><td class="cell-lg">受理成功</td><td class="cell-lg">等待异步回执</td><td class="nowrap">—</td></tr>
+              <tr><td class="nowrap">E1001</td><td class="cell-lg">验签失败</td><td class="cell-lg">立即告警，检查密钥是否已轮换</td><td class="nowrap"><span class="badge red">否</span></td></tr>
+              <tr><td class="nowrap">E1002</td><td class="cell-lg">报文格式错误</td><td class="cell-lg">记录并告警，人工排查</td><td class="nowrap"><span class="badge red">否</span></td></tr>
+              <tr><td class="nowrap">E1005</td><td class="cell-lg">字段校验失败（须指明字段）</td><td class="cell-lg">挂起指令，通知业务人员补正</td><td class="nowrap"><span class="badge red">否</span></td></tr>
+              <tr><td class="nowrap">E2001</td><td class="cell-lg">账户不存在或状态异常</td><td class="cell-lg">挂起并核查账户状态</td><td class="nowrap"><span class="badge red">否</span></td></tr>
+              <tr><td class="nowrap">E2003</td><td class="cell-lg">账户余额不足</td><td class="cell-lg">挂起并通知业务人员</td><td class="nowrap"><span class="badge red">否</span></td></tr>
+              <tr><td class="nowrap">E2005</td><td class="cell-lg">收款户名与账号不符</td><td class="cell-lg">挂起，要求重新提交收款信息</td><td class="nowrap"><span class="badge red">否</span></td></tr>
+              <tr><td class="nowrap">E2006</td><td class="cell-lg">账户处于查封冻结状态</td><td class="cell-lg">挂起，转司法协助流程</td><td class="nowrap"><span class="badge red">否</span></td></tr>
+              <tr><td class="nowrap">E2008</td><td class="cell-lg">指令已超过 deadline</td><td class="cell-lg">作废原指令，重新生成</td><td class="nowrap"><span class="badge red">否</span></td></tr>
+              <tr><td class="nowrap">E3001</td><td class="cell-lg">银行系统繁忙</td><td class="cell-lg">按重试策略重试</td><td class="nowrap"><span class="badge green">是</span></td></tr>
+              <tr><td class="nowrap">E3002</td><td class="cell-lg">银行系统维护中</td><td class="cell-lg">延迟重试，超 3 次转人工</td><td class="nowrap"><span class="badge green">是</span></td></tr>
+              <tr><td class="nowrap">E9999</td><td class="cell-lg">未知错误</td><td class="cell-lg">重试 1 次后告警转人工</td><td class="nowrap"><span class="badge orange">1 次</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="hint mt-16"><i class="fa-solid fa-circle-info"></i>
+          <b>能重试的只有 E3xxx 系统类错误</b>。E1xxx 报文类与 E2xxx 业务类错误重试没有意义，
+          反而可能因为幂等控制不当造成重复出账，一律挂起转人工。</p>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="log">
+      <div class="card-body">
+        <div class="tbl-static">
+          <table class="data-table" data-static>
+            <thead>
+              <tr><th>调用时间</th><th>银行</th><th>指令编号</th><th>来源业务</th><th class="num">金额(元)</th><th class="num">时延(ms)</th><th>同步响应</th><th>异步回执</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="nowrap">11:02:36</td><td class="nowrap">柳州银行营业部</td><td class="nowrap">HFZL-2026-06284</td><td class="nowrap">存量房交易资金</td><td class="num">1,280,486.20</td><td class="num">248</td><td><span class="badge green">0000</span></td><td><span class="badge green">SUCCESS</span></td><td><span class="link" onclick="PMS.toast('完整报文已展开')">看报文</span></td></tr>
+              <tr><td class="nowrap">10:56:20</td><td class="nowrap">柳州银行营业部</td><td class="nowrap">WXBF-2026-01862</td><td class="nowrap">维修资金</td><td class="num">86,000.00</td><td class="num">312</td><td><span class="badge green">0000</span></td><td><span class="badge orange">超时未回</span></td><td><span class="link danger" onclick="PMS.toast('已发起催办','success')">催办</span></td></tr>
+              <tr><td class="nowrap">10:50:12</td><td class="nowrap">桂林银行柳州分行</td><td class="nowrap">YKZL-2026-02864</td><td class="nowrap">预售资金监管</td><td class="num">2,860,000.00</td><td class="num text-danger">超时</td><td><span class="badge red">E3001</span></td><td><span class="badge gray">—</span></td><td><span class="link danger" onclick="PMS.toast('已重试 2 次，第 3 次重试中')">重试中</span></td></tr>
+              <tr><td class="nowrap">10:44:02</td><td class="nowrap">柳州银行营业部</td><td class="nowrap">SFZL-2026-00086</td><td class="nowrap">存量房交易资金</td><td class="num">2,180,000.00</td><td class="num">296</td><td><span class="badge green">0000</span></td><td><span class="badge green">SUCCESS</span></td><td><span class="link" onclick="PMS.toast('完整报文已展开')">看报文</span></td></tr>
+              <tr><td class="nowrap">10:32:18</td><td class="nowrap">建设银行柳州城中支行</td><td class="nowrap">YKZL-2026-02858</td><td class="nowrap">预售资金监管</td><td class="num">1,860,000.00</td><td class="num">204</td><td><span class="badge green">0000</span></td><td><span class="badge green">SUCCESS</span></td><td><span class="link" onclick="PMS.toast('完整报文已展开')">看报文</span></td></tr>
+              <tr><td class="nowrap">10:26:44</td><td class="nowrap">工商银行柳州分行</td><td class="nowrap">DCZL-2026-00426</td><td class="nowrap">存量房交易资金</td><td class="num">324,000.00</td><td class="num">186</td><td><span class="badge green">0000</span></td><td><span class="badge green">SUCCESS</span></td><td><span class="link" onclick="PMS.toast('完整报文已展开')">看报文</span></td></tr>
+              <tr><td class="nowrap">09:58:02</td><td class="nowrap">桂林银行柳州分行</td><td class="nowrap">YKZL-2026-02842</td><td class="nowrap">预售资金监管</td><td class="num">960,000.00</td><td class="num">428</td><td><span class="badge green">0000</span></td><td><span class="badge red">超时未回</span></td><td><span class="link danger" onclick="PMS.toast('已升级为督办件','success')">升级</span></td></tr>
+              <tr><td class="nowrap">09:30:16</td><td class="nowrap">中国银行柳州分行</td><td class="nowrap">THZL-2026-01856</td><td class="nowrap">存量房交易资金</td><td class="num">860,186.20</td><td class="num">168</td><td><span class="badge green">0000</span></td><td><span class="badge green">SUCCESS</span></td><td><span class="link" onclick="PMS.toast('完整报文已展开')">看报文</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../../assets/js/app.js"></script>
+</body>
+</html>

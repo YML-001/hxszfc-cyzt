@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>查询授权与留痕 · 统一服务门户</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  .auth-card {
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card);
+    padding: 16px 18px; margin-bottom: 12px;
+  }
+  .auth-card.wait { border-left: 4px solid var(--warning); }
+  .auth-card.ok { border-left: 4px solid var(--success); }
+  .auth-card.no { border-left: 4px solid var(--text-3); }
+  .auth-card.rev { border-left: 4px solid var(--accent); }
+  .auth-card .ac-h { display: flex; align-items: center; gap: 10px; }
+  .auth-card .ac-t { font-size: 15.5px; font-weight: 700; }
+  .auth-card .ac-m { font-size: 12.5px; color: var(--text-3); margin-top: 8px; line-height: 1.9; }
+  .auth-card .ac-a { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+</style>
+</head>
+<body data-nav="query">
+
+<div class="wrap"><div class="crumb"><a href="home.html">首页</a><i class="fa-solid fa-angle-right"></i><a href="query-center.html">查询中心</a><i class="fa-solid fa-angle-right"></i>查询授权与留痕</div></div>
+
+<div class="wrap">
+  <div class="tabs" data-tabs data-scope="qa-wrap" id="qa-tabs">
+    <a class="on" data-tab="qa-auth"><i class="fa-solid fa-user-lock"></i> 查询授权管理</a>
+    <a data-tab="qa-log"><i class="fa-solid fa-clock-rotate-left"></i> 查询记录留痕</a>
+    <a data-tab="qa-batch"><i class="fa-solid fa-layer-group"></i> 批量查询审核</a>
+  </div>
+
+  <div id="qa-wrap">
+    <!-- 查询授权管理 -->
+    <div class="tab-pane on" id="qa-auth">
+      <div class="alert alert-warning">
+        <i class="fa-solid fa-shield-halved"></i>
+        <span><b>授权规则：</b>非本人查询他人房产信息必须取得权利人在线授权，<b>授权范围、期限与撤回情况全程可查</b>。
+          权利人同意后申请人才能查询，权利人撤回后立即失效。全部授权与查询行为都记入留痕，供事后审计与异常查询排查。</span>
+      </div>
+
+      <div class="grid-2" style="align-items:start">
+        <div>
+          <div class="col-head"><h2 style="font-size:17px">我发起的授权申请</h2><span class="ch-en">My Requests</span>
+            <span class="ch-more" style="cursor:default">我要查别人</span></div>
+          <div class="mb-16">
+            <button class="btn btn-primary" id="btn-new" data-fp="wsmh-29-01"><i class="fa-solid fa-plus"></i> 发起新的授权申请</button>
+            <a class="btn" href="query-house.html"><i class="fa-solid fa-magnifying-glass"></i> 去查询他人房产</a>
+          </div>
+          <div id="mine-list"></div>
+        </div>
+        <div>
+          <div class="col-head"><h2 style="font-size:17px">他人申请查询我的信息</h2><span class="ch-en">Requests To Me</span>
+            <span class="ch-more" style="cursor:default">我是权利人</span></div>
+          <div id="tome-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 查询记录留痕 -->
+    <div class="tab-pane" id="qa-log">
+      <div class="alert alert-info">
+        <i class="fa-solid fa-circle-info"></i>
+        <span>系统记录每一次查询的<b>查询人、查询对象、查询类型、查询用途、查询时间与查询渠道</b>，供事后审计与异常查询排查。
+          同一对象 24 小时内被查询 3 次以上会标记为异常并提示核查。</span>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3><i class="fa-solid fa-clock-rotate-left text-primary"></i> 查询留痕台账</h3>
+          <div class="ca">
+            <select class="select" id="lg-lx" style="width:auto;height:30px;font-size:13px"><option value="">全部查询类型</option></select>
+            <select class="select" id="lg-way" style="width:auto;height:30px;font-size:13px">
+              <option value="">全部渠道</option><option>门户网站</option><option>微信小程序</option><option>政务自助终端</option></select>
+          </div></div>
+        <div class="card-body np" id="log-list"></div>
+      </div>
+    </div>
+
+    <!-- 批量查询审核 -->
+    <div class="tab-pane" id="qa-batch">
+      <div class="alert alert-warning">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span>银行、法院、公证等机构的批量查询申请<b>须经审核后执行，结果按次限量发放并留痕</b>。
+          机构须承诺查询结果仅用于申请事由，不得留存、转发或用于其他用途。</span>
+      </div>
+      <div class="card mb-16">
+        <div class="card-head"><h3><i class="fa-solid fa-route text-primary"></i> 批量查询办理流程</h3></div>
+        <div class="card-body">
+          <div class="step-flow">
+            <div class="sf-i"><div class="sf-n"><i class="fa-solid fa-file-pen"></i></div>
+              <div class="sf-t">1. 提交申请</div><div class="sf-d">机构在线提交查询清单与查询事由</div>
+              <div class="sf-tag"><span class="badge blue">机构办理</span></div></div>
+            <div class="sf-i"><div class="sf-n"><i class="fa-solid fa-user-shield"></i></div>
+              <div class="sf-t">2. 资格审核</div><div class="sf-d">核验机构资格、查询事由与法律依据</div>
+              <div class="sf-tag"><span class="badge cyan">档案管理科</span></div></div>
+            <div class="sf-i"><div class="sf-n"><i class="fa-solid fa-list-check"></i></div>
+              <div class="sf-t">3. 按次发放</div><div class="sf-d">审核通过后按申请笔数限量发放查询结果</div>
+              <div class="sf-tag"><span class="badge cyan">系统自动</span></div></div>
+            <div class="sf-i"><div class="sf-n"><i class="fa-solid fa-fingerprint"></i></div>
+              <div class="sf-t">4. 全程留痕</div><div class="sf-d">逐笔记录查询对象与发放时间，可追溯</div>
+              <div class="sf-tag"><span class="badge cyan">系统自动</span></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="grid-2" style="align-items:start">
+        <div class="card">
+          <div class="card-head"><h3><i class="fa-solid fa-file-pen text-primary"></i> 提交批量查询申请</h3></div>
+          <div class="card-body">
+            <div class="form-grid c1">
+              <div class="form-item"><label><span class="req">*</span>申请机构名称</label>
+                <input class="input" id="b-mc" placeholder="请填写机构全称" value="柳州银行文昌支行"></div>
+              <div class="form-item"><label><span class="req">*</span>机构类型</label>
+                <select class="select" id="b-lx"><option>银行</option><option>法院</option><option>公证机构</option><option>仲裁机构</option><option>其他</option></select></div>
+              <div class="form-item"><label><span class="req">*</span>统一社会信用代码</label>
+                <input class="input" id="b-code" placeholder="18 位统一社会信用代码" value="91450200MA5K7788X2"></div>
+              <div class="form-item"><label><span class="req">*</span>经办人与联系电话</label>
+                <div class="flex gap-8"><input class="input" id="b-jbr" placeholder="经办人姓名" value="覃丽华">
+                  <input class="input" id="b-tel" placeholder="联系电话" value="0772-2821000"></div></div>
+              <div class="form-item"><label><span class="req">*</span>查询事由与法律依据</label>
+                <textarea class="textarea" id="b-sy" placeholder="请说明查询事由与依据的法律条款">因办理住房按揭贷款审批业务，需核查借款人名下住房套数与权属状况，依据《个人住房贷款管理办法》相关规定申请批量查询。</textarea></div>
+              <div class="form-item"><label><span class="req">*</span>申请查询笔数</label>
+                <input class="input" id="b-num" type="number" placeholder="本次申请查询的对象数量" value="12"></div>
+              <div class="form-item"><label>查询清单</label>
+                <div class="file-up" onclick="UI.toast('演示环境不实际上传文件。正式环境需上传含被查询人姓名与证件号的清单（xlsx）','info')">
+                  <i class="fa-solid fa-cloud-arrow-up"></i>上传查询清单（xlsx），需含被查询人姓名与证件号
+                </div></div>
+            </div>
+            <label class="text-2 text-sm flex gap-6 items-center mt-16" style="cursor:pointer">
+              <input type="checkbox" id="b-agree"> 本机构承诺查询结果仅用于上述申请事由，不留存、不转发、不用于其他用途
+            </label>
+            <button class="btn btn-primary btn-block mt-16" id="btn-batch" data-fp="wsmh-29-03">
+              <i class="fa-solid fa-paper-plane"></i> 提交批量查询申请
+            </button>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <div class="card-head"><h3><i class="fa-solid fa-list text-primary"></i> 我的批量查询申请</h3></div>
+            <div class="card-body np" id="batch-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="src-note"></div>
+</div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+function pageInit() {
+  var tab = UI.param('tab');
+  if (tab) {
+    document.querySelectorAll('#qa-tabs a').forEach(function (a) { a.classList.remove('on'); });
+    document.querySelectorAll('.tab-pane').forEach(function (p) { p.classList.remove('on'); });
+    var t = document.querySelector('#qa-tabs a[data-tab="' + tab + '"]');
+    if (t) { t.classList.add('on'); document.getElementById(tab).classList.add('on'); }
+  }
+
+  renderAll();
+  PORTAL.on(renderAll);
+
+  document.getElementById('btn-new').onclick = function () {
+    if (!UI.needLogin('发起查询授权申请')) return;
+    UI.drawer('<i class="fa-solid fa-user-lock text-primary"></i> 发起查询授权申请',
+      '<div class="alert alert-info"><i class="fa-solid fa-circle-info"></i>'
+      + '<span>申请提交后会推送给权利人，权利人在<b>个人中心 → 我的评价与授权</b>中同意后，您才能查询其房产信息。</span></div>'
+      + '<div class="form-grid c1">'
+      + '<div class="form-item"><label><span class="req">*</span>权利人姓名</label><input class="input" id="n-qlr" placeholder="请输入权利人姓名"></div>'
+      + '<div class="form-item"><label><span class="req">*</span>证件号码后六位</label><input class="input" id="n-zj" placeholder="用于比对身份" maxlength="6"></div>'
+      + '<div class="form-item"><label><span class="req">*</span>查询范围</label>'
+      + '<select class="select" id="n-fw"><option>名下房产套数与状态</option><option>指定房屋权属状况</option>'
+      + '<option>网签备案信息</option><option>抵押与查封情况</option></select></div>'
+      + '<div class="form-item"><label><span class="req">*</span>查询用途</label>'
+      + '<select class="select" id="n-yt"><option>贷款审批</option><option>诉讼</option><option>公证</option>'
+      + '<option>尽职调查</option><option>其他</option></select></div>'
+      + '<div class="form-item"><label><span class="req">*</span>授权期限</label>'
+      + '<select class="select" id="n-qx"><option value="7">7 天</option><option value="30" selected>30 天</option>'
+      + '<option value="90">90 天</option></select></div>'
+      + '</div>',
+      '<button class="btn" data-act="close-drawer">取消</button>'
+      + '<button class="btn btn-primary" id="n-ok">提交申请</button>');
+    document.getElementById('n-ok').onclick = function () {
+      var qlr = document.getElementById('n-qlr').value.trim();
+      var zj = document.getElementById('n-zj').value.trim();
+      if (!qlr || zj.length < 6) { UI.toast('请填写权利人姓名与证件号后六位', 'warning'); return; }
+      var days = Number(document.getElementById('n-qx').value);
+      var a = PORTAL.act('auth.request', {
+        sqr: UI.user().name, qlr: qlr,
+        fw: document.getElementById('n-fw').value, yt: document.getElementById('n-yt').value,
+        qx: PDATA.ymd(PDATA.shift(days))
+      });
+      UI.closeDrawer();
+      UI.toast('授权申请已提交（编号 ' + a.id + '），已推送给权利人 ' + qlr, 'success');
+    };
+  };
+
+  document.getElementById('btn-batch').onclick = function () {
+    if (!UI.needLogin('提交批量查询申请')) return;
+    if (!document.getElementById('b-agree').checked) { UI.toast('请先勾选用途限制承诺', 'warning'); return; }
+    var mc = document.getElementById('b-mc').value.trim();
+    var num = Number(document.getElementById('b-num').value);
+    var sy = document.getElementById('b-sy').value.trim();
+    if (!mc || !num || !sy) { UI.toast('请填写机构名称、查询笔数与查询事由', 'warning'); return; }
+    var a = PORTAL.act('auth.request', {
+      sqr: mc, qlr: '批量查询清单（' + num + ' 人）',
+      fw: document.getElementById('b-lx').value + '批量查询 · ' + num + ' 笔',
+      yt: sy.slice(0, 20) + '…', qx: PDATA.ymd(PDATA.shift(30)), pl: 1
+    });
+    UI.toast('批量查询申请已提交（编号 ' + a.id + '），审核通过后按次限量发放并留痕', 'success');
+  };
+
+  document.getElementById('lg-lx').onchange = renderLog;
+  document.getElementById('lg-way').onchange = renderLog;
+
+  document.getElementById('src-note').innerHTML = UI.sourceNote(
+    '授权台账对应查询授权信息表（PSP_CXSQ2XX），留痕台账对应查询访问留痕信息表（PSP_CXLHXX）。'
+  );
+}
+
+function renderAll() { renderMine(); renderToMe(); renderLog(); renderBatch(); }
+
+function renderMine() {
+  var box = document.getElementById('mine-list');
+  var me = UI.user().name;
+  var arr = PORTAL.auths({ pl: 0 }).filter(function (a) { return a.sqr === me; });
+  if (!arr.length) {
+    box.innerHTML = UI.empty('暂无我发起的授权申请',
+      '需要查询他人房产信息时，可在此发起授权申请，或在查询他人房产被拦截时直接申请');
+    return;
+  }
+  box.innerHTML = arr.map(function (a) { return authCard(a, 'mine'); }).join('');
+}
+
+function renderToMe() {
+  var box = document.getElementById('tome-list');
+  var me = UI.user().name;
+  var arr = PORTAL.auths({ pl: 0 }).filter(function (a) { return a.sqr !== me; });
+  if (!arr.length) {
+    box.innerHTML = UI.empty('暂无他人查询申请', '有人申请查询您的房产信息时会出现在这里，需要您同意后对方才能查询');
+    return;
+  }
+  box.innerHTML = arr.map(function (a) { return authCard(a, 'tome'); }).join('')
+    + '<div class="alert alert-info mt-12" style="margin-bottom:0"><i class="fa-solid fa-circle-info"></i>'
+    + '<span>也可在<a href="../person/my-rating.html?user=person">个人中心 → 我的评价与授权</a>中集中处理。</span></div>';
+  bindActs(box);
+}
+
+function authCard(a, side) {
+  var cls = a.zt === '0' ? 'wait' : a.zt === '1' ? 'ok' : a.zt === '3' ? 'rev' : 'no';
+  var st = PORTAL.AUTH_ST[a.zt];
+  var acts = '';
+  if (side === 'tome') {
+    if (a.zt === '0') {
+      acts = '<button class="btn btn-primary btn-sm" data-set="1" data-id="' + a.id + '" data-fp="wsmh-29-01">'
+        + '<i class="fa-solid fa-check"></i> 同意授权</button>'
+        + '<button class="btn btn-sm" data-set="2" data-id="' + a.id + '"><i class="fa-solid fa-xmark"></i> 拒绝</button>';
+    } else if (a.zt === '1') {
+      acts = '<button class="btn btn-sm" data-set="3" data-id="' + a.id + '" data-fp="wsmh-29-01">'
+        + '<i class="fa-solid fa-rotate-left"></i> 撤回授权</button>'
+        + '<a class="btn btn-sm" href="query-auth.html?tab=qa-log">查看其查询记录</a>';
+    }
+  } else {
+    if (a.zt === '1') acts = '<a class="btn btn-primary btn-sm" href="query-house.html">去查询（已放行）</a>';
+    if (a.zt === '0') acts = '<span class="text-3 text-xs"><i class="fa-solid fa-hourglass-half"></i> 等待权利人在个人中心确认，确认后即可查询</span>';
+    if (a.zt === '3') acts = '<span class="text-3 text-xs"><i class="fa-solid fa-circle-info"></i> 权利人已撤回授权，查询已立即失效</span>';
+    if (a.zt === '2') acts = '<span class="text-3 text-xs"><i class="fa-solid fa-circle-info"></i> 权利人已拒绝本次授权申请</span>';
+    if (a.zt === '4') acts = '<span class="text-3 text-xs"><i class="fa-solid fa-clock"></i> 授权已到期失效，如仍需查询请重新申请</span>';
+  }
+  return '<div class="auth-card ' + cls + '">'
+    + '<div class="ac-h"><span class="ac-t">' + (side === 'tome' ? UI.esc(a.sqr) : '查询 ' + UI.esc(a.qlr)) + '</span>'
+    + PORTAL.badge(st.n, st.c) + '<span class="ml-auto text-3 text-xs">' + a.id + '</span></div>'
+    + '<div class="ac-m">查询范围：' + UI.esc(a.fw) + '<br>'
+    + '查询用途：' + UI.esc(a.yt) + '　授权期限至：' + a.qx + '<br>'
+    + '申请时间：' + a.d + (a.czsj ? '　处理时间：' + a.czsj : '') + '</div>'
+    + (acts ? '<div class="ac-a">' + acts + '</div>' : '')
+    + '</div>';
+}
+
+function bindActs(box) {
+  box.querySelectorAll('[data-set]').forEach(function (b) {
+    b.onclick = function () {
+      var id = b.getAttribute('data-id'), zt = b.getAttribute('data-set');
+      var a = PORTAL.auths().filter(function (x) { return x.id === id; })[0];
+      if (zt === '1') {
+        UI.confirm('同意授权', '同意后 <b>' + UI.esc(a.sqr) + '</b> 可在授权期限内查询您的「' + UI.esc(a.fw)
+          + '」，查询行为会全程留痕，您可随时撤回。', function () {
+            PORTAL.act('auth.set', { id: id, zt: '1' });
+            UI.toast('已授权，对方现在可以在查询中心查询您的房产信息', 'success');
+          }, '同意授权');
+      } else if (zt === '2') {
+        UI.confirm('拒绝授权', '拒绝后 <b>' + UI.esc(a.sqr) + '</b> 无法查询您的房产信息。', function () {
+          PORTAL.act('auth.set', { id: id, zt: '2' });
+          UI.toast('已拒绝该授权申请', 'success');
+        }, '确认拒绝');
+      } else {
+        UI.confirm('撤回授权', '撤回后 <b>' + UI.esc(a.sqr) + '</b> 将<b class="text-accent">立即无法查询</b>您的房产信息，'
+          + '已完成的查询记录仍保留在留痕台账中可查。', function () {
+            PORTAL.act('auth.set', { id: id, zt: '3' });
+            UI.toast('授权已撤回，对方查询已立即失效', 'success');
+          }, '确认撤回');
+      }
+    };
+  });
+}
+
+function renderLog() {
+  var box = document.getElementById('log-list');
+  var lxF = document.getElementById('lg-lx').value, wayF = document.getElementById('lg-way').value;
+  var all = PORTAL.qlogs();
+
+  var sel = document.getElementById('lg-lx');
+  var lxs = {}; all.forEach(function (l) { lxs[l.lx] = 1; });
+  var opts = '<option value="">全部查询类型</option>' + Object.keys(lxs).map(function (x) {
+    return '<option value="' + UI.esc(x) + '"' + (x === lxF ? ' selected' : '') + '>' + UI.esc(x) + '</option>';
+  }).join('');
+  if (sel.innerHTML.length !== opts.length) sel.innerHTML = opts;
+
+  var arr = all.filter(function (l) {
+    if (lxF && l.lx !== lxF) return false;
+    if (wayF && l.way !== wayF) return false;
+    return true;
+  });
+
+  /* 异常查询：同一对象出现 3 次以上 */
+  var cnt = {};
+  all.forEach(function (l) { cnt[l.dx] = (cnt[l.dx] || 0) + 1; });
+
+  if (!arr.length) {
+    box.innerHTML = '<div style="padding:18px">' + UI.empty('暂无查询记录',
+      '在查询中心执行任何查询后，记录会实时出现在这里',
+      '<a class="btn btn-primary btn-sm" href="query-house.html">去查询</a>') + '</div>';
+    return;
+  }
+
+  box.innerHTML = '<table class="pub-table"><thead><tr>'
+    + '<th style="width:52px">序号</th><th style="width:110px">查询人</th><th>查询对象</th>'
+    + '<th>查询类型</th><th style="width:120px">查询用途</th>'
+    + '<th style="width:150px">查询时间</th><th style="width:120px">查询渠道</th><th style="width:96px">核查</th>'
+    + '</tr></thead><tbody>'
+    + arr.map(function (l, i) {
+      var ab = cnt[l.dx] >= 3;
+      return '<tr' + (ab ? ' style="background:var(--warning-light)"' : '') + '>'
+        + '<td class="num">' + (i + 1) + '</td><td>' + PORTAL.mask('name', l.cxr) + '</td>'
+        + '<td class="strong">' + UI.esc(l.dx) + '</td><td>' + UI.esc(l.lx) + '</td>'
+        + '<td>' + UI.esc(l.yt) + '</td><td>' + l.d + '</td><td>' + UI.esc(l.way) + '</td>'
+        + '<td>' + (ab ? '<span class="badge orange">频次异常</span>' : '<span class="badge green">正常</span>') + '</td></tr>';
+    }).join('') + '</tbody></table>'
+    + '<div class="table-note">共 ' + arr.length + ' 条查询记录。同一查询对象 24 小时内被查询 3 次以上标记为「频次异常」，'
+    + '提示管理人员核查是否存在异常查询。数据来源：查询访问留痕信息表（PSP_CXLHXX），留痕不可删除、不可修改。</div>';
+}
+
+function renderBatch() {
+  var box = document.getElementById('batch-list');
+  var arr = PORTAL.auths({ pl: 1 });
+  if (!arr.length) {
+    box.innerHTML = '<div style="padding:18px">' + UI.empty('暂无批量查询申请',
+      '提交后可在此跟踪审核状态与已发放笔数') + '</div>';
+    return;
+  }
+  box.innerHTML = '<table class="pub-table"><thead><tr>'
+    + '<th>申请编号</th><th>申请机构</th><th style="width:130px">查询范围</th>'
+    + '<th style="width:88px">状态</th><th style="width:110px">发放情况</th><th style="width:110px">提交时间</th>'
+    + '</tr></thead><tbody>'
+    + arr.map(function (a) {
+      var n = Number((a.fw.match(/(\d+) 笔/) || [0, 0])[1]);
+      var st = PORTAL.AUTH_ST[a.zt];
+      return '<tr><td class="num">' + a.id + '</td><td class="strong">' + UI.esc(a.sqr) + '</td>'
+        + '<td>' + UI.esc(a.fw) + '</td>'
+        + '<td>' + PORTAL.badge(a.zt === '0' ? '待审核' : st.n, a.zt === '0' ? 'orange' : st.c) + '</td>'
+        + '<td class="num">' + (a.zt === '1' ? '已发放 ' + n + ' / ' + n + ' 笔' : '—') + '</td>'
+        + '<td>' + a.d + '</td></tr>';
+    }).join('') + '</tbody></table>'
+    + '<div class="table-note">批量查询结果按申请笔数限量发放，逐笔记录查询对象与发放时间，'
+    + '机构不得超出申请事由使用查询结果。审核在政府侧办理（档案管理科）。</div>';
+}
+</script>
+</body>
+</html>

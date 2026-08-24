@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的工作台 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+<style>
+  /* 首页看板：调用量趋势折线 + 能力占比条形 */
+  .ov-chart { width: 100%; }
+  .ov-chart svg { width: 100%; height: 216px; display: block; }
+  .ov-chart .grid line { stroke: var(--border); stroke-width: 1; }
+  .ov-chart .area { fill: url(#ovGrad); }
+  .ov-chart .line { fill: none; stroke: var(--primary); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+  .ov-chart .dot { fill: #fff; stroke: var(--primary); stroke-width: 2; }
+  .ov-chart .xlbl { fill: var(--text-3); font-size: 11px; text-anchor: middle; }
+  .ov-chart .ylbl { fill: var(--text-3); font-size: 11px; text-anchor: end; }
+  .ov-chart .val { fill: var(--text-2); font-size: 11px; text-anchor: middle; font-weight: 600; }
+  .ov-dist { display: flex; flex-direction: column; gap: 11px; padding: 4px 0; }
+  .ov-dist .db-row { display: grid; grid-template-columns: 120px 1fr 64px; align-items: center; gap: 10px; }
+  .ov-dist .db-name { font-size: 12.5px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ov-dist .db-track { height: 12px; border-radius: 6px; background: var(--bg-soft); overflow: hidden; }
+  .ov-dist .db-fill { height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--primary) 0%, #6ea8ff 100%); }
+  .ov-dist .db-val { font-size: 12px; color: var(--text-3); text-align: right; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body data-role="pt" data-active="overview" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span class="cur">我的工作台</span>
+    </div>
+    <div class="page-actions">
+      <span class="node-tag"><i class="fa-solid fa-user-shield"></i>AI 平台管理员</span>
+    </div>
+  </div>
+
+  <!-- 渐变头条：数智大脑的全局体量 -->
+  <div class="ai-hero">
+    <div class="ah-l">
+      <div class="ah-title">数智大脑 · AI 应用服务平台</div>
+      <div class="ah-sub">本地化大模型底座 + 知识库图谱 + 智能体编排，统一支撑房产交易全业务链的智能应用</div>
+    </div>
+    <div class="ah-r">
+      <div class="ah-s"><div class="ah-v" id="hModels">—</div><div class="ah-lb">在服模型</div></div>
+      <div class="ah-div"></div>
+      <div class="ah-s"><div class="ah-v" id="hAgents">—</div><div class="ah-lb">上架智能体</div></div>
+      <div class="ah-div"></div>
+      <div class="ah-s"><div class="ah-v" id="hCalls">—</div><div class="ah-lb">累计调用</div></div>
+    </div>
+  </div>
+
+  <!-- 硬约束提示：贯穿全平台的四条底线 -->
+  <div class="ai-tip">
+    <i class="fa-solid fa-shield-halved"></i>
+    <span><b>AI 输出治理四条底线：</b>① 输出必带模型、版本、置信度与知识溯源；② AI 只出建议，未人工确认不产生业务效力；
+      ③ 风险线索须人工确认后才推送预警督办；④ 智能问数受数据权限与统计口径双约束。本平台所有智能场景均按此执行，界面上不提供绕过入口。</span>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div>
+        <div class="s-label">待人工确认</div>
+        <div class="s-value" id="kPending">—</div>
+        <div class="s-trend text-danger">未确认不产生业务效力</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon ai"><i class="fa-solid fa-microchip"></i></div>
+      <div>
+        <div class="s-label">在服模型 / 全部</div>
+        <div class="s-value" id="kModels">—</div>
+        <div class="s-trend text-2" id="kSamples">—</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-book"></i></div>
+      <div>
+        <div class="s-label">已生效知识库</div>
+        <div class="s-value" id="kKb">—</div>
+        <div class="s-trend text-warning" id="kKbPending">—</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div>
+        <div class="s-label">待确认预警线索</div>
+        <div class="s-value" id="kClue">—</div>
+        <div class="s-trend text-2" id="kCluePushed">—</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-shield"></i></div>
+      <div>
+        <div class="s-label">幻觉防控拦截</div>
+        <div class="s-value" id="kBlocked">—</div>
+        <div class="s-trend text-2" id="kGuard">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI 能力调用情况：调用量趋势 + 各能力调用占比 -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head">
+        <h3>近 7 日 AI 调用量趋势</h3><span class="sub">全平台 AI 能力按天调用次数</span>
+        <div class="head-actions">
+          <a class="btn btn-sm" href="../admin/api-gateway.html?role=pt"><i class="fa-solid fa-plug"></i> 统一调用接口</a>
+        </div>
+      </div>
+      <div class="card-body"><div id="callTrend" class="ov-chart"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <h3>各 AI 能力调用占比</h3><span class="sub">按应用场景统计调用分布</span>
+        <div class="head-actions">
+          <a class="btn btn-sm" href="../admin/model-eval.html?role=pt"><i class="fa-solid fa-gauge"></i> 效果评估</a>
+        </div>
+      </div>
+      <div class="card-body"><div id="callDist" class="ov-dist"></div></div>
+    </div>
+  </div>
+
+  <!-- 三个环形指标 + 采纳率趋势 -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head">
+        <h3>输出质量指标</h3><span class="sub">由人工确认结果实时算出</span>
+        <div class="head-actions">
+          <a class="btn btn-sm" href="../admin/human-feedback.html?role=pt"><i class="fa-solid fa-rotate"></i> 修正回流台账</a>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="grid-3" id="rings"></div>
+        <div class="alert alert-info mt-16">
+          <i class="fa-solid fa-circle-info"></i>
+          <span>采纳率、修正率与驳回率由「AI 输出留痕」中的人工确认动作实时计算：采纳抬升模型准确率，修正与驳回回流为待调优样本。</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3>各智能体健康度</h3><span class="sub">上架智能体的调用量与采纳率</span>
+        <div class="head-actions">
+          <a class="btn btn-sm" href="../admin/agent-orchestrate.html?role=pt"><i class="fa-solid fa-diagram-project"></i> 智能体编排</a>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="table-wrap" style="max-height:268px">
+          <table class="data-table compact" id="tAgents" data-static>
+            <thead><tr>
+              <th>智能体</th><th>场景</th><th>状态</th><th class="num">调用量</th><th class="num">采纳率</th><th class="num">修正率</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 待人工确认队列：闭环中枢，直接在总览上就能确认 -->
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3>待人工确认队列</h3>
+      <span class="sub" id="pendSub">—</span>
+      <div class="head-actions">
+        <button class="btn btn-success btn-sm" onclick="batchAdopt()"><i class="fa-solid fa-check-double"></i> 批量采纳</button>
+        <a class="btn btn-sm" href="ai-audit-log.html?role=pt"><i class="fa-solid fa-list-check"></i> 全部留痕台账</a>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tPending" data-static>
+        <thead><tr>
+          <th style="width:38px"><input type="checkbox" onclick="AI.pickAll(this,'tPending')"></th>
+          <th>应用场景</th><th class="cell-lg">AI 结论</th>
+          <th>模型 / 版本</th><th>置信度</th><th>溯源</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 近期输出留痕 + 平台消息 -->
+  <div class="grid-2 mt-16">
+    <div class="card">
+      <div class="card-head">
+        <h3>近期 AI 输出留痕</h3><span class="sub">全部输出可按模型与场景下钻</span>
+        <a class="home-more" href="ai-audit-log.html?role=pt">查看全部 <i class="fa-solid fa-angle-right"></i></a>
+      </div>
+      <div class="card-body tight">
+        <div class="home-todo" id="recentList"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <h3>平台提醒</h3><span class="sub" id="msgSub">—</span>
+        <div class="head-actions">
+          <button class="btn btn-sm" onclick="readAll()"><i class="fa-solid fa-envelope-open"></i> 全部标记已读</button>
+        </div>
+      </div>
+      <div class="card-body tight">
+        <div class="home-todo" id="msgList"></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  var q = '?role=' + AI.role();
+
+  /* 头条与 KPI */
+  function paintKpi() {
+    document.getElementById('hModels').textContent = AI.stat('models');
+    document.getElementById('hAgents').textContent = AI.stat('agents');
+    document.getElementById('hCalls').textContent = AI.num(AI.stat('calls'));
+
+    document.getElementById('kPending').textContent = AI.stat('pendingOutputs');
+    document.getElementById('kModels').textContent = AI.stat('models') + ' / ' + AI.stat('modelsAll');
+    document.getElementById('kSamples').textContent = '待调优样本 ' + AI.stat('samples') + ' 条';
+    document.getElementById('kKb').textContent = AI.stat('kbDocs');
+    document.getElementById('kKbPending').textContent = AI.stat('kbPending') + ' 份待审核，未生效不参与检索';
+    document.getElementById('kClue').textContent = AI.stat('cluePending');
+    document.getElementById('kCluePushed').textContent = '已确认推送 ' + AI.stat('cluePushed') + ' 条';
+    document.getElementById('kBlocked').textContent = AI.stat('blocked');
+    var g = AI.db().guard;
+    document.getElementById('kGuard').textContent = '阈值 ' + g.confMin + '% · ' + (g.needCite ? '强制溯源' : '不强制溯源');
+  }
+
+  /* 三个环形指标 */
+  function paintRings() {
+    var ad = AI.stat('adoptRate'), co = AI.stat('correctRate');
+    var rj = Math.round((100 - ad - co) * 10) / 10;
+    document.getElementById('rings').innerHTML =
+      AI.ring(ad, '采纳率', '结论直接可用', 'var(--success)') +
+      AI.ring(co, '人工修正率', '回流为纠错样本', 'var(--primary)') +
+      AI.ring(rj < 0 ? 0 : rj, '驳回率', '计入模型误报率', 'var(--danger)');
+  }
+
+  /* 智能体健康度 */
+  AI.table({
+    id: 'tAgents', pageSize: 5,
+    rows: function () {
+      return AI.get('agents').slice().sort(function (a, b) { return b.calls - a.calls; });
+    },
+    cells: function (a) {
+      return [
+        '<td>' + AI.esc(a.mc) + '</td>',
+        '<td>' + AI.dict('scene', a.scene) + '</td>',
+        '<td>' + AI.ztBadge(a.ztzt) + '</td>',
+        '<td class="num">' + AI.num(a.calls) + '</td>',
+        '<td class="num">' + (a.calls ? a.adopt + '%' : '—') + '</td>',
+        '<td class="num">' + (a.calls ? a.correct + '%' : '—') + '</td>'
+      ];
+    },
+    empty: '暂无智能体，请先在智能体编排页创建'
+  });
+
+  /* 待人工确认队列：中枢闭环 */
+  AI.table({
+    id: 'tPending', pageSize: 8,
+    rows: function () {
+      return AI.where('outputs', function (o) { return o.qrzt === '0'; });
+    },
+    cells: function (o) {
+      var page = AI.scenePage[o.scene];
+      return [
+        '<td><input type="checkbox" data-pick="' + o.id + '"></td>',
+        '<td>' + (page
+          ? '<a class="link" href="' + page + q + '">' + AI.dict('scene', o.scene) + '</a>'
+          : AI.dict('scene', o.scene)) + '</td>',
+        /* 业务标识与产生时间放在留痕台账页展示，看板只留一屏能看完的关键列 */
+        '<td class="cell-lg" title="' + AI.esc(o.bizId) + '">' + AI.esc(o.text) + '</td>',
+        '<td>' + AI.esc(o.mxmc) + '<br><span class="text-3 text-sm">' + AI.esc(o.ver) + '</span></td>',
+        '<td>' + AI.confidence(o.conf) + '</td>',
+        '<td>' + AI.citeChips(o.cites) + '</td>',
+        '<td class="col-ops">' + AI.actTriplet(o.id) + '</td>'
+      ];
+    },
+    empty: '全部 AI 输出均已人工确认',
+    icon: 'fa-circle-check',
+    after: function () {
+      document.getElementById('pendSub').textContent =
+        '共 ' + AI.stat('pendingOutputs') + ' 条待确认，确认后才产生业务效力';
+    }
+  });
+
+  /* 近期留痕 */
+  function paintRecent() {
+    var list = AI.get('outputs').slice(0, 6);
+    document.getElementById('recentList').innerHTML = list.length ? list.map(function (o) {
+      var page = AI.scenePage[o.scene] || 'ai-audit-log.html';
+      return '<a class="todo-row" href="' + page + q + '">' +
+        AI.badge(AI.dict('scene', o.scene), 'ai') +
+        '<span class="todo-text" title="' + AI.esc(o.text) + '">' + AI.esc(o.text) + '</span>' +
+        '<span class="todo-time">' + (o.blocked ? '<span class="text-danger">已拦截</span> · ' : '') +
+        AI.dict('qrzt', o.qrzt) + ' · ' + AI.fmt.ago(o.at) + '</span></a>';
+    }).join('') : '<div class="empty"><i class="fa-regular fa-folder-open"></i><div>暂无输出留痕</div></div>';
+  }
+
+  /* 平台提醒 */
+  function paintMsg() {
+    var list = AI.get('msgs').slice(0, 6);
+    var unread = AI.stat('unread');
+    document.getElementById('msgSub').textContent = unread ? (unread + ' 条未读') : '全部已读';
+    document.getElementById('msgList').innerHTML = list.length ? list.map(function (m) {
+      var color = { '0': 'orange', '1': 'cyan', '2': 'red', '3': 'red', '4': 'blue', '5': 'gray' }[m.xxlx] || 'gray';
+      return '<a class="todo-row" href="' + (m.href ? m.href + q : 'javascript:void(0)') + '" ' +
+        'onclick="markRead(\'' + m.id + '\')">' +
+        AI.badge(AI.dict('xxlx', m.xxlx), color) +
+        '<span class="todo-text" style="' + (m.read ? 'color:var(--text-3)' : 'font-weight:600') + '">' +
+          AI.esc(m.content) + '</span>' +
+        '<span class="todo-time">' + AI.fmt.ago(m.createdAt) + '</span></a>';
+    }).join('') : '<div class="empty"><i class="fa-regular fa-bell"></i><div>暂无提醒</div></div>';
+  }
+
+  window.markRead = function (id) {
+    var m = AI.byId('msgs', id);
+    if (m && !m.read) { m.read = 1; AI.commit(); }
+  };
+  window.readAll = function () {
+    var n = 0;
+    AI.get('msgs').forEach(function (m) { if (!m.read) { m.read = 1; n++; } });
+    if (!n) { AI.toast('没有未读提醒', 'error'); return; }
+    AI.commit();
+    AI.toast('已标记 ' + n + ' 条为已读', 'success');
+  };
+  window.batchAdopt = function () {
+    AI.act.adoptBatch(AI.checked('tPending'));
+  };
+
+  /* 近 7 日调用量趋势（SVG 折线，按总调用量派生，稳定不随机） */
+  function buildTrend() {
+    var total = AI.stat('calls') || 0;
+    var w = [0.11, 0.12, 0.13, 0.14, 0.15, 0.17, 0.18];
+    var base = Math.max(total, 2400);
+    var vals = w.map(function (x) { return Math.round(base * x / 6); });
+    var days = [];
+    var now = new Date();
+    for (var i = 6; i >= 0; i--) {
+      var d = new Date(now.getTime() - i * 86400000);
+      days.push((d.getMonth() + 1) + '/' + d.getDate());
+    }
+    var W = 640, H = 216, padL = 46, padR = 16, padT = 18, padB = 30;
+    var iw = W - padL - padR, ih = H - padT - padB;
+    var max = (Math.max.apply(null, vals) || 1) * 1.15;
+    var stepX = iw / (vals.length - 1);
+    var pts = vals.map(function (v, i) {
+      return { x: padL + i * stepX, y: padT + ih - (v / max) * ih, v: v };
+    });
+    var line = pts.map(function (p, i) { return (i ? 'L' : 'M') + p.x.toFixed(1) + ' ' + p.y.toFixed(1); }).join(' ');
+    var area = 'M' + pts[0].x.toFixed(1) + ' ' + (padT + ih) +
+      pts.map(function (p) { return ' L' + p.x.toFixed(1) + ' ' + p.y.toFixed(1); }).join('') +
+      ' L' + pts[pts.length - 1].x.toFixed(1) + ' ' + (padT + ih) + ' Z';
+    var grid = '', g;
+    for (g = 0; g <= 4; g++) {
+      var gy = padT + ih - (ih / 4) * g;
+      grid += '<line x1="' + padL + '" y1="' + gy.toFixed(1) + '" x2="' + (W - padR) + '" y2="' + gy.toFixed(1) + '"></line>';
+      grid += '<text class="ylbl" x="' + (padL - 8) + '" y="' + (gy + 4).toFixed(1) + '">' + AI.num(Math.round(max / 4 * g)) + '</text>';
+    }
+    var xl = pts.map(function (p, i) { return '<text class="xlbl" x="' + p.x.toFixed(1) + '" y="' + (H - 9) + '">' + days[i] + '</text>'; }).join('');
+    var vl = pts.map(function (p) { return '<text class="val" x="' + p.x.toFixed(1) + '" y="' + (p.y - 9).toFixed(1) + '">' + AI.num(p.v) + '</text>'; }).join('');
+    var dots = pts.map(function (p) { return '<circle class="dot" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="3.4"></circle>'; }).join('');
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' +
+      '<defs><linearGradient id="ovGrad" x1="0" y1="0" x2="0" y2="1">' +
+        '<stop offset="0" stop-color="rgba(38,86,187,.22)"></stop>' +
+        '<stop offset="1" stop-color="rgba(38,86,187,0)"></stop></linearGradient></defs>' +
+      '<g class="grid">' + grid + '</g>' +
+      '<path class="area" d="' + area + '"></path>' +
+      '<path class="line" d="' + line + '"></path>' + dots + xl + vl + '</svg>';
+  }
+
+  /* 各 AI 能力调用占比（按场景聚合智能体调用量） */
+  function buildDist() {
+    var map = {};
+    AI.get('agents').forEach(function (a) {
+      if (!a.scene) return;
+      map[a.scene] = (map[a.scene] || 0) + (a.calls || 0);
+    });
+    var arr = Object.keys(map).map(function (k) { return { scene: k, calls: map[k] }; })
+      .sort(function (a, b) { return b.calls - a.calls; }).slice(0, 7);
+    if (!arr.length) return '<div class="empty"><i class="fa-regular fa-chart-bar"></i><div>暂无调用数据</div></div>';
+    var max = arr[0].calls || 1;
+    var totalAll = arr.reduce(function (s, x) { return s + x.calls; }, 0) || 1;
+    return arr.map(function (x) {
+      var pct = Math.max(4, Math.round(x.calls / max * 100));
+      var share = Math.round(x.calls / totalAll * 100);
+      var name = AI.dict('scene', x.scene);
+      return '<div class="db-row"><div class="db-name" title="' + AI.esc(name) + '">' + AI.esc(name) + '</div>' +
+        '<div class="db-track"><div class="db-fill" style="width:' + pct + '%"></div></div>' +
+        '<div class="db-val">' + AI.num(x.calls) + ' · ' + share + '%</div></div>';
+    }).join('');
+  }
+  function paintCharts() {
+    document.getElementById('callTrend').innerHTML = buildTrend();
+    document.getElementById('callDist').innerHTML = buildDist();
+  }
+
+  /* 订阅：任何闭环动作落盘后整页重绘 */
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () {
+      paintKpi();
+      paintRings();
+      paintCharts();
+      paintRecent();
+      paintMsg();
+      AI.repaintAll();
+    });
+  });
+})();
+</script>
+</body>
+</html>

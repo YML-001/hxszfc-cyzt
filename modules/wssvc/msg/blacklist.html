@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>黑名单与退订管理 · 统一应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../../assets/css/app.css">
+<link rel="stylesheet" href="../../../assets/css/wssvc.css">
+</head>
+<body data-role="admin" data-active="wssvc-42">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 统一应用服务平台
+        <span class="sep">/</span> 统一消息服务 <span class="sep">/</span> <span class="cur">黑名单与退订管理</span>
+      </div>
+      <div class="page-title">黑名单与退订管理</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="SVC.exportAsync('黑名单与退订清单')"><i class="fa-solid fa-download"></i> 导出</button>
+      <button class="btn" onclick="PMS.openDrawer('importDrawer')"><i class="fa-solid fa-file-import"></i> 批量导入</button>
+      <button class="btn" onclick="PMS.openDrawer('scopeDrawer')"><i class="fa-solid fa-sliders"></i> 生效范围</button>
+      <button class="btn btn-primary" onclick="PMS.openDrawer('addDrawer')"><i class="fa-solid fa-plus"></i> 新增黑名单</button>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-scale-balanced"></i>
+    <div>退订这件事在政务场景里有个绕不开的矛盾：
+      <b>群众有权拒收营销类信息，但办事结果、法定告知这类通知不能因为退订就不发</b>。
+      所以这里把消息分成<b>可退订</b>与<b>不可退订</b>两类——
+      回访问卷、政策宣传属于前者，退订立即生效；
+      办结取件、缴税提醒、资金到账属于后者，退订也照发，
+      并在页面上明确标注理由，出现投诉时有据可查。</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-ban"></i></div>
+      <div><div class="s-label">黑名单号码</div><div class="s-value">1,286</div><div class="s-trend">本月新增 86</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-bell-slash"></i></div>
+      <div><div class="s-label">主动退订</div><div class="s-value">3,486</div><div class="s-trend">占关注用户 1.87%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-filter-circle-xmark"></i></div>
+      <div><div class="s-label">今日拦截</div><div class="s-value">248</div><div class="s-trend">黑名单 62 · 退订 186</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-shield-halved"></i></div>
+      <div><div class="s-label">强制放行</div><div class="s-value">42</div><div class="s-trend">不可退订类，已留痕</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-rotate-left"></i></div>
+      <div><div class="s-label">本月恢复订阅</div><div class="s-value">128</div><div class="s-trend">回复「TD」误退后自行恢复</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-coins"></i></div>
+      <div><div class="s-label">本月省下</div><div class="s-value">248 元</div><div class="s-trend">少发 7,086 条无效短信</div></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-chart-pie"></i> 退订原因分布</h3><span class="sub">近 90 日 3,486 条</span></div>
+      <div class="card-body">
+        <div class="svc-chart" data-chart="donut" data-series='{"label":"退订","total":"3486","items":[{"n":"回复退订关键字","v":1862,"color":"var(--warning)"},{"n":"公众号取关","v":986,"color":"var(--info)"},{"n":"运营商拒收上报","v":386,"color":"var(--danger)"},{"n":"窗口代为登记","v":168,"color":"var(--primary)"},{"n":"投诉后加入","v":84,"color":"#7c5cd6"}]}'></div>
+        <p class="hint"><i class="fa-solid fa-circle-info"></i>
+          回复退订关键字占了一半以上。抽查了 50 条，
+          <b>其中有 18 条是收到满意度回访问卷后退的</b>——
+          问卷本身是好意，但发得太密就成了骚扰。
+          后来把回访频次从「每件一次」改成「每人 30 天内最多一次」，
+          退订量当月下降了四成。</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-chart-line"></i> 退订与恢复趋势</h3><span class="sub">近 6 个月</span></div>
+      <div class="card-body">
+        <div class="svc-chart" data-chart="group" data-series='{"x":["2月","3月","4月","5月","6月","7月"],"series":[{"name":"新增退订","color":"var(--warning)","v":[486,528,642,386,286,248]},{"name":"恢复订阅","color":"var(--success)","v":[42,58,86,102,118,128]}]}'></div>
+        <p class="hint"><i class="fa-solid fa-lightbulb"></i>
+          4 月是个峰值，正好是维修资金续筹通知集中发出的月份。
+          那次通知面向 12 万业主，<b>内容里没写清楚「不续筹会怎样」，
+          很多人以为是诈骗短信直接退订</b>。
+          教训是：涉及收费的群发通知，必须先在公众号发一篇说明文并留官方电话。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="bl">黑名单台账</div>
+      <div class="tab" data-tab="un">退订记录</div>
+      <div class="tab" data-tab="kw">退订关键字</div>
+      <div class="tab" data-tab="it">拦截与放行记录</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="bl">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>号码 / 标识</label><input type="text" placeholder="手机号 / OpenID"></div>
+          <div class="filter-item"><label>类型</label><select><option value="">全部</option><option>无效号码</option><option>投诉加入</option><option>运营商拒收</option><option>人工加入</option><option>风控自动</option></select></div>
+          <div class="filter-item"><label>生效范围</label><select><option value="">全部</option><option>全部消息</option><option>仅可退订类</option><option>仅营销类</option></select></div>
+          <div class="filter-item"><label>状态</label><select><option value="">全部</option><option>生效中</option><option>已解除</option><option>临时（到期自动解除）</option></select></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已检索黑名单','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="PMS.toast('已重置为默认条件')">重置</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>号码 / 标识</th><th>渠道</th><th>类型</th><th>加入原因</th><th>生效范围</th><th>加入时间</th><th>操作人</th><th class="num">已拦截</th><th>状态</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr class="clickable" onclick="PMS.openDrawer('blDrawer')">
+                <td class="nowrap">158****9124</td><td>短信</td><td><span class="badge gray">无效号码</span></td><td class="cell-lg">连续 4 次发送均返回空号</td>
+                <td class="nowrap">仅可退订类</td><td class="nowrap">2026-08-01 20:52</td><td class="nowrap">系统自动</td><td class="num">3</td><td><span class="badge red">生效中</span></td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('blDrawer')">
+                <td class="nowrap">137****0086</td><td>短信</td><td><span class="badge gray">无效号码</span></td><td class="cell-lg">连续 3 次停机</td>
+                <td class="nowrap">仅可退订类</td><td class="nowrap">2026-08-01 20:26</td><td class="nowrap">系统自动</td><td class="num">2</td><td><span class="badge red">生效中</span></td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('blDrawer')">
+                <td class="nowrap">186****3024</td><td>短信</td><td><span class="badge orange">投诉加入</span></td><td class="cell-lg">12345 工单 GD2026072800862，投诉回访短信频繁</td>
+                <td class="nowrap">仅营销类</td><td class="nowrap">2026-07-28 15:24</td><td class="nowrap">韦丽娟</td><td class="num">6</td><td><span class="badge red">生效中</span></td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('blDrawer')">
+                <td class="nowrap">183.62.***.146</td><td>验证码</td><td><span class="badge red">风控自动</span></td><td class="cell-lg">同 IP 一小时内请求验证码 86 次</td>
+                <td class="nowrap">仅验证码</td><td class="nowrap">2026-08-01 20:46</td><td class="nowrap">系统自动</td><td class="num">42</td><td><span class="badge orange">临时 · 剩 12 分</span></td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('blDrawer')">
+                <td class="nowrap">150****2846</td><td>短信</td><td><span class="badge red">运营商拒收</span></td><td class="cell-lg">运营商回执连续返回 MSC:0007 用户拒收</td>
+                <td class="nowrap">仅可退订类</td><td class="nowrap">2026-07-24 09:12</td><td class="nowrap">系统自动</td><td class="num">4</td><td><span class="badge red">生效中</span></td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('blDrawer')">
+                <td class="nowrap">139****4826</td><td>短信</td><td><span class="badge blue">人工加入</span></td><td class="cell-lg">房产中介号码，长期批量代办，本人要求只发站内</td>
+                <td class="nowrap">仅营销类</td><td class="nowrap">2026-07-18 11:08</td><td class="nowrap">覃志强</td><td class="num">18</td><td><span class="badge red">生效中</span></td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('blDrawer')">
+                <td class="nowrap">133****6248</td><td>短信</td><td><span class="badge gray">无效号码</span></td><td class="cell-lg">空号，人工联系确认后仍无法更正</td>
+                <td class="nowrap">全部消息</td><td class="nowrap">2026-07-16 14:42</td><td class="nowrap">陆丽华</td><td class="num">8</td><td><span class="badge red">生效中</span></td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('blDrawer')">
+                <td class="nowrap">202.103.***.86</td><td>验证码</td><td><span class="badge red">风控自动</span></td><td class="cell-lg">同 IP 超频，经核实为中介门店共用出口</td>
+                <td class="nowrap">仅验证码</td><td class="nowrap">2026-07-14 11:26</td><td class="nowrap">系统自动</td><td class="num">0</td><td><span class="badge green">已解除（转白名单）</span></td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('blDrawer')">
+                <td class="nowrap">135****7028</td><td>短信</td><td><span class="badge orange">投诉加入</span></td><td class="cell-lg">投诉后核实为号码转让，原机主已换人</td>
+                <td class="nowrap">全部消息</td><td class="nowrap">2026-07-08 16:38</td><td class="nowrap">蒙志刚</td><td class="num">12</td><td><span class="badge red">生效中</span></td><td><span class="link">详情</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="un">
+      <div class="card-body">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>号码 / OpenID</th><th>渠道</th><th>退订方式</th><th>退订内容</th><th>退订时间</th><th>退订范围</th><th class="num">退订前收到</th><th>状态</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr class="clickable" onclick="PMS.openDrawer('unDrawer')">
+                <td class="nowrap">186****3024</td><td>短信</td><td class="nowrap">回复关键字</td><td class="cell-lg">回复「退订」</td>
+                <td class="nowrap">2026-08-01 21:28</td><td class="nowrap">可退订类</td><td class="num">12</td><td><span class="badge orange">已退订</span></td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('unDrawer')">
+                <td class="nowrap">oq3F****8kD2</td><td>微信</td><td class="nowrap">取消关注</td><td class="cell-lg">—</td>
+                <td class="nowrap">2026-08-01 19:40</td><td class="nowrap">微信全部</td><td class="num">28</td><td><span class="badge orange">已取关</span></td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('unDrawer')">
+                <td class="nowrap">139****2486</td><td>短信</td><td class="nowrap">回复关键字</td><td class="cell-lg">回复「TD」</td>
+                <td class="nowrap">2026-08-01 16:24</td><td class="nowrap">可退订类</td><td class="num">6</td><td><span class="badge orange">已退订</span></td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('unDrawer')">
+                <td class="nowrap">135****4862</td><td>短信</td><td class="nowrap">回复关键字</td><td class="cell-lg">回复「不要再发了」（模糊匹配命中）</td>
+                <td class="nowrap">2026-08-01 14:08</td><td class="nowrap">可退订类</td><td class="num">18</td><td><span class="badge orange">已退订</span></td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('unDrawer')">
+                <td class="nowrap">137****9024</td><td>短信</td><td class="nowrap">窗口代为登记</td><td class="cell-lg">群众到窗口反映不想收回访问卷</td>
+                <td class="nowrap">2026-07-31 10:42</td><td class="nowrap">仅回访问卷</td><td class="num">4</td><td><span class="badge orange">已退订</span></td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('unDrawer')">
+                <td class="nowrap">158****6428</td><td>短信</td><td class="nowrap">回复关键字</td><td class="cell-lg">回复「HF」恢复接收</td>
+                <td class="nowrap">2026-07-30 20:18</td><td class="nowrap">—</td><td class="num">—</td><td><span class="badge green">已恢复</span></td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('unDrawer')">
+                <td class="nowrap">oq3F****2kL8</td><td>微信</td><td class="nowrap">关闭消息通知</td><td class="cell-lg">在公众号菜单里关闭了办件通知开关</td>
+                <td class="nowrap">2026-07-29 15:36</td><td class="nowrap">微信办件通知</td><td class="num">42</td><td><span class="badge orange">已关闭</span></td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('unDrawer')">
+                <td class="nowrap">150****2846</td><td>短信</td><td class="nowrap">运营商上报</td><td class="cell-lg">用户在运营商侧设置了短信拦截</td>
+                <td class="nowrap">2026-07-24 09:12</td><td class="nowrap">短信全部</td><td class="num">24</td><td><span class="badge red">运营商拦截</span></td><td><span class="link">详情</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="kw">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-keyboard"></i>
+          <div>群众回复退订时很少老老实实打「TD」。
+            实际收到的五花八门：「退订」「不要发了」「别再发」「取消」，
+            甚至还有直接骂人的。<b>只认标准关键字会漏掉大半</b>，
+            所以在精确匹配之外加了一组模糊规则，
+            命中模糊规则的会记录原文，供人工复核有没有误判。</div>
+        </div>
+        <div class="svc-tbl">
+          <table class="data-table compact">
+            <thead><tr><th>关键字</th><th>匹配方式</th><th>动作</th><th>生效范围</th><th class="num">近 30 日命中</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td class="nowrap"><b>TD</b></td><td>精确（忽略大小写）</td><td>退订可退订类</td><td class="nowrap">短信</td><td class="num">486</td><td><span class="badge green">启用</span></td><td><span class="link">编辑</span></td></tr>
+              <tr><td class="nowrap"><b>退订</b></td><td>精确</td><td>退订可退订类</td><td class="nowrap">短信</td><td class="num">628</td><td><span class="badge green">启用</span></td><td><span class="link">编辑</span></td></tr>
+              <tr><td class="nowrap"><b>N</b></td><td>精确（忽略大小写）</td><td>退订可退订类</td><td class="nowrap">短信</td><td class="num">86</td><td><span class="badge green">启用</span></td><td><span class="link">编辑</span></td></tr>
+              <tr><td class="nowrap"><b>HF / 恢复</b></td><td>精确</td><td>恢复接收</td><td class="nowrap">短信</td><td class="num">128</td><td><span class="badge green">启用</span></td><td><span class="link">编辑</span></td></tr>
+              <tr><td class="nowrap">不要 + 发</td><td>模糊（同句含两词）</td><td>退订并记录原文待复核</td><td class="nowrap">短信</td><td class="num">168</td><td><span class="badge green">启用</span></td><td><span class="link">编辑</span></td></tr>
+              <tr><td class="nowrap">别 + 发 / 骚扰</td><td>模糊</td><td>退订并记录原文待复核</td><td class="nowrap">短信</td><td class="num">86</td><td><span class="badge green">启用</span></td><td><span class="link">编辑</span></td></tr>
+              <tr><td class="nowrap">取消</td><td>模糊</td><td class="text-warning">仅提示人工，不自动退订</td><td class="nowrap">短信</td><td class="num">42</td><td><span class="badge orange">仅提示</span></td><td><span class="link">编辑</span></td></tr>
+              <tr><td class="nowrap">投诉 / 12345</td><td>模糊</td><td>转 12345 对接岗，不退订</td><td class="nowrap">短信</td><td class="num">18</td><td><span class="badge blue">转人工</span></td><td><span class="link">编辑</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="alert alert-warning mt-16">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>「取消」这个词特意设成<b>只提示不自动退订</b>。
+            上线初期它是自动退订的，结果发现很多人回「取消」其实是想
+            <b>取消预约、取消办件</b>，跟退订八竿子打不着，
+            白白让 30 多人收不到办结通知。这类歧义词宁可多花人工也别自动执行。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="it">
+      <div class="card-body">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>时间</th><th>号码</th><th>模板</th><th>消息类别</th><th>命中规则</th><th>处置</th><th>关联业务</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr class="clickable" onclick="PMS.openDrawer('itDrawer')">
+                <td class="nowrap">21:28:06</td><td class="nowrap">186****3024</td><td class="nowrap">SMS-COM-012</td><td><span class="badge gray">回访问卷</span></td>
+                <td class="cell-lg">已退订（可退订类）</td><td><span class="badge red">拦截不发</span></td><td class="nowrap">JY2026073100382</td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('itDrawer')">
+                <td class="nowrap">20:46:24</td><td class="nowrap">158****9124</td><td class="nowrap">SMS-COM-012</td><td><span class="badge gray">回访问卷</span></td>
+                <td class="cell-lg">黑名单 · 无效号码</td><td><span class="badge red">拦截不发</span></td><td class="nowrap">DJ2026073100428</td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('itDrawer')">
+                <td class="nowrap">19:24:18</td><td class="nowrap">186****3024</td><td class="nowrap">SMS-DJ-016</td><td><span class="badge red">办结取件</span></td>
+                <td class="cell-lg">已退订，但属不可退订类</td><td><span class="badge green">强制放行</span></td><td class="nowrap">DJ2026073100486</td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('itDrawer')">
+                <td class="nowrap">17:42:06</td><td class="nowrap">139****4826</td><td class="nowrap">SMS-COM-008</td><td><span class="badge gray">政策宣传</span></td>
+                <td class="cell-lg">黑名单 · 仅营销类</td><td><span class="badge red">拦截不发</span></td><td class="nowrap">—</td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('itDrawer')">
+                <td class="nowrap">16:08:42</td><td class="nowrap">139****4826</td><td class="nowrap">SMS-ZJ-008</td><td><span class="badge red">资金到账</span></td>
+                <td class="cell-lg">黑名单 · 仅营销类，本条非营销</td><td><span class="badge green">正常发送</span></td><td class="nowrap">ZJ2026073100286</td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('itDrawer')">
+                <td class="nowrap">14:36:24</td><td class="nowrap">135****4862</td><td class="nowrap">SMS-COM-012</td><td><span class="badge gray">回访问卷</span></td>
+                <td class="cell-lg">模糊命中「不要再发了」</td><td><span class="badge red">拦截不发</span></td><td class="nowrap">JY2026073100286</td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('itDrawer')">
+                <td class="nowrap">11:18:52</td><td class="nowrap">133****6248</td><td class="nowrap">SMS-DJ-024</td><td><span class="badge red">材料补正</span></td>
+                <td class="cell-lg">黑名单 · 全部消息（人工确认空号）</td><td><span class="badge orange">拦截并转人工</span></td><td class="nowrap">DJ2026073000524</td><td><span class="link">详情</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('itDrawer')">
+                <td class="nowrap">09:24:16</td><td class="nowrap">183.62.***.146</td><td class="nowrap">SMS-COM-001</td><td><span class="badge blue">验证码</span></td>
+                <td class="cell-lg">风控临时封禁 IP</td><td><span class="badge red">拦截不发</span></td><td class="nowrap">—</td><td><span class="link">详情</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="drawer-mask" onclick="PMS.closeDrawer('blDrawer')"></div>
+  <div class="drawer" id="blDrawer">
+    <div class="drawer-head">
+      <h3>黑名单详情 · 186****3024</h3>
+      <span class="close" onclick="PMS.closeDrawer('blDrawer')"><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="svc-resp warn">
+        <span><i class="fa-solid fa-ban"></i> <b>生效中</b></span>
+        <span>范围 <b>仅营销类</b></span>
+        <span>已拦截 <b>6 次</b></span>
+      </div>
+      <dl class="svc-kv">
+        <dt>号码</dt><dd>186****3024</dd>
+        <dt>类型</dt><dd>投诉加入</dd>
+        <dt>加入原因</dt><dd>12345 工单 GD2026072800862　·　群众反映「一周收到三条问卷短信」</dd>
+        <dt>加入时间</dt><dd>2026-07-28 15:24　·　操作人 韦丽娟（交易管理科）</dd>
+        <dt>生效范围</dt><dd>仅营销类（回访问卷、政策宣传、活动通知）</dd>
+        <dt>不受影响</dt><dd>办结取件、材料补正、缴税提醒、资金到账、验证码</dd>
+        <dt>有效期</dt><dd>长期，直至本人申请解除</dd>
+      </dl>
+      <div class="section-title mt-16">生效范围说明</div>
+      <div class="svc-tbl">
+        <table class="data-table compact">
+          <thead><tr><th>消息类别</th><th>是否可退订</th><th>本号码</th><th>依据</th></tr></thead>
+          <tbody>
+            <tr><td class="nowrap">办结取件通知</td><td><span class="badge red">不可退订</span></td><td><span class="badge green">照常发送</span></td><td class="cell-lg">法定告知，不发会导致群众白跑</td></tr>
+            <tr><td class="nowrap">材料补正通知</td><td><span class="badge red">不可退订</span></td><td><span class="badge green">照常发送</span></td><td class="cell-lg">不发会导致办件超期退回</td></tr>
+            <tr><td class="nowrap">缴税与缴费提醒</td><td><span class="badge red">不可退订</span></td><td><span class="badge green">照常发送</span></td><td class="cell-lg">涉及法定缴纳期限</td></tr>
+            <tr><td class="nowrap">资金到账与划转</td><td><span class="badge red">不可退订</span></td><td><span class="badge green">照常发送</span></td><td class="cell-lg">资金安全告知义务</td></tr>
+            <tr><td class="nowrap">验证码</td><td><span class="badge red">不可退订</span></td><td><span class="badge green">照常发送</span></td><td class="cell-lg">用户主动触发</td></tr>
+            <tr><td class="nowrap">满意度回访</td><td><span class="badge green">可退订</span></td><td><span class="badge red">拦截</span></td><td class="cell-lg">非必要，尊重意愿</td></tr>
+            <tr><td class="nowrap">政策宣传</td><td><span class="badge green">可退订</span></td><td><span class="badge red">拦截</span></td><td class="cell-lg">非必要，尊重意愿</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="section-title mt-16">拦截记录</div>
+      <div class="svc-tbl">
+        <table class="data-table compact">
+          <thead><tr><th>时间</th><th>模板</th><th>类别</th><th>处置</th></tr></thead>
+          <tbody>
+            <tr><td class="nowrap">08-01 21:28</td><td class="nowrap">SMS-COM-012 满意度回访</td><td>回访问卷</td><td><span class="badge red">拦截</span></td></tr>
+            <tr><td class="nowrap">08-01 19:24</td><td class="nowrap">SMS-DJ-016 办结取件</td><td>办结取件</td><td><span class="badge green">放行</span></td></tr>
+            <tr><td class="nowrap">07-31 15:08</td><td class="nowrap">SMS-COM-008 政策宣传</td><td>政策宣传</td><td><span class="badge red">拦截</span></td></tr>
+            <tr><td class="nowrap">07-30 16:42</td><td class="nowrap">SMS-COM-012 满意度回访</td><td>回访问卷</td><td><span class="badge red">拦截</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn" onclick="PMS.closeDrawer('blDrawer')">关闭</button>
+      <button class="btn" onclick="PMS.toast('已调整生效范围')"><i class="fa-solid fa-sliders"></i> 调整范围</button>
+      <button class="btn btn-primary" onclick="PMS.toast('已解除黑名单，需填写解除原因','success')"><i class="fa-solid fa-unlock"></i> 解除</button>
+    </div>
+  </div>
+
+  <div class="drawer-mask" onclick="PMS.closeDrawer('unDrawer')"></div>
+  <div class="drawer" id="unDrawer">
+    <div class="drawer-head">
+      <h3>退订详情 · 135****4862</h3>
+      <span class="close" onclick="PMS.closeDrawer('unDrawer')"><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="svc-resp warn">
+        <span><i class="fa-solid fa-bell-slash"></i> <b>已退订</b></span>
+        <span>方式 <b>模糊关键字</b></span>
+        <span>待人工复核</span>
+      </div>
+      <dl class="svc-kv">
+        <dt>号码</dt><dd>135****4862</dd>
+        <dt>退订时间</dt><dd>2026-08-01 14:08:26</dd>
+        <dt>回复原文</dt><dd>「不要再发了，我房子早就办完了」</dd>
+        <dt>命中规则</dt><dd>模糊规则「不要 + 发」　·　置信度 高</dd>
+        <dt>触发上文</dt><dd>08-01 11:24 收到 SMS-COM-012 满意度回访邀请</dd>
+        <dt>退订范围</dt><dd>可退订类（回访、宣传）</dd>
+        <dt>历史接收</dt><dd>近 90 日共 18 条，其中回访问卷 3 条</dd>
+      </dl>
+      <div class="alert alert-info mt-16">
+        <i class="fa-solid fa-comment-dots"></i>
+        <div>从原文看，群众的意思很明确——<b>业务已经办完了，不想再被打扰</b>。
+          这是典型的合理退订，复核通过即可。
+          值得注意的是他在 90 天里收到了 3 条回访问卷，
+          说明<b>同一人多次办件时回访去重没生效</b>，
+          已把这个问题登记到消息服务的改进清单。</div>
+      </div>
+      <div class="section-title mt-16">复核</div>
+      <div class="form-grid">
+        <div class="form-item"><label>复核结论</label><select><option>合理退订，维持</option><option>误判，恢复接收</option><option>属投诉，转 12345 对接岗</option></select></div>
+        <div class="form-item"><label>复核人</label><input type="text" value="韦丽娟" readonly></div>
+        <div class="form-item col-full"><label>备注</label><textarea rows="2">原文语义清晰，属合理退订。附带发现回访去重问题，已单独登记。</textarea></div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn" onclick="PMS.closeDrawer('unDrawer')">关闭</button>
+      <button class="btn" onclick="PMS.toast('已恢复接收，并向用户发送确认短信')"><i class="fa-solid fa-rotate-left"></i> 恢复接收</button>
+      <button class="btn btn-primary" onclick="PMS.toast('复核完成','success');PMS.closeDrawer('unDrawer')"><i class="fa-solid fa-check"></i> 复核通过</button>
+    </div>
+  </div>
+
+  <div class="drawer-mask" onclick="PMS.closeDrawer('itDrawer')"></div>
+  <div class="drawer" id="itDrawer">
+    <div class="drawer-head">
+      <h3>放行详情 · 强制放行留痕</h3>
+      <span class="close" onclick="PMS.closeDrawer('itDrawer')"><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="svc-resp ok">
+        <span><i class="fa-solid fa-shield-halved"></i> <b>强制放行</b></span>
+        <span>类别 <b>办结取件（不可退订）</b></span>
+        <span>已留痕</span>
+      </div>
+      <dl class="svc-kv">
+        <dt>时间</dt><dd>2026-08-01 19:24:18</dd>
+        <dt>号码</dt><dd>186****3024（该号码已加入黑名单 · 仅营销类）</dd>
+        <dt>模板</dt><dd>SMS-DJ-016　出证取件通知</dd>
+        <dt>关联业务</dt><dd>DJ2026073100486　抵押权登记　·　权利人 韦**</dd>
+        <dt>判定</dt><dd>号码在黑名单，但黑名单范围为「仅营销类」，本条属不可退订类</dd>
+        <dt>结果</dt><dd>正常发送　·　21:24:22 回执送达成功</dd>
+      </dl>
+      <div class="section-title mt-16">判定链路</div>
+      <div class="svc-retry">
+        <span class="rt ok">规则命中</span><span class="sep">→</span>
+        <span class="rt bad">号码在黑名单</span><span class="sep">→</span>
+        <span class="rt ok">类别为不可退订</span><span class="sep">→</span>
+        <span class="rt ok">强制放行并留痕</span><span class="sep">→</span>
+        <span class="rt ok">送达成功</span>
+      </div>
+      <div class="alert alert-info mt-16">
+        <i class="fa-solid fa-scale-balanced"></i>
+        <div><b>强制放行必须留痕，这不是技术要求而是合规要求</b>。
+          万一群众投诉「我都退订了你还发」，
+          调出这条记录就能说清楚：退订的是营销类，
+          发的是法定告知类办结通知，依据是《不动产登记操作规范》
+          关于办结告知的规定。留痕记录保存 3 年。</div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn" onclick="PMS.closeDrawer('itDrawer')">关闭</button>
+      <button class="btn btn-primary" onclick="SVC.exportAsync('放行留痕凭证')"><i class="fa-solid fa-file-arrow-down"></i> 导出凭证</button>
+    </div>
+  </div>
+
+  <div class="drawer-mask" onclick="PMS.closeDrawer('addDrawer')"></div>
+  <div class="drawer" id="addDrawer">
+    <div class="drawer-head">
+      <h3>新增黑名单</h3>
+      <span class="close" onclick="PMS.closeDrawer('addDrawer')"><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="form-grid">
+        <div class="form-item col-full"><label>号码 / 标识 <span class="req">*</span></label><input type="text" placeholder="手机号、OpenID 或 IP，多个用换行分隔"></div>
+        <div class="form-item"><label>渠道</label><select><option>短信</option><option>微信</option><option>验证码</option><option>全渠道</option></select></div>
+        <div class="form-item"><label>类型 <span class="req">*</span></label><select><option>人工加入</option><option>投诉加入</option><option>无效号码</option><option>运营商拒收</option></select></div>
+        <div class="form-item col-full"><label>生效范围 <span class="req">*</span></label>
+          <div class="svc-chips">
+            <span class="chip on" onclick="SVC.chip(this)">营销宣传</span>
+            <span class="chip on" onclick="SVC.chip(this)">满意度回访</span>
+            <span class="chip" onclick="SVC.chip(this)">办件节点通知</span>
+            <span class="chip" onclick="SVC.chip(this)">办结取件</span>
+            <span class="chip" onclick="SVC.chip(this)">缴税缴费提醒</span>
+            <span class="chip" onclick="SVC.chip(this)">资金到账</span>
+            <span class="chip" onclick="SVC.chip(this)">验证码</span>
+          </div>
+        </div>
+        <div class="form-item"><label>有效期</label><select><option>长期</option><option>30 天</option><option>90 天</option><option>自定义</option></select></div>
+        <div class="form-item"><label>到期处理</label><select><option>自动解除并通知操作人</option><option>自动解除</option><option>到期前 7 天提醒续期</option></select></div>
+        <div class="form-item col-full"><label>加入原因 <span class="req">*</span></label><textarea rows="3" placeholder="写清楚来源，例如工单号、群众诉求原话、核实过程。这一栏在事后复查时最有用"></textarea></div>
+      </div>
+      <div class="alert alert-warning mt-16">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>把「办结取件」「缴税提醒」这类勾进生效范围要非常谨慎。
+          <b>一旦拦下来，群众就真的收不到了</b>，
+          后果是白跑一趟或者错过缴税期限。
+          除非已经人工确认号码彻底无效且无其他联系方式，否则别勾。
+          勾选这几项时系统会要求二次确认并记录审批人。</div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn" onclick="PMS.closeDrawer('addDrawer')">取消</button>
+      <button class="btn btn-primary" onclick="PMS.toast('已加入黑名单','success');PMS.closeDrawer('addDrawer')"><i class="fa-solid fa-check"></i> 保存</button>
+    </div>
+  </div>
+
+  <div class="drawer-mask" onclick="PMS.closeDrawer('importDrawer')"></div>
+  <div class="drawer" id="importDrawer">
+    <div class="drawer-head">
+      <h3>批量导入黑名单</h3>
+      <span class="close" onclick="PMS.closeDrawer('importDrawer')"><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="upload-box" onclick="PMS.toast('已选择文件 黑名单导入_20260801.xlsx')">
+        <i class="fa-solid fa-cloud-arrow-up"></i>
+        点击选择或拖入 Excel 文件
+        <div class="up-hint">支持 .xlsx / .csv，单次不超过 5,000 条。<a class="link" onclick="event.stopPropagation();PMS.toast('模板已下载')">下载导入模板</a></div>
+      </div>
+      <div class="section-title mt-16">导入校验结果</div>
+      <div class="svc-tbl">
+        <table class="data-table compact">
+          <thead><tr><th>行号</th><th>号码</th><th>类型</th><th>校验</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td class="num">2</td><td class="nowrap">158****9124</td><td>无效号码</td><td><span class="badge orange">重复</span></td><td class="cell-lg">已在黑名单，将更新生效范围</td></tr>
+            <tr><td class="num">3</td><td class="nowrap">137****0086</td><td>无效号码</td><td><span class="badge orange">重复</span></td><td class="cell-lg">已在黑名单，跳过</td></tr>
+            <tr><td class="num">4</td><td class="nowrap">1385******</td><td>人工加入</td><td><span class="badge red">格式错误</span></td><td class="cell-lg">手机号位数不足，需修正后重传</td></tr>
+            <tr><td class="num">5</td><td class="nowrap">139****4028</td><td>人工加入</td><td><span class="badge green">可导入</span></td><td class="cell-lg">—</td></tr>
+            <tr><td class="num">6</td><td class="nowrap">150****6248</td><td>人工加入</td><td><span class="badge green">可导入</span></td><td class="cell-lg">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="svc-resp warn mt-16">
+        <span>共 <b>86</b> 行</span>
+        <span>可导入 <b>78</b></span>
+        <span>重复 <b>6</b></span>
+        <span>格式错误 <b class="text-danger">2</b></span>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn" onclick="PMS.closeDrawer('importDrawer')">取消</button>
+      <button class="btn" onclick="SVC.exportAsync('校验错误明细')"><i class="fa-solid fa-download"></i> 导出错误行</button>
+      <button class="btn btn-primary" onclick="PMS.toast('已导入 78 条，跳过 8 条','success');PMS.closeDrawer('importDrawer')"><i class="fa-solid fa-check"></i> 确认导入</button>
+    </div>
+  </div>
+
+  <div class="drawer-mask" onclick="PMS.closeDrawer('scopeDrawer')"></div>
+  <div class="drawer" id="scopeDrawer">
+    <div class="drawer-head">
+      <h3>消息可退订属性</h3>
+      <span class="close" onclick="PMS.closeDrawer('scopeDrawer')"><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-info">
+        <i class="fa-solid fa-list-check"></i>
+        <div>这张表决定了退订与黑名单的边界。
+          <b>改动会立即影响所有在用模板</b>，
+          把某个类别从「不可退订」改成「可退订」之前，
+          请确认该类通知不属于法定告知义务。</div>
+      </div>
+      <div class="svc-pr">
+        <div class="pr-n">办结取件通知<span class="pr-d">不发会导致群众白跑窗口</span></div>
+        <div class="pr-v"><span class="svc-sw" onclick="SVC.toggle(this,'办结取件可退订')"></span><span class="pr-u">允许退订</span></div>
+        <div class="pr-s"><span class="badge red">法定</span></div>
+      </div>
+      <div class="svc-pr">
+        <div class="pr-n">材料补正通知<span class="pr-d">不发会导致办件超期退回</span></div>
+        <div class="pr-v"><span class="svc-sw" onclick="SVC.toggle(this,'材料补正可退订')"></span><span class="pr-u">允许退订</span></div>
+        <div class="pr-s"><span class="badge red">法定</span></div>
+      </div>
+      <div class="svc-pr">
+        <div class="pr-n">缴税与缴费提醒<span class="pr-d">涉及法定缴纳期限，逾期有滞纳金</span></div>
+        <div class="pr-v"><span class="svc-sw" onclick="SVC.toggle(this,'缴税提醒可退订')"></span><span class="pr-u">允许退订</span></div>
+        <div class="pr-s"><span class="badge red">法定</span></div>
+      </div>
+      <div class="svc-pr">
+        <div class="pr-n">资金到账与划转<span class="pr-d">资金安全告知义务</span></div>
+        <div class="pr-v"><span class="svc-sw" onclick="SVC.toggle(this,'资金通知可退订')"></span><span class="pr-u">允许退订</span></div>
+        <div class="pr-s"><span class="badge red">法定</span></div>
+      </div>
+      <div class="svc-pr">
+        <div class="pr-n">查封解封告知<span class="pr-d">涉及权利限制，必须告知</span></div>
+        <div class="pr-v"><span class="svc-sw" onclick="SVC.toggle(this,'查封告知可退订')"></span><span class="pr-u">允许退订</span></div>
+        <div class="pr-s"><span class="badge red">法定</span></div>
+      </div>
+      <div class="svc-pr">
+        <div class="pr-n">验证码<span class="pr-d">用户主动触发，不存在退订问题</span></div>
+        <div class="pr-v"><span class="svc-sw" onclick="SVC.toggle(this,'验证码可退订')"></span><span class="pr-u">允许退订</span></div>
+        <div class="pr-s"><span class="badge gray">不适用</span></div>
+      </div>
+      <div class="svc-pr">
+        <div class="pr-n">预约提醒<span class="pr-d">用户自己约的，提醒是服务不是骚扰，但允许关闭</span></div>
+        <div class="pr-v"><span class="svc-sw on" onclick="SVC.toggle(this,'预约提醒可退订')"></span><span class="pr-u">允许退订</span></div>
+        <div class="pr-s"><span class="badge green">可退订</span></div>
+      </div>
+      <div class="svc-pr">
+        <div class="pr-n">满意度回访<span class="pr-d">非必要</span></div>
+        <div class="pr-v"><span class="svc-sw on" onclick="SVC.toggle(this,'满意度回访可退订')"></span><span class="pr-u">允许退订</span></div>
+        <div class="pr-s"><span class="badge green">可退订</span></div>
+      </div>
+      <div class="svc-pr">
+        <div class="pr-n">政策宣传与活动<span class="pr-d">非必要</span></div>
+        <div class="pr-v"><span class="svc-sw on" onclick="SVC.toggle(this,'政策宣传可退订')"></span><span class="pr-u">允许退订</span></div>
+        <div class="pr-s"><span class="badge green">可退订</span></div>
+      </div>
+      <div class="svc-pr">
+        <div class="pr-n">维修资金续筹通知<span class="pr-d">有争议：涉及缴费但非法定强制，目前按可退订处理并在内容里留联系电话</span></div>
+        <div class="pr-v"><span class="svc-sw on" onclick="SVC.toggle(this,'续筹通知可退订')"></span><span class="pr-u">允许退订</span></div>
+        <div class="pr-s"><span class="badge orange">待明确</span></div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn" onclick="PMS.closeDrawer('scopeDrawer')">取消</button>
+      <button class="btn btn-primary" onclick="PMS.toast('可退订属性已保存','success');PMS.closeDrawer('scopeDrawer')"><i class="fa-solid fa-check"></i> 保存</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../../assets/js/app.js"></script>
+<script src="../../../assets/js/wssvc.js"></script>
+</body>
+</html>

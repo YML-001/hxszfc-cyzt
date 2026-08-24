@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>随办随归自动归集 · 房屋交易档案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  .no-code { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; }
+  /* 本页特有：归集流水线看板 */
+  .pipe { display: flex; align-items: stretch; flex-wrap: wrap; gap: 0; }
+  .pipe-node {
+    flex: 1 1 150px; min-width: 150px; position: relative;
+    border: 1px solid var(--border); border-right: 0; background: #fff; padding: 12px 14px 12px 22px;
+  }
+  .pipe-node:first-child { border-radius: var(--radius) 0 0 var(--radius); padding-left: 14px; }
+  .pipe-node:last-child { border-right: 1px solid var(--border); border-radius: 0 var(--radius) var(--radius) 0; }
+  .pipe-node::after {
+    content: ""; position: absolute; right: -9px; top: 50%; transform: translateY(-50%) rotate(45deg);
+    width: 16px; height: 16px; background: #fff; border-top: 1px solid var(--border); border-right: 1px solid var(--border); z-index: 2;
+  }
+  .pipe-node:last-child::after { display: none; }
+  .pipe-node .pn-l { font-size: 12.5px; color: var(--text-3); }
+  .pipe-node .pn-v { font-size: 24px; font-weight: 700; color: var(--primary); font-variant-numeric: tabular-nums; line-height: 1.25; }
+  .pipe-node .pn-v small { font-size: 12px; color: var(--text-3); font-weight: 400; margin-left: 3px; }
+  .pipe-node.ok .pn-v { color: var(--success); }
+  .pipe-node .pn-branch {
+    font-size: 12px; color: #b45309; background: #fff8ed; border-radius: 5px;
+    padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px; margin-top: 6px;
+  }
+  .pipe-node .pn-branch.blue { color: var(--primary); background: var(--primary-light); }
+  /* 本页特有：材料清单对照 */
+  .mat-table tbody tr.miss-row > td { background: #fff1f1; }
+  .mat-table tbody tr.miss-row:hover > td { background: #ffe6e6; }
+  .mat-table tbody tr.miss-row td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
+  .mat-table tbody tr.fixed-row > td { background: #f0fdf4; }
+  .up-area { border: 1px dashed var(--primary-soft); border-radius: 8px; padding: 12px; background: var(--primary-light-2, var(--primary-light)); margin-top: 8px; }
+  /* 本页特有：补充成功结果 */
+  .res-line {
+    display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 8px;
+    background: #f0fdf4; border: 1px solid #bbf7d0; font-size: 13.5px; margin-bottom: 8px;
+    opacity: 0; animation: resIn .45s ease forwards;
+  }
+  .res-line i { color: var(--success); margin-top: 2px; }
+  .res-line:nth-child(1) { animation-delay: .05s; }
+  .res-line:nth-child(2) { animation-delay: .45s; }
+  .res-line:nth-child(3) { animation-delay: .85s; }
+  @keyframes resIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .cnt-3 { display: flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
+  .cnt-3 b { font-size: 14px; }
+  .cnt-3 .c-miss { color: var(--danger); }
+  .data-table tbody tr.is-warn > td { background: #fff8ed; }
+  .data-table tbody tr.is-warn:hover > td { background: #fdf0d9; }
+  .modal-head { display: flex; align-items: center; gap: 10px; }
+  .modal-head h3 { font-size: 16px; font-weight: 700; }
+  .modal-head .close { margin-left: auto; cursor: pointer; color: var(--text-3); font-size: 18px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: none; border: 0; }
+  .modal-head .close:hover { background: var(--bg-soft); color: var(--text-1); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdagl-04">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> <a class="link" href="index.html">房屋交易档案管理系统</a>
+        <span class="sep">/</span> 档案接收整理
+        <span class="sep">/</span> <span class="cur">随办随归自动归集</span>
+      </div>
+      <div class="page-title">随办随归自动归集</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="archive-list.html"><i class="fa-solid fa-box-archive"></i> 档案案卷台账</a>
+      <a class="btn" href="category-tree.html"><i class="fa-solid fa-sitemap"></i> 归档规则配置</a>
+      <button type="button" class="btn" onclick="PMS.openModal('mdHand')"><i class="fa-solid fa-play"></i> 手工触发归集</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.toast('已重新执行 0 个失败任务，当前无失败任务','success')"><i class="fa-solid fa-rotate"></i> 重跑失败任务</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-bolt"></i>
+    <div>
+      <b>档案不再靠事后人工整理。</b>业务办结那一刻由 wsbiz 推送办结事件，系统按事项代码匹配归档规则、拉齐应归档材料自动组卷，
+      卷内文件只登记 wssvc 文件主键不复制二进制；人工只在缺件补充与质量抽检时介入。
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>今日归集流水线</h3>
+      <span class="sub">2026-08-01 00:00 至 14:26 · 数据每 5 分钟刷新</span>
+      <div class="head-actions">
+        <span class="badge green"><i class="fa-solid fa-circle-check"></i> 自动归集率 96.8%</span>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="pipe">
+        <div class="pipe-node">
+          <div class="pn-l"><i class="fa-solid fa-flag-checkered"></i> 办件办结</div>
+          <div class="pn-v">186<small>件</small></div>
+        </div>
+        <div class="pipe-node">
+          <div class="pn-l"><i class="fa-solid fa-bolt"></i> 触发归集</div>
+          <div class="pn-v">186<small>次</small></div>
+        </div>
+        <div class="pipe-node">
+          <div class="pn-l"><i class="fa-solid fa-sitemap"></i> 匹配归档规则</div>
+          <div class="pn-v">186<small>次</small></div>
+        </div>
+        <div class="pipe-node ok">
+          <div class="pn-l"><i class="fa-solid fa-box-archive"></i> 组卷成功</div>
+          <div class="pn-v">178<small>卷</small></div>
+          <span class="pn-branch"><i class="fa-solid fa-arrow-turn-down"></i> 部分成功 8</span>
+        </div>
+        <div class="pipe-node ok">
+          <div class="pn-l"><i class="fa-solid fa-circle-check"></i> 已归档在库</div>
+          <div class="pn-v">172<small>卷</small></div>
+          <span class="pn-branch blue"><i class="fa-solid fa-arrow-turn-down"></i> 待上架 6</span>
+        </div>
+      </div>
+      <div class="stat-grid mt-16">
+        <div class="stat-card">
+          <div class="s-icon blue"><i class="fa-solid fa-bolt"></i></div>
+          <div><div class="s-label">今日触发</div><div class="s-value">186</div><div class="s-trend text-3">全部来自办件办结事件</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+          <div><div class="s-label">成功</div><div class="s-value">178</div><div class="s-trend text-success">平均耗时 2.6 秒</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="s-icon orange"><i class="fa-solid fa-file-circle-exclamation"></i></div>
+          <div><div class="s-label">部分成功（需补件）</div><div class="s-value">8</div><div class="s-trend text-warning">涉及 11 件材料缺失</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="s-icon gray"><i class="fa-solid fa-circle-xmark"></i></div>
+          <div><div class="s-label">失败</div><div class="s-value">0</div><div class="s-trend text-3">失败自动重试，三次仍失败转人工</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>任务编号</label>
+        <input type="text" id="fTask" placeholder="GJ20260628042">
+      </div>
+      <div class="filter-item">
+        <label>任务类型</label>
+        <select>
+          <option value="">全部</option>
+          <option>办件办结触发</option><option>定时批量</option><option>手工触发</option><option>历史补归</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>触发收件编号</label>
+        <input type="text" placeholder="SJ20260628016">
+      </div>
+      <div class="filter-item">
+        <label>事项名称</label>
+        <input type="text" placeholder="存量房买卖合同网签备案">
+      </div>
+      <div class="filter-item">
+        <label>任务状态</label>
+        <select>
+          <option value="">全部</option>
+          <option>待执行</option><option>执行中</option><option>成功</option><option>部分成功</option><option>失败</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>是否需人工补充</label>
+        <select><option value="">全部</option><option>是</option><option>否</option></select>
+      </div>
+      <div class="filter-item">
+        <label>执行时间起</label>
+        <input type="date" value="2026-06-01">
+      </div>
+      <div class="filter-item">
+        <label>执行时间止</label>
+        <input type="date" value="2026-08-01">
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 3,846 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="part">部分成功（需补件） <span class="badge orange">8</span></div>
+      <div class="tab" data-tab="ok">成功</div>
+      <div class="tab" data-tab="run">执行中</div>
+      <div class="tab" data-tab="fail">失败</div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblGj" data-static>
+        <thead>
+          <tr>
+            <th>任务编号</th>
+            <th>任务类型</th>
+            <th>触发收件编号</th>
+            <th>事项名称</th>
+            <th>归档规则</th>
+            <th>应归集 / 已归集 / 缺失</th>
+            <th>生成档案号</th>
+            <th>开始时间</th>
+            <th class="num">耗时</th>
+            <th>任务状态</th>
+            <th class="num">重试</th>
+            <th>需人工补充</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="part" class="is-warn">
+            <td class="nowrap fw-600 no-code">GJ20260628042</td>
+            <td class="nowrap">办件办结触发</td>
+            <td class="nowrap no-code">SJ20260628016</td>
+            <td class="cell-lg">存量房买卖合同网签备案</td>
+            <td class="nowrap no-code">GZ-CFWQ-001</td>
+            <td class="nowrap"><span class="cnt-3"><b>12</b> / <b class="text-success">11</b> / <b class="c-miss">1</b></span></td>
+            <td class="nowrap no-code"><a class="link" href="archive-detail.html">DA450204202600862</a></td>
+            <td class="nowrap">2026-06-28 16:42:18</td>
+            <td class="num">2.4 秒</td>
+            <td class="nowrap"><span class="badge orange">部分成功</span></td>
+            <td class="num">0</td>
+            <td class="nowrap"><span class="badge orange">是</span></td>
+            <td class="col-ops">
+              <a class="link" onclick="openFix()">补充材料</a>
+              <a class="link" onclick="PMS.toast('已重新执行，从办件材料重新拉取')">重新执行</a>
+              <a class="link" href="archive-detail.html">详情</a>
+            </td>
+          </tr>
+          <tr data-st="part" class="is-warn">
+            <td class="nowrap fw-600 no-code">GJ20260628038</td>
+            <td class="nowrap">办件办结触发</td>
+            <td class="nowrap no-code">SJ20260628008</td>
+            <td class="cell-lg">存量房买卖合同网签备案</td>
+            <td class="nowrap no-code">GZ-CFWQ-001</td>
+            <td class="nowrap"><span class="cnt-3"><b>12</b> / <b class="text-success">11</b> / <b class="c-miss">1</b></span></td>
+            <td class="nowrap no-code"><a class="link" href="archive-detail.html">DA450204202600866</a></td>
+            <td class="nowrap">2026-06-28 15:08:42</td>
+            <td class="num">2.2 秒</td>
+            <td class="nowrap"><span class="badge orange">部分成功</span><br><span class="text-warning text-sm">缺测绘成果</span></td>
+            <td class="num">0</td>
+            <td class="nowrap"><span class="badge orange">是</span></td>
+            <td class="col-ops">
+              <a class="link" onclick="openFix()">补充材料</a>
+              <a class="link" onclick="PMS.toast('已重新执行，从办件材料重新拉取')">重新执行</a>
+              <a class="link" href="archive-detail.html">详情</a>
+            </td>
+          </tr>
+          <tr data-st="part" class="is-warn">
+            <td class="nowrap fw-600 no-code">GJ20260627026</td>
+            <td class="nowrap">办件办结触发</td>
+            <td class="nowrap no-code">SJ20260627042</td>
+            <td class="cell-lg">房屋抵押备案（带押过户）</td>
+            <td class="nowrap no-code">GZ-DYBA-002</td>
+            <td class="nowrap"><span class="cnt-3"><b>10</b> / <b class="text-success">8</b> / <b class="c-miss">2</b></span></td>
+            <td class="nowrap no-code"><a class="link" href="archive-detail.html">DA450204202600842</a></td>
+            <td class="nowrap">2026-06-27 11:26:06</td>
+            <td class="num">2.8 秒</td>
+            <td class="nowrap"><span class="badge orange">部分成功</span><br><span class="text-warning text-sm">缺抵押合同附件</span></td>
+            <td class="num">1</td>
+            <td class="nowrap"><span class="badge orange">是</span></td>
+            <td class="col-ops">
+              <a class="link" onclick="openFix()">补充材料</a>
+              <a class="link" onclick="PMS.toast('已重新执行，从办件材料重新拉取')">重新执行</a>
+              <a class="link" href="archive-detail.html">详情</a>
+            </td>
+          </tr>
+          <tr data-st="ok">
+            <td class="nowrap fw-600 no-code">GJ20260801186</td>
+            <td class="nowrap">办件办结触发</td>
+            <td class="nowrap no-code">SJ20260801126</td>
+            <td class="cell-lg">商品房买卖合同网签备案</td>
+            <td class="nowrap no-code">GZ-SPWQ-001</td>
+            <td class="nowrap"><span class="cnt-3"><b>14</b> / <b class="text-success">14</b> / <b>0</b></span></td>
+            <td class="nowrap no-code"><a class="link" href="archive-detail.html">DA450204202600938</a></td>
+            <td class="nowrap">2026-08-01 14:18:02</td>
+            <td class="num">2.1 秒</td>
+            <td class="nowrap"><span class="badge green">成功</span></td>
+            <td class="num">0</td>
+            <td class="nowrap text-3">否</td>
+            <td class="col-ops">
+              <a class="link" href="archive-detail.html">详情</a>
+              <a class="link" href="catalog-entry.html">著录</a>
+            </td>
+          </tr>
+          <tr data-st="ok">
+            <td class="nowrap fw-600 no-code">GJ20260801182</td>
+            <td class="nowrap">办件办结触发</td>
+            <td class="nowrap no-code">SJ20260801118</td>
+            <td class="cell-lg">房屋租赁合同备案</td>
+            <td class="nowrap no-code">GZ-ZLBA-001</td>
+            <td class="nowrap"><span class="cnt-3"><b>7</b> / <b class="text-success">7</b> / <b>0</b></span></td>
+            <td class="nowrap no-code"><a class="link" href="archive-detail.html">DA450204202600936</a></td>
+            <td class="nowrap">2026-08-01 13:52:26</td>
+            <td class="num">1.8 秒</td>
+            <td class="nowrap"><span class="badge green">成功</span></td>
+            <td class="num">0</td>
+            <td class="nowrap text-3">否</td>
+            <td class="col-ops">
+              <a class="link" href="archive-detail.html">详情</a>
+              <a class="link" href="catalog-entry.html">著录</a>
+            </td>
+          </tr>
+          <tr data-st="ok">
+            <td class="nowrap fw-600 no-code">GJ20260801164</td>
+            <td class="nowrap">办件办结触发</td>
+            <td class="nowrap no-code">SJ20260801102</td>
+            <td class="cell-lg">存量房房源核验</td>
+            <td class="nowrap no-code">GZ-CFHY-001</td>
+            <td class="nowrap"><span class="cnt-3"><b>6</b> / <b class="text-success">6</b> / <b>0</b></span></td>
+            <td class="nowrap no-code"><a class="link" href="archive-detail.html">DA450204202600928</a></td>
+            <td class="nowrap">2026-08-01 11:06:44</td>
+            <td class="num">1.6 秒</td>
+            <td class="nowrap"><span class="badge green">成功</span></td>
+            <td class="num">0</td>
+            <td class="nowrap text-3">否</td>
+            <td class="col-ops">
+              <a class="link" href="archive-detail.html">详情</a>
+              <a class="link" href="catalog-entry.html">著录</a>
+            </td>
+          </tr>
+          <tr data-st="run">
+            <td class="nowrap fw-600 no-code">GJ20260801188</td>
+            <td class="nowrap">办件办结触发</td>
+            <td class="nowrap no-code">SJ20260801132</td>
+            <td class="cell-lg">存量房买卖合同网签备案</td>
+            <td class="nowrap no-code">GZ-CFWQ-001</td>
+            <td class="nowrap"><span class="cnt-3"><b>12</b> / <b class="text-success">9</b> / <b>—</b></span></td>
+            <td class="nowrap text-3">生成中</td>
+            <td class="nowrap">2026-08-01 14:26:12</td>
+            <td class="num">—</td>
+            <td class="nowrap"><span class="badge blue"><i class="fa-solid fa-spinner"></i> 执行中</span></td>
+            <td class="num">0</td>
+            <td class="nowrap text-3">—</td>
+            <td class="col-ops">
+              <a class="link" onclick="PMS.toast('任务执行中，请稍后查看')">查看进度</a>
+            </td>
+          </tr>
+          <tr data-st="ok">
+            <td class="nowrap fw-600 no-code">GJ20260731012</td>
+            <td class="nowrap">定时批量</td>
+            <td class="nowrap text-3">—</td>
+            <td class="cell-lg">当日未触发办件补归集（每日 23:00）</td>
+            <td class="nowrap no-code">GZ-BATCH-001</td>
+            <td class="nowrap"><span class="cnt-3"><b>86</b> / <b class="text-success">86</b> / <b>0</b></span></td>
+            <td class="nowrap text-3">批量生成 12 卷</td>
+            <td class="nowrap">2026-07-31 23:00:00</td>
+            <td class="num">46.2 秒</td>
+            <td class="nowrap"><span class="badge green">成功</span></td>
+            <td class="num">0</td>
+            <td class="nowrap text-3">否</td>
+            <td class="col-ops">
+              <a class="link" onclick="PMS.toast('已打开批量任务明细')">详情</a>
+            </td>
+          </tr>
+          <tr data-st="ok">
+            <td class="nowrap fw-600 no-code">GJ20260728006</td>
+            <td class="nowrap">历史补归</td>
+            <td class="nowrap text-3">—</td>
+            <td class="cell-lg">1998 年公有住房与房改档案历史补归</td>
+            <td class="nowrap no-code">GZ-HIST-006</td>
+            <td class="nowrap"><span class="cnt-3"><b>486</b> / <b class="text-success">486</b> / <b>0</b></span></td>
+            <td class="nowrap text-3">批量生成 486 卷</td>
+            <td class="nowrap">2026-07-28 09:00:00</td>
+            <td class="num">4 分 12 秒</td>
+            <td class="nowrap"><span class="badge green">成功</span></td>
+            <td class="num">0</td>
+            <td class="nowrap text-3">否</td>
+            <td class="col-ops">
+              <a class="link" href="digitize-batch.html?pc=SZH2026Q3-018">数字化批次</a>
+              <a class="link" onclick="PMS.toast('已打开批量任务明细')">详情</a>
+            </td>
+          </tr>
+          <tr data-st="fail">
+            <td class="nowrap fw-600 no-code">GJ20260726018</td>
+            <td class="nowrap">手工触发</td>
+            <td class="nowrap no-code">SJ20260726042</td>
+            <td class="cell-lg">房屋交易面积测算成果归档</td>
+            <td class="nowrap no-code">GZ-MJCS-001</td>
+            <td class="nowrap"><span class="cnt-3"><b>5</b> / <b>0</b> / <b class="c-miss">5</b></span></td>
+            <td class="nowrap text-3">未生成</td>
+            <td class="nowrap">2026-07-26 10:12:08</td>
+            <td class="num">0.8 秒</td>
+            <td class="nowrap"><span class="badge red">失败</span><br><span class="text-danger text-sm">事项代码未匹配到归档规则</span></td>
+            <td class="num">3</td>
+            <td class="nowrap"><span class="badge orange">是</span></td>
+            <td class="col-ops">
+              <a class="link" href="category-tree.html">配置规则</a>
+              <a class="link" onclick="PMS.toast('已重新执行')">重新执行</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="drawer-mask"></div>
+  <div class="drawer drawer-xl" id="drFix">
+    <div class="drawer-head">
+      <h3>缺件补充办理 · <span class="no-code">GJ20260628042</span></h3>
+      <button type="button" class="close" onclick="PMS.closeDrawer('drFix')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="drawer-body">
+      <div id="fixForm">
+        <dl class="desc-list">
+          <div class="desc-item"><dt>任务类型</dt><dd>办件办结触发</dd></div>
+          <div class="desc-item"><dt>触发收件编号</dt><dd class="no-code">SJ20260628016</dd></div>
+          <div class="desc-item"><dt>事项</dt><dd>存量房买卖合同网签备案（CFBA-001）</dd></div>
+          <div class="desc-item"><dt>归档规则</dt><dd class="no-code">GZ-CFWQ-001</dd></div>
+          <div class="desc-item"><dt>生成案卷</dt><dd class="no-code">DA450204202600862</dd></div>
+          <div class="desc-item"><dt>案卷状态</dt><dd><span class="badge orange">归档中</span> <span class="text-3">缺件未补齐</span></dd></div>
+          <div class="desc-item"><dt>房屋坐落</dt><dd>彰泰滨江学府12栋2单元1802</dd></div>
+          <div class="desc-item"><dt>任务耗时 / 状态</dt><dd>2.4 秒　<span class="badge orange">部分成功</span></dd></div>
+        </dl>
+
+        <div class="section-title mt-16">应归档材料清单对照（共 12 件，缺失 1 件）</div>
+        <div class="table-wrap">
+          <table class="data-table compact mat-table" data-static>
+            <thead>
+              <tr>
+                <th class="idx-col">序号</th>
+                <th>材料名称</th>
+                <th>文件类型</th>
+                <th>材料类型代码</th>
+                <th>必要性</th>
+                <th>归集状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="idx-col">1</td>
+                <td class="cell-lg">存量房买卖合同网签备案申请表</td>
+                <td class="nowrap">01 申请表</td>
+                <td class="nowrap no-code">M001</td>
+                <td class="nowrap"><span class="badge blue">必要</span></td>
+                <td class="nowrap"><span class="text-success"><i class="fa-solid fa-check"></i> 已归集</span> <span class="text-3">来自办件材料 M001</span></td>
+                <td class="col-ops"><a class="link" href="archive-viewer.html">预览</a></td>
+              </tr>
+              <tr>
+                <td class="idx-col">2</td>
+                <td class="cell-lg">转让方身份证明</td>
+                <td class="nowrap">02 身份证明材料</td>
+                <td class="nowrap no-code">M002</td>
+                <td class="nowrap"><span class="badge blue">必要</span></td>
+                <td class="nowrap"><span class="text-success"><i class="fa-solid fa-check"></i> 已归集</span></td>
+                <td class="col-ops"><a class="link" href="archive-viewer.html">预览</a></td>
+              </tr>
+              <tr>
+                <td class="idx-col">3</td>
+                <td class="cell-lg">受让方身份证明</td>
+                <td class="nowrap">02 身份证明材料</td>
+                <td class="nowrap no-code">M003</td>
+                <td class="nowrap"><span class="badge blue">必要</span></td>
+                <td class="nowrap"><span class="text-success"><i class="fa-solid fa-check"></i> 已归集</span></td>
+                <td class="col-ops"><a class="link" href="archive-viewer.html">预览</a></td>
+              </tr>
+              <tr>
+                <td class="idx-col">4</td>
+                <td class="cell-lg">不动产权证书</td>
+                <td class="nowrap">05 权属证明</td>
+                <td class="nowrap no-code">M004</td>
+                <td class="nowrap"><span class="badge blue">必要</span></td>
+                <td class="nowrap"><span class="text-success"><i class="fa-solid fa-check"></i> 已归集</span></td>
+                <td class="col-ops"><a class="link" href="archive-viewer.html">预览</a></td>
+              </tr>
+              <tr>
+                <td class="idx-col">5</td>
+                <td class="cell-lg">存量房买卖合同</td>
+                <td class="nowrap">04 合同协议</td>
+                <td class="nowrap no-code">M005</td>
+                <td class="nowrap"><span class="badge blue">必要</span></td>
+                <td class="nowrap"><span class="text-success"><i class="fa-solid fa-check"></i> 已归集</span></td>
+                <td class="col-ops"><a class="link" href="archive-viewer.html">预览</a></td>
+              </tr>
+              <tr>
+                <td class="idx-col">6</td>
+                <td class="cell-lg">房源核验单</td>
+                <td class="nowrap">07 审批表与审批文书</td>
+                <td class="nowrap no-code">M006</td>
+                <td class="nowrap"><span class="badge blue">必要</span></td>
+                <td class="nowrap"><span class="text-success"><i class="fa-solid fa-check"></i> 已归集</span></td>
+                <td class="col-ops"><a class="link" href="archive-viewer.html">预览</a></td>
+              </tr>
+              <tr>
+                <td class="idx-col">7</td>
+                <td class="cell-lg">交易限制校验结果单</td>
+                <td class="nowrap">07 审批表与审批文书</td>
+                <td class="nowrap no-code">M007</td>
+                <td class="nowrap"><span class="badge blue">必要</span></td>
+                <td class="nowrap"><span class="text-success"><i class="fa-solid fa-check"></i> 已归集</span></td>
+                <td class="col-ops"><a class="link" href="archive-viewer.html">预览</a></td>
+              </tr>
+              <tr>
+                <td class="idx-col">8</td>
+                <td class="cell-lg">资金监管协议</td>
+                <td class="nowrap">04 合同协议</td>
+                <td class="nowrap no-code">M008</td>
+                <td class="nowrap"><span class="badge blue">必要</span></td>
+                <td class="nowrap"><span class="text-success"><i class="fa-solid fa-check"></i> 已归集</span></td>
+                <td class="col-ops"><a class="link" href="archive-viewer.html">预览</a></td>
+              </tr>
+              <tr class="miss-row" id="missRow">
+                <td class="idx-col fw-700">9</td>
+                <td class="cell-lg fw-700">购房款支付凭证</td>
+                <td class="nowrap fw-600">08 缴费凭证</td>
+                <td class="nowrap no-code fw-600">M009</td>
+                <td class="nowrap"><span class="badge blue">必要</span></td>
+                <td class="nowrap"><span class="text-danger fw-600"><i class="fa-solid fa-xmark"></i> 缺失</span> <span class="text-3">办件材料中未找到</span></td>
+                <td class="col-ops">
+                  <a class="link" onclick="toggleUp()">上传材料</a>
+                  <a class="link" onclick="PMS.toast('已从办件 SJ20260628016 重新拉取，仍未找到该材料','warning')">重新拉取</a>
+                  <a class="link danger" onclick="markNone()">确无此材料</a>
+                </td>
+              </tr>
+              <tr id="upRow" style="display:none">
+                <td></td>
+                <td colspan="6">
+                  <div class="up-area">
+                    <div class="form-grid form-align">
+                      <div class="form-item">
+                        <label>文件名称<span class="req">*</span></label>
+                        <input type="text" value="购房款支付凭证（柳州银行转账回单）">
+                      </div>
+                      <div class="form-item">
+                        <label>责任者<span class="req">*</span></label>
+                        <input type="text" value="柳州银行营业部">
+                      </div>
+                      <div class="form-item">
+                        <label>成文日期<span class="req">*</span></label>
+                        <input type="date" value="2026-06-29">
+                      </div>
+                      <div class="form-item">
+                        <label>页数<span class="req">*</span></label>
+                        <input type="number" value="3">
+                      </div>
+                      <div class="form-item">
+                        <label>是否原件<span class="req">*</span></label>
+                        <select><option>扫描件</option><option>原件</option><option>复印件</option></select>
+                      </div>
+                      <div class="form-item">
+                        <label>密级</label>
+                        <select><option>内部</option><option>公开</option><option>秘密</option></select>
+                      </div>
+                      <div class="form-item col-full">
+                        <label>材料文件<span class="req">*</span></label>
+                        <div class="file-up">
+                          <input type="hidden" class="file-up-val" value="购房款支付凭证_柳州银行转账回单.pdf">
+                          <div class="file-up-grid">
+                            <div class="file-up-tile file-up-add" title="添加文件（可多选）">
+                              <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.tif,.tiff">
+                              <i class="fa-solid fa-plus"></i><span>上传</span>
+                            </div>
+                          </div>
+                        </div>
+                        <span class="hint">文件存入 wssvc 文件服务并返回文件主键，档案侧只登记指针；上传后自动 OCR 生成可检索文本</span>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td class="idx-col">10</td>
+                <td class="cell-lg">网签备案证明</td>
+                <td class="nowrap">09 发证证书与证明</td>
+                <td class="nowrap no-code">M010</td>
+                <td class="nowrap"><span class="badge blue">必要</span></td>
+                <td class="nowrap"><span class="text-success"><i class="fa-solid fa-check"></i> 已归集</span></td>
+                <td class="col-ops"><a class="link" href="archive-viewer.html">预览</a></td>
+              </tr>
+              <tr>
+                <td class="idx-col">11</td>
+                <td class="cell-lg">契税完税凭证</td>
+                <td class="nowrap">08 缴费凭证</td>
+                <td class="nowrap no-code">M011</td>
+                <td class="nowrap"><span class="badge gray">可选</span></td>
+                <td class="nowrap"><span class="text-success"><i class="fa-solid fa-check"></i> 已归集</span></td>
+                <td class="col-ops"><a class="link" href="archive-viewer.html">预览</a></td>
+              </tr>
+              <tr>
+                <td class="idx-col">12</td>
+                <td class="cell-lg">经纪服务合同</td>
+                <td class="nowrap">04 合同协议</td>
+                <td class="nowrap no-code">M012</td>
+                <td class="nowrap"><span class="badge gray">可选</span></td>
+                <td class="nowrap"><span class="text-success"><i class="fa-solid fa-check"></i> 已归集</span></td>
+                <td class="col-ops"><a class="link" href="archive-viewer.html">预览</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="alert alert-warning mt-16">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>补齐后案卷状态将由「归档中」变为「已归档在库」，并自动聚合到该房屋的一房一档总卷 <b class="no-code">DAFY450202001286</b>。</div>
+        </div>
+      </div>
+
+      <div id="fixResult" style="display:none">
+        <div class="res-line"><i class="fa-solid fa-circle-check"></i><div>案卷 <b class="no-code">DA450204202600862</b> 已补齐 <b>12</b> 件材料，共 46 页，起止页号连续。</div></div>
+        <div class="res-line"><i class="fa-solid fa-circle-check"></i><div>案卷状态已置为 <b>已归档在库</b>，双套载体待分配库位（推荐 KF01-J12-J3-C4-G2-H086）。</div></div>
+        <div class="res-line"><i class="fa-solid fa-circle-check"></i><div>已聚合到一房一档总卷 <b class="no-code">DAFY450202001286</b>（第 <b>9</b> 卷），该房 2021 ~ 2026 年历史档案自动串起。</div></div>
+        <div class="btn-row mt-16">
+          <a class="btn btn-primary" href="house-archive.html"><i class="fa-solid fa-clock-rotate-left"></i> 查看房屋档案全景</a>
+          <a class="btn" href="archive-detail.html"><i class="fa-solid fa-file-lines"></i> 查看案卷详情</a>
+          <a class="btn" href="warehouse.html?da=DA450204202600862"><i class="fa-solid fa-warehouse"></i> 去分配库位</a>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot" id="fixFoot">
+      <button type="button" class="btn" onclick="PMS.closeDrawer('drFix')">取消</button>
+      <button type="button" class="btn btn-primary" onclick="submitFix()"><i class="fa-solid fa-check"></i> 提交补充并完成归档</button>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="mdHand">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>手工触发归集</h3>
+        <button type="button" class="close" onclick="PMS.closeModal('mdHand')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid form-align">
+          <div class="form-item col-full">
+            <label>任务类型<span class="req">*</span></label>
+            <div class="radio-line">
+              <label><input type="radio" name="tt" checked> 手工触发（指定收件编号）</label>
+              <label><input type="radio" name="tt"> 历史补归（按年度批量）</label>
+            </div>
+          </div>
+          <div class="form-item col-full">
+            <label>收件编号<span class="req">*</span></label>
+            <input type="text" placeholder="多个用逗号分隔，如 SJ20260801126,SJ20260801118">
+            <span class="hint">系统按事项代码匹配归档规则，从办件收件材料中按材料类型代码拉取文件主键</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" onclick="PMS.closeModal('mdHand')">取消</button>
+        <button type="button" class="btn btn-primary" onclick="PMS.closeModal('mdHand');PMS.toast('归集任务已下发，可在列表中查看执行结果','success')">开始归集</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+function openFix() {
+  document.getElementById('fixForm').style.display = '';
+  document.getElementById('fixResult').style.display = 'none';
+  document.getElementById('fixFoot').style.display = '';
+  PMS.openDrawer('drFix');
+}
+function toggleUp() {
+  var r = document.getElementById('upRow');
+  r.style.display = r.style.display === 'none' ? '' : 'none';
+}
+function markNone() {
+  PMS.confirm({
+    title: '标记为确无此材料',
+    type: 'warning',
+    message: '标记后该材料不计入缺失，但须填写说明并经审批。确认继续？',
+    detail: '第 9 件「购房款支付凭证」· 材料类型代码 M009 · 必要材料',
+    okText: '提交审批',
+    onOk: function () { PMS.toast('已提交「确无此材料」说明，待档案审核人审批', 'warning'); }
+  });
+}
+function submitFix() {
+  var row = document.getElementById('missRow');
+  row.classList.remove('miss-row');
+  row.classList.add('fixed-row');
+  document.getElementById('fixForm').style.display = 'none';
+  document.getElementById('fixFoot').style.display = 'none';
+  var res = document.getElementById('fixResult');
+  res.style.display = '';
+  res.querySelectorAll('.res-line').forEach(function (el) {
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = '';
+  });
+  PMS.toast('材料已补齐，案卷归档完成', 'success');
+}
+(function () {
+  var table = document.getElementById('tblGj');
+  var tabs = document.getElementById('stTabs');
+  tabs.addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var name = tab.getAttribute('data-tab');
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.style.display = (name === 'all' || tr.getAttribute('data-st') === name) ? '' : 'none';
+    });
+  });
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 3846,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+  var q = new URLSearchParams(location.search).get('task');
+  if (q) {
+    document.getElementById('fTask').value = q;
+    openFix();
+  }
+})();
+</script>
+</body>
+</html>

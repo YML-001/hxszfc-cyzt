@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>房屋交易限制状态总览 · 房屋交易备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：红绿灯结论卡、限制情形清单、限制类型徽标组、内嵌滚动表格 */
+  .lamp-card {
+    display: grid; grid-template-columns: 210px minmax(300px, 1fr) minmax(360px, 1.1fr);
+    gap: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; background: #fff;
+  }
+  @media (max-width: 1180px) { .lamp-card { grid-template-columns: 1fr; } }
+  .lamp-box {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    padding: 26px 18px; border-right: 1px solid var(--border);
+  }
+  .lamp {
+    width: 92px; height: 92px; border-radius: 50%; position: relative;
+    display: flex; align-items: center; justify-content: center; color: #fff; font-size: 34px;
+  }
+  .lamp::after {
+    content: ""; position: absolute; inset: -10px; border-radius: 50%;
+    animation: breathe 2.2s ease-in-out infinite;
+  }
+  @keyframes breathe { 0%, 100% { transform: scale(1); opacity: .5; } 50% { transform: scale(1.14); opacity: .1; } }
+  .lamp.red { background: #dc2626; box-shadow: 0 0 0 8px rgba(220, 38, 38, .12); }
+  .lamp.red::after { background: rgba(220, 38, 38, .3); }
+  .lamp.orange { background: #f59e0b; box-shadow: 0 0 0 8px rgba(245, 158, 11, .13); }
+  .lamp.orange::after { background: rgba(245, 158, 11, .32); }
+  .lamp.green { background: #10b981; box-shadow: 0 0 0 8px rgba(16, 185, 129, .12); }
+  .lamp.green::after { background: rgba(16, 185, 129, .3); }
+  .lamp-txt { font-size: 21px; font-weight: 800; letter-spacing: 1px; }
+  .lamp-txt.red { color: #dc2626; } .lamp-txt.orange { color: #b45309; } .lamp-txt.green { color: #059669; }
+  .lamp-sub { font-size: 12.5px; color: var(--text-3); text-align: center; line-height: 1.6; }
+  .lamp-info { padding: 18px 20px; border-right: 1px solid var(--border); }
+  .lamp-info .li-row { display: flex; gap: 10px; font-size: 13.5px; padding: 5px 0; }
+  .lamp-info .li-row .lk { color: var(--text-3); width: 84px; flex-shrink: 0; }
+  .lamp-info .li-row .lv { color: var(--text-1); font-weight: 500; word-break: break-all; }
+  .lamp-list { padding: 12px 16px; background: #fbfcfe; }
+  .rl-row {
+    display: flex; align-items: flex-start; gap: 9px; padding: 7px 8px; border-radius: 6px; font-size: 13px;
+  }
+  .rl-row + .rl-row { border-top: 1px dashed #e8ecf5; }
+  .rl-row .ri { width: 18px; text-align: center; flex-shrink: 0; margin-top: 2px; }
+  .rl-row .rn { width: 96px; flex-shrink: 0; color: var(--text-2); }
+  .rl-row .rv { flex: 1; min-width: 0; line-height: 1.55; }
+  .rl-row.ok .ri, .rl-row.ok .rv { color: #059669; }
+  .rl-row.warn .ri, .rl-row.warn .rv { color: #b45309; }
+  .rl-row.bad .ri, .rl-row.bad .rv { color: #dc2626; font-weight: 600; }
+  .rl-row.sum { background: #f1f5fd; border-radius: 8px; margin-top: 6px; font-weight: 700; border-top: 0; }
+  .lamp-foot {
+    grid-column: 1 / -1; border-top: 1px solid var(--border); padding: 10px 18px; background: #f8fafc;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-3);
+  }
+  .st-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+  .st-dot.r { background: #dc2626; } .st-dot.o { background: #f59e0b; } .st-dot.g { background: #10b981; }
+  .bg-group { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+  .bg-group .badge { padding: 1px 8px; font-size: 11.5px; }
+  /* 三段式页面不锁高，台账表格自带滚动区（避免触发全局列表页固定布局） */
+  .tbl-box { overflow: auto; max-height: 460px; border-top: 1px solid var(--border); }
+  .rank-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 13px; }
+  .rank-row .rk-name { width: 62px; flex-shrink: 0; }
+  .rank-row .rk-bar { flex: 1; }
+  .rank-row .rk-bar .progress { display: block; }
+  .rank-row .rk-val { width: 52px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdwb-03">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易备案管理系统
+        <span class="sep">/</span> 交易限制管理
+        <span class="sep">/</span> <span class="cur">房屋交易限制状态总览</span>
+      </div>
+      <div class="page-title">房屋交易限制状态总览</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="location.href='check-service.html'"><i class="fa-solid fa-shield-halved"></i> 校验服务监控</button>
+      <button type="button" class="btn" onclick="PMS.toast('《全市受限房屋台账》Excel 已生成，正在下载','success')"><i class="fa-solid fa-download"></i> 导出台账</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-traffic-light"></i>
+    <div><b>一房一状态</b>：抵押、查封、异议、限售、租赁、已网签、政策房年限、在建工程抵押共 8 类限制情形汇总成一条结论，是全平台交易前置校验的唯一权威来源，业务系统不再各查各的登记接口。</div>
+  </div>
+
+  <!-- 第一段：房屋限制查询 -->
+  <div class="card">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-magnifying-glass"></i> 房屋限制查询</h3>
+      <span class="sub">支持不动产单元号 / 产权证号 / 坐落三选一</span>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+        <span class="text-3 text-sm">切换示例房源</span>
+        <select id="caseSel" style="width:280px" onchange="renderCase(this.value)">
+          <option value="A">案例 A · 彰泰滨江学府 12-2-1802（橙灯）</option>
+          <option value="B">案例 B · 万科城 5-2-803（红灯）</option>
+          <option value="C">案例 C · 荣和公园大道 3-1-902（绿灯）</option>
+        </select>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="flex gap-8" style="flex-wrap:wrap">
+        <input type="text" id="qInput" style="flex:1;min-width:340px;height:38px"
+               value="450202001005GB00123F00020017"
+               onkeydown="if(event.key==='Enter') doQuery()">
+        <button type="button" class="btn btn-primary" style="height:38px;padding:0 24px" onclick="doQuery()">
+          <i class="fa-solid fa-magnifying-glass"></i> 查询
+        </button>
+      </div>
+
+      <div class="lamp-card mt-16" id="lampCard">
+        <div class="lamp-box">
+          <div class="lamp orange" id="lampDot"><i class="fa-solid fa-circle-exclamation" id="lampIcon"></i></div>
+          <div class="lamp-txt orange" id="lampTxt">有条件可交易</div>
+          <div class="lamp-sub" id="lampSub">存在抵押与已网签未办结<br>可带押过户，须买受人知悉</div>
+        </div>
+        <div class="lamp-info" id="lampInfo"></div>
+        <div class="lamp-list" id="lampList"></div>
+        <div class="lamp-foot">
+          <span><i class="fa-regular fa-clock"></i> 状态更新时间 <b id="fUpd">2026-08-01 09:12:36</b></span>
+          <span>最后更新业务 <b id="fBiz">抵押备案 DYBA450200202600186</b></span>
+          <span class="link" onclick="PMS.openDrawer('drHis')"><i class="fa-solid fa-clock-rotate-left"></i> 查看变更历史</span>
+          <span class="link" onclick="location.href='archive-book.html'"><i class="fa-solid fa-book"></i> 查看交易备案簿</span>
+          <span class="link" onclick="location.href='check-service.html'"><i class="fa-solid fa-list-check"></i> 查看校验记录</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 第二段：全市限制状态看板 -->
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-house-lock"></i></div>
+      <div><div class="s-label">受限房屋总数</div><div class="s-value">15,486</div><div class="s-trend text-3">占在册房屋 8.6%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-circle-xmark"></i></div>
+      <div><div class="s-label">不可交易</div><div class="s-value">2,168</div><div class="s-trend text-danger">查封 / 异议 / 限售期内</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-circle-exclamation"></i></div>
+      <div><div class="s-label">有条件可交易</div><div class="s-value">13,318</div><div class="s-trend text-3">多为抵押与已网签</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-arrow-trend-up"></i></div>
+      <div><div class="s-label">本月新增限制</div><div class="s-value">486</div><div class="s-trend text-3">本月解除 312 套</div></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head"><h3>限制类型分布</h3><span class="sub">按主导限制情形归类</span></div>
+      <div class="card-body">
+        <div class="flex items-center gap-16" style="flex-wrap:wrap">
+          <div class="donut" style="background:conic-gradient(#f59e0b 0 62.4%, #2563eb 62.4% 77.2%, #8b5cf6 77.2% 88.4%, #10b981 88.4% 94.5%, #dc2626 94.5% 98.3%, #64748b 98.3% 100%)">
+            <div class="donut-hole">
+              <div class="fw-700" style="font-size:22px">15,486</div>
+              <div class="text-3 text-sm">受限套数</div>
+            </div>
+          </div>
+          <div class="legend" style="flex:1;min-width:200px">
+            <div class="lg-item"><span class="lg-color" style="background:#f59e0b"></span> 抵押 <b style="margin-left:auto">9,663</b></div>
+            <div class="lg-item"><span class="lg-color" style="background:#2563eb"></span> 已网签未办结 <b style="margin-left:auto">2,292</b></div>
+            <div class="lg-item"><span class="lg-color" style="background:#8b5cf6"></span> 限售 <b style="margin-left:auto">1,734</b></div>
+            <div class="lg-item"><span class="lg-color" style="background:#10b981"></span> 租赁备案 <b style="margin-left:auto">944</b></div>
+            <div class="lg-item"><span class="lg-color" style="background:#dc2626"></span> 查封 <b style="margin-left:auto">588</b></div>
+            <div class="lg-item"><span class="lg-color" style="background:#64748b"></span> 异议与其他 <b style="margin-left:auto">265</b></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>各城区受限套数</h3><span class="sub">单位：套</span></div>
+      <div class="card-body">
+        <div class="rank-row">
+          <span class="rk-name">城中区</span>
+          <span class="rk-bar"><span class="progress"><span style="width:100%"></span></span></span>
+          <span class="rk-val">4,286</span>
+        </div>
+        <div class="rank-row">
+          <span class="rk-name">鱼峰区</span>
+          <span class="rk-bar"><span class="progress"><span style="width:86%"></span></span></span>
+          <span class="rk-val">3,684</span>
+        </div>
+        <div class="rank-row">
+          <span class="rk-name">柳南区</span>
+          <span class="rk-bar"><span class="progress"><span style="width:79%"></span></span></span>
+          <span class="rk-val">3,392</span>
+        </div>
+        <div class="rank-row">
+          <span class="rk-name">柳北区</span>
+          <span class="rk-bar"><span class="progress"><span style="width:63%"></span></span></span>
+          <span class="rk-val">2,706</span>
+        </div>
+        <div class="rank-row">
+          <span class="rk-name">柳江区</span>
+          <span class="rk-bar"><span class="progress"><span style="width:33%"></span></span></span>
+          <span class="rk-val">1,418</span>
+        </div>
+        <p class="text-3 text-sm mt-16">
+          <i class="fa-solid fa-circle-info"></i>
+          城中区与鱼峰区抵押占比最高，柳南区查封占比最高（涉及万科城、阳光100 两个成交活跃小区）。
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 第三段：受限房屋台账 -->
+  <div class="card">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-table-list"></i> 受限房屋台账</h3>
+      <span class="sub">共 15,486 套</span>
+    </div>
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>不动产单元号 / 坐落</label>
+        <input type="text" placeholder="单元号或坐落关键词">
+      </div>
+      <div class="filter-item">
+        <label>可交易标识</label>
+        <select><option value="">全部</option><option>不可交易</option><option>有条件可交易</option><option>可交易</option></select>
+      </div>
+      <div class="filter-item">
+        <label>限制类型</label>
+        <select><option value="">全部</option><option>抵押</option><option>查封</option><option>预查封</option><option>轮候查封</option><option>异议登记</option><option>限售</option><option>租赁备案</option><option>已网签未办结</option><option>在建工程抵押</option></select>
+      </div>
+      <div class="filter-item">
+        <label>行政区划</label>
+        <select data-dict="said" data-ph="全部"></select>
+      </div>
+      <div class="filter-item">
+        <label>更新时间起</label>
+        <input type="date" value="2026-07-01">
+      </div>
+      <div class="filter-item">
+        <label>更新时间止</label>
+        <input type="date" value="2026-08-01">
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 15,486 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+    <div class="tbl-box">
+      <table class="data-table" id="tblRs">
+        <thead>
+          <tr>
+            <th>房屋坐落</th>
+            <th>不动产单元号</th>
+            <th>产权人</th>
+            <th>可交易标识</th>
+            <th>限制类型汇总</th>
+            <th>抵押笔数</th>
+            <th>查封笔数</th>
+            <th>限售截止日期</th>
+            <th>状态更新时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>彰泰滨江学府 12-2-1802</td>
+            <td class="nowrap text-3">450202001005GB00123F00020017</td>
+            <td class="nowrap">陈**</td>
+            <td class="nowrap"><span class="st-dot o"></span>有条件可交易</td>
+            <td><span class="bg-group"><span class="badge orange">抵押</span><span class="badge blue">已网签未办结</span></span></td>
+            <td class="num">2</td>
+            <td class="num">0</td>
+            <td class="nowrap text-3">已届满 2025-06-18</td>
+            <td class="nowrap">2026-08-01 09:12</td>
+            <td class="col-ops">
+              <span class="link" onclick="renderCase('A');window.scrollTo(0,0)">详情</span>
+              <a class="link" href="check-service.html">校验记录</a>
+              <span class="link" onclick="fixStatus('彰泰滨江学府 12-2-1802')">人工订正</span>
+            </td>
+          </tr>
+          <tr>
+            <td>万科城 5-2-803</td>
+            <td class="nowrap text-3">450204001008GB00256F00020009</td>
+            <td class="nowrap">黄**</td>
+            <td class="nowrap"><span class="st-dot r"></span><b class="text-danger">不可交易</b></td>
+            <td><span class="bg-group"><span class="badge red">查封</span><span class="badge orange">轮候查封</span><span class="badge purple">限售</span><span class="badge green">租赁备案</span><span class="badge orange">抵押</span></span></td>
+            <td class="num">1</td>
+            <td class="num">2</td>
+            <td class="nowrap text-danger">2027-03-15</td>
+            <td class="nowrap">2026-07-28 15:06</td>
+            <td class="col-ops">
+              <span class="link" onclick="renderCase('B');window.scrollTo(0,0)">详情</span>
+              <a class="link" href="seal-list.html">查封详情</a>
+              <span class="link" onclick="fixStatus('万科城 5-2-803')">人工订正</span>
+            </td>
+          </tr>
+          <tr>
+            <td>荣和公园大道 3-1-902</td>
+            <td class="nowrap text-3">450203001012GB00087F00010013</td>
+            <td class="nowrap">韦**</td>
+            <td class="nowrap"><span class="st-dot g"></span>可交易</td>
+            <td class="text-3">无限制情形</td>
+            <td class="num">0</td>
+            <td class="num">0</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap">2026-05-12 10:28</td>
+            <td class="col-ops">
+              <span class="link" onclick="renderCase('C');window.scrollTo(0,0)">详情</span>
+              <a class="link" href="check-service.html">校验记录</a>
+              <span class="link" onclick="fixStatus('荣和公园大道 3-1-902')">人工订正</span>
+            </td>
+          </tr>
+          <tr>
+            <td>荣和公园大道 8-1-1502</td>
+            <td class="nowrap text-3">450203001012GB00087F00080021</td>
+            <td class="nowrap">李**</td>
+            <td class="nowrap"><span class="st-dot o"></span>有条件可交易</td>
+            <td><span class="bg-group"><span class="badge orange">抵押</span><span class="badge blue">已网签未办结</span></span></td>
+            <td class="num">1</td>
+            <td class="num">0</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap">2026-07-02 14:36</td>
+            <td class="col-ops">
+              <a class="link" href="presale-mortgage.html">详情</a>
+              <a class="link" href="check-service.html">校验记录</a>
+              <span class="link" onclick="fixStatus('荣和公园大道 8-1-1502')">人工订正</span>
+            </td>
+          </tr>
+          <tr>
+            <td>阳光100城市广场 3-1-1602</td>
+            <td class="nowrap text-3">450202001007GB00198F00010026</td>
+            <td class="nowrap">莫**</td>
+            <td class="nowrap"><span class="st-dot r"></span><b class="text-danger">不可交易</b></td>
+            <td><span class="bg-group"><span class="badge red">查封</span></span></td>
+            <td class="num">0</td>
+            <td class="num">1</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap">2025-08-20 09:44</td>
+            <td class="col-ops">
+              <a class="link" href="seal-list.html">详情</a>
+              <a class="link" href="check-service.html">校验记录</a>
+              <span class="link" onclick="fixStatus('阳光100城市广场 3-1-1602')">人工订正</span>
+            </td>
+          </tr>
+          <tr>
+            <td>华润万象天地 2-1-1802</td>
+            <td class="nowrap text-3">450202001009GB00312F00020018</td>
+            <td class="nowrap">黄**</td>
+            <td class="nowrap"><span class="st-dot o"></span>有条件可交易</td>
+            <td><span class="bg-group"><span class="badge orange">抵押</span></span></td>
+            <td class="num">1</td>
+            <td class="num">0</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap">2026-06-20 11:18</td>
+            <td class="col-ops">
+              <a class="link" href="mortgage-list.html">详情</a>
+              <a class="link" href="check-service.html">校验记录</a>
+              <span class="link" onclick="fixStatus('华润万象天地 2-1-1802')">人工订正</span>
+            </td>
+          </tr>
+          <tr>
+            <td>保利柳江府 5-2-1201</td>
+            <td class="nowrap text-3">450206001003GB00064F00050012</td>
+            <td class="nowrap">周**</td>
+            <td class="nowrap"><span class="st-dot r"></span><b class="text-danger">不可交易</b></td>
+            <td><span class="bg-group"><span class="badge purple">限售</span></span></td>
+            <td class="num">0</td>
+            <td class="num">0</td>
+            <td class="nowrap text-danger">2027-11-08</td>
+            <td class="nowrap">2024-11-08 16:02</td>
+            <td class="col-ops">
+              <a class="link" href="sale-limit.html">详情</a>
+              <a class="link" href="check-service.html">校验记录</a>
+              <span class="link" onclick="fixStatus('保利柳江府 5-2-1201')">人工订正</span>
+            </td>
+          </tr>
+          <tr>
+            <td>恒大城 8-1-2201</td>
+            <td class="nowrap text-3">450205001006GB00145F00080033</td>
+            <td class="nowrap">吴**</td>
+            <td class="nowrap"><span class="st-dot r"></span><b class="text-danger">不可交易</b></td>
+            <td><span class="bg-group"><span class="badge red">异议登记</span><span class="badge orange">抵押</span></span></td>
+            <td class="num">1</td>
+            <td class="num">0</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap">2026-07-26 10:52</td>
+            <td class="col-ops">
+              <a class="link" href="dissent-list.html">详情</a>
+              <a class="link" href="check-service.html">校验记录</a>
+              <span class="link" onclick="fixStatus('恒大城 8-1-2201')">人工订正</span>
+            </td>
+          </tr>
+          <tr>
+            <td>彰泰江湾城 11-1-2801</td>
+            <td class="nowrap text-3">450204001011GB00276F00110028</td>
+            <td class="nowrap">李**</td>
+            <td class="nowrap"><span class="st-dot o"></span>有条件可交易</td>
+            <td><span class="bg-group"><span class="badge blue">已网签未办结</span></span></td>
+            <td class="num">0</td>
+            <td class="num">0</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap">2026-07-30 17:24</td>
+            <td class="col-ops">
+              <a class="link" href="archive-book.html">详情</a>
+              <a class="link" href="check-service.html">校验记录</a>
+              <span class="link" onclick="fixStatus('彰泰江湾城 11-1-2801')">人工订正</span>
+            </td>
+          </tr>
+          <tr>
+            <td>荣和公园大道二期 10-1-1102</td>
+            <td class="nowrap text-3">450203001012GB00087F00100011</td>
+            <td class="nowrap text-3">荣和地产（未售）</td>
+            <td class="nowrap"><span class="st-dot r"></span><b class="text-danger">不可交易</b></td>
+            <td><span class="bg-group"><span class="badge red">在建工程抵押</span></span></td>
+            <td class="num">1</td>
+            <td class="num">0</td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap">2026-04-18 09:30</td>
+            <td class="col-ops">
+              <a class="link" href="project-mortgage.html">详情</a>
+              <a class="link" href="check-service.html">校验记录</a>
+              <span class="link" onclick="fixStatus('荣和公园大道二期 10-1-1102')">人工订正</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="table-foot" id="rsFoot"></div>
+  </div>
+
+</main>
+
+<!-- 限制状态变更历史 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="drHis">
+  <div class="drawer-head">
+    <h3 style="margin:0;font-size:16px">限制状态变更历史</h3>
+    <span class="text-3 text-sm" id="hisSub">彰泰滨江学府 12-2-1802</span>
+    <button type="button" class="btn btn-ghost" style="margin-left:auto" data-close-drawer><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="drawer-body">
+    <div class="alert alert-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div>每一次限制情形的登记与解除，在写入明细表的同时同步刷新限制状态，并记录触发更新的业务类型与业务主键，全程可回溯。</div>
+    </div>
+    <div class="timeline mt-16" id="hisTl"></div>
+  </div>
+  <div class="drawer-foot">
+    <button type="button" class="btn" data-close-drawer>关闭</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+/* 三个演示房源的限制状态快照，覆盖红 / 橙 / 绿三种灯态 */
+var CASES = {
+  A: {
+    lamp: 'orange', icon: 'fa-circle-exclamation', text: '有条件可交易',
+    sub: '存在抵押与已网签未办结<br>可带押过户，须买受人知悉',
+    unit: '450202001005GB00123F00020017',
+    info: [
+      ['房屋坐落', '柳州市城中区滨江东路 8 号彰泰滨江学府 12 栋 2 单元 1802'],
+      ['不动产单元号', '450202001005GB00123F00020017'],
+      ['产权证号', '桂(2023)柳州市不动产权第 0086421 号'],
+      ['产权人', '陈**（450***********0028）'],
+      ['建筑面积', '118.65 ㎡'],
+      ['房屋用途', '成套住宅'],
+      ['房屋状态', '已办证 · 已交付']
+    ],
+    items: [
+      ['warn', 'fa-lock', '抵押', '存在 <b>2 笔</b>有效抵押，合计 806,000 元（第 1 顺位中国银行 320,000 元、第 2 顺位建设银行 486,000 元）'],
+      ['ok', 'fa-gavel', '查封', '无'],
+      ['ok', 'fa-layer-group', '轮候查封', '无'],
+      ['ok', 'fa-circle-question', '异议 / 行政限制', '无'],
+      ['ok', 'fa-hourglass-end', '限售', '已届满，2025-06-18 自动解限'],
+      ['ok', 'fa-key', '租赁备案', '无（原租赁已于 2026-03-15 注销）'],
+      ['warn', 'fa-file-signature', '已网签未办结', '存在存量房网签备案 <b>CFBA450200202600512</b>，尚未完成转移登记'],
+      ['ok', 'fa-helmet-safety', '在建工程抵押', '无']
+    ],
+    upd: '2026-08-01 09:12:36', biz: '抵押备案 DYBA450200202600186',
+    history: [
+      ['done', '2026-08-01 09:12', '抵押备案 · 新增第 2 顺位抵押', 'DYBA450200202600186 · 建设银行柳州分行 486,000 元（带押过户新设）', '抵押笔数 1 → 2，可交易标识保持「有条件可交易」'],
+      ['done', '2026-06-28 16:40', '存量房网签备案', 'CFBA450200202600512 · 成交价 1,486,000 元', '限制类型汇总追加「09 已网签未办结」，可交易标识保持「有条件可交易」'],
+      ['done', '2026-03-15 11:20', '租赁注销', 'ZLZX20260315002 · 提前解除租赁', '限制类型汇总移除「08 租赁备案」'],
+      ['done', '2025-06-18 00:05', '限售到期自动解限', '限售规则 XS-CL-002 存量住房限售 2 年', '限制类型汇总移除「06 限售」，系统自动执行'],
+      ['done', '2024-08-15 15:08', '租赁备案', 'ZL450200202400862 · 承租人吴** · 租期至 2026-08-31', '限制类型汇总追加「08 租赁备案」'],
+      ['done', '2023-03-20 10:32', '抵押备案 · 预告转正式', 'DYBA450200202300742 · 中国银行柳州分行 820,000 元 · 第 1 顺位', 'sfdy 置 1，抵押笔数 0 → 1，可交易标识「可交易」→「有条件可交易」'],
+      ['done', '2023-03-12 09:15', '转移登记完成', '桂(2023)柳州市不动产权第 0086421 号', '房屋状态更新为已办证，限售起算日 2023-06-18']
+    ]
+  },
+  B: {
+    lamp: 'red', icon: 'fa-ban', text: '不可交易',
+    sub: '已被法院查封且处于限售期内<br>不得网签、不得新增抵押',
+    unit: '450204001008GB00256F00020009',
+    info: [
+      ['房屋坐落', '柳州市柳南区航生路 26 号万科城 5 栋 2 单元 803'],
+      ['不动产单元号', '450204001008GB00256F00020009'],
+      ['产权证号', '桂(2022)柳州市不动产权第 0043158 号'],
+      ['产权人', '黄**（450***********1537）'],
+      ['建筑面积', '96.40 ㎡'],
+      ['房屋用途', '成套住宅'],
+      ['房屋状态', '已办证 · 已交付']
+    ],
+    items: [
+      ['warn', 'fa-lock', '抵押', '存在 <b>1 笔</b>有效抵押，柳州银行 420,000 元（第 1 顺位）'],
+      ['bad', 'fa-gavel', '查封', '已被<b>XXXX市柳南区人民法院</b>查封，查封编号 CF45020420260126，期限 2026-07-28 至 2029-07-27'],
+      ['warn', 'fa-layer-group', '轮候查封', '存在 <b>1 笔</b>轮候查封（城中区人民法院 CF45020420260188），轮候序号 2'],
+      ['ok', 'fa-circle-question', '异议 / 行政限制', '无'],
+      ['bad', 'fa-hourglass-end', '限售', '限售中，限售至 <b>2027-03-15</b>（规则 XS-CL-002 存量住房限售 2 年，起算节点：网签备案）'],
+      ['warn', 'fa-key', '租赁备案', '存在租赁备案 ZL450200202401286，租期至 2027-05-31，买受人须知悉承租情况'],
+      ['ok', 'fa-file-signature', '已网签未办结', '无'],
+      ['ok', 'fa-helmet-safety', '在建工程抵押', '无']
+    ],
+    upd: '2026-07-28 15:06:12', biz: '查封登记 CF45020420260126',
+    history: [
+      ['done', '2026-07-28 15:06', '查封登记', 'CF45020420260126 · 柳南区人民法院 · (2026)桂0204执1276号', 'sfcf 置 1，可交易标识「有条件可交易」→<b>「不可交易」</b>，同步拦截在途存量房网签 1 笔'],
+      ['done', '2026-07-28 15:06', '轮候查封登记', 'CF45020420260188 · 城中区人民法院 · 轮候序号 2', '查封笔数 1 → 2，前序查封编号 CF45020420260126'],
+      ['done', '2026-03-15 09:40', '限售规则命中', 'XS-CL-002 · 起算日 2025-03-15 · 限售 2 年', 'sfxs 置 1，限售截止日期 2027-03-15'],
+      ['done', '2025-05-31 14:22', '租赁备案', 'ZL450200202401286 · 租期至 2027-05-31', '限制类型汇总追加「08 租赁备案」'],
+      ['done', '2025-03-15 16:18', '存量房网签备案办结', 'CFBA450200202500386 · 转移登记完成', '移除「09 已网签未办结」，触发限售起算'],
+      ['done', '2022-11-06 10:12', '抵押备案', 'DYBA450200202200518 · 柳州银行 420,000 元 · 第 1 顺位', 'sfdy 置 1，可交易标识「可交易」→「有条件可交易」']
+    ]
+  },
+  C: {
+    lamp: 'green', icon: 'fa-circle-check', text: '可交易',
+    sub: '无任何限制情形<br>可直接办理网签备案与抵押',
+    unit: '450203001012GB00087F00010013',
+    info: [
+      ['房屋坐落', '柳州市鱼峰区公园大道 1 号荣和公园大道 3 栋 1 单元 902'],
+      ['不动产单元号', '450203001012GB00087F00010013'],
+      ['产权证号', '桂(2025)柳州市不动产权第 0112306 号'],
+      ['产权人', '韦**（450***********0416）'],
+      ['建筑面积', '105.20 ㎡'],
+      ['房屋用途', '成套住宅'],
+      ['房屋状态', '已办证 · 已交付']
+    ],
+    items: [
+      ['ok', 'fa-lock', '抵押', '无'],
+      ['ok', 'fa-gavel', '查封', '无'],
+      ['ok', 'fa-layer-group', '轮候查封', '无'],
+      ['ok', 'fa-circle-question', '异议 / 行政限制', '无'],
+      ['ok', 'fa-hourglass-end', '限售', '不适用（一次性付款购买、非限售区域）'],
+      ['ok', 'fa-key', '租赁备案', '无'],
+      ['ok', 'fa-file-signature', '已网签未办结', '无'],
+      ['ok', 'fa-helmet-safety', '在建工程抵押', '无（所在项目在建工程抵押已于 2024-12-20 全部注销）']
+    ],
+    upd: '2026-05-12 10:28:04', biz: '转移登记完成回传',
+    history: [
+      ['done', '2026-05-12 10:28', '转移登记完成', '桂(2025)柳州市不动产权第 0112306 号', '移除「09 已网签未办结」，可交易标识「有条件可交易」→<b>「可交易」</b>'],
+      ['done', '2025-12-08 15:44', '商品房网签备案', 'SPFBA450200202502186 · 成交价 1,086,000 元', '限制类型汇总追加「09 已网签未办结」'],
+      ['done', '2024-12-20 11:06', '在建工程抵押注销', 'ZJGC20230018 全部注销', '释放本房源预售限制，可交易标识置「可交易」']
+    ]
+  }
+};
+
+function renderCase(k) {
+  var c = CASES[k]; if (!c) return;
+  document.getElementById('caseSel').value = k;
+  document.getElementById('qInput').value = c.unit;
+
+  var dot = document.getElementById('lampDot');
+  dot.className = 'lamp ' + c.lamp;
+  document.getElementById('lampIcon').className = 'fa-solid ' + c.icon;
+  var txt = document.getElementById('lampTxt');
+  txt.className = 'lamp-txt ' + c.lamp;
+  txt.textContent = c.text;
+  document.getElementById('lampSub').innerHTML = c.sub;
+
+  document.getElementById('lampInfo').innerHTML = c.info.map(function (r) {
+    return '<div class="li-row"><span class="lk">' + r[0] + '</span><span class="lv">' + r[1] + '</span></div>';
+  }).join('');
+
+  var rows = c.items.map(function (it) {
+    return '<div class="rl-row ' + it[0] + '"><span class="ri"><i class="fa-solid ' + it[1] + '"></i></span>' +
+           '<span class="rn">' + it[2] + '</span><span class="rv">' + it[3] + '</span></div>';
+  }).join('');
+  rows += '<div class="rl-row sum ' + (c.lamp === 'red' ? 'bad' : c.lamp === 'orange' ? 'warn' : 'ok') + '">' +
+          '<span class="ri"><i class="fa-solid fa-flag-checkered"></i></span>' +
+          '<span class="rn">综合结论</span><span class="rv">' + c.text + '</span></div>';
+  document.getElementById('lampList').innerHTML = rows;
+
+  document.getElementById('fUpd').textContent = c.upd;
+  document.getElementById('fBiz').textContent = c.biz;
+  document.getElementById('hisSub').textContent = c.info[0][1].split('号')[1] || c.info[0][1];
+  document.getElementById('hisTl').innerHTML = c.history.map(function (h) {
+    return '<div class="tl-item ' + h[0] + '"><span class="tl-dot"></span>' +
+           '<div class="tl-title">' + h[2] + '</div>' +
+           '<div class="tl-meta">' + h[1] + '　' + h[3] + '</div>' +
+           '<div class="tl-desc">' + h[4] + '</div></div>';
+  }).join('');
+}
+
+/* 输入内容与三个演示房源做模糊匹配，匹配不到时默认落到案例 A */
+function doQuery() {
+  var v = document.getElementById('qInput').value.trim();
+  if (!v) { PMS.toast('请输入不动产单元号、产权证号或坐落', 'error'); return; }
+  var k = 'A';
+  if (/B|万科城|803|0043158|450204001008/i.test(v)) k = 'B';
+  else if (/C|荣和公园大道 ?3|902|0112306|450203001012GB00087F00010013/i.test(v)) k = 'C';
+  renderCase(k);
+  PMS.toast('查询完成，限制校验耗时 0.42 秒');
+}
+
+function fixStatus(name) {
+  PMS.confirm({
+    title: '限制状态人工订正',
+    message: '确认对「' + name + '」的限制状态发起人工订正？',
+    detail: '订正须填写订正依据并全程留痕，订正后系统重新汇总该房全部限制情形并刷新可交易标识。',
+    type: 'info',
+    okText: '发起订正',
+    onOk: function () { PMS.toast('订正申请已提交，待业务管理岗复核', 'success'); }
+  });
+}
+
+renderCase(new URLSearchParams(location.search).get('code') === 'B' ? 'B'
+          : new URLSearchParams(location.search).get('code') === 'C' ? 'C' : 'A');
+
+PMS.renderPager(document.getElementById('rsFoot'), {
+  pageNum: 1, pageSize: 10, total: 15486,
+  onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+});
+</script>
+</body>
+</html>

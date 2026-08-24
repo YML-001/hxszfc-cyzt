@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能问数口径约束 · AI 应用服务平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body data-role="fx" data-active="ask-data" data-layout="flow">
+
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="breadcrumb">
+      <i class="fa-solid fa-house bc-home"></i>
+      <span class="sep">/</span><span>智能应用</span>
+      <span class="sep">/</span><span>智能分析报告</span>
+      <span class="sep">/</span><span class="cur">智能问数口径约束</span>
+    </div>
+  </div>
+
+  <div class="ai-subnav">
+    <span class="sn-label"><i class="fa-solid fa-chart-simple"></i>智能分析报告 wsai-09</span>
+    <a href="ask-data.html?role=fx">智能问数</a>
+    <a class="active" href="ask-data-scope.html?role=fx">问数口径约束</a>
+    <a href="report-gen.html?role=fx">AI 报告生成</a>
+    <a href="sentiment.html?role=fx">AI 舆情监测</a>
+  </div>
+
+  <div class="ai-tip">
+    <i class="fa-solid fa-scale-balanced"></i>
+    <span>这是硬约束四的配置与审计页。<b>数据权限</b>决定能看多大范围，<b>统计口径库</b>决定指标怎么算。
+      两者缺一，问数就会给出与报表不一致的答案 —— 所以口径库之外的指标一律不作答。</span>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon ai"><i class="fa-solid fa-ruler"></i></div>
+      <div><div class="s-label">口径库指标数</div><div class="s-value" id="kMetric">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">已作答</div><div class="s-value" id="kOk">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-hand"></i></div>
+      <div><div class="s-label">被拦截</div><div class="s-value" id="kBlock">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-user-lock"></i></div>
+      <div><div class="s-label">越权拦截</div><div class="s-value" id="kAuth">—</div></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <!-- 权限矩阵 -->
+    <div class="card">
+      <div class="card-head">
+        <h3>数据权限范围</h3>
+        <span class="sub">按行政区划隔离，与 said 口径一致</span>
+      </div>
+      <div class="card-body">
+        <div class="table-wrap">
+          <table class="data-table compact" data-static data-fill="0">
+            <thead><tr><th>账号类型</th><th>可见范围</th><th>能否查全市</th><th>能否查其他县区</th></tr></thead>
+            <tbody>
+              <tr><td>市级监管分析人员</td><td>全市（含 6 城区 5 县）</td>
+                <td><span class="badge green">可以</span></td><td><span class="badge green">可以</span></td></tr>
+              <tr><td>县区经办员</td><td>本县区</td>
+                <td><span class="badge red">拦截</span></td><td><span class="badge red">拦截</span></td></tr>
+              <tr><td>业务经办人</td><td>本单位办件</td>
+                <td><span class="badge red">拦截</span></td><td><span class="badge red">拦截</span></td></tr>
+              <tr><td>AI 平台管理员</td><td>全市（仅指标，不含个人明细）</td>
+                <td><span class="badge green">可以</span></td><td><span class="badge green">可以</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="alert alert-info mt-16">
+          <i class="fa-solid fa-circle-info"></i>
+          <span>当前账号：<b id="curUser">—</b>，权限范围 <b id="curScope">—</b>。
+            可用顶栏的角色切换体验不同权限下的拦截效果。</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 越权演示 -->
+    <div class="card">
+      <div class="card-head">
+        <h3>越权与口径拦截演示</h3>
+        <span class="sub">切到县区权限后再试</span>
+      </div>
+      <div class="card-body">
+        <div class="form-item">
+          <label>模拟当前账号的数据权限</label>
+          <select id="fakeSaid" onchange="switchSaid()">
+            <option value="100100">市本级（可查全市）</option>
+            <option value="100106">新城区（仅本级）</option>
+            <option value="100122">平安县（仅本级）</option>
+          </select>
+          <div class="hint">仅本页用于演示权限拦截，切换后立刻用下面的按钮试问。</div>
+        </div>
+        <div class="btn-row mt-16">
+          <button class="btn btn-primary" onclick="tryAsk('全市网签备案量是多少')">
+            <i class="fa-solid fa-earth-asia"></i> 问「全市网签备案量」</button>
+          <button class="btn" onclick="tryAsk('本月网签备案量是多少')">
+            <i class="fa-solid fa-location-dot"></i> 问「本月网签备案量」</button>
+          <button class="btn" onclick="tryAsk('今年房价会涨吗')">
+            <i class="fa-solid fa-question"></i> 问口径外问题</button>
+        </div>
+        <div id="tryBox" class="mt-16"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3>统计口径库</h3>
+      <span class="sub">指标口径与「综合统计与报表管理」保持一致</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tMetric" data-static>
+        <thead><tr>
+          <th>指标关键词</th><th class="cell-lg">口径定义</th><th>单位</th><th>数据来源</th><th class="num">最新值</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card mt-16">
+    <div class="card-head">
+      <h3>拦截日志</h3>
+      <span class="sub">越权与口径外提问全部留痕</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="tBlock" data-static>
+        <thead><tr>
+          <th class="cell-lg">问题</th><th>提问人</th><th>权限范围</th>
+          <th class="cell-lg">拦截原因</th><th>时间</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/ai-data.js"></script>
+<script src="../assets/js/ai-flow.js"></script>
+<script src="../assets/js/ai-acts.js"></script>
+<script src="../assets/js/ai-acts-analyst.js"></script>
+<script>
+(function () {
+  function paintKpi() {
+    var as = AI.get('asks');
+    document.getElementById('kMetric').textContent = AI.act.metrics().length;
+    document.getElementById('kOk').textContent = as.filter(function (a) { return !a.blocked; }).length;
+    document.getElementById('kBlock').textContent = as.filter(function (a) { return a.blocked; }).length;
+    document.getElementById('kAuth').textContent = as.filter(function (a) {
+      return a.blocked && /权限/.test(a.blockReason || '');
+    }).length;
+
+    var u = AI.me();
+    document.getElementById('curUser').textContent = u.name + '（' + u.post + '）';
+    document.getElementById('curScope').textContent = AI.dict('said', u.said);
+    var sel = document.getElementById('fakeSaid');
+    if (sel.value !== u.said) sel.value = u.said;
+  }
+
+  window.switchSaid = function () {
+    var v = document.getElementById('fakeSaid').value;
+    AI.db().me.said = v;
+    AI.commit();
+    AI.toast('已切换为「' + AI.dict('said', v) + '」权限范围', 'success');
+  };
+
+  window.tryAsk = function (q) {
+    var r = AI.act.askData(q);
+    var box = document.getElementById('tryBox');
+    if (!r) {
+      var last = AI.get('asks')[0];
+      box.innerHTML = '<div class="alert alert-danger"><i class="fa-solid fa-hand"></i>' +
+        '<span><b>提问被拦截</b>：' + AI.esc(last ? (last.blockReason || '') : '') + '</span></div>';
+    } else {
+      box.innerHTML = '<div class="alert alert-success"><i class="fa-solid fa-circle-check"></i>' +
+        '<span><b>作答成功</b>（权限范围：' + AI.esc(r.ask.scope) + '）：' + AI.esc(r.output.text) + '</span></div>';
+    }
+    AI.repaintAll();
+  };
+
+  AI.table({
+    id: 'tMetric', pageSize: 10,
+    rows: function () { return AI.act.metrics(); },
+    cells: function (m) {
+      var last = m.chart[m.chart.length - 1];
+      return [
+        '<td><span class="badge ai">' + AI.esc(m.key) + '</span></td>',
+        '<td class="cell-lg">' + AI.esc(m.metric) + '</td>',
+        '<td>' + AI.esc(m.unit) + '</td>',
+        '<td>' + m.sources.map(function (s) {
+          return '<div class="text-sm">' + AI.esc(s) + '</div>';
+        }).join('') + '</td>',
+        '<td class="num">' + AI.num(last[1]) + '</td>'
+      ];
+    },
+    empty: '口径库为空'
+  });
+
+  AI.table({
+    id: 'tBlock', pageSize: 10,
+    rows: function () { return AI.where('asks', function (a) { return a.blocked; }); },
+    cells: function (a) {
+      return [
+        '<td class="cell-lg">' + AI.esc(a.q) + '</td>',
+        '<td>' + AI.esc(a.czr) + '</td>',
+        '<td>' + AI.esc(a.scope) + '</td>',
+        '<td class="cell-lg"><span class="badge red">' + AI.esc(a.blockReason || '—') + '</span></td>',
+        '<td>' + AI.fmt.time(a.at) + '</td>'
+      ];
+    },
+    empty: '暂无拦截记录',
+    icon: 'fa-shield-halved'
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    AI.on(function () { paintKpi(); AI.repaintAll(); });
+  });
+})();
+</script>
+</body>
+</html>

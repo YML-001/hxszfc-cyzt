@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>跨行带押过户协同 · 存量房交易网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：银行待确认卡、借新还旧图示与响应时长排行 */
+  .todo-bank {
+    border: 1px solid var(--warning); border-left: 4px solid var(--warning);
+    border-radius: var(--radius); background: var(--warning-light); padding: 4px 16px;
+  }
+  .todo-bank .tb-row {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 12px 0; border-bottom: 1px dashed rgba(180, 83, 9, .28); font-size: 13px;
+  }
+  .todo-bank .tb-row:last-child { border-bottom: 0; }
+  .todo-bank .tb-no { font-weight: 700; white-space: nowrap; }
+  .todo-bank .tb-txt { flex: 1; min-width: 240px; color: var(--text-2); line-height: 1.7; }
+  .todo-bank .tb-act { display: flex; gap: 8px; }
+  .flow-step { display: grid; grid-template-columns: repeat(auto-fit, minmax(178px, 1fr)); gap: 10px; }
+  .flow-step .fs {
+    border: 1px solid var(--border); border-radius: var(--radius); background: #fff; padding: 13px;
+    display: flex; flex-direction: column; gap: 7px;
+  }
+  .flow-step .fs .n {
+    width: 22px; height: 22px; border-radius: 50%; background: var(--primary); color: #fff;
+    font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  }
+  .flow-step .fs .t { font-size: 13.5px; font-weight: 700; }
+  .flow-step .fs .d { font-size: 12.5px; color: var(--text-2); line-height: 1.7; }
+  .flow-step .fs .m { font-size: 12px; color: var(--text-3); }
+  .rank-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 13px; }
+  .rank-row .rk-name { width: 130px; flex-shrink: 0; }
+  .rank-row .rk-bar { flex: 1; }
+  .rank-row .rk-val { width: 56px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wscwb-17">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 存量房交易网签备案管理系统
+        <span class="sep">/</span> <a class="link" href="onething-list.html">一件事协同</a>
+        <span class="sep">/</span> <span class="cur">跨行带押过户协同</span>
+      </div>
+      <div class="page-title">跨行带押过户协同</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="mortgage-transfer.html"><i class="fa-solid fa-angle-left"></i> 返回带押过户</a>
+      <button type="button" class="btn btn-primary" onclick="PMS.toast('已发起跨行协同，正在向原抵押权人与新抵押权人推送确认请求','success')"><i class="fa-solid fa-share-nodes"></i> 发起跨行协同</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《跨行带押过户台账》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-building-columns"></i></div>
+      <div><div class="s-label">跨行带押过户在办</div><div class="s-value">14</div><div class="s-trend">件</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
+      <div><div class="s-label">本月办结</div><div class="s-value">38</div><div class="s-trend text-success">↑ 环比 22.6%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-stopwatch"></i></div>
+      <div><div class="s-label">平均银行响应</div><div class="s-value">6.8 小时</div><div class="s-trend text-success">↓ 1.4 小时</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-sack-dollar"></i></div>
+      <div><div class="s-label">代偿资金规模</div><div class="s-value">2,860 万元</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>跨行带押过户须由监管账户代偿原贷款，代偿金额不得低于原贷款余额；原行、新行任一方拒绝，本次协同自动终止并通知申请人。</div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs" id="mainTabs">
+      <div class="tab active" data-tab="list">在办清单</div>
+      <div class="tab" data-tab="todo">银行待确认 <span class="badge red" id="tbCount">3</span></div>
+      <div class="tab" data-tab="board">资金安排与响应效能</div>
+    </div>
+
+    <div class="tab-panel active" data-panel="list">
+      <div class="filter-bar">
+        <div class="filter-item">
+          <label>关键词</label>
+          <input type="text" placeholder="带押过户编号 / 合同编号 / 坐落">
+        </div>
+        <div class="filter-item">
+          <label>过户模式</label>
+          <select><option value="">全部</option><option>同行带押过户</option><option>跨行带押过户</option><option>提前结清后过户</option></select>
+        </div>
+        <div class="filter-item">
+          <label>原抵押权人</label>
+          <select><option value="">全部</option><option>中国建设银行柳州分行</option><option>中国工商银行柳州分行</option><option>中国农业银行柳州分行</option><option>柳州银行</option><option>桂林银行柳州分行</option></select>
+        </div>
+        <div class="filter-item">
+          <label>带押过户状态</label>
+          <select><option value="">全部</option><option>待银行确认</option><option>三方协议签署中</option><option>放款代偿中</option><option>登记办理中</option><option>已办结</option><option>已终止</option></select>
+        </div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 52 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table" id="tblCb" data-static>
+          <thead>
+            <tr>
+              <th>带押过户编号</th>
+              <th>合同编号</th>
+              <th>坐落</th>
+              <th>过户模式</th>
+              <th>原抵押权人</th>
+              <th class="num">原贷款余额(元)</th>
+              <th>新抵押权人</th>
+              <th class="num">新贷款金额(元)</th>
+              <th>是否跨行</th>
+              <th>原行确认</th>
+              <th>新行确认</th>
+              <th>三方协议</th>
+              <th class="num">代偿金额(元)</th>
+              <th>带押过户状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-no="DYGH20260138">
+              <td class="nowrap fw-600">DYGH20260138</td>
+              <td class="nowrap">CLF450200202600318</td>
+              <td class="cell-lg">彰泰滨江学府 12-2-1802</td>
+              <td class="nowrap"><span class="badge blue">跨行带押过户</span></td>
+              <td class="cell-lg">中国建设银行柳州分行</td>
+              <td class="num">386,400</td>
+              <td class="cell-lg">柳州银行城中支行</td>
+              <td class="num">760,800</td>
+              <td class="nowrap"><span class="badge orange">是</span></td>
+              <td class="nowrap" data-col="old"><span class="badge orange">待确认</span></td>
+              <td class="nowrap" data-col="new"><span class="badge green">已同意</span></td>
+              <td class="nowrap"><span class="badge orange">签署中</span></td>
+              <td class="num">386,400</td>
+              <td class="nowrap"><span class="badge orange">待银行确认</span></td>
+              <td class="col-ops">
+                <a class="link" href="mortgage-transfer.html">查看</a>
+                <span class="link" onclick="urge('DYGH20260138','中国建设银行柳州分行')">催办</span>
+              </td>
+            </tr>
+            <tr data-no="DYGH20260141">
+              <td class="nowrap fw-600">DYGH20260141</td>
+              <td class="nowrap">CLF450200202600309</td>
+              <td class="cell-lg">阳光 100 城市广场 A 座 1608</td>
+              <td class="nowrap"><span class="badge blue">跨行带押过户</span></td>
+              <td class="cell-lg">中国工商银行柳州分行</td>
+              <td class="num">512,300</td>
+              <td class="cell-lg">柳州银行城中支行</td>
+              <td class="num">740,000</td>
+              <td class="nowrap"><span class="badge orange">是</span></td>
+              <td class="nowrap" data-col="old"><span class="badge green">已同意</span></td>
+              <td class="nowrap" data-col="new"><span class="badge orange">待确认</span></td>
+              <td class="nowrap"><span class="badge gray">待签署</span></td>
+              <td class="num">512,300</td>
+              <td class="nowrap"><span class="badge orange">待银行确认</span></td>
+              <td class="col-ops">
+                <a class="link" href="mortgage-transfer.html">查看</a>
+                <span class="link" onclick="urge('DYGH20260141','柳州银行城中支行')">催办</span>
+              </td>
+            </tr>
+            <tr data-no="DYGH20260145">
+              <td class="nowrap fw-600">DYGH20260145</td>
+              <td class="nowrap">CLF450200202600301</td>
+              <td class="cell-lg">中航郡府 8-1-3301</td>
+              <td class="nowrap"><span class="badge blue">跨行带押过户</span></td>
+              <td class="cell-lg">中国农业银行柳州分行</td>
+              <td class="num">1,208,000</td>
+              <td class="cell-lg">中国建设银行柳州分行</td>
+              <td class="num">1,890,000</td>
+              <td class="nowrap"><span class="badge orange">是</span></td>
+              <td class="nowrap" data-col="old"><span class="badge orange">待确认</span></td>
+              <td class="nowrap" data-col="new"><span class="badge green">已同意</span></td>
+              <td class="nowrap"><span class="badge orange">签署中</span></td>
+              <td class="num">1,208,000</td>
+              <td class="nowrap"><span class="badge orange">待银行确认</span></td>
+              <td class="col-ops">
+                <a class="link" href="mortgage-transfer.html">查看</a>
+                <span class="link" onclick="urge('DYGH20260145','中国农业银行柳州分行')">催办</span>
+              </td>
+            </tr>
+            <tr data-no="DYGH20260132">
+              <td class="nowrap fw-600">DYGH20260132</td>
+              <td class="nowrap">CLF450200202600294</td>
+              <td class="cell-lg">恒大城 6-1-1802</td>
+              <td class="nowrap"><span class="badge blue">跨行带押过户</span></td>
+              <td class="cell-lg">桂林银行柳州分行</td>
+              <td class="num">268,700</td>
+              <td class="cell-lg">中国工商银行柳州分行</td>
+              <td class="num">450,000</td>
+              <td class="nowrap"><span class="badge orange">是</span></td>
+              <td class="nowrap" data-col="old"><span class="badge green">已同意</span></td>
+              <td class="nowrap" data-col="new"><span class="badge green">已同意</span></td>
+              <td class="nowrap"><span class="badge green">已签署</span></td>
+              <td class="num">268,700</td>
+              <td class="nowrap"><span class="badge blue">放款代偿中</span></td>
+              <td class="col-ops">
+                <a class="link" href="mortgage-transfer.html">查看</a>
+                <span class="link" onclick="urge('DYGH20260132','中国工商银行柳州分行')">催办</span>
+              </td>
+            </tr>
+            <tr data-no="DYGH20260128">
+              <td class="nowrap fw-600">DYGH20260128</td>
+              <td class="nowrap">CLF450200202600287</td>
+              <td class="cell-lg">彰泰春天 3-2-1502</td>
+              <td class="nowrap"><span class="badge cyan">同行带押过户</span></td>
+              <td class="cell-lg">中国建设银行柳州分行</td>
+              <td class="num">402,100</td>
+              <td class="cell-lg">中国建设银行柳州分行</td>
+              <td class="num">620,000</td>
+              <td class="nowrap"><span class="badge gray">否</span></td>
+              <td class="nowrap" data-col="old"><span class="badge green">已同意</span></td>
+              <td class="nowrap" data-col="new"><span class="badge green">已同意</span></td>
+              <td class="nowrap"><span class="badge green">已签署</span></td>
+              <td class="num">402,100</td>
+              <td class="nowrap"><span class="badge blue">登记办理中</span></td>
+              <td class="col-ops">
+                <a class="link" href="mortgage-transfer.html">查看</a>
+                <a class="link" href="onething-detail.html">看一件事</a>
+              </td>
+            </tr>
+            <tr data-no="DYGH20260119">
+              <td class="nowrap fw-600">DYGH20260119</td>
+              <td class="nowrap">CLF450200202600255</td>
+              <td class="cell-lg">万科城 12-2-905</td>
+              <td class="nowrap"><span class="badge blue">跨行带押过户</span></td>
+              <td class="cell-lg">中国农业银行柳州分行</td>
+              <td class="num">688,500</td>
+              <td class="cell-lg">柳州银行城中支行</td>
+              <td class="num">1,100,000</td>
+              <td class="nowrap"><span class="badge orange">是</span></td>
+              <td class="nowrap" data-col="old"><span class="badge green">已同意</span></td>
+              <td class="nowrap" data-col="new"><span class="badge green">已同意</span></td>
+              <td class="nowrap"><span class="badge green">已签署</span></td>
+              <td class="num">688,500</td>
+              <td class="nowrap"><span class="badge green">已办结</span></td>
+              <td class="col-ops">
+                <a class="link" href="mortgage-transfer.html">查看</a>
+                <a class="link" href="onething-qrcode.html">溯源码</a>
+              </td>
+            </tr>
+            <tr data-no="DYGH20260107">
+              <td class="nowrap fw-600">DYGH20260107</td>
+              <td class="nowrap">CLF450200202600231</td>
+              <td class="cell-lg">金龙湾 9-3-2201</td>
+              <td class="nowrap"><span class="badge blue">跨行带押过户</span></td>
+              <td class="cell-lg">中国工商银行柳州分行</td>
+              <td class="num">356,900</td>
+              <td class="cell-lg">桂林银行柳州分行</td>
+              <td class="num">500,000</td>
+              <td class="nowrap"><span class="badge orange">是</span></td>
+              <td class="nowrap" data-col="old"><span class="badge red">已拒绝</span></td>
+              <td class="nowrap" data-col="new"><span class="badge gray">—</span></td>
+              <td class="nowrap"><span class="badge gray">已终止</span></td>
+              <td class="num text-3">—</td>
+              <td class="nowrap"><span class="badge red">已终止</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="PMS.toast('终止原因：原抵押权人认定借款人存在逾期记录，不同意带押过户，建议提前结清后过户','error')">终止原因</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="todo">
+      <div class="alert alert-info">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>演示环境下银行侧确认动作在本页直接完成，无需切换身份登录；真实环境由各银行在自有系统或银行协同门户中操作。</div>
+      </div>
+      <div class="table-wrap">
+        <div class="todo-bank" id="tbBox">
+          <div class="tb-row">
+            <span class="tb-no">DYGH20260138</span>
+            <span class="tb-txt">待 <b>原抵押权人 中国建设银行柳州分行</b> 确认：同意提前结清并配合注销抵押（原贷款余额 386,400 元，已挂起 6 小时）</span>
+            <span class="tb-act">
+              <button type="button" class="btn" onclick="bankAct(this,'agree','中国建设银行柳州分行')">同意</button>
+              <button type="button" class="btn" onclick="bankAct(this,'deny','中国建设银行柳州分行')">拒绝</button>
+            </span>
+          </div>
+          <div class="tb-row">
+            <span class="tb-no">DYGH20260141</span>
+            <span class="tb-txt">待 <b>新抵押权人 柳州银行城中支行</b> 确认：同意放款并承诺代偿原贷款（新贷款金额 740,000 元，已挂起 3 小时）</span>
+            <span class="tb-act">
+              <button type="button" class="btn" onclick="bankAct(this,'agree','柳州银行城中支行')">同意</button>
+              <button type="button" class="btn" onclick="bankAct(this,'deny','柳州银行城中支行')">拒绝</button>
+            </span>
+          </div>
+          <div class="tb-row">
+            <span class="tb-no">DYGH20260145</span>
+            <span class="tb-txt">待 <b>原抵押权人 中国农业银行柳州分行</b> 确认：三方协议用印（申请人已签署、新行已签署，已挂起 14 小时，<b class="text-danger">已超时</b>）</span>
+            <span class="tb-act">
+              <button type="button" class="btn" onclick="bankAct(this,'agree','中国农业银行柳州分行')">同意</button>
+              <button type="button" class="btn" onclick="bankAct(this,'deny','中国农业银行柳州分行')">拒绝</button>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="board">
+      <div class="table-wrap">
+        <div class="section-title">借新还旧资金安排（六步闭环，每步标注责任方与承诺时限）</div>
+        <div class="flow-step">
+          <div class="fs">
+            <span class="n">1</span>
+            <div class="t">新行放款</div>
+            <div class="d">新抵押权人按批贷金额将贷款一次性放至交易资金监管专户，不直接支付卖方。</div>
+            <div class="m">责任方：新抵押权人　时限：2 个工作日</div>
+          </div>
+          <div class="fs">
+            <span class="n">2</span>
+            <div class="t">资金进监管账户</div>
+            <div class="d">监管专户同时归集买方首付款与新行贷款，形成足额代偿资金池并锁定。</div>
+            <div class="m">责任方：资金监管系统 wszjjg　时限：实时</div>
+          </div>
+          <div class="fs">
+            <span class="n">3</span>
+            <div class="t">代偿原行贷款</div>
+            <div class="d">按原行出具的结清测算单，从监管专户定向划付代偿原贷款本息。</div>
+            <div class="m">责任方：监管银行　时限：1 个工作日</div>
+          </div>
+          <div class="fs">
+            <span class="n">4</span>
+            <div class="t">原抵押注销</div>
+            <div class="d">原行确认结清后线上出具结清证明并提交抵押注销登记申请。</div>
+            <div class="m">责任方：原抵押权人　时限：0.5 个工作日</div>
+          </div>
+          <div class="fs">
+            <span class="n">5</span>
+            <div class="t">转移登记</div>
+            <div class="d">不动产登记机构办理转移登记，与注销、设立登记同日办结。</div>
+            <div class="m">责任方：不动产登记中心　时限：当日</div>
+          </div>
+          <div class="fs">
+            <span class="n">6</span>
+            <div class="t">新抵押设立</div>
+            <div class="d">新抵押权设立登记完成，剩余监管资金划付卖方，本单结案。</div>
+            <div class="m">责任方：不动产登记中心 + 监管银行　时限：当日</div>
+          </div>
+        </div>
+
+        <div class="alert alert-info mt-16">
+          <i class="fa-solid fa-shield-halved"></i>
+          <div>全流程资金不经过买卖双方个人账户：原行债权在注销前始终有代偿资金覆盖，新行债权在设立登记完成前由三方监管协议兜底，三方风险闭环。</div>
+        </div>
+
+        <div class="grid-2 mt-16">
+          <div class="card">
+            <div class="card-head">
+              <h3><i class="fa-solid fa-ranking-star"></i> 各银行平均响应时长</h3>
+              <span class="sub">本月统计，越短越好</span>
+            </div>
+            <div class="card-body">
+              <div class="rank-row">
+                <span class="rk-name">建行柳州分行</span>
+                <span class="rk-bar"><span class="progress"><span style="width:38%"></span></span></span>
+                <span class="rk-val text-success">4.2h</span>
+              </div>
+              <div class="rank-row">
+                <span class="rk-name">工行柳州分行</span>
+                <span class="rk-bar"><span class="progress"><span style="width:50%"></span></span></span>
+                <span class="rk-val text-success">5.6h</span>
+              </div>
+              <div class="rank-row">
+                <span class="rk-name">柳州银行</span>
+                <span class="rk-bar"><span class="progress"><span style="width:54%"></span></span></span>
+                <span class="rk-val">6.1h</span>
+              </div>
+              <div class="rank-row">
+                <span class="rk-name">桂林银行柳州分行</span>
+                <span class="rk-bar"><span class="progress"><span style="width:75%"></span></span></span>
+                <span class="rk-val text-warning">8.4h</span>
+              </div>
+              <div class="rank-row">
+                <span class="rk-name">农行柳州分行</span>
+                <span class="rk-bar"><span class="progress"><span style="width:100%"></span></span></span>
+                <span class="rk-val text-danger">11.2h</span>
+              </div>
+              <p class="text-3 text-sm mt-16" style="padding:0 2px">
+                <i class="fa-solid fa-circle-info"></i>
+                约定的响应时限为 <b>1 个工作日（8 小时）</b>，超时纳入季度协同通报。
+              </p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <h3><i class="fa-solid fa-chart-pie"></i> 银行确认状态分布</h3>
+              <span class="sub">本月累计 104 次确认请求</span>
+            </div>
+            <div class="card-body">
+              <div class="flex items-center gap-16" style="flex-wrap:wrap">
+                <div class="donut" style="background:conic-gradient(var(--success) 0 82%, var(--warning) 82% 94%, var(--danger) 94% 100%)">
+                  <div class="donut-hole">
+                    <div class="fw-700" style="font-size:22px">104</div>
+                    <div class="text-3 text-sm">确认请求</div>
+                  </div>
+                </div>
+                <div class="legend" style="flex:1;min-width:190px">
+                  <div class="lg-item"><span class="lg-color" style="background:var(--success)"></span> 已同意 <b style="margin-left:auto">85</b></div>
+                  <div class="lg-item"><span class="lg-color" style="background:var(--warning)"></span> 待确认 <b style="margin-left:auto">13</b></div>
+                  <div class="lg-item"><span class="lg-color" style="background:var(--danger)"></span> 已拒绝 <b style="margin-left:auto">6</b></div>
+                </div>
+              </div>
+              <p class="text-3 text-sm mt-16" style="padding:0 2px">
+                <i class="fa-solid fa-circle-info"></i>
+                拒绝的 6 件中，5 件因借款人存在逾期还款记录，1 件因新贷款额度不足以覆盖原贷款余额，均已转为「提前结清后过户」办理。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  PMS.renderPager(document.getElementById('tblCb'), {
+    pageNum: 1, pageSize: 20, total: 52,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+
+function refreshCount() {
+  var n = document.querySelectorAll('#tbBox .tb-row').length;
+  var b = document.getElementById('tbCount');
+  b.textContent = n;
+  b.className = n ? 'badge red' : 'badge green';
+  if (!n) document.getElementById('tbBox').innerHTML =
+    '<div class="tb-row" style="justify-content:center;color:var(--success);font-weight:600">' +
+    '<i class="fa-solid fa-circle-check"></i>　银行待确认事项已全部处理完毕</div>';
+}
+
+function bankAct(el, act, bank) {
+  var row = el.closest('.tb-row');
+  var no = row.querySelector('.tb-no').textContent.trim();
+  var isOld = row.querySelector('.tb-txt').textContent.indexOf('原抵押权人') >= 0;
+  var agree = act === 'agree';
+  PMS.confirm({
+    title: agree ? '银行确认同意' : '银行确认拒绝',
+    message: '以 ' + bank + ' 的身份' + (agree ? '同意' : '拒绝') + ' ' + no + ' 的带押过户请求？',
+    detail: agree
+      ? '同意后系统自动推进至下一环节，并通知申请人与另一方银行。'
+      : '任一方拒绝，本次跨行协同自动终止，系统将通知申请人改走「提前结清后过户」。',
+    type: agree ? 'info' : 'danger',
+    okText: agree ? '确认同意' : '确认拒绝',
+    onOk: function () {
+      var tr = document.querySelector('#tblCb tbody tr[data-no="' + no + '"]');
+      if (tr) {
+        tr.querySelector('[data-col="' + (isOld ? 'old' : 'new') + '"]').innerHTML =
+          agree ? '<span class="badge green">已同意</span>' : '<span class="badge red">已拒绝</span>';
+        if (!agree) {
+          tr.children[11].innerHTML = '<span class="badge gray">已终止</span>';
+          tr.children[12].className = 'num text-3';
+          tr.children[12].textContent = '—';
+          tr.children[13].innerHTML = '<span class="badge red">已终止</span>';
+          tr.querySelector('.col-ops').innerHTML =
+            '<span class="link" onclick="PMS.toast(\'终止原因：' + bank + ' 不同意带押过户\',\'error\')">终止原因</span>';
+        } else if (tr.querySelector('[data-col="old"]').textContent.indexOf('已同意') >= 0 &&
+                   tr.querySelector('[data-col="new"]').textContent.indexOf('已同意') >= 0) {
+          tr.children[11].innerHTML = '<span class="badge green">已签署</span>';
+          tr.children[13].innerHTML = '<span class="badge blue">放款代偿中</span>';
+        }
+      }
+      row.remove();
+      refreshCount();
+      PMS.toast(bank + ' 已' + (agree ? '同意' : '拒绝') + ' ' + no, agree ? 'success' : 'error');
+    }
+  });
+}
+
+function urge(no, bank) {
+  PMS.toast('已向 ' + bank + ' 推送 ' + no + ' 的催办提醒，并抄送该行房产金融业务负责人', 'success');
+}
+</script>
+</body>
+</html>

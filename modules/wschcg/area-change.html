@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>面积变更记录 · 房屋交易面积信息管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：变更前后对照展开行、差异字段高亮、同步失败行 */
+  .amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .exp { cursor: pointer; color: var(--primary); user-select: none; display: inline-block; width: 14px; text-align: center; }
+  .exp i { transition: transform .18s; }
+  .exp.open i { transform: rotate(90deg); }
+  .cg { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .cg.up { color: var(--danger); } .cg.dn { color: var(--primary); } .cg.zero { color: var(--text-3); }
+  .data-table tbody td.rs { font-size: 12.5px; color: var(--text-2); max-width: 200px; white-space: normal; line-height: 1.55; }
+  .ct { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+  tr.fail td { background: #fef2f2; }
+  tr.fail:hover td { background: #fee2e2; }
+
+  /* 展开：变更前后左右对照 */
+  tr.cmp-row > td { background: #f8fafc; padding: 0 !important; }
+  /* 表格横向滚动时展开面板始终吸附在可视区左侧，保证左右两栏同屏对照 */
+  .cmp { position: sticky; left: 0; width: min(1180px, calc(100vw - 330px)); box-sizing: border-box; padding: 12px 16px 14px 40px; }
+  .cmp .ch { font-size: 13px; font-weight: 700; color: var(--text-1); margin-bottom: 8px; }
+  .cmp .two { display: grid; grid-template-columns: 1fr 40px 1fr; align-items: stretch; gap: 0; }
+  .cmp .pane { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .cmp .pane .ph { padding: 7px 12px; font-size: 12.5px; font-weight: 700; border-bottom: 1px solid var(--border); }
+  .cmp .pane.before .ph { background: #f1f5f9; color: var(--text-2); }
+  .cmp .pane.after .ph { background: var(--primary-light); color: var(--primary); }
+  .cmp .pane .row { display: flex; padding: 6px 12px; font-size: 12.5px; border-bottom: 1px dashed var(--border); }
+  .cmp .pane .row:last-child { border-bottom: 0; }
+  .cmp .pane .row .k { width: 128px; flex-shrink: 0; color: var(--text-3); }
+  .cmp .pane .row .v { font-weight: 600; color: var(--text-1); font-variant-numeric: tabular-nums; }
+  .cmp .pane .row.diff { background: #fffbeb; border-left: 3px solid var(--warning); padding-left: 9px; }
+  .cmp .pane.after .row.diff .v { color: #b45309; }
+  .cmp .mid { display: flex; align-items: center; justify-content: center; color: var(--text-3); font-size: 15px; }
+  .cmp .foot { margin-top: 9px; display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 12.5px; color: var(--text-2); }
+  .cmp .foot b { color: var(--text-1); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wschcg-21">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易面积信息管理系统
+        <span class="sep">/</span> 面积核验管理
+        <span class="sep">/</span> <span class="cur">面积变更记录</span>
+      </div>
+      <div class="page-title">面积变更记录</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="location.href='area-sync.html'"><i class="fa-solid fa-rotate"></i> 面积成果同步楼盘表</button>
+      <button type="button" class="btn" onclick="PMS.toast('《面积变更台账》Excel 已生成，正在下载','success')"><i class="fa-solid fa-file-excel"></i> 导出台账</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-clock-rotate-left"></i></div>
+      <div><div class="s-label">本月变更记录</div><div class="s-value">186 条</div><div class="s-trend text-3">涉及 24 幢 / 168 户</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-arrows-rotate"></i></div>
+      <div><div class="s-label">实测替换预测</div><div class="s-value">142 条</div><div class="s-trend text-3">占比 76.3%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-file-signature"></i></div>
+      <div><div class="s-label">影响已备案合同</div><div class="s-value">68 条</div><div class="s-trend text-warning">均已关联处理意见</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-building-shield"></i></div>
+      <div><div class="s-label">影响不动产登记</div><div class="s-value">3 条</div><div class="s-trend text-3">已推送登记机构</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-circle-xmark"></i></div>
+      <div><div class="s-label">同步失败待重试</div><div class="s-value" id="failN">1 条</div><div class="s-trend text-danger">失败原因已留痕</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>每次面积同步都会生成变更记录，<b>可追溯每一次面积改动</b>：谁在什么时间、依据哪份成果、把哪一户的面积从多少改成了多少。点击行首箭头可展开<b>变更前后完整面积要素对照</b>，差异字段高亮标注。</div>
+  </div>
+
+  <div class="card list-card">
+    <div class="filter-bar">
+      <div class="filter-item"><label>变更编号</label><input type="text" placeholder="如 BG450200202600186"></div>
+      <div class="filter-item"><label>房号 / 不动产单元号</label><input type="text" id="fKw" placeholder="如 8-1-1502"></div>
+      <div class="filter-item">
+        <label>变更类型</label>
+        <select id="fType" onchange="applyFilter()">
+          <option value="">全部</option>
+          <option value="1">实测替换预测</option><option value="2">测绘更正</option><option value="3">错误更正</option>
+          <option value="4">改扩建重测</option><option value="5">面积复核调整</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>变更原因</label>
+        <select><option value="">全部</option><option>竣工实测成果入库</option><option>质检问题整改</option><option>面积异常核查更正</option><option>加建改建重新测绘</option><option>核验复核调整</option></select>
+      </div>
+      <div class="filter-item">
+        <label>影响已备案合同</label>
+        <select id="fHt" onchange="applyFilter()"><option value="">全部</option><option value="1">是</option><option value="0">否</option></select>
+      </div>
+      <div class="filter-item">
+        <label>影响不动产登记</label>
+        <select id="fDj" onchange="applyFilter()"><option value="">全部</option><option value="1">是</option><option value="0">否</option></select>
+      </div>
+      <div class="filter-item">
+        <label>审核结果</label>
+        <select><option value="">全部</option><option>通过</option><option>不通过</option></select>
+      </div>
+      <div class="filter-item">
+        <label>同步状态</label>
+        <select id="fSt" onchange="applyFilter()"><option value="">全部</option><option value="2">同步成功</option><option value="1">同步中</option><option value="3">同步失败</option></select>
+      </div>
+      <div class="filter-item"><label>变更时间起</label><input type="date" value="2026-07-01"></div>
+      <div class="filter-item"><label>变更时间止</label><input type="date" value="2026-08-01"></div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="applyFilter()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn" onclick="resetFilter()"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        <button type="button" class="btn" onclick="expandAll()"><i class="fa-solid fa-up-down"></i> 展开 / 收起全部</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblBg" data-static>
+        <thead>
+          <tr>
+            <th style="width:34px"></th>
+            <th>变更编号</th><th>收件编号</th><th>房号</th><th>坐落</th><th>不动产单元号</th>
+            <th>变更类型</th><th>变更原因</th><th>原成果 → 新成果</th>
+            <th class="text-right">变更前建面</th><th class="text-right">变更后建面</th><th class="text-right">面积变动</th>
+            <th>影响已备案合同</th><th>受影响合同编号</th><th>影响不动产登记</th><th>后续处理措施</th>
+            <th>申请人</th><th>审核人 / 结果</th><th>变更生效时间</th><th>楼盘表同步状态</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- 01 实测替换预测 · 影响合同 -->
+          <tr data-t="1" data-ht="1" data-dj="0" data-st="2">
+            <td class="text-center"><span class="exp" onclick="toggleCmp(this)"><i class="fa-solid fa-caret-right"></i></span></td>
+            <td class="nowrap fw-600">BG450200202600186</td>
+            <td class="nowrap">SJ450200202600186</td>
+            <td class="nowrap fw-600">8-1-1502</td>
+            <td class="nowrap">柳州市城中区文昌路 88 号荣和公园大道二期 8 栋 1 单元 1502</td>
+            <td class="nowrap">450202001008GB00080F00150002</td>
+            <td class="nowrap"><span class="badge blue">实测替换预测</span></td>
+            <td class="nowrap">竣工实测成果入库</td>
+            <td class="nowrap">V1.0 预测 → <b>V2.0 实测</b></td>
+            <td class="text-right amt">128.66</td><td class="text-right amt">131.98</td>
+            <td class="text-right"><span class="cg up">+3.32</span></td>
+            <td class="nowrap"><span class="badge orange">是</span></td>
+            <td class="nowrap"><span class="link" onclick="PMS.toast('跳转商品房买卖合同网签备案系统查看合同 SPF450200202601286')">SPF450200202601286</span></td>
+            <td class="nowrap"><span class="badge">否</span></td>
+            <td class="rs">已签补充协议，购房人补款 22,844 元</td>
+            <td class="nowrap">韦国强</td>
+            <td class="nowrap">李建华 · <span class="text-success">通过</span></td>
+            <td class="nowrap">2026-08-01 19:02</td>
+            <td class="nowrap"><span class="badge green">同步成功</span></td>
+            <td class="col-ops"><span class="link" onclick="viewOne('BG450200202600186')">详情</span></td>
+          </tr>
+          <tr class="cmp-row" style="display:none">
+            <td class="idx-col"></td>
+            <td colspan="21">
+              <div class="cmp">
+                <div class="ch">变更前后面积要素对照 · 8-1-1502（差异字段已高亮）</div>
+                <div class="two">
+                  <div class="pane before">
+                    <div class="ph">变更前 · V1.0 预测成果（CG450200202600151）</div>
+                    <div class="row diff"><span class="k">建筑面积</span><span class="v">128.66 ㎡</span></div>
+                    <div class="row diff"><span class="k">套内建筑面积</span><span class="v">105.42 ㎡</span></div>
+                    <div class="row diff"><span class="k">分摊面积</span><span class="v">23.24 ㎡</span></div>
+                    <div class="row diff"><span class="k">分摊系数</span><span class="v">0.2204</span></div>
+                    <div class="row"><span class="k">套内墙体面积</span><span class="v">9.86 ㎡</span></div>
+                    <div class="row diff"><span class="k">阳台面积</span><span class="v">6.20 ㎡</span></div>
+                    <div class="row"><span class="k">户型 / 朝向</span><span class="v">四室两厅两卫 / 南</span></div>
+                    <div class="row"><span class="k">房屋用途</span><span class="v">成套住宅</span></div>
+                  </div>
+                  <div class="mid"><i class="fa-solid fa-arrow-right-long"></i></div>
+                  <div class="pane after">
+                    <div class="ph">变更后 · V2.0 实测成果（CG450200202600186）</div>
+                    <div class="row diff"><span class="k">建筑面积</span><span class="v">131.98 ㎡（+3.32）</span></div>
+                    <div class="row diff"><span class="k">套内建筑面积</span><span class="v">107.86 ㎡（+2.44）</span></div>
+                    <div class="row diff"><span class="k">分摊面积</span><span class="v">24.12 ㎡（+0.88）</span></div>
+                    <div class="row diff"><span class="k">分摊系数</span><span class="v">0.2236（+0.0032）</span></div>
+                    <div class="row"><span class="k">套内墙体面积</span><span class="v">9.86 ㎡</span></div>
+                    <div class="row diff"><span class="k">阳台面积</span><span class="v">6.86 ㎡（+0.66）</span></div>
+                    <div class="row"><span class="k">户型 / 朝向</span><span class="v">四室两厅两卫 / 南</span></div>
+                    <div class="row"><span class="k">房屋用途</span><span class="v">成套住宅</span></div>
+                  </div>
+                </div>
+                <div class="foot">
+                  <span>差异比例：<b class="text-danger">+2.58%</b>（未超合同约定 3%）</span>
+                  <span>结算方向：<b>购房人补款</b> 22,844 元</span>
+                  <span>处理编号：<b>CY450200202600186</b></span>
+                  <span>同步批次：<b>TB450200202600186</b></span>
+                  <span class="link" style="margin-left:auto" onclick="location.href='area-compare.html'">查看预实测比对</span>
+                  <span class="link" onclick="location.href='area-diff.html'">查看差异处理</span>
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          <!-- 02 实测替换预测 · 面积减少 · 影响合同 -->
+          <tr data-t="1" data-ht="1" data-dj="0" data-st="2">
+            <td class="text-center"><span class="exp" onclick="toggleCmp(this)"><i class="fa-solid fa-caret-right"></i></span></td>
+            <td class="nowrap fw-600">BG450200202600185</td>
+            <td class="nowrap">SJ450200202600186</td>
+            <td class="nowrap fw-600">8-3-0902</td>
+            <td class="nowrap">柳州市城中区文昌路 88 号荣和公园大道二期 8 栋 3 单元 902</td>
+            <td class="nowrap">450202001008GB00080F00090003</td>
+            <td class="nowrap"><span class="badge blue">实测替换预测</span></td>
+            <td class="nowrap">竣工实测成果入库</td>
+            <td class="nowrap">V1.0 预测 → <b>V2.0 实测</b></td>
+            <td class="text-right amt">142.30</td><td class="text-right amt">135.68</td>
+            <td class="text-right"><span class="cg dn">−6.62</span></td>
+            <td class="nowrap"><span class="badge orange">是</span></td>
+            <td class="nowrap"><span class="link" onclick="PMS.toast('跳转商品房买卖合同网签备案系统查看合同 SPF450200202601268')">SPF450200202601268</span></td>
+            <td class="nowrap"><span class="badge">否</span></td>
+            <td class="rs">超 3% 购房人选择退房，退房手续已办结</td>
+            <td class="nowrap">韦国强</td>
+            <td class="nowrap">李建华 · <span class="text-success">通过</span></td>
+            <td class="nowrap">2026-08-01 19:02</td>
+            <td class="nowrap"><span class="badge green">同步成功</span></td>
+            <td class="col-ops"><span class="link" onclick="viewOne('BG450200202600185')">详情</span></td>
+          </tr>
+          <tr class="cmp-row" style="display:none">
+            <td class="idx-col"></td>
+            <td colspan="21">
+              <div class="cmp">
+                <div class="ch">变更前后面积要素对照 · 8-3-0902（差异字段已高亮）</div>
+                <div class="two">
+                  <div class="pane before">
+                    <div class="ph">变更前 · V1.0 预测成果（CG450200202600151）</div>
+                    <div class="row diff"><span class="k">建筑面积</span><span class="v">142.30 ㎡</span></div>
+                    <div class="row diff"><span class="k">套内建筑面积</span><span class="v">116.86 ㎡</span></div>
+                    <div class="row diff"><span class="k">分摊面积</span><span class="v">25.44 ㎡</span></div>
+                    <div class="row"><span class="k">分摊系数</span><span class="v">0.2177</span></div>
+                    <div class="row"><span class="k">套内墙体面积</span><span class="v">10.68 ㎡</span></div>
+                    <div class="row diff"><span class="k">阳台面积</span><span class="v">12.40 ㎡（全计）</span></div>
+                    <div class="row"><span class="k">户型 / 朝向</span><span class="v">四室两厅两卫 / 东南</span></div>
+                    <div class="row"><span class="k">房屋用途</span><span class="v">成套住宅</span></div>
+                  </div>
+                  <div class="mid"><i class="fa-solid fa-arrow-right-long"></i></div>
+                  <div class="pane after">
+                    <div class="ph">变更后 · V2.0 实测成果（CG450200202600186）</div>
+                    <div class="row diff"><span class="k">建筑面积</span><span class="v">135.68 ㎡（−6.62）</span></div>
+                    <div class="row diff"><span class="k">套内建筑面积</span><span class="v">110.92 ㎡（−5.94）</span></div>
+                    <div class="row diff"><span class="k">分摊面积</span><span class="v">24.76 ㎡（−0.68）</span></div>
+                    <div class="row"><span class="k">分摊系数</span><span class="v">0.2232</span></div>
+                    <div class="row"><span class="k">套内墙体面积</span><span class="v">10.68 ㎡</span></div>
+                    <div class="row diff"><span class="k">阳台面积</span><span class="v">6.20 ㎡（半计）</span></div>
+                    <div class="row"><span class="k">户型 / 朝向</span><span class="v">四室两厅两卫 / 东南</span></div>
+                    <div class="row"><span class="k">房屋用途</span><span class="v">成套住宅</span></div>
+                  </div>
+                </div>
+                <div class="foot">
+                  <span>差异比例：<b class="text-danger">−4.65%</b>（已超合同约定 3%）</span>
+                  <span>结算方向：<b>退房</b>，购房款及利息已退还</span>
+                  <span>处理编号：<b>CY450200202600178</b></span>
+                  <span>同步批次：<b>TB450200202600186</b></span>
+                  <span class="link" style="margin-left:auto" onclick="location.href='area-diff.html'">查看差异处理</span>
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          <!-- 03 错误更正 · 阳台全半计 · 影响合同 -->
+          <tr data-t="3" data-ht="1" data-dj="0" data-st="2">
+            <td class="text-center"><span class="exp" onclick="toggleCmp(this)"><i class="fa-solid fa-caret-right"></i></span></td>
+            <td class="nowrap fw-600">BG450200202600178</td>
+            <td class="nowrap">SJ450200202600180</td>
+            <td class="nowrap fw-600">5-2-1806</td>
+            <td class="nowrap">柳州市柳北区跃进路 66 号万科城 5 栋 2 单元 1806</td>
+            <td class="nowrap">450205002005GB00050F00180006</td>
+            <td class="nowrap"><span class="badge red">错误更正</span></td>
+            <td class="nowrap">面积异常核查更正</td>
+            <td class="nowrap">V2.0 实测 → <b>V2.1 更正</b></td>
+            <td class="text-right amt">100.15</td><td class="text-right amt">96.86</td>
+            <td class="text-right"><span class="cg dn">−3.29</span></td>
+            <td class="nowrap"><span class="badge orange">是</span></td>
+            <td class="nowrap"><span class="link" onclick="PMS.toast('跳转商品房买卖合同网签备案系统查看合同 SPF450200202601302')">SPF450200202601302</span></td>
+            <td class="nowrap"><span class="badge">否</span></td>
+            <td class="rs">更正后回到 3% 以内，按补充协议重新结算</td>
+            <td class="nowrap">李建华</td>
+            <td class="nowrap">韦国强 · <span class="text-success">通过</span></td>
+            <td class="nowrap">2026-07-28 16:12</td>
+            <td class="nowrap"><span class="badge green">同步成功</span></td>
+            <td class="col-ops"><span class="link" onclick="viewOne('BG450200202600178')">详情</span></td>
+          </tr>
+          <tr class="cmp-row" style="display:none">
+            <td class="idx-col"></td>
+            <td colspan="21">
+              <div class="cmp">
+                <div class="ch">变更前后面积要素对照 · 5-2-1806（差异字段已高亮）</div>
+                <div class="two">
+                  <div class="pane before">
+                    <div class="ph">变更前 · V2.0 实测成果（CG450200202600180）</div>
+                    <div class="row diff"><span class="k">建筑面积</span><span class="v">100.15 ㎡</span></div>
+                    <div class="row diff"><span class="k">套内建筑面积</span><span class="v">82.42 ㎡</span></div>
+                    <div class="row"><span class="k">分摊面积</span><span class="v">17.73 ㎡</span></div>
+                    <div class="row"><span class="k">分摊系数</span><span class="v">0.2151</span></div>
+                    <div class="row"><span class="k">套内墙体面积</span><span class="v">7.84 ㎡</span></div>
+                    <div class="row diff"><span class="k">阳台面积</span><span class="v">6.58 ㎡（错按全计）</span></div>
+                    <div class="row"><span class="k">户型 / 朝向</span><span class="v">三室两厅一卫 / 南</span></div>
+                    <div class="row"><span class="k">房屋用途</span><span class="v">成套住宅</span></div>
+                  </div>
+                  <div class="mid"><i class="fa-solid fa-arrow-right-long"></i></div>
+                  <div class="pane after">
+                    <div class="ph">变更后 · V2.1 更正成果（CG450200202600192）</div>
+                    <div class="row diff"><span class="k">建筑面积</span><span class="v">96.86 ㎡（−3.29）</span></div>
+                    <div class="row diff"><span class="k">套内建筑面积</span><span class="v">79.13 ㎡（−3.29）</span></div>
+                    <div class="row"><span class="k">分摊面积</span><span class="v">17.73 ㎡</span></div>
+                    <div class="row"><span class="k">分摊系数</span><span class="v">0.2241</span></div>
+                    <div class="row"><span class="k">套内墙体面积</span><span class="v">7.84 ㎡</span></div>
+                    <div class="row diff"><span class="k">阳台面积</span><span class="v">3.29 ㎡（更正为半计）</span></div>
+                    <div class="row"><span class="k">户型 / 朝向</span><span class="v">三室两厅一卫 / 南</span></div>
+                    <div class="row"><span class="k">房屋用途</span><span class="v">成套住宅</span></div>
+                  </div>
+                </div>
+                <div class="foot">
+                  <span>更正依据：<b>面积异常核查单 MJ450200202600180-03</b>（阳台未封闭应半计）</span>
+                  <span>结算调整：购房人补款由 43,320 元调整为 <b>0 元</b>，多收款项已退还</span>
+                  <span class="link" style="margin-left:auto" onclick="location.href='area-exception.html'">查看核查单</span>
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          <!-- 04 测绘更正 · 不影响合同 -->
+          <tr data-t="2" data-ht="0" data-dj="0" data-st="2">
+            <td class="text-center"><span class="exp" onclick="toggleCmp(this)"><i class="fa-solid fa-caret-right"></i></span></td>
+            <td class="nowrap fw-600">BG450200202600172</td>
+            <td class="nowrap">SJ450200202600174</td>
+            <td class="nowrap fw-600">3-1-0806</td>
+            <td class="nowrap">柳州市鱼峰区航生路 12 号保利天悦 3 栋 1 单元 806</td>
+            <td class="nowrap">450203003003GB00030F00080006</td>
+            <td class="nowrap"><span class="badge cyan">测绘更正</span></td>
+            <td class="nowrap">质检问题整改</td>
+            <td class="nowrap">V2.0 实测 → <b>V2.1 更正</b></td>
+            <td class="text-right amt">88.42</td><td class="text-right amt">88.96</td>
+            <td class="text-right"><span class="cg up">+0.54</span></td>
+            <td class="nowrap"><span class="badge">否</span></td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap"><span class="badge">否</span></td>
+            <td class="rs">尚未签约，直接更新楼盘表可售房源面积</td>
+            <td class="nowrap">韦国强</td>
+            <td class="nowrap">李建华 · <span class="text-success">通过</span></td>
+            <td class="nowrap">2026-07-24 10:38</td>
+            <td class="nowrap"><span class="badge green">同步成功</span></td>
+            <td class="col-ops"><span class="link" onclick="viewOne('BG450200202600172')">详情</span></td>
+          </tr>
+          <tr class="cmp-row" style="display:none">
+            <td class="idx-col"></td>
+            <td colspan="21">
+              <div class="cmp">
+                <div class="ch">变更前后面积要素对照 · 3-1-0806（差异字段已高亮）</div>
+                <div class="two">
+                  <div class="pane before">
+                    <div class="ph">变更前 · V2.0 实测成果（CG450200202600174）</div>
+                    <div class="row diff"><span class="k">建筑面积</span><span class="v">88.42 ㎡</span></div>
+                    <div class="row"><span class="k">套内建筑面积</span><span class="v">72.16 ㎡</span></div>
+                    <div class="row diff"><span class="k">分摊面积</span><span class="v">16.26 ㎡</span></div>
+                    <div class="row diff"><span class="k">分摊系数</span><span class="v">0.2253</span></div>
+                    <div class="row"><span class="k">套内墙体面积</span><span class="v">6.92 ㎡</span></div>
+                    <div class="row"><span class="k">阳台面积</span><span class="v">3.60 ㎡</span></div>
+                    <div class="row"><span class="k">户型 / 朝向</span><span class="v">两室两厅一卫 / 东</span></div>
+                    <div class="row"><span class="k">房屋用途</span><span class="v">成套住宅</span></div>
+                  </div>
+                  <div class="mid"><i class="fa-solid fa-arrow-right-long"></i></div>
+                  <div class="pane after">
+                    <div class="ph">变更后 · V2.1 更正成果（CG450200202600190）</div>
+                    <div class="row diff"><span class="k">建筑面积</span><span class="v">88.96 ㎡（+0.54）</span></div>
+                    <div class="row"><span class="k">套内建筑面积</span><span class="v">72.16 ㎡</span></div>
+                    <div class="row diff"><span class="k">分摊面积</span><span class="v">16.80 ㎡（+0.54）</span></div>
+                    <div class="row diff"><span class="k">分摊系数</span><span class="v">0.2328（+0.0075）</span></div>
+                    <div class="row"><span class="k">套内墙体面积</span><span class="v">6.92 ㎡</span></div>
+                    <div class="row"><span class="k">阳台面积</span><span class="v">3.60 ㎡</span></div>
+                    <div class="row"><span class="k">户型 / 朝向</span><span class="v">两室两厅一卫 / 东</span></div>
+                    <div class="row"><span class="k">房屋用途</span><span class="v">成套住宅</span></div>
+                  </div>
+                </div>
+                <div class="foot">
+                  <span>更正依据：<b>质检问题 QC-06 分摊面积合计与共有部位面积不符</b>，测绘机构重算分摊</span>
+                  <span class="link" style="margin-left:auto" onclick="location.href='result-check.html'">查看质检报告</span>
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          <!-- 05 改扩建重测 · 影响不动产登记 -->
+          <tr data-t="4" data-ht="0" data-dj="1" data-st="2">
+            <td class="text-center"><span class="exp" onclick="toggleCmp(this)"><i class="fa-solid fa-caret-right"></i></span></td>
+            <td class="nowrap fw-600">BG450200202600166</td>
+            <td class="nowrap">SJ450200202600168</td>
+            <td class="nowrap fw-600">2-1-0101</td>
+            <td class="nowrap">柳州市城中区解放北路 5 号广场商业中心 2 栋 1 单元 101</td>
+            <td class="nowrap">450202004002GB00020F00010001</td>
+            <td class="nowrap"><span class="badge purple">改扩建重测</span></td>
+            <td class="nowrap">加建改建重新测绘</td>
+            <td class="nowrap">V1.0 实测 → <b>V2.0 重测</b></td>
+            <td class="text-right amt">386.20</td><td class="text-right amt">428.60</td>
+            <td class="text-right"><span class="cg up">+42.40</span></td>
+            <td class="nowrap"><span class="badge">否</span></td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap"><span class="badge orange">是</span></td>
+            <td class="rs">已推送不动产登记机构，需办理变更登记换证</td>
+            <td class="nowrap">李建华</td>
+            <td class="nowrap">韦国强 · <span class="text-success">通过</span></td>
+            <td class="nowrap">2026-07-18 15:26</td>
+            <td class="nowrap"><span class="badge green">同步成功</span></td>
+            <td class="col-ops"><span class="link" onclick="viewOne('BG450200202600166')">详情</span></td>
+          </tr>
+          <tr class="cmp-row" style="display:none">
+            <td class="idx-col"></td>
+            <td colspan="21">
+              <div class="cmp">
+                <div class="ch">变更前后面积要素对照 · 2-1-0101（差异字段已高亮）</div>
+                <div class="two">
+                  <div class="pane before">
+                    <div class="ph">变更前 · V1.0 实测成果（CG450200202600102）</div>
+                    <div class="row diff"><span class="k">建筑面积</span><span class="v">386.20 ㎡</span></div>
+                    <div class="row diff"><span class="k">套内建筑面积</span><span class="v">332.60 ㎡</span></div>
+                    <div class="row"><span class="k">分摊面积</span><span class="v">53.60 ㎡</span></div>
+                    <div class="row diff"><span class="k">分摊系数</span><span class="v">0.1612</span></div>
+                    <div class="row"><span class="k">套内墙体面积</span><span class="v">26.40 ㎡</span></div>
+                    <div class="row diff"><span class="k">层数 / 夹层</span><span class="v">1 层 · 无夹层</span></div>
+                    <div class="row"><span class="k">户型 / 朝向</span><span class="v">商业用房 / 北</span></div>
+                    <div class="row"><span class="k">房屋用途</span><span class="v">商业服务</span></div>
+                  </div>
+                  <div class="mid"><i class="fa-solid fa-arrow-right-long"></i></div>
+                  <div class="pane after">
+                    <div class="ph">变更后 · V2.0 重测成果（CG450200202600168）</div>
+                    <div class="row diff"><span class="k">建筑面积</span><span class="v">428.60 ㎡（+42.40）</span></div>
+                    <div class="row diff"><span class="k">套内建筑面积</span><span class="v">375.00 ㎡（+42.40）</span></div>
+                    <div class="row"><span class="k">分摊面积</span><span class="v">53.60 ㎡</span></div>
+                    <div class="row diff"><span class="k">分摊系数</span><span class="v">0.1429（−0.0183）</span></div>
+                    <div class="row"><span class="k">套内墙体面积</span><span class="v">26.40 ㎡</span></div>
+                    <div class="row diff"><span class="k">层数 / 夹层</span><span class="v">1 层 · <b>新增夹层 42.40 ㎡</b></span></div>
+                    <div class="row"><span class="k">户型 / 朝向</span><span class="v">商业用房 / 北</span></div>
+                    <div class="row"><span class="k">房屋用途</span><span class="v">商业服务</span></div>
+                  </div>
+                </div>
+                <div class="foot">
+                  <span>变更依据：<b>加建夹层竣工验收 + 规划核实意见书 GH2026-0186</b></span>
+                  <span>已于 2026-07-18 15:30 推送不动产登记机构变更通知，回执号 <b>BDC2026-0426</b></span>
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          <!-- 06 面积复核调整 -->
+          <tr data-t="5" data-ht="0" data-dj="0" data-st="2">
+            <td class="text-center"><span class="exp" onclick="toggleCmp(this)"><i class="fa-solid fa-caret-right"></i></span></td>
+            <td class="nowrap fw-600">BG450200202600158</td>
+            <td class="nowrap">SJ450200202600160</td>
+            <td class="nowrap fw-600">8-1-2601</td>
+            <td class="nowrap">柳州市城中区文昌路 88 号荣和公园大道二期 8 栋 1 单元 2601</td>
+            <td class="nowrap">450202001008GB00080F00260001</td>
+            <td class="nowrap"><span class="badge">面积复核调整</span></td>
+            <td class="nowrap">核验复核调整</td>
+            <td class="nowrap">V2.0 实测 → <b>V2.0 复核</b></td>
+            <td class="text-right amt">168.86</td><td class="text-right amt">168.42</td>
+            <td class="text-right"><span class="cg dn">−0.44</span></td>
+            <td class="nowrap"><span class="badge">否</span></td>
+            <td class="nowrap text-3">—</td>
+            <td class="nowrap"><span class="badge">否</span></td>
+            <td class="rs">顶层跃层屋顶花园计算口径复核后微调</td>
+            <td class="nowrap">韦国强</td>
+            <td class="nowrap">李建华 · <span class="text-success">通过</span></td>
+            <td class="nowrap">2026-07-16 09:48</td>
+            <td class="nowrap"><span class="badge green">同步成功</span></td>
+            <td class="col-ops"><span class="link" onclick="viewOne('BG450200202600158')">详情</span></td>
+          </tr>
+          <tr class="cmp-row" style="display:none">
+            <td class="idx-col"></td>
+            <td colspan="21">
+              <div class="cmp">
+                <div class="ch">变更前后面积要素对照 · 8-1-2601（差异字段已高亮）</div>
+                <div class="two">
+                  <div class="pane before">
+                    <div class="ph">变更前 · V2.0 实测成果（复核前）</div>
+                    <div class="row diff"><span class="k">建筑面积</span><span class="v">168.86 ㎡</span></div>
+                    <div class="row"><span class="k">套内建筑面积</span><span class="v">121.06 ㎡</span></div>
+                    <div class="row diff"><span class="k">分摊面积</span><span class="v">47.80 ㎡</span></div>
+                    <div class="row diff"><span class="k">分摊系数</span><span class="v">0.2830</span></div>
+                    <div class="row"><span class="k">屋顶花园面积</span><span class="v">36.80 ㎡（不计容）</span></div>
+                    <div class="row"><span class="k">阳台面积</span><span class="v">8.60 ㎡</span></div>
+                    <div class="row"><span class="k">户型 / 朝向</span><span class="v">跃层五室两厅三卫 / 南</span></div>
+                    <div class="row"><span class="k">房屋用途</span><span class="v">成套住宅</span></div>
+                  </div>
+                  <div class="mid"><i class="fa-solid fa-arrow-right-long"></i></div>
+                  <div class="pane after">
+                    <div class="ph">变更后 · V2.0 实测成果（复核后）</div>
+                    <div class="row diff"><span class="k">建筑面积</span><span class="v">168.42 ㎡（−0.44）</span></div>
+                    <div class="row"><span class="k">套内建筑面积</span><span class="v">121.06 ㎡</span></div>
+                    <div class="row diff"><span class="k">分摊面积</span><span class="v">47.36 ㎡（−0.44）</span></div>
+                    <div class="row diff"><span class="k">分摊系数</span><span class="v">0.2814（−0.0016）</span></div>
+                    <div class="row"><span class="k">屋顶花园面积</span><span class="v">36.80 ㎡（不计容）</span></div>
+                    <div class="row"><span class="k">阳台面积</span><span class="v">8.60 ㎡</span></div>
+                    <div class="row"><span class="k">户型 / 朝向</span><span class="v">跃层五室两厅三卫 / 南</span></div>
+                    <div class="row"><span class="k">房屋用途</span><span class="v">成套住宅</span></div>
+                  </div>
+                </div>
+                <div class="foot">
+                  <span>复核结论：屋顶设备平台分摊范围核减，分摊系数 0.2814 经核查为<b>合理可接受</b></span>
+                  <span class="link" style="margin-left:auto" onclick="location.href='area-exception.html'">查看异常核查</span>
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          <!-- 07 实测替换预测 · 同步中 -->
+          <tr data-t="1" data-ht="1" data-dj="0" data-st="1">
+            <td class="text-center"><span class="exp" onclick="toggleCmp(this)"><i class="fa-solid fa-caret-right"></i></span></td>
+            <td class="nowrap fw-600">BG450200202600152</td>
+            <td class="nowrap">SJ450200202600156</td>
+            <td class="nowrap fw-600">6-2-1102</td>
+            <td class="nowrap">柳州市柳南区潭中西路 33 号阳光城丽景湾 6 栋 2 单元 1102</td>
+            <td class="nowrap">450204005006GB00060F00110002</td>
+            <td class="nowrap"><span class="badge blue">实测替换预测</span></td>
+            <td class="nowrap">竣工实测成果入库</td>
+            <td class="nowrap">V1.0 预测 → <b>V2.0 实测</b></td>
+            <td class="text-right amt">112.40</td><td class="text-right amt">113.26</td>
+            <td class="text-right"><span class="cg up">+0.86</span></td>
+            <td class="nowrap"><span class="badge orange">是</span></td>
+            <td class="nowrap"><span class="link" onclick="PMS.toast('跳转商品房买卖合同网签备案系统查看合同 SPF450200202601196')">SPF450200202601196</span></td>
+            <td class="nowrap"><span class="badge">否</span></td>
+            <td class="rs">差异 0.76% 在合同约定误差内，据实结算</td>
+            <td class="nowrap">韦国强</td>
+            <td class="nowrap">李建华 · <span class="text-success">通过</span></td>
+            <td class="nowrap">2026-08-01 18:56</td>
+            <td class="nowrap"><span class="badge orange">同步中</span></td>
+            <td class="col-ops"><span class="link" onclick="viewOne('BG450200202600152')">详情</span></td>
+          </tr>
+          <tr class="cmp-row" style="display:none">
+            <td class="idx-col"></td>
+            <td colspan="21">
+              <div class="cmp">
+                <div class="ch">变更前后面积要素对照 · 6-2-1102（差异字段已高亮）</div>
+                <div class="two">
+                  <div class="pane before">
+                    <div class="ph">变更前 · V1.0 预测成果（CG450200202600120）</div>
+                    <div class="row diff"><span class="k">建筑面积</span><span class="v">112.40 ㎡</span></div>
+                    <div class="row diff"><span class="k">套内建筑面积</span><span class="v">92.16 ㎡</span></div>
+                    <div class="row"><span class="k">分摊面积</span><span class="v">20.24 ㎡</span></div>
+                    <div class="row diff"><span class="k">分摊系数</span><span class="v">0.2196</span></div>
+                    <div class="row"><span class="k">套内墙体面积</span><span class="v">8.62 ㎡</span></div>
+                    <div class="row"><span class="k">阳台面积</span><span class="v">4.80 ㎡</span></div>
+                    <div class="row"><span class="k">户型 / 朝向</span><span class="v">三室两厅两卫 / 西南</span></div>
+                    <div class="row"><span class="k">房屋用途</span><span class="v">成套住宅</span></div>
+                  </div>
+                  <div class="mid"><i class="fa-solid fa-arrow-right-long"></i></div>
+                  <div class="pane after">
+                    <div class="ph">变更后 · V2.0 实测成果（CG450200202600156）</div>
+                    <div class="row diff"><span class="k">建筑面积</span><span class="v">113.26 ㎡（+0.86）</span></div>
+                    <div class="row diff"><span class="k">套内建筑面积</span><span class="v">93.02 ㎡（+0.86）</span></div>
+                    <div class="row"><span class="k">分摊面积</span><span class="v">20.24 ㎡</span></div>
+                    <div class="row diff"><span class="k">分摊系数</span><span class="v">0.2176（−0.0020）</span></div>
+                    <div class="row"><span class="k">套内墙体面积</span><span class="v">8.62 ㎡</span></div>
+                    <div class="row"><span class="k">阳台面积</span><span class="v">4.80 ㎡</span></div>
+                    <div class="row"><span class="k">户型 / 朝向</span><span class="v">三室两厅两卫 / 西南</span></div>
+                    <div class="row"><span class="k">房屋用途</span><span class="v">成套住宅</span></div>
+                  </div>
+                </div>
+                <div class="foot">
+                  <span>差异比例：<b>+0.76%</b>（未超合同约定 3%）</span>
+                  <span>结算方向：<b>购房人补款</b> 8,514 元</span>
+                  <span>同步任务排队中，预计 1 分钟内完成</span>
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          <!-- 08 同步失败 -->
+          <tr class="fail" data-t="1" data-ht="1" data-dj="0" data-st="3" id="rFail">
+            <td class="text-center"><span class="exp" onclick="toggleCmp(this)"><i class="fa-solid fa-caret-right"></i></span></td>
+            <td class="nowrap fw-600">BG450200202600148</td>
+            <td class="nowrap">SJ450200202600150</td>
+            <td class="nowrap fw-600">6-3-0705</td>
+            <td class="nowrap">柳州市柳南区潭中西路 33 号阳光城丽景湾 6 栋 3 单元 705</td>
+            <td class="nowrap">450204005006GB00060F00070005</td>
+            <td class="nowrap"><span class="badge blue">实测替换预测</span></td>
+            <td class="nowrap">竣工实测成果入库</td>
+            <td class="nowrap">V1.0 预测 → <b>V2.0 实测</b></td>
+            <td class="text-right amt">96.20</td><td class="text-right amt">98.14</td>
+            <td class="text-right"><span class="cg up">+1.94</span></td>
+            <td class="nowrap"><span class="badge orange">是</span></td>
+            <td class="nowrap"><span class="link" onclick="PMS.toast('跳转商品房买卖合同网签备案系统查看合同 SPF450200202601168')">SPF450200202601168</span></td>
+            <td class="nowrap"><span class="badge">否</span></td>
+            <td class="rs text-danger">该房源在楼盘表被限制状态锁定（查封），需先解除后重试</td>
+            <td class="nowrap">韦国强</td>
+            <td class="nowrap">李建华 · <span class="text-success">通过</span></td>
+            <td class="nowrap">2026-08-01 18:50</td>
+            <td class="nowrap"><span class="badge red" id="stFail">同步失败</span></td>
+            <td class="col-ops">
+              <span class="link" onclick="viewOne('BG450200202600148')">详情</span>
+              <span class="link danger" id="opRetry" onclick="retry()">重新同步</span>
+            </td>
+          </tr>
+          <tr class="cmp-row" style="display:none">
+            <td class="idx-col"></td>
+            <td colspan="21">
+              <div class="cmp">
+                <div class="ch">变更前后面积要素对照 · 6-3-0705（差异字段已高亮）</div>
+                <div class="two">
+                  <div class="pane before">
+                    <div class="ph">变更前 · V1.0 预测成果（CG450200202600120）</div>
+                    <div class="row diff"><span class="k">建筑面积</span><span class="v">96.20 ㎡</span></div>
+                    <div class="row diff"><span class="k">套内建筑面积</span><span class="v">79.02 ㎡</span></div>
+                    <div class="row"><span class="k">分摊面积</span><span class="v">17.18 ㎡</span></div>
+                    <div class="row diff"><span class="k">分摊系数</span><span class="v">0.2174</span></div>
+                    <div class="row"><span class="k">套内墙体面积</span><span class="v">7.42 ㎡</span></div>
+                    <div class="row"><span class="k">阳台面积</span><span class="v">4.20 ㎡</span></div>
+                    <div class="row"><span class="k">户型 / 朝向</span><span class="v">三室两厅一卫 / 东</span></div>
+                    <div class="row"><span class="k">房屋用途</span><span class="v">成套住宅</span></div>
+                  </div>
+                  <div class="mid"><i class="fa-solid fa-arrow-right-long"></i></div>
+                  <div class="pane after">
+                    <div class="ph">变更后 · V2.0 实测成果（CG450200202600150）</div>
+                    <div class="row diff"><span class="k">建筑面积</span><span class="v">98.14 ㎡（+1.94）</span></div>
+                    <div class="row diff"><span class="k">套内建筑面积</span><span class="v">80.96 ㎡（+1.94）</span></div>
+                    <div class="row"><span class="k">分摊面积</span><span class="v">17.18 ㎡</span></div>
+                    <div class="row diff"><span class="k">分摊系数</span><span class="v">0.2122（−0.0052）</span></div>
+                    <div class="row"><span class="k">套内墙体面积</span><span class="v">7.42 ㎡</span></div>
+                    <div class="row"><span class="k">阳台面积</span><span class="v">4.20 ㎡</span></div>
+                    <div class="row"><span class="k">户型 / 朝向</span><span class="v">三室两厅一卫 / 东</span></div>
+                    <div class="row"><span class="k">房屋用途</span><span class="v">成套住宅</span></div>
+                  </div>
+                </div>
+                <div class="foot">
+                  <span class="text-danger">失败原因：<b>楼盘表房源处于查封限制状态（法院查封 CF2026-0186），面积字段禁止写入</b></span>
+                  <span>失败时间：2026-08-01 18:51 · 已重试 2 次</span>
+                  <span>处理建议：待查封解除或司法机关同意后重新同步</span>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- 变更详情抽屉 -->
+<div class="drawer-mask"></div>
+<div class="drawer drawer-lg" id="drBg">
+  <div class="drawer-head">
+    <h3 style="margin:0;font-size:16px">面积变更详情 · <span id="dNo">BG450200202600186</span></h3>
+    <button type="button" class="btn btn-ghost" style="margin-left:auto" data-close-drawer><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="drawer-body">
+    <div class="section-title">变更基本信息</div>
+    <dl class="desc-list">
+      <div class="desc-item"><dt>变更编号</dt><dd class="fw-700">BG450200202600186</dd></div>
+      <div class="desc-item"><dt>收件编号</dt><dd>SJ450200202600186</dd></div>
+      <div class="desc-item"><dt>房号 / 坐落</dt><dd>8-1-1502 · 荣和公园大道二期 8 栋 1 单元 1502</dd></div>
+      <div class="desc-item"><dt>不动产单元号</dt><dd>450202001008GB00080F00150002</dd></div>
+      <div class="desc-item"><dt>变更类型</dt><dd><span class="badge blue">实测替换预测</span></dd></div>
+      <div class="desc-item"><dt>变更原因</dt><dd>竣工实测成果入库</dd></div>
+      <div class="desc-item"><dt>原成果 → 新成果</dt><dd>CG450200202600151 V1.0 → CG450200202600186 V2.0</dd></div>
+      <div class="desc-item"><dt>变更生效时间</dt><dd>2026-08-01 19:02</dd></div>
+    </dl>
+
+    <div class="section-title" style="margin-top:20px">面积变动</div>
+    <table class="data-table compact" data-static>
+      <thead><tr><th>面积项</th><th class="text-right">变更前</th><th class="text-right">变更后</th><th class="text-right">变动值</th></tr></thead>
+      <tbody>
+        <tr><td>建筑面积（㎡）</td><td class="text-right amt">128.66</td><td class="text-right amt">131.98</td><td class="text-right amt text-danger">+3.32</td></tr>
+        <tr><td>套内建筑面积（㎡）</td><td class="text-right amt">105.42</td><td class="text-right amt">107.86</td><td class="text-right amt text-danger">+2.44</td></tr>
+        <tr><td>分摊面积（㎡）</td><td class="text-right amt">23.24</td><td class="text-right amt">24.12</td><td class="text-right amt text-danger">+0.88</td></tr>
+        <tr><td>分摊系数</td><td class="text-right amt">0.2204</td><td class="text-right amt">0.2236</td><td class="text-right amt">+0.0032</td></tr>
+      </tbody>
+    </table>
+
+    <div class="section-title" style="margin-top:20px">影响评估与后续处理</div>
+    <dl class="desc-list">
+      <div class="desc-item"><dt>是否影响已备案合同</dt><dd><span class="badge orange">是</span> · SPF450200202601286</dd></div>
+      <div class="desc-item"><dt>是否影响不动产登记</dt><dd><span class="badge">否</span></dd></div>
+      <div class="desc-item"><dt>合同处理意见</dt><dd>补充协议已签署（BC450200202600186）</dd></div>
+      <div class="desc-item"><dt>后续处理措施</dt><dd>购房人补款 22,844 元，已于 2026-08-01 结清</dd></div>
+    </dl>
+
+    <div class="section-title" style="margin-top:20px">审核与同步留痕</div>
+    <div class="timeline">
+      <div class="tl-item done"><span class="tl-dot"></span><div class="tl-title">发起面积变更申请</div><div class="tl-meta">韦国强 · 2026-08-01 18:46</div><div class="tl-desc">依据 V2.0 实测成果与核验单 HY450200202600126</div></div>
+      <div class="tl-item done"><span class="tl-dot"></span><div class="tl-title">变更审核通过</div><div class="tl-meta">李建华 · 2026-08-01 18:54</div><div class="tl-desc">审核意见：面积变动经预实测比对与差异处理，同意变更</div></div>
+      <div class="tl-item done"><span class="tl-dot"></span><div class="tl-title">关联合同处理意见</div><div class="tl-meta">系统 · 2026-08-01 18:58</div><div class="tl-desc">补充协议 BC450200202600186 已签署，同步拦截解除</div></div>
+      <div class="tl-item done"><span class="tl-dot"></span><div class="tl-title">楼盘表同步成功</div><div class="tl-meta">系统 · 2026-08-01 19:02</div><div class="tl-desc">同步批次 TB450200202600186 · 耗时 0.8 秒</div></div>
+      <div class="tl-item done"><span class="tl-dot"></span><div class="tl-title">合同标的面积回写</div><div class="tl-meta">系统 · 2026-08-01 19:02</div><div class="tl-desc">已回写 wsswb 商品房买卖合同网签备案系统</div></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button type="button" class="btn" data-close-drawer>关闭</button>
+    <button type="button" class="btn" onclick="location.href='area-compare.html'"><i class="fa-solid fa-code-compare"></i> 查看预实测比对</button>
+    <button type="button" class="btn btn-primary" onclick="PMS.toast('《面积变更证明》PDF 已生成，正在下载','success')"><i class="fa-solid fa-file-pdf"></i> 打印变更证明</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+/* 变更前后对照展开行不占用序号，需在框架自动编号之后重排 */
+function renumberData() {
+  var n = 1;
+  document.querySelectorAll('#tblBg tbody tr').forEach(function (tr) {
+    var cell = tr.querySelector('td.idx-col');
+    if (!cell) return;
+    if (tr.classList.contains('cmp-row')) { cell.textContent = ''; return; }
+    cell.textContent = n < 10 ? '0' + n : String(n);
+    n++;
+  });
+}
+document.addEventListener('DOMContentLoaded', renumberData);
+
+function toggleCmp(el) {
+  var tr = el.closest('tr'), cmp = tr.nextElementSibling;
+  if (!cmp || !cmp.classList.contains('cmp-row')) return;
+  var open = cmp.style.display !== 'none';
+  cmp.style.display = open ? 'none' : '';
+  el.classList.toggle('open', !open);
+}
+
+function expandAll() {
+  var rows = document.querySelectorAll('#tblBg tbody tr.cmp-row');
+  var anyClosed = Array.prototype.some.call(rows, function (r) { return r.style.display === 'none'; });
+  rows.forEach(function (r) { r.style.display = anyClosed ? '' : 'none'; });
+  document.querySelectorAll('#tblBg .exp').forEach(function (e) { e.classList.toggle('open', anyClosed); });
+  PMS.toast(anyClosed ? '已展开全部变更前后对照' : '已收起全部变更前后对照');
+}
+
+function applyFilter() {
+  var kw = document.getElementById('fKw').value.trim(),
+      t = document.getElementById('fType').value,
+      ht = document.getElementById('fHt').value,
+      dj = document.getElementById('fDj').value,
+      st = document.getElementById('fSt').value, n = 0;
+  document.querySelectorAll('#tblBg tbody tr').forEach(function (tr) {
+    if (tr.classList.contains('cmp-row')) return;
+    var ok = (!t || tr.dataset.t === t) && (!ht || tr.dataset.ht === ht)
+      && (!dj || tr.dataset.dj === dj) && (!st || tr.dataset.st === st)
+      && (!kw || tr.textContent.indexOf(kw) > -1);
+    tr.style.display = ok ? '' : 'none';
+    var cmp = tr.nextElementSibling;
+    if (cmp && cmp.classList.contains('cmp-row') && !ok) {
+      cmp.style.display = 'none';
+      var e = tr.querySelector('.exp'); if (e) e.classList.remove('open');
+    }
+    if (ok) n++;
+  });
+  renumberData();
+  PMS.toast('已按条件筛选：' + n + ' 条变更记录');
+}
+
+function resetFilter() {
+  document.getElementById('fKw').value = '';
+  ['fType', 'fHt', 'fDj', 'fSt'].forEach(function (id) { document.getElementById(id).value = ''; });
+  document.querySelectorAll('#tblBg tbody tr').forEach(function (tr) {
+    tr.style.display = tr.classList.contains('cmp-row') ? 'none' : '';
+  });
+  document.querySelectorAll('#tblBg .exp').forEach(function (e) { e.classList.remove('open'); });
+  renumberData();
+  PMS.toast('筛选条件已重置');
+}
+
+function viewOne(no) {
+  document.getElementById('dNo').textContent = no;
+  PMS.openDrawer('drBg');
+}
+
+function retry() {
+  PMS.confirm({
+    title: '重新同步楼盘表',
+    message: '确认对 6-3-0705 重新执行面积同步？',
+    detail: '上次失败原因：房源处于查封限制状态（法院查封 CF2026-0186），面积字段禁止写入。若限制状态仍未解除，本次同步仍会失败，失败原因将继续留痕。',
+    type: 'warning', okText: '重新同步',
+    onOk: function () {
+      PMS.toast('正在重新同步…');
+      setTimeout(function () {
+        var st = document.getElementById('stFail');
+        st.className = 'badge red';
+        st.textContent = '同步失败';
+        document.getElementById('rFail').querySelector('.rs').textContent = '第 3 次重试仍失败：查封限制状态未解除（法院查封 CF2026-0186）';
+        PMS.toast('重试失败：房源查封限制状态未解除，请先办理解封后再同步', 'error');
+      }, 1100);
+    }
+  });
+}
+
+PMS.renderPager(document.getElementById('tblBg'), {
+  pageNum: 1, pageSize: 20, total: 186,
+  onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+});
+</script>
+</body>
+</html>

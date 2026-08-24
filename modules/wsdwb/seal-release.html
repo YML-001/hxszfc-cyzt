@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>查封解除登记 · 房屋交易备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：轮候接续判定面板与解封结果页 */
+  .radio-line { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; min-height: 32px; }
+  .radio-line label { font-size: 14px; color: var(--text-2); font-weight: 400; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+  .jd {
+    border-radius: var(--radius-lg); border: 1px solid; padding: 15px 18px;
+  }
+  .jd.warn { border-color: var(--warning); background: #fffbeb; }
+  .jd.info { border-color: var(--primary); background: var(--primary-light); }
+  .jd .jh { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 800; }
+  .jd.warn .jh { color: #b45309; }
+  .jd.info .jh { color: var(--primary); }
+  .jd .jb { font-size: 13.5px; color: var(--text-2); margin-top: 8px; line-height: 1.7; }
+  .jd-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .jd-list .ji {
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px;
+    display: flex; align-items: flex-start; gap: 10px; font-size: 13px;
+  }
+  .jd-list .ji i { margin-top: 2px; }
+  .jd-list .ji .jt { font-weight: 600; }
+  .jd-list .ji .js { font-size: 12.5px; color: var(--text-3); margin-top: 2px; }
+  .cc {
+    display: inline-flex; align-items: center; gap: 7px; font-size: 15px; font-weight: 800;
+    border-radius: 20px; padding: 4px 14px;
+  }
+  .cc.red { background: var(--danger-light); color: #b91c1c; }
+  .cc.green { background: var(--success-light); color: #047857; }
+  .ok-page { text-align: center; padding: 30px 20px 10px; }
+  .ok-page .ok-ico {
+    width: 72px; height: 72px; border-radius: 50%; color: #fff;
+    display: flex; align-items: center; justify-content: center; font-size: 34px; margin: 0 auto 16px;
+  }
+  .ok-page .ok-ico.g { background: var(--success); box-shadow: 0 0 0 10px var(--success-light); }
+  .ok-page .ok-ico.o { background: var(--warning); box-shadow: 0 0 0 10px var(--warning-light); }
+  .ok-page .ok-t { font-size: 22px; font-weight: 800; }
+  .ok-page .ok-s { font-size: 13.5px; color: var(--text-3); margin-top: 6px; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wsdwb-11">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易备案管理系统
+        <span class="sep">/</span> <a class="link" href="seal-list.html">司法查封登记台账</a>
+        <span class="sep">/</span> <span class="cur">查封解除登记</span>
+      </div>
+      <div class="page-title">查封解除登记</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn" onclick="switchCase()"><i class="fa-solid fa-repeat"></i> 切换判定示例</button>
+      <button type="button" class="btn" onclick="location.href='seal-list.html'"><i class="fa-solid fa-arrow-left"></i> 返回台账</button>
+    </div>
+  </div>
+
+  <div id="formArea">
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-magnifying-glass"></i> 选择待解封的查封记录</h3></div>
+      <div class="card-body">
+        <div class="form-grid form-align">
+          <div class="form-item" style="grid-column:span 2">
+            <label>查封编号<span class="req">*</span></label>
+            <div class="flex gap-8">
+              <input type="text" style="flex:1" id="cfNo" value="CF45020420260126" readonly>
+              <button type="button" class="btn btn-primary" onclick="PMS.toast('已调取查封登记信息')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            </div>
+          </div>
+        </div>
+        <dl class="desc-list mt-16" id="cfInfo"></dl>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-unlock"></i> 解封要素</h3></div>
+      <div class="card-body">
+        <div class="form-grid form-align">
+          <div class="form-item" style="grid-column:span 2">
+            <label>解封类型<span class="req">*</span></label>
+            <div class="radio-line">
+              <label><input type="radio" name="jflx" checked> 0 解除查封</label>
+              <label><input type="radio" name="jflx"> 1 期限届满自动解除</label>
+              <label><input type="radio" name="jflx"> 2 查封撤销</label>
+              <label><input type="radio" name="jflx"> 3 执行完毕解除</label>
+            </div>
+          </div>
+          <div class="form-item"><label>解封机关<span class="req">*</span></label><input type="text" id="jfOrg" value="XXXX市柳南区人民法院"></div>
+          <div class="form-item"><label>解封文书编号<span class="req">*</span></label><input type="text" value="(2026)桂0204执1276号之三"></div>
+          <div class="form-item"><label>解封时间<span class="req">*</span></label><input type="text" value="2026-08-01 09:32" readonly></div>
+          <div class="form-item"><label>经办人</label><input type="text" value="韦国强" readonly></div>
+          <div class="form-item" style="grid-column:span 2">
+            <label>解封原因<span class="req">*</span></label>
+            <textarea rows="2">被执行人黄**已履行完毕生效法律文书确定的义务，申请执行人梁**申请解除对该房屋的查封，法院出具解除查封裁定书及协助执行通知书。</textarea>
+          </div>
+        </div>
+
+        <div class="section-title mt-16" style="margin-top:18px">解封文书</div>
+        <table class="data-table compact" data-static>
+          <thead><tr><th>材料名称</th><th>必要性</th><th>来源</th><th>状态</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr><td>解除查封裁定书</td><td><span class="badge red">必要</span></td><td>法院直连推送</td><td><span class="badge green">已接收</span></td><td><span class="link" onclick="PMS.toast('预览：解除查封裁定书.pdf')">预览</span></td></tr>
+            <tr><td>协助执行通知书（解封）</td><td><span class="badge red">必要</span></td><td>法院直连推送</td><td><span class="badge green">已接收</span></td><td><span class="link" onclick="PMS.toast('预览：协助执行通知书.pdf')">预览</span></td></tr>
+            <tr><td>履行完毕证明</td><td><span class="badge gray">可选</span></td><td>窗口补录</td><td><span class="badge gray">未上传</span></td><td><span class="link" onclick="PMS.toast('已打开上传窗口')">上传</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-scale-balanced"></i> 轮候接续与限制情形判定</h3>
+        <span class="sub">解封不等于变绿，须按其他限制情形重新判定</span>
+      </div>
+      <div class="card-body" id="jdWrap"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <div class="btn-row justify-between">
+          <span class="text-3 text-sm"><i class="fa-solid fa-circle-info"></i> 解封全过程留痕，文书归档至档案管理系统，解封结果同步推送不动产登记机构。</span>
+          <span class="flex gap-8">
+            <button type="button" class="btn" onclick="PMS.toast('解封草稿已保存','success')"><i class="fa-regular fa-floppy-disk"></i> 保存草稿</button>
+            <button type="button" class="btn btn-primary" onclick="doRelease()"><i class="fa-solid fa-unlock"></i> 提交解封登记</button>
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card hidden" id="okArea">
+    <div class="card-body">
+      <div class="ok-page" id="okBox"></div>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+/* 两套演示：A 存在轮候查封（解封后仍红灯）· B 无轮候但存在其他限制 */
+var CASES = {
+  A: {
+    no: 'CF45020420260126',
+    org: 'XXXX市柳南区人民法院',
+    info: [
+      ['查封编号', 'CF45020420260126'], ['查封类型', '0 查封'],
+      ['查封机关', 'XXXX市柳南区人民法院'], ['案件编号', '(2026)桂0204执1276号'],
+      ['被执行人', '黄**'], ['查封房屋', '万科城 5-2-803'],
+      ['查封期限', '2026-07-28 至 2029-07-27'], ['查封标的金额', '860,000.00 元'],
+      ['同房查封笔数', '2 笔（本笔 + 轮候 1 笔）'], ['当前可交易标识', '不可交易']
+    ],
+    kind: 'warn',
+    head: '该房屋存在 1 笔轮候查封，解封后由后序查封自动接续',
+    body: '本次解封后，<b>第 2 顺位轮候查封 CF45020420260196（XXXX市城中区人民法院）将自动生效并转为正式查封</b>，房屋仍为<b>不可交易</b>状态，不得办理网签、抵押与租赁备案。',
+    items: [
+      ['no', '轮候查封 CF45020420260196', 'XXXX市城中区人民法院，(2026)桂0202执0918号，登记于 2026-08-01，解封后自动生效'],
+      ['no', '限售', '限售中，限售至 2027-03-15（规则 XS001）'],
+      ['no', '抵押', '有效抵押 1 笔，中国建设银行柳州分行 486,000.00 元'],
+      ['ok', '异议登记', '无']
+    ],
+    result: 'red',
+    resultTxt: '不可交易',
+    okTitle: '解封登记完成，房屋仍受限',
+    okIcon: 'o',
+    okItems: [
+      ['解封编号', 'JF45020420260058'],
+      ['交易状态解锁', '仍受限（轮候查封接续生效）'],
+      ['生效查封编号', 'CF45020420260196（XXXX市城中区人民法院）'],
+      ['更新后可交易标识', '0 不可交易']
+    ]
+  },
+  B: {
+    no: 'CF45020220260088',
+    org: 'XXXX市城中区人民法院',
+    info: [
+      ['查封编号', 'CF45020220260088'], ['查封类型', '0 查封'],
+      ['查封机关', 'XXXX市城中区人民法院'], ['案件编号', '(2025)桂0202执2186号'],
+      ['被执行人', '陈**'], ['查封房屋', '彰泰滨江学府 12-2-1802'],
+      ['查封期限', '2025-09-12 至 2028-09-11'], ['查封标的金额', '420,000.00 元'],
+      ['同房查封笔数', '1 笔（无轮候）'], ['当前可交易标识', '不可交易']
+    ],
+    kind: 'info',
+    head: '该房屋无轮候查封，解封后按其他限制情形重新判定',
+    body: '本次解封后，该房屋<b>不存在轮候查封</b>，但仍存在其他限制情形，综合结论为 <b>有条件可交易</b>，并非简单置为「可交易」。',
+    items: [
+      ['ok', '轮候查封', '无'],
+      ['no', '抵押', '有效抵押 2 笔，合计 806,000.00 元（可带押过户）'],
+      ['no', '已网签', '存量房网签 CFBA450200202600512 未办结'],
+      ['ok', '限售', '已届满（2025-06-18 解限）']
+    ],
+    result: 'green',
+    resultTxt: '有条件可交易',
+    okTitle: '解封登记完成，交易状态已解锁',
+    okIcon: 'g',
+    okItems: [
+      ['解封编号', 'JF45020220260042'],
+      ['交易状态解锁', '已解锁（查封限制解除）'],
+      ['生效查封编号', '无'],
+      ['更新后可交易标识', '2 有条件可交易（存在抵押与在途网签）']
+    ]
+  }
+};
+var cur = 'A';
+
+function render() {
+  var d = CASES[cur];
+  document.getElementById('cfNo').value = d.no;
+  document.getElementById('jfOrg').value = d.org;
+  document.getElementById('cfInfo').innerHTML = d.info.map(function (r) {
+    return '<div class="desc-item"><dt>' + r[0] + '</dt><dd>' + r[1] + '</dd></div>';
+  }).join('');
+  document.getElementById('jdWrap').innerHTML =
+    '<div class="jd ' + d.kind + '">' +
+      '<div class="jh"><i class="fa-solid ' + (d.kind === 'warn' ? 'fa-triangle-exclamation' : 'fa-circle-info') + '"></i> ' + d.head + '</div>' +
+      '<div class="jb">' + d.body + '</div>' +
+      '<div class="jd-list">' + d.items.map(function (it) {
+        return '<div class="ji"><i class="fa-solid ' + (it[0] === 'ok' ? 'fa-circle-check text-success' : 'fa-circle-xmark text-danger') + '"></i>' +
+          '<div><div class="jt">' + it[1] + '</div><div class="js">' + it[2] + '</div></div></div>';
+      }).join('') + '</div>' +
+      '<div style="margin-top:13px">解封后综合结论：<span class="cc ' + d.result + '">' +
+        '<i class="fa-solid fa-traffic-light"></i> ' + d.resultTxt + '</span></div>' +
+    '</div>';
+}
+
+function switchCase() {
+  cur = cur === 'A' ? 'B' : 'A';
+  render();
+  PMS.toast('已切换至' + (cur === 'A' ? '存在轮候查封' : '无轮候查封') + '示例');
+}
+
+function doRelease() {
+  var d = CASES[cur];
+  PMS.confirm({
+    title: '确认提交解封登记',
+    message: '解封后将按其他限制情形重新判定可交易标识，是否确认？',
+    detail: '解封后综合结论：' + d.resultTxt + '。解封全过程留痕，文书归档并同步推送不动产登记机构。',
+    type: 'warning',
+    okText: '确认解封',
+    onOk: function () {
+      document.getElementById('formArea').classList.add('hidden');
+      document.getElementById('okArea').classList.remove('hidden');
+      document.getElementById('okBox').innerHTML =
+        '<div class="ok-ico ' + d.okIcon + '"><i class="fa-solid ' + (d.okIcon === 'g' ? 'fa-check' : 'fa-lock') + '"></i></div>' +
+        '<div class="ok-t" style="color:' + (d.okIcon === 'g' ? '#059669' : '#b45309') + '">' + d.okTitle + '</div>' +
+        '<div class="ok-s">' + d.info[5][1] + ' · ' + d.no + ' · 解封时间 2026-08-01 09:32</div>' +
+        '<dl class="desc-list" style="max-width:720px;margin:22px auto 0;text-align:left">' +
+          d.okItems.map(function (r) {
+            return '<div class="desc-item"><dt>' + r[0] + '</dt><dd>' + r[1] + '</dd></div>';
+          }).join('') +
+        '</dl>' +
+        '<div class="btn-row justify-center" style="margin-top:22px">' +
+          '<button type="button" class="btn btn-primary" onclick="location.href=\'restriction-status.html\'"><i class="fa-solid fa-traffic-light"></i> 查看限制状态</button>' +
+          '<button type="button" class="btn" onclick="location.href=\'seal-list.html\'">返回台账</button>' +
+          '<button type="button" class="btn" onclick="location.reload()">继续办理</button>' +
+        '</div>';
+      window.scrollTo(0, 0);
+      PMS.toast('解封登记成功，限制状态已刷新', 'success');
+    }
+  });
+}
+
+render();
+</script>
+</body>
+</html>

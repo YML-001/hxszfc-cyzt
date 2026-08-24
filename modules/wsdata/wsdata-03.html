@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>库表资源目录 · 房产交易数据中心</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+</head>
+<body data-role="admin" data-active="wsdata-03">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房产交易数据中心
+        <span class="sep">/</span> 数据资源管理
+        <span class="sep">/</span> <span class="cur">库表资源目录</span>
+      </div>
+      <div class="page-title">库表资源目录</div>
+    </div>
+    <div class="ph-r">
+      <button class="btn" onclick="PMS.toast('元数据采集已触发，预计 8 分钟完成')"><i class="fa-solid fa-rotate"></i> 采集元数据</button>
+    </div>
+  </div>
+
+  <div class="dc-layout">
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-database"></i> 主题库</h3></div>
+      <div class="dc-scroll tight dc-tree" id="libTree"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head" id="libHead"></div>
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>关键字</label><input type="text" id="kw" placeholder="表名 / 中文名称" oninput="renderTables()"></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="renderTables()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="document.getElementById('kw').value='';renderTables()">重置</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" data-static id="tblTable">
+            <thead><tr><th>表名</th><th class="cell-lg">中文名称</th><th class="num">字段数</th><th class="num">数据量（行）</th><th>更新周期</th><th>最近更新时间</th><th>操作</th></tr></thead>
+            <tbody id="tblBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- 字段清单抽屉 -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="fieldDrawer">
+  <div class="drawer-head"><h3 id="fdTitle">字段清单</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <dl class="desc-list" id="fdMeta"></dl>
+    <h4 class="section-title mt-16">字段清单</h4>
+    <div class="table-wrap">
+      <table class="data-table compact">
+        <thead><tr><th class="num">序号</th><th>字段名</th><th class="cell-lg">中文名</th><th>类型</th><th>主键</th><th class="cell-lg">说明</th></tr></thead>
+        <tbody id="fdBody"></tbody>
+      </table>
+    </div>
+    <p class="hint mt-16" id="fdHint"></p>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn btn-primary" onclick="PMS.toast('已导出该表字段清单（含数据字典）')"><i class="fa-solid fa-download"></i> 导出字段清单</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script>
+  var DB = {
+    sp: { name: "商品房交易主题库", code: "ZT_SP", cycle: "日 03:00", tables: [
+      { t: "ZT_SP_XMXX", cn: "项目信息", cnt: 42, rows: "12,486", upd: "2026-08-01 03:38", cols: [
+        ["xmbh", "项目编号", "字符(20)", "是", "全市唯一项目编码"],
+        ["xmmc", "项目名称", "字符(100)", "否", "项目全称"],
+        ["kfqy", "开发企业", "字符(100)", "否", "开发建设单位名称"],
+        ["xmdz", "项目坐落", "字符(200)", "否", "标准化坐落地址"],
+        ["ydmj", "用地面积", "数值(14,2)", "否", "单位：㎡"],
+        ["jzmj", "建筑面积", "数值(14,2)", "否", "单位：㎡"],
+        ["xmzt", "项目状态", "字符(2)", "否", "在建/竣工/交付"],
+        ["gxsj", "更新时间", "日期时间", "否", "记录最近更新时间"]
+      ] },
+      { t: "ZT_SP_LDXX", cn: "楼栋信息", cnt: 28, rows: "68,240", upd: "2026-08-01 03:38", cols: [
+        ["ldbh", "楼栋编号", "字符(24)", "是", "楼栋唯一编码"],
+        ["xmbh", "项目编号", "字符(20)", "否", "所属项目"],
+        ["ldmc", "楼栋名称", "字符(50)", "否", "如 1 号楼"],
+        ["cs", "总层数", "数值(4)", "否", "楼栋总层数"],
+        ["zhs", "总户数", "数值(6)", "否", "楼栋总户数"],
+        ["ldzt", "楼栋状态", "字符(2)", "否", "预售/现售"]
+      ] },
+      { t: "ZT_SP_FWXX", cn: "房屋信息", cnt: 36, rows: "1,862,400", upd: "2026-08-01 03:38", cols: [
+        ["fwbh", "房屋编号", "字符(28)", "是", "全市唯一房屋编码"],
+        ["ldbh", "楼栋编号", "字符(24)", "否", "所属楼栋"],
+        ["fh", "房号", "字符(20)", "否", "如 1单元1801"],
+        ["jzmj", "建筑面积", "数值(10,2)", "否", "单位：㎡"],
+        ["ythx", "预测户型", "字符(20)", "否", "户型描述"],
+        ["xkzt", "销控状态", "字符(2)", "否", "可售/已售/锁定"]
+      ] },
+      { t: "ZT_SP_XKZ", cn: "销售许可证", cnt: 24, rows: "8,642", upd: "2026-08-01 03:38", cols: [
+        ["xkzbh", "许可证编号", "字符(30)", "是", "预售/现售许可证号"],
+        ["xmbh", "项目编号", "字符(20)", "否", "所属项目"],
+        ["xkzlx", "许可证类型", "字符(2)", "否", "预售/现售"],
+        ["xssmj", "许可销售面积", "数值(14,2)", "否", "单位：㎡"],
+        ["fzrq", "发证日期", "日期", "否", "许可证发证日期"],
+        ["fzjg", "发证机关", "字符(100)", "否", "发证部门"]
+      ] },
+      { t: "ZT_SP_WQHT", cn: "商品房网签备案合同", cnt: 58, rows: "2,486,200", upd: "2026-08-01 03:38", cols: [
+        ["htbh", "合同编号", "字符(30)", "是", "网签备案合同编号"],
+        ["fwbh", "房屋编号", "字符(28)", "否", "关联房屋"],
+        ["msrxm", "买受人姓名", "字符(50)", "否", "存储脱敏，明细按授权"],
+        ["htje", "合同金额", "数值(16,2)", "否", "单位：元"],
+        ["jzmj", "建筑面积", "数值(10,2)", "否", "单位：㎡"],
+        ["wqsj", "网签时间", "日期时间", "否", "网签备案时间"],
+        ["htzt", "合同状态", "字符(2)", "否", "备案/变更/注销"]
+      ] },
+      { t: "ZT_SP_RGXX", cn: "认购信息", cnt: 22, rows: "486,200", upd: "2026-08-01 03:38", cols: [
+        ["rgbh", "认购编号", "字符(30)", "是", "认购单编号"],
+        ["fwbh", "房屋编号", "字符(28)", "否", "关联房屋"],
+        ["rgje", "认购金额", "数值(16,2)", "否", "单位：元"],
+        ["rgsj", "认购时间", "日期时间", "否", "认购登记时间"],
+        ["rgzt", "认购状态", "字符(2)", "否", "有效/退订/转合同"]
+      ] }
+    ] },
+    cl: { name: "存量房交易主题库", code: "ZT_CL", cycle: "日 03:00", tables: [
+      { t: "ZT_CL_WQHT", cn: "存量房网签备案合同", cnt: 52, rows: "1,862,000", upd: "2026-08-01 03:36", cols: [
+        ["htbh", "合同编号", "字符(30)", "是", "存量房网签备案合同编号"],
+        ["fwzl", "房屋坐落", "字符(200)", "否", "房屋标准坐落"],
+        ["cmrxm", "出卖人姓名", "字符(50)", "否", "存储脱敏"],
+        ["msrxm", "买受人姓名", "字符(50)", "否", "存储脱敏"],
+        ["cjje", "成交金额", "数值(16,2)", "否", "单位：元"],
+        ["wqsj", "网签时间", "日期时间", "否", "网签备案时间"],
+        ["htzt", "合同状态", "字符(2)", "否", "备案/变更/注销"]
+      ] },
+      { t: "ZT_CL_FYXX", cn: "存量房源信息", cnt: 34, rows: "268,400", upd: "2026-08-01 03:36", cols: [
+        ["fybh", "房源编号", "字符(28)", "是", "存量房源编码"],
+        ["fwzl", "房屋坐落", "字符(200)", "否", "房屋标准坐落"],
+        ["jzmj", "建筑面积", "数值(10,2)", "否", "单位：㎡"],
+        ["fyzt", "房源状态", "字符(2)", "否", "在售/成交/下架"]
+      ] },
+      { t: "ZT_CL_JYSQ", cn: "存量房交易申请", cnt: 28, rows: "386,200", upd: "2026-08-01 03:36", cols: [
+        ["sqbh", "申请编号", "字符(30)", "是", "交易申请编号"],
+        ["fybh", "房源编号", "字符(28)", "否", "关联房源"],
+        ["sqsj", "申请时间", "日期时间", "否", "申请提交时间"],
+        ["sqzt", "申请状态", "字符(2)", "否", "受理/办结/退件"]
+      ] }
+    ] },
+    zl: { name: "房屋租赁主题库", code: "ZT_ZL", cycle: "日 03:10", tables: [
+      { t: "ZT_ZL_ZLHT", cn: "住房租赁备案合同", cnt: 46, rows: "862,400", upd: "2026-08-01 03:42", cols: [
+        ["htbh", "备案编号", "字符(30)", "是", "租赁备案合同编号"],
+        ["fwzl", "房屋坐落", "字符(200)", "否", "出租房屋坐落"],
+        ["czrxm", "出租人姓名", "字符(50)", "否", "存储脱敏"],
+        ["czrxm2", "承租人姓名", "字符(50)", "否", "存储脱敏"],
+        ["yzj", "月租金", "数值(12,2)", "否", "单位：元"],
+        ["zlqx", "租赁期限", "字符(20)", "否", "起止年月"],
+        ["babsj", "备案时间", "日期时间", "否", "租赁备案时间"]
+      ] },
+      { t: "ZT_ZL_FYXX", cn: "租赁房源信息", cnt: 30, rows: "186,200", upd: "2026-08-01 03:42", cols: [
+        ["fybh", "房源编号", "字符(28)", "是", "租赁房源编码"],
+        ["fwzl", "房屋坐落", "字符(200)", "否", "房屋坐落"],
+        ["fyzt", "房源状态", "字符(2)", "否", "在租/已租/下架"]
+      ] },
+      { t: "ZT_ZL_CZR", cn: "出租人信息", cnt: 18, rows: "96,800", upd: "2026-08-01 03:42", cols: [
+        ["czrbh", "出租人编号", "字符(24)", "是", "出租人唯一编码"],
+        ["czrmc", "出租人名称", "字符(100)", "否", "个人/单位"],
+        ["czrlx", "出租人类型", "字符(2)", "否", "个人/单位"]
+      ] }
+    ] },
+    zj: { name: "资金监管主题库", code: "ZT_ZJ", cycle: "日 03:20", tables: [
+      { t: "ZT_ZJ_JGZH", cn: "监管账户", cnt: 32, rows: "12,486", upd: "2026-08-01 04:02", cols: [
+        ["zhbh", "账户编号", "字符(30)", "是", "监管账户编号"],
+        ["xmbh", "项目编号", "字符(20)", "否", "关联项目"],
+        ["khyh", "开户银行", "字符(100)", "否", "监管银行"],
+        ["zhye", "账户余额", "数值(18,2)", "否", "单位：元"],
+        ["zhzt", "账户状态", "字符(2)", "否", "正常/冻结/销户"]
+      ] },
+      { t: "ZT_ZJ_ZJLS", cn: "监管资金流水", cnt: 28, rows: "8,624,000", upd: "2026-08-01 04:02", cols: [
+        ["lsbh", "流水编号", "字符(30)", "是", "流水唯一编号"],
+        ["zhbh", "账户编号", "字符(30)", "否", "关联监管账户"],
+        ["jyje", "交易金额", "数值(18,2)", "否", "单位：元"],
+        ["jyfx", "收支方向", "字符(2)", "否", "收入/支出"],
+        ["jysj", "交易时间", "日期时间", "否", "资金交易时间"]
+      ] },
+      { t: "ZT_ZJ_BKED", cn: "拨款额度", cnt: 20, rows: "42,860", upd: "2026-08-01 04:02", cols: [
+        ["edbh", "额度编号", "字符(30)", "是", "拨款额度编号"],
+        ["zhbh", "账户编号", "字符(30)", "否", "关联监管账户"],
+        ["kbed", "可拨额度", "数值(18,2)", "否", "单位：元"]
+      ] }
+    ] },
+    xm: { name: "项目与楼盘主题库", code: "ZT_XM", cycle: "日 03:00", tables: [
+      { t: "ZT_XM_JBXX", cn: "项目基本信息", cnt: 44, rows: "12,486", upd: "2026-08-01 03:30", cols: [
+        ["xmbh", "项目编号", "字符(20)", "是", "全市唯一项目编码"],
+        ["xmmc", "项目名称", "字符(100)", "否", "项目全称"],
+        ["kfqy", "开发企业", "字符(100)", "否", "开发建设单位"],
+        ["lxrq", "立项日期", "日期", "否", "项目立项日期"],
+        ["xmlx", "项目类型", "字符(2)", "否", "商品房/安置房等"]
+      ] },
+      { t: "ZT_XM_LP", cn: "楼盘表", cnt: 38, rows: "68,240", upd: "2026-08-01 03:30", cols: [
+        ["lpbh", "楼盘表编号", "字符(28)", "是", "楼盘表唯一编码"],
+        ["xmbh", "项目编号", "字符(20)", "否", "所属项目"],
+        ["zts", "总套数", "数值(6)", "否", "楼盘总套数"],
+        ["kss", "可售套数", "数值(6)", "否", "当前可售套数"]
+      ] },
+      { t: "ZT_XM_JD", cn: "项目节点", cnt: 22, rows: "128,600", upd: "2026-08-01 03:30", cols: [
+        ["jdbh", "节点编号", "字符(30)", "是", "节点唯一编号"],
+        ["xmbh", "项目编号", "字符(20)", "否", "所属项目"],
+        ["jdmc", "节点名称", "字符(50)", "否", "如 主体封顶"],
+        ["jdrq", "节点日期", "日期", "否", "节点完成日期"]
+      ] }
+    ] },
+    zt: { name: "市场主体与信用主题库", code: "ZT_ZT", cycle: "日 03:15", tables: [
+      { t: "ZT_ZT_QY", cn: "开发企业", cnt: 40, rows: "3,286", upd: "2026-08-01 03:48", cols: [
+        ["qybh", "企业编号", "字符(24)", "是", "企业唯一编码"],
+        ["qymc", "企业名称", "字符(100)", "否", "企业全称"],
+        ["xydm", "信用代码", "字符(18)", "否", "统一社会信用代码"],
+        ["zzdj", "资质等级", "字符(4)", "否", "开发资质等级"]
+      ] },
+      { t: "ZT_ZT_ZJJG", cn: "中介机构", cnt: 34, rows: "1,842", upd: "2026-08-01 03:48", cols: [
+        ["jgbh", "机构编号", "字符(24)", "是", "机构唯一编码"],
+        ["jgmc", "机构名称", "字符(100)", "否", "机构全称"],
+        ["xydm", "信用代码", "字符(18)", "否", "统一社会信用代码"]
+      ] },
+      { t: "ZT_ZT_CYRY", cn: "从业人员", cnt: 26, rows: "28,600", upd: "2026-08-01 03:48", cols: [
+        ["rybh", "人员编号", "字符(24)", "是", "从业人员编码"],
+        ["xm", "姓名", "字符(50)", "否", "存储脱敏"],
+        ["jgbh", "所属机构", "字符(24)", "否", "关联机构"]
+      ] },
+      { t: "ZT_ZT_XYPJ", cn: "信用评价", cnt: 22, rows: "5,120", upd: "2026-08-01 03:48", cols: [
+        ["pjbh", "评价编号", "字符(30)", "是", "信用评价编号"],
+        ["qybh", "主体编号", "字符(24)", "否", "被评价主体"],
+        ["xydf", "信用得分", "数值(6,2)", "否", "信用综合得分"],
+        ["xydj", "信用等级", "字符(4)", "否", "A/B/C/D"]
+      ] }
+    ] },
+    da: { name: "档案与查询主题库", code: "ZT_DA", cycle: "日 04:00", tables: [
+      { t: "ZT_DA_DAML", cn: "档案目录", cnt: 24, rows: "1,286,000", upd: "2026-08-01 04:12", cols: [
+        ["dabh", "档案编号", "字符(30)", "是", "档案唯一编号"],
+        ["dalx", "档案类型", "字符(4)", "否", "合同/材料/图纸"],
+        ["gllb", "关联业务", "字符(4)", "否", "关联业务类别"],
+        ["gdrq", "归档日期", "日期", "否", "归档时间"]
+      ] },
+      { t: "ZT_DA_CXJL", cn: "查询记录", cnt: 18, rows: "8,624,000", upd: "2026-08-01 04:12", cols: [
+        ["cxbh", "查询编号", "字符(30)", "是", "查询记录编号"],
+        ["cxr", "查询人", "字符(50)", "否", "查询发起人"],
+        ["cxsj", "查询时间", "日期时间", "否", "查询发生时间"]
+      ] }
+    ] },
+    tj: { name: "统计指标主题库", code: "ZT_TJ", cycle: "日 04:30", tables: [
+      { t: "ZT_TJ_YDCJ", cn: "月度成交统计", cnt: 30, rows: "8,640", upd: "2026-08-01 04:38", cols: [
+        ["tjbh", "统计编号", "字符(30)", "是", "统计记录编号"],
+        ["tjyf", "统计月份", "字符(6)", "否", "YYYYMM"],
+        ["cjts", "成交套数", "数值(10)", "否", "月度成交套数"],
+        ["cjmj", "成交面积", "数值(16,2)", "否", "单位：㎡"],
+        ["cjje", "成交金额", "数值(18,2)", "否", "单位：元"]
+      ] },
+      { t: "ZT_TJ_KC", cn: "库存去化统计", cnt: 26, rows: "4,280", upd: "2026-08-01 04:38", cols: [
+        ["tjbh", "统计编号", "字符(30)", "是", "统计记录编号"],
+        ["kcts", "库存套数", "数值(10)", "否", "期末库存套数"],
+        ["qhzq", "去化周期", "数值(8,2)", "否", "单位：月"]
+      ] },
+      { t: "ZT_TJ_JG", cn: "价格指数统计", cnt: 22, rows: "3,120", upd: "2026-08-01 04:38", cols: [
+        ["tjbh", "统计编号", "字符(30)", "是", "统计记录编号"],
+        ["jgzs", "价格指数", "数值(10,2)", "否", "环比基准指数"],
+        ["hbzf", "环比涨幅", "数值(6,2)", "否", "单位：%"]
+      ] }
+    ] }
+  };
+
+  var curLib = "sp";
+
+  function renderTree() {
+    var html = "";
+    Object.keys(DB).forEach(function (k) {
+      var lib = DB[k];
+      html += '<div class="t-node' + (k === curLib ? ' on' : '') + '" onclick="selLib(\'' + k + '\')"><i class="fa-solid fa-cubes"></i> ' + lib.name + '<span class="t-num">' + lib.tables.length + '</span></div>';
+    });
+    document.getElementById("libTree").innerHTML = html;
+  }
+
+  function selLib(k) { curLib = k; TB_PAGE.num = 1; renderTree(); renderHead(); renderTables(); }
+
+  var TB_PAGE = { num: 1, size: 10 };
+
+  function renderHead() {
+    var lib = DB[curLib];
+    var totalTables = lib.tables.length;
+    document.getElementById("libHead").innerHTML = '<h3><i class="fa-solid fa-table-cells-large"></i> ' + lib.name + ' <code>' + lib.code + '</code></h3><span class="sub">共 ' + totalTables + ' 张表 · 更新周期 ' + lib.cycle + '</span>';
+  }
+
+  function renderTables() {
+    var lib = DB[curLib];
+    var kw = (document.getElementById("kw").value || "").trim().toLowerCase();
+    var table = document.getElementById("tblTable");
+    var hasIdx = !!table.querySelector('thead th.idx-col');
+    var arr = lib.tables.filter(function (tb) {
+      if (kw && tb.t.toLowerCase().indexOf(kw) < 0 && tb.cn.toLowerCase().indexOf(kw) < 0) return false;
+      return true;
+    });
+    var start = (TB_PAGE.num - 1) * TB_PAGE.size;
+    var pageItems = arr.slice(start, start + TB_PAGE.size);
+    var rows = "";
+    pageItems.forEach(function (tb, i) {
+      var seq = start + i + 1;
+      var idxCell = hasIdx ? '<td class="idx-col">' + (seq < 10 ? '0' + seq : seq) + '</td>' : '';
+      rows += '<tr>' + idxCell + '<td class="nowrap"><code>' + tb.t + '</code></td><td class="cell-lg">' + tb.cn + '</td><td class="num">' + tb.cnt + '</td><td class="num nowrap">' + tb.rows + '</td><td class="nowrap">' + lib.cycle + '</td><td class="nowrap">' + tb.upd + '</td><td class="nowrap"><span class="link" onclick="viewFields(\'' + tb.t + '\')">查看字段</span></td></tr>';
+    });
+    if (!rows) rows = '<tr><td colspan="' + (hasIdx ? 8 : 7) + '" class="text-3" style="text-align:center;padding:24px">无匹配的表</td></tr>';
+    document.getElementById("tblBody").innerHTML = rows;
+    PMS.renderPager(table, { pageNum: TB_PAGE.num, pageSize: TB_PAGE.size, total: arr.length, onChange: function (s) { TB_PAGE.num = s.pageNum; TB_PAGE.size = s.pageSize; renderTables(); } });
+  }
+
+  function viewFields(t) {
+    var lib = DB[curLib];
+    var tb = lib.tables.filter(function (x) { return x.t === t; })[0];
+    if (!tb) return;
+    document.getElementById("fdTitle").innerHTML = tb.cn + " · " + tb.t;
+    document.getElementById("fdMeta").innerHTML =
+      '<div class="desc-item"><dt>所属主题库</dt><dd>' + lib.name + '（<code>' + lib.code + '</code>）</dd></div>' +
+      '<div class="desc-item"><dt>表名</dt><dd><code>' + tb.t + '</code></dd></div>' +
+      '<div class="desc-item"><dt>字段数</dt><dd>' + tb.cnt + ' 个</dd></div>' +
+      '<div class="desc-item"><dt>数据量</dt><dd>' + tb.rows + ' 行</dd></div>' +
+      '<div class="desc-item"><dt>更新周期</dt><dd>' + lib.cycle + '</dd></div>' +
+      '<div class="desc-item"><dt>最近更新时间</dt><dd>' + tb.upd + '</dd></div>';
+    var body = "";
+    tb.cols.forEach(function (c, i) {
+      body += '<tr><td class="num">' + (i + 1) + '</td><td class="nowrap"><code>' + c[0] + '</code></td><td class="cell-lg">' + c[1] + '</td><td class="nowrap">' + c[2] + '</td><td>' + (c[3] === "是" ? '<span class="badge blue">主键</span>' : '否') + '</td><td class="cell-lg">' + c[4] + '</td></tr>';
+    });
+    document.getElementById("fdBody").innerHTML = body;
+    document.getElementById("fdHint").innerHTML = '<i class="fa-solid fa-circle-info"></i> 完整字段共 ' + tb.cnt + ' 个，此处展示主要字段 ' + tb.cols.length + ' 个。涉及个人信息的字段在库中脱敏存储，明细数据按共享授权提供。';
+    PMS.openDrawer("fieldDrawer");
+  }
+
+  renderTree();
+  renderHead();
+  renderTables();
+</script>
+</body>
+</html>

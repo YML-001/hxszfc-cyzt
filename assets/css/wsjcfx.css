@@ -1,0 +1,1406 @@
+/* ==========================================================================
+   房地产市场监管监测系统（wsjcfx）专用复合组件
+   基线：《前端原型设计规范-政务蓝基线v1.0》。本文件只新增 jc- 前缀的复合组件，
+   不覆盖 app.css 的任何设计令牌与组件规则；色值一律引用既有令牌。
+   适用范围：modules/wsjcfx/ 下的 25 个菜单页与 1 个项目视图从属页（大屏另见 screen.css）。
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   零之前、预警四色的完整调色板
+   app.css 只给了四个主色 --lv-red/orange/yellow/blue，但四色语义在本子系统里要用在
+   三种位置上：主色（圆点、数字、进度条）、浅底（卡片背景、行底色）、深墨（浅底上的文字）。
+   缺后两者时，各页只能各写各的十六进制值，同一个「橙」在三页是三种橙——这是本子系统
+   视觉最乱的根源。这里一次补齐，页面与组件一律引用，不再出现裸色值。
+   -------------------------------------------------------------------------- */
+:root {
+  --lv-red-bg: var(--danger-light);
+  --lv-red-line: #f0bdbd;
+  --lv-red-ink: #991b1b;
+  --lv-orange-bg: var(--warning-light);
+  --lv-orange-line: #f2d3a8;
+  --lv-orange-ink: #b45309;
+  --lv-yellow-bg: #fefaf0;
+  --lv-yellow-line: #ecd9a3;
+  --lv-yellow-ink: #a16207;
+  --lv-blue-bg: var(--primary-light);
+  --lv-blue-line: var(--primary-soft);
+  --lv-blue-ink: var(--lv-blue);
+  /* 多行表头分隔用色：表头底 #eaeffb 上要能看清，又不能压过正文 */
+  --th-line: #ccd9f0;   /* 组与组之间的分隔线（表头内） */
+  --th-grp: #dfe7f8;    /* 组头色带，比表头底深一档 */
+  --th-edge: #c2d2ee;   /* 表头与正文之间的收口线 */
+  --td-line: #eef2f9;   /* 组边界延伸到正文的那条线 */
+}
+
+/* --------------------------------------------------------------------------
+   零之二、多行表头（现网 18 张统计报表沿用的「大项 + 分用途」两到三行表头）
+   app.css 的表头只有一条底色，没有任何竖向分隔，20 列的交叉表里「住宅的 4 列」
+   和「商业的 4 列」在视觉上是连成一片的，组头又因为左对齐而落在第一列上方，
+   看不出管辖范围。这里补三件事：组头加色带并居中跨列、每层表头之间与列之间补
+   分隔线、多行表头逐行错位吸顶（原先各行 top 都是 0，纵向滚动时会叠在一起）。
+   仅命中含 colspan / rowspan 的表头，单行表头的表格不受影响。
+   -------------------------------------------------------------------------- */
+/* 线只切「组」，不切每一列：20 列的交叉表若逐列画竖线，整片表头会变成一张网格，
+   层级反而看不出来。组内相邻列靠数字右对齐与留白就能分开。
+   .gs 由 thead 首行的 colspan 推出，逐行标到子表头与正文，因此竖线上下对得齐。 */
+.data-table thead th.gs,
+.data-table thead tr:not(:first-child) th[colspan] { border-left: 1px solid var(--th-line); }
+.data-table thead tr > th:first-child { border-left: 0; }
+
+/* 组头：色带 + 居中，一眼看出它管着下面哪几列 */
+.data-table thead th[colspan] {
+  text-align: center; background: var(--th-grp);
+  border-bottom: 1px solid var(--th-line);
+}
+/* 跨行的固定列（序号、区县这类）文字垂直居中，不吊在顶上 */
+.data-table thead th[rowspan] { vertical-align: middle; }
+
+/* 第二、三层子表头：略矮一档、字重收一档并逐行错位吸顶 */
+.data-table thead tr:not(:first-child) th { height: 34px; font-size: 13px; font-weight: 600; }
+.data-table thead tr:nth-child(2) th { top: 40px; }
+.data-table thead tr:nth-child(3) th { top: 74px; }
+/* 末层与正文之间收一条实线，两者不再糊在一起 */
+.data-table thead tr:not(:first-child):last-child th { border-bottom: 1px solid var(--th-edge); }
+
+/* 组边界延到正文，横向扫行时不会串到隔壁组；正文只有这一条竖线，不铺满格网格 */
+.data-table.th-group tbody td.gs { border-left: 1px solid var(--td-line); }
+
+/* --------------------------------------------------------------------------
+   零、两个高频工具类
+   这两条声明原先以内联 style 的形式在本子系统里出现了 135 次。内联样式既不能被
+   主题覆盖，也让 diff 里全是噪声，收敛成类。
+   -------------------------------------------------------------------------- */
+.ml-auto { margin-left: auto; }
+.clickable { cursor: pointer; }
+
+/* --------------------------------------------------------------------------
+   一、指标元信息角标（UI12 / G3）：任何统计数字旁标注口径版本与数据截止时间
+   -------------------------------------------------------------------------- */
+.jc-meta {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 15px; height: 15px; border-radius: 50%;
+  background: var(--primary-light); color: var(--primary);
+  font-size: 9px; cursor: help; vertical-align: super; margin-left: 3px;
+}
+.jc-meta:hover { background: var(--primary); color: #fff; }
+.jc-srcbar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px;
+  flex-shrink: 0;
+  padding: 7px 12px; border-top: 1px dashed var(--border);
+  font-size: 12px; color: var(--text-3);
+}
+.jc-srcbar b { color: var(--text-2); font-weight: 600; }
+
+/* 指标表容器：与 .table-wrap 表现一致，但不匹配 app.js 的 listTables 选择器，
+   因此不会被自动加「序号」列与分页条。用于「指标 × 期间」这类非列表型表格。 */
+.jc-tw { overflow: auto; min-height: 0; }
+
+/* 预警四色中的「黄」：app.css 的 .badge 只提供 blue/green/orange/red/gray/cyan/purple，
+   本子系统的红橙黄蓝四级预警需要黄色档，按 --lv-yellow 令牌补齐一个变体。 */
+.badge.yellow { background: var(--lv-yellow-bg); color: var(--lv-yellow-ink); }
+
+/* 卡片内说明文字：app.css 只定义了 .form-item .hint，范式模板中还在卡片、抽屉、
+   弹窗内以 p.hint 承载口径与边界说明，这里按同一视觉规格补齐，不改动原规则。 */
+.jc-block .hint,
+.card-body > .hint,
+.drawer-body > .hint,
+.modal-body > .hint {
+  display: flex; align-items: flex-start; gap: 6px;
+  font-size: 12px; color: var(--text-3); line-height: 1.6;
+}
+.jc-block .hint i,
+.card-body > .hint i,
+.drawer-body > .hint i,
+.modal-body > .hint i { margin-top: 2px; flex-shrink: 0; }
+
+/* --------------------------------------------------------------------------
+   二、超大数字（大屏外的醒目指标，如交付完成率 FR-078 R3）
+   -------------------------------------------------------------------------- */
+.jc-big { display: flex; align-items: baseline; gap: 8px; }
+.jc-big .bv { font-size: 40px; font-weight: 700; line-height: 1.05; color: var(--primary); }
+.jc-big .bu { font-size: 15px; color: var(--text-3); }
+.jc-big.is-red .bv { color: var(--lv-red); }
+.jc-big.is-green .bv { color: var(--success); }
+
+/* --------------------------------------------------------------------------
+   三、热力色阶与两种矩阵
+   色阶 h0–h5 由 .jc-matrix（指标对比矩阵）与 .jc-heat（可下钻风险热力图）共用，
+   两者只在交互与密度上不同，颜色语义必须一致，否则同一份数据在两页看着像两回事。
+   -------------------------------------------------------------------------- */
+.jc-matrix td.h0, .jc-heat td.h0 { background: #f4f7fb; color: var(--text-3); }
+.jc-matrix td.h1, .jc-heat td.h1 { background: #dfeafc; }
+.jc-matrix td.h2, .jc-heat td.h2 { background: #fdf0d6; }
+.jc-matrix td.h3, .jc-heat td.h3 { background: #fbd9ba; color: #92400e; }
+.jc-matrix td.h4, .jc-heat td.h4 { background: #f7b4ac; color: #7f1d1d; font-weight: 600; }
+.jc-matrix td.h5, .jc-heat td.h5 { background: #e35d4f; color: #fff; font-weight: 700; }
+
+.jc-matrix { width: 100%; border-collapse: separate; border-spacing: 2px; font-size: 12.5px; }
+.jc-matrix th {
+  font-weight: 600; color: var(--primary); background: var(--primary-light);
+  padding: 6px 8px; white-space: nowrap; border-radius: var(--radius);
+}
+.jc-matrix th.rowhead { text-align: left; }
+.jc-matrix td {
+  text-align: center; padding: 6px 8px; border-radius: var(--radius);
+  color: var(--text-1); white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.jc-matrix td.rowhead {
+  text-align: left; background: var(--bg-soft); color: var(--text-1); font-weight: 600;
+}
+.jc-matrix td .rk { font-size: 11px; color: var(--text-3); margin-left: 3px; }
+.jc-matrix tbody tr:hover td:not(.rowhead) { outline: 1px solid var(--primary-soft); }
+
+/* --------------------------------------------------------------------------
+   四、纯 CSS 图形容器：SVG 图表统一约束（趋势线 / 预测带 / 桑基 / 雷达 / 漏斗）
+   -------------------------------------------------------------------------- */
+.jc-chart { width: 100%; }
+.jc-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.jc-chart .gd { stroke: var(--row-line); stroke-width: 1; }
+.jc-chart .ax { fill: var(--text-3); font-size: 10px; }
+.jc-chart .ln { fill: none; stroke-width: 2; stroke-linejoin: round; }
+.jc-chart .ln.p { stroke: var(--primary); }
+.jc-chart .ln.g { stroke: var(--success); }
+.jc-chart .ln.o { stroke: var(--lv-orange); }
+.jc-chart .ln.c { stroke: var(--info); }
+/* 预警四色堆叠趋势要能把红、黄两级也画出来，否则页面只能拿主色顶替 */
+.jc-chart .ln.r { stroke: var(--lv-red); }
+.jc-chart .ln.y { stroke: var(--lv-yellow); }
+.jc-chart .ln.dash { stroke-dasharray: 5 4; }
+.jc-chart .bnd { fill: var(--primary); opacity: .12; }
+.jc-chart .dot { fill: #fff; stroke-width: 2; }
+.jc-chart .ev { fill: var(--lv-red); }
+.jc-chart .ar { fill: var(--primary); opacity: .1; }
+/* 柱：与折线同图时用，构成「柱＋线」双轴图 */
+.jc-chart .br { fill: var(--primary); }
+.jc-chart .br.soft { fill: var(--primary-soft); }
+.jc-chart .br.g { fill: var(--success); }
+.jc-chart .br.o { fill: var(--lv-orange); }
+.jc-chart .br.c { fill: var(--info); }
+.jc-chart .br.r { fill: var(--lv-red); }
+.jc-chart .bl { fill: var(--text-3); font-size: 9.5px; text-anchor: middle; }
+/* 图例横排：图在上、图例在下时用，竖排会白白吃掉两行高度 */
+.legend.row { flex-direction: row; flex-wrap: wrap; gap: 6px 18px; margin-top: 8px; }
+
+/* --------------------------------------------------------------------------
+   五、漏斗（FR-071 项目状态漏斗）
+   -------------------------------------------------------------------------- */
+.jc-funnel { display: flex; flex-direction: column; gap: 6px; }
+.jc-funnel .fn {
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+  padding: 2px 0;
+}
+.jc-funnel .fn-bar {
+  height: 30px; border-radius: var(--radius);
+  background: linear-gradient(90deg, var(--primary) 0%, #6c9bea 100%);
+  display: flex; align-items: center; justify-content: flex-end;
+  padding-right: 8px; color: #fff; font-size: 12.5px; font-weight: 600;
+  min-width: 54px; transition: filter .15s;
+}
+.jc-funnel .fn:hover .fn-bar { filter: brightness(1.06); }
+.jc-funnel .fn-label { width: 128px; flex-shrink: 0; font-size: 13px; color: var(--text-1); }
+.jc-funnel .fn-side { font-size: 12.5px; color: var(--text-3); white-space: nowrap; }
+
+/* --------------------------------------------------------------------------
+   六、评分条（FR-074 项目评分卡五维度）
+   -------------------------------------------------------------------------- */
+.jc-score { display: flex; flex-direction: column; gap: 10px; }
+.jc-score .sc { display: flex; align-items: center; gap: 10px; }
+.jc-score .sc-l { width: 88px; flex-shrink: 0; font-size: 13px; color: var(--text-2); }
+.jc-score .sc-b { flex: 1; height: 14px; background: var(--bg-soft); border-radius: 20px; overflow: hidden; }
+.jc-score .sc-b > span { display: block; height: 100%; border-radius: 20px; background: var(--primary); }
+.jc-score .sc-b > span.red { background: var(--lv-red); }
+.jc-score .sc-b > span.orange { background: var(--lv-orange); }
+.jc-score .sc-b > span.yellow { background: var(--lv-yellow); }
+.jc-score .sc-b > span.green { background: var(--success); }
+.jc-score .sc-v { width: 78px; text-align: right; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* --------------------------------------------------------------------------
+   七、房产一张图（FR-032 底图图层 / FR-033 专题 / FR-034 检索定位 / FR-080 GIS）
+   真实地图：Leaflet + 高德栅格瓦片，坐标系 GCJ-02，与 liuzhou-geo.js 边界同系。
+   缩放层级驱动聚合：z<10 区县气泡 / z10—12 片区气泡 / z≥13 项目点位。
+   -------------------------------------------------------------------------- */
+.jc-map {
+  position: relative; border: 1px solid var(--border); border-radius: var(--radius);
+  background: #eef3fb; overflow: hidden; min-height: 260px;
+}
+/* Leaflet 画布：占满容器，压在各类浮层之下 */
+.jc-map .jc-mapcv { position: absolute; inset: 0; z-index: 1; background: #eef3fb; }
+.jc-map .leaflet-container { font: inherit; background: #eef3fb; }
+.jc-map .leaflet-control-scale { margin: 0 0 30px 10px; }
+.jc-map .leaflet-control-scale-line {
+  border-color: var(--border-strong); border-top: none; color: var(--text-2);
+  background: rgba(255, 255, 255, .9); font-size: 11px; padding: 1px 5px;
+}
+/* 深色底图：瓦片反相调色，仅作用于瓦片层，不影响业务要素（FR-032 R1 第三种样式） */
+.jc-map.base-dark { background: #16233c; }
+.jc-map.base-dark .leaflet-tile-pane { filter: invert(.93) hue-rotate(188deg) saturate(.72) brightness(.92); }
+.jc-map.base-img { background: #dde5d8; }
+.jc-map.lassoing { cursor: crosshair; }
+.jc-map.lassoing .leaflet-container { cursor: crosshair; }
+.jc-map .jc-map-hint {
+  position: absolute; left: 10px; right: 268px; bottom: 8px; z-index: 3;
+  background: rgba(255, 255, 255, .9); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 4px 9px; font-size: 12px; color: var(--text-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.jc-map .jc-map-search {
+  position: absolute; left: 10px; top: 10px; z-index: 4; display: flex; gap: 6px;
+}
+.jc-map .jc-map-search input { width: 232px !important; background: #fff; }
+.jc-map .jc-map-tools {
+  position: absolute; right: 10px; top: 10px; z-index: 4;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.jc-map .jc-map-tools .tb {
+  width: 30px; height: 30px; border: 1px solid var(--border-strong); background: #fff;
+  border-radius: var(--radius); color: var(--text-2); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font-size: 13px;
+}
+.jc-map .jc-map-tools .tb:hover { background: var(--primary); border-color: var(--primary); color: #fff; }
+.jc-map .jc-card {
+  position: absolute; z-index: 8; width: 268px; background: #fff;
+  border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+  padding: 12px 14px;
+}
+.jc-map .jc-card .jc-card-x {
+  position: absolute; right: 8px; top: 6px; color: var(--text-3); cursor: pointer; font-size: 13px;
+}
+
+/* ---------- 项目点位：颜色＝风险、形状＝状态、大小＝体量（FR-080 R2） ---------- */
+.jm-mk-wrap { background: none; border: none; }
+.jm-mk {
+  position: relative; width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  opacity: var(--jm-op, .85);
+}
+.jm-mk:hover, .jm-mk.is-hover, .jm-mk.is-sel { opacity: 1; z-index: 900; }
+.jm-mk .jm-sp {
+  width: var(--s); height: var(--s); background: var(--c);
+  border: 2px solid #fff; box-shadow: 0 1px 4px rgba(15, 34, 64, .45); border-radius: 50%;
+}
+/* 形状 = 建设状态 */
+.jm-mk.bs-tg .jm-sp { border-radius: 3px; }
+.jm-mk.bs-jgws .jm-sp { border-radius: 3px; transform: rotate(45deg); }
+.jm-mk.bs-wdg .jm-sp {
+  background: none; border: none; box-shadow: none; border-radius: 0;
+  width: 0; height: 0; border-left: calc(var(--s) / 1.7) solid transparent;
+  border-right: calc(var(--s) / 1.7) solid transparent; border-bottom: var(--s) solid var(--c);
+  filter: drop-shadow(0 1px 2px rgba(15, 34, 64, .5));
+}
+.jm-mk.bs-yjf .jm-sp::after {
+  content: "\2713"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: calc(var(--s) * .62); font-weight: 700;
+}
+.jm-mk.is-sel .jm-sp { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, .35); }
+.jm-mk.is-hover .jm-sp, .jm-mk:hover .jm-sp { transform: scale(1.18); }
+.jm-mk.bs-jgws.is-hover .jm-sp, .jm-mk.bs-jgws:hover .jm-sp { transform: rotate(45deg) scale(1.18); }
+
+/* 保交楼虚线环（FR-033 R2），严重滞后 / 停工 呼吸闪烁 */
+.jm-mk .jm-ring {
+  display: none; position: absolute; inset: 0;
+  border: 2px dashed var(--lv-red); border-radius: 50%;
+}
+.jc-map.show-bjl .jm-mk.is-bjl .jm-ring { display: block; }
+.jc-map.show-bjl .jm-mk.is-bjl.is-blink .jm-ring { animation: jmBlink 1.6s ease-in-out infinite; }
+@keyframes jmBlink { 0%, 100% { opacity: 1; } 50% { opacity: .2; } }
+
+/* 好房子星标 / 交集视图描边 */
+.jm-mk .jm-star {
+  display: none; position: absolute; right: -2px; top: -4px;
+  font-size: 12px; color: var(--success); font-style: normal;
+  text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 2px #fff;
+}
+.jc-map.show-hfz .jm-mk.is-hfz .jm-star { display: block; }
+.jc-map.show-cross .jm-mk.is-cross .jm-sp { box-shadow: 0 0 0 3px var(--lv-red); }
+
+/* 项目名标签：只在 z≥15 出现，否则一片糊 */
+.jm-mk .jm-lb {
+  display: none; position: absolute; left: calc(100% - 4px); top: 50%; transform: translateY(-50%);
+  white-space: nowrap; font-size: 11.5px; font-weight: 600; color: var(--text-1);
+  background: rgba(255, 255, 255, .92); border: 1px solid var(--border);
+  border-radius: 3px; padding: 0 4px; pointer-events: none;
+}
+.jc-map.z-label .jm-mk .jm-lb { display: block; }
+.jc-map.base-dark .jm-mk .jm-lb { background: rgba(16, 26, 46, .9); border-color: #2a3c5e; color: #cbd8ee; }
+
+/* ---------- 区县 / 片区聚合气泡（地图找房式下钻） ---------- */
+.jm-bubble-wrap { background: none; border: none; }
+.jm-bubble {
+  width: 100%; height: 100%; border-radius: 50%; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--c); border: 2px solid #fff; color: #fff; text-align: center;
+  box-shadow: 0 2px 8px rgba(15, 34, 64, .4); opacity: var(--jm-op, .9); line-height: 1.15;
+}
+.jm-bubble:hover { opacity: 1; transform: scale(1.06); }
+.jm-bubble .t { font-size: 11.5px; font-weight: 600; max-width: 92%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jm-bubble .n { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.jm-bubble.b3 .n { font-size: 17px; }
+.jm-bubble .r { font-size: 10px; display: flex; gap: 4px; opacity: .95; }
+.jm-bubble .r em { font-style: normal; }
+.jm-bubble .r.ok { opacity: .8; }
+.jm-bubble.lv-yellow, .jm-bubble.lv-yellow .t { color: #3d2c00; }
+.jm-bubble.lv-yellow { border-color: #fff; }
+
+.jm-tip { font-size: 12px; }
+
+/* 当前视图层级提示（右下角常显，让人知道自己在哪一层） */
+.jc-map .jc-map-lvtip {
+  position: absolute; right: 10px; bottom: 8px; z-index: 5;
+  background: rgba(255, 255, 255, .92); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 4px 9px; font-size: 11.5px; color: var(--text-2);
+  white-space: nowrap;
+}
+.jc-map .jc-map-lvtip b { color: var(--primary); }
+
+/* 检索联想下拉（FR-034 R2）：结果超过 1 条时以清单形式列出供选择 */
+.jc-map .jc-sug {
+  position: absolute; left: 0; top: 40px; width: 340px; max-height: 300px; overflow: auto;
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow-lg); z-index: 6;
+}
+.jc-sug .sg-item { padding: 8px 11px; border-bottom: 1px solid var(--row-line); cursor: pointer; }
+.jc-sug .sg-item:last-child { border-bottom: none; }
+.jc-sug .sg-item:hover { background: var(--primary-light-2); }
+.jc-sug .sg-n { font-size: 13.5px; font-weight: 600; color: var(--text-1); margin-right: 6px; }
+.jc-sug .sg-s { font-size: 12px; color: var(--text-3); margin-top: 3px; }
+.jc-sug .sg-empty { padding: 14px 12px; font-size: 12.5px; color: var(--text-3); }
+
+/* 地图左侧浮层（保交楼态势汇总面板，FR-033 R4） */
+.jc-map .jc-float {
+  position: absolute; left: 10px; top: 56px; width: 244px; z-index: 5;
+  background: rgba(255, 255, 255, .96); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+}
+.jc-float > .fl-h {
+  display: flex; align-items: center; gap: 6px; padding: 8px 11px;
+  border-bottom: 1px solid var(--border); font-size: 13.5px; font-weight: 600; color: var(--text-1);
+}
+.jc-float > .fl-h .fl-x { margin-left: auto; cursor: pointer; color: var(--text-3); font-size: 16px; line-height: 1; }
+.jc-float > .fl-h .fl-x:hover { color: var(--text-1); }
+.jc-float > .fl-b { padding: 9px 11px; }
+
+/* 右下角常显图例（R6：没有图例的色块地图等于没有信息） */
+.jc-map .jc-map-legend {
+  position: absolute; right: 10px; bottom: 42px; z-index: 5;
+  padding: 8px 11px; background: rgba(255, 255, 255, .95);
+  border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm);
+}
+.jc-map-legend .lg-t { font-size: 11.5px; color: var(--text-3); font-weight: 600; margin-bottom: 4px; }
+.jc-map-legend .lg-item { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-2); padding: 1px 0; }
+.jc-map-legend .lg-color { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
+
+/* ---------- 示意 SVG 地图：仅 wsjcfx-17 / 18 的缩略分布图仍在用 ----------
+   真实地图只在房产一张图（wsjcfx-21）落地，这两处是页内缩略示意，不接底图。 */
+.jc-map .jc-map-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.jc-map.is-road { background: linear-gradient(160deg, #f6f7f9 0%, #eef0f4 100%); }
+.jc-map.is-img { background: linear-gradient(160deg, #e7ece4 0%, #dde5d8 60%, #d5e0d2 100%); }
+.jc-map.is-dark { background: linear-gradient(160deg, #16233c 0%, #101a2e 100%); }
+.jc-map.is-dark text { fill: #8fa3c4 !important; }
+.jc-dot { cursor: pointer; }
+.jc-dot:hover { opacity: .85; }
+.jc-cluster { cursor: pointer; }
+.jc-cluster circle { fill: var(--primary); fill-opacity: .82; stroke: #fff; stroke-width: 2.5; }
+.jc-cluster text { fill: #fff; font-size: 13px; font-weight: 700; text-anchor: middle; }
+.jc-cluster:hover circle { fill-opacity: 1; }
+.jc-map .jc-map-scale {
+  position: absolute; right: 10px; bottom: 8px; z-index: 4;
+  font-size: 11.5px; color: var(--text-2); background: rgba(255, 255, 255, .9);
+  border: 1px solid var(--border); border-radius: var(--radius); padding: 4px 9px;
+}
+
+/* ---------- 左栏：视野内项目清单（随地图移动实时过滤） ---------- */
+.jc-vlist { display: flex; flex-direction: column; gap: 5px; }
+.jc-vi {
+  border: 1px solid var(--border); border-radius: var(--radius); padding: 7px 9px;
+  cursor: pointer; background: #fff;
+}
+.jc-vi:hover { border-color: var(--primary-soft); background: var(--primary-light-2); }
+.jc-vi.on { border-color: var(--primary); background: var(--primary-light); }
+.jc-vi .vi-h { display: flex; align-items: center; gap: 6px; }
+.jc-vi .vi-n {
+  font-size: 13px; font-weight: 600; color: var(--text-1);
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.jc-vi .vi-s { font-size: 11.5px; color: var(--text-3); margin-top: 3px; display: flex; gap: 8px; flex-wrap: wrap; }
+.jc-vi .vi-s b { color: var(--text-2); font-weight: 600; font-variant-numeric: tabular-nums; }
+.jc-vi .vi-s .danger { color: var(--danger); }
+.jc-chip {
+  display: inline-block; font-size: 11px; line-height: 16px; padding: 0 5px;
+  border-radius: 3px; border: 1px solid var(--border-strong); color: var(--text-2); background: var(--bg-soft);
+  white-space: nowrap;
+}
+.jc-chip.zs { color: var(--success); border-color: rgba(22, 163, 74, .45); background: rgba(22, 163, 74, .08); }
+.jc-chip.wqz { color: var(--text-3); }
+.jc-chip.sq { color: var(--primary); border-color: var(--primary-soft); background: var(--primary-light-2); }
+.jc-chip.tg { color: var(--danger); border-color: rgba(245, 108, 108, .5); background: rgba(245, 108, 108, .08); }
+.jc-vempty { padding: 26px 12px; text-align: center; font-size: 12.5px; color: var(--text-3); }
+.jc-vfoot {
+  flex-shrink: 0; border-top: 1px solid var(--border); padding: 7px 10px;
+  font-size: 12px; color: var(--text-3); display: flex; align-items: center; gap: 6px;
+}
+
+/* ---------- 项目概况卡片：按 FR-034 R3 的六组分区 ---------- */
+.jc-card .cd-h { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 7px; padding-right: 14px; }
+.jc-card .cd-n { font-size: 14px; font-weight: 700; color: var(--text-1); }
+.jc-card .cd-g {
+  font-size: 11px; font-weight: 600; color: var(--text-3); background: var(--bg-soft);
+  border-radius: 3px; padding: 1px 6px; margin: 7px 0 3px;
+}
+.jc-card .cd-g:first-of-type { margin-top: 0; }
+.jc-card .cd-r { display: flex; gap: 8px; font-size: 12px; padding: 2px 0; }
+.jc-card .cd-r > span:first-child { color: var(--text-3); flex-shrink: 0; }
+.jc-card .cd-r > span:last-child { color: var(--text-1); margin-left: auto; text-align: right; font-variant-numeric: tabular-nums; }
+.jc-card .cd-r .danger { color: var(--danger); font-weight: 600; }
+.jc-card .cd-hit {
+  font-size: 11.5px; color: var(--danger); background: rgba(245, 108, 108, .08);
+  border: 1px solid rgba(245, 108, 108, .3); border-radius: 3px; padding: 3px 6px; margin-top: 4px;
+}
+
+/* 图层面板收起后的浮出按钮 */
+.jc-panel-toggle {
+  position: absolute; right: 20px; top: 12px; z-index: 7;
+  width: 34px; height: 34px; align-items: center; justify-content: center;
+  background: #fff; border: 1px solid var(--border-strong); border-radius: var(--radius);
+  box-shadow: var(--shadow); color: var(--primary); cursor: pointer;
+}
+.jc-panel-toggle:hover { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+/* 图层面板 */
+.jc-layers { display: flex; flex-direction: column; gap: 4px; }
+.jc-layers .lyg { font-size: 12px; color: var(--text-3); font-weight: 600; margin: 8px 0 2px; }
+.jc-layers .lyg:first-child { margin-top: 0; }
+.jc-layer {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+  border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; background: #fff;
+}
+.jc-layer:hover { border-color: var(--primary-soft); background: var(--primary-light-2); }
+.jc-layer.on { border-color: var(--primary); background: var(--primary-light); }
+/* app.css 的 .lg-color 尺寸写在 .legend 后代选择器里，图层面板不在 .legend 内，按同规格补齐 */
+.jc-layer > .lg-color { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+.jc-layer .ly-n { font-size: 13px; color: var(--text-1); flex: 1; min-width: 0; }
+.jc-layer .ly-m { font-size: 11.5px; color: var(--text-3); white-space: nowrap; }
+
+/* --------------------------------------------------------------------------
+   八、预警列表容器（工作台之外的地方，如驾驶舱的预警摘要区）
+   预警卡片本体统一用「预警工作台范式」里的 .jc-al，本处只提供非滚动的堆叠容器。
+   -------------------------------------------------------------------------- */
+.jc-alarms { display: flex; flex-direction: column; gap: 6px; }
+.jc-alarms > .jc-al { margin-bottom: 0; }
+
+/* 处置面板分区标题 */
+.jc-block { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 10px; }
+/* 定高布局下，卡片体是 flex 列容器且只有 .table-wrap 允许伸缩滚动，
+   直接落在卡片体里的复合块须固定高度，否则会被滚动区挤扁。 */
+.card-body > .jc-block,
+.list-body > .jc-block,
+.card-body > .grid-2,
+.card-body > .grid-3 { flex-shrink: 0; }
+.jc-block > .jc-block-h {
+  display: flex; align-items: center; gap: 8px; padding: 7px 12px;
+  background: var(--bg-soft); border-bottom: 1px solid var(--border);
+  font-size: 13px; font-weight: 700; color: var(--text-1);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.jc-block > .jc-block-h .sub { font-weight: 400; font-size: 12px; color: var(--text-3); margin-left: auto; }
+.jc-block > .jc-block-b { padding: 10px 12px; }
+.jc-block > .jc-block-b.pad0 { padding: 0; }
+
+/* --------------------------------------------------------------------------
+   九、左树右表（口径分类树、规则分类树、报表字段目录）
+   -------------------------------------------------------------------------- */
+/* app.js 只对「含列表表格」的卡片体加 .list-body。页签内不含表格时（如 GIS 全幅地图、
+   三栏工作台），卡片体不会被定高，内容会顶破 body 的 overflow:hidden。这里按 .list-body
+   的同一规格补齐所有激活页签的卡片体，使定高范式对无表格页签同样成立。 */
+.card.list-card > .tab-panel.active > .card-body {
+  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+}
+.card.list-card > .tab-panel.active > .card-body > .alert,
+.card.list-card > .tab-panel.active > .card-body > .filter-bar,
+.card.list-card > .tab-panel.active > .card-body > .stat-grid,
+.card.list-card > .tab-panel.active > .card-body > .wizard { flex-shrink: 0; }
+
+.jc-split { display: flex; gap: 10px; min-height: 0; height: 100%; }
+/* 直接挂在定高 main 下（地图型整页，如 wsjcfx-13） */
+.app-main.list-layout > .jc-split { position: relative; flex: 1 1 auto; min-height: 0; height: auto; overflow: hidden; }
+/* 三栏 / 左右栏容器直接落在卡片体里时，接管唯一可伸缩区域的角色（替代 .table-wrap） */
+.card-body > .jc-split,
+.list-body > .jc-split { flex: 1 1 auto; min-height: 0; height: auto; }
+.jc-pane > .filter-bar { flex-shrink: 0; }
+.jc-pane > .table-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.jc-split > .jc-tree { width: 214px; flex-shrink: 0; overflow: auto; min-height: 0; }
+.jc-split > .jc-side3 { width: 258px; flex-shrink: 0; overflow: auto; min-height: 0; }
+/* 一张图左栏：视野内项目清单，自身定高、内部滚动，不撑破三栏 */
+.jc-split > .jc-side-list {
+  width: 298px; flex-shrink: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+}
+/* 窄屏优先保证地图可用宽度：先压缩两侧，再让出左栏 */
+@media (max-width: 1560px) {
+  .jc-split > .jc-side-list { width: 250px; }
+  .jc-split > .jc-side3 { width: 228px; }
+}
+@media (max-width: 1240px) {
+  .jc-split > .jc-side-list { display: none; }
+}
+.jc-split > .jc-pane { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+.jc-tree-item {
+  display: flex; align-items: center; gap: 7px; padding: 6px 8px; border-radius: var(--radius);
+  font-size: 13px; color: var(--text-2); cursor: pointer;
+}
+.jc-tree-item:hover { background: var(--bg-soft); }
+.jc-tree-item.on { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+.jc-tree-item .tc { margin-left: auto; font-size: 11.5px; color: var(--text-3); }
+.jc-tree-item.lv2 { padding-left: 22px; font-size: 12.5px; }
+
+/* --------------------------------------------------------------------------
+   十、形象进度照片位 / 缩略图（FR-073）
+   -------------------------------------------------------------------------- */
+.jc-photos { display: flex; flex-wrap: wrap; gap: 8px; }
+.jc-photo {
+  width: 108px; height: 80px; border-radius: var(--radius); border: 1px solid var(--border);
+  background: linear-gradient(150deg, #dbe4f7 0%, #eef2f9 100%);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  color: var(--primary); font-size: 11.5px; gap: 4px; cursor: pointer; position: relative;
+}
+.jc-photo i { font-size: 18px; opacity: .75; }
+.jc-photo:hover { border-color: var(--primary); }
+.jc-photo .pg {
+  position: absolute; right: 4px; top: 4px; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--lv-red); color: #fff; font-size: 9px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* --------------------------------------------------------------------------
+   十一、大屏主题卡片墙（wsjcfx-12）
+   -------------------------------------------------------------------------- */
+.jc-screens { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 12px; }
+.jc-screen {
+  border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: #fff;
+}
+.jc-screen:hover { border-color: var(--primary); box-shadow: var(--shadow); }
+.jc-screen .sc-thumb {
+  height: 118px; position: relative;
+  background: linear-gradient(150deg, #0b1a36 0%, #12274d 55%, #0d1c39 100%);
+  display: flex; align-items: center; justify-content: center; color: #7fb0ff;
+}
+.jc-screen .sc-thumb .tn { font-size: 13px; letter-spacing: 2px; }
+.jc-screen .sc-thumb .bars { position: absolute; inset: auto 14px 12px 14px; display: flex; align-items: flex-end; gap: 4px; height: 34px; }
+.jc-screen .sc-thumb .bars i { flex: 1; background: rgba(90, 160, 255, .55); border-radius: 2px 2px 0 0; display: block; }
+.jc-screen .sc-meta { padding: 10px 12px; }
+.jc-screen .sc-meta .sc-n { font-size: 14px; font-weight: 600; color: var(--text-1); }
+.jc-screen .sc-meta .sc-d { font-size: 12px; color: var(--text-3); margin-top: 3px; }
+.jc-screen .sc-ops { display: flex; gap: 6px; padding: 0 12px 12px; }
+
+/* --------------------------------------------------------------------------
+   十二、锚点导航（项目全景档案详情页）
+   -------------------------------------------------------------------------- */
+.jc-anchor { display: flex; flex-wrap: wrap; gap: 6px; }
+.jc-anchor a {
+  padding: 4px 11px; border: 1px solid var(--border-strong); border-radius: 20px;
+  font-size: 12.5px; color: var(--text-2); background: #fff;
+}
+.jc-anchor a:hover, .jc-anchor a.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+/* --------------------------------------------------------------------------
+   十三、清单型小行（合并建议、缺失配置、差异明细一类的紧凑清单）
+   -------------------------------------------------------------------------- */
+.jc-rows { display: flex; flex-direction: column; }
+.jc-row {
+  display: flex; align-items: center; gap: 10px; padding: 8px 2px;
+  border-bottom: 1px solid var(--row-line); font-size: 13px;
+}
+.jc-row:last-child { border-bottom: none; }
+.jc-row .rw-m { flex: 1; min-width: 0; color: var(--text-1); }
+.jc-row .rw-s { font-size: 12px; color: var(--text-3); }
+
+/* --------------------------------------------------------------------------
+   十四、驾驶舱（wsjcfx-11）：迷你趋势线、对象选择器、简化桑基图
+   -------------------------------------------------------------------------- */
+/* 指标卡内的近 12 期迷你趋势（FR-024 R4）：不占行高，随文字基线排布 */
+.jc-spark { display: inline-block; width: 68px; height: 18px; vertical-align: middle; margin-left: 6px; }
+.jc-spark polyline { fill: none; stroke: var(--primary); stroke-width: 1.6; }
+.jc-spark polyline.up { stroke: var(--success); }
+.jc-spark polyline.down { stroke: var(--danger); }
+.jc-spark polygon { fill: var(--primary); opacity: .1; }
+
+/* 企业舱 / 金融舱的对象选择器（FR-026 R2、FR-027 R7） */
+.jc-picker {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 8px 10px; background: var(--bg-soft); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: 10px; flex-shrink: 0;
+}
+.jc-picker > .pk-l { font-size: 12.5px; color: var(--text-3); }
+.jc-picker .pk-recent { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.jc-picker .pk-tag {
+  padding: 3px 10px; border: 1px solid var(--border-strong); border-radius: 20px;
+  font-size: 12px; color: var(--text-2); background: #fff; cursor: pointer;
+}
+.jc-picker .pk-tag:hover { border-color: var(--primary); color: var(--primary); }
+.jc-picker .pk-tag.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+/* 开关：app.css 未提供开关组件，配置型页面的「启用 / 停用」「显隐」需要它。
+   用 label + checkbox 实现，不引入任何框架，色值取自既有令牌。 */
+.jc-sw { position: relative; display: inline-block; width: 38px; height: 20px; flex-shrink: 0; }
+.jc-sw input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.jc-sw .sl {
+  position: absolute; inset: 0; border-radius: 20px; background: var(--border-strong);
+  transition: background .18s; pointer-events: none;
+}
+.jc-sw .sl::before {
+  content: ""; position: absolute; left: 2px; top: 2px; width: 16px; height: 16px;
+  border-radius: 50%; background: #fff; box-shadow: var(--shadow-sm); transition: transform .18s;
+}
+.jc-sw input:checked + .sl { background: var(--primary); }
+.jc-sw input:checked + .sl::before { transform: translateX(18px); }
+.jc-sw input:disabled + .sl { opacity: .5; }
+
+/* ==========================================================================
+   预警处置工作台范式（wsjcfx-23 全量 26 类预警共用，FR-064 R8）
+   左筛选栏 + 中预警列表 + 右详情处置面板，三栏定高、各自滚动。
+   ========================================================================== */
+.jc-wb {
+  display: grid; grid-template-columns: 220px 380px minmax(0, 1fr); gap: 10px; align-items: stretch;
+}
+.jc-wb > .card { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.app-main.list-layout > .jc-wb { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+/* 中屏先压缩前两栏，详情栏永远是最不该被挤的那一栏 */
+@media (max-width: 1500px) {
+  .jc-wb { grid-template-columns: 190px 330px minmax(0, 1fr); }
+}
+/* 窄屏放弃三栏：筛选与列表并排，详情转为覆盖右侧的抽屉式浮层 */
+@media (max-width: 1180px) {
+  .jc-wb { grid-template-columns: 190px minmax(0, 1fr); }
+  .jc-wb > .jc-wb-d {
+    position: absolute; right: 0; top: 0; bottom: 0; width: min(560px, 78%); z-index: 30;
+    box-shadow: var(--shadow-lg);
+  }
+}
+
+/* ----- 左侧筛选栏 ----- */
+.jc-quick { padding: 8px; }
+.jc-quick .q-item {
+  display: flex; align-items: center; gap: 7px; padding: 7px 10px; margin-bottom: 2px;
+  border-radius: var(--radius); font-size: 13.5px; color: var(--text-2); cursor: pointer;
+}
+.jc-quick .q-item:hover { background: var(--bg-soft); color: var(--primary); }
+.jc-quick .q-item.on { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+.jc-quick .q-item > i:first-child { width: 14px; text-align: center; font-size: 12.5px; flex-shrink: 0; }
+.jc-quick .q-item .q-n { margin-left: auto; font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.jc-quick .q-item.on .q-n { color: var(--primary); }
+.jc-quick .q-item .q-n.bad { color: var(--lv-red); font-weight: 700; }
+
+/* 四色未办结数量徽章：点击即筛选 */
+.jc-lvs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; padding: 8px; }
+.jc-lvs .lb {
+  text-align: center; padding: 6px 2px; border-radius: var(--radius);
+  border: 1px solid transparent; cursor: pointer; transition: transform .12s;
+}
+.jc-lvs .lb:hover { transform: translateY(-1px); }
+.jc-lvs .lb.on { border-color: currentColor; }
+.jc-lvs .lb .n { font-size: 17px; font-weight: 700; line-height: 1.2; }
+.jc-lvs .lb .t { font-size: 11.5px; opacity: .85; }
+.jc-lvs .lb.red { background: var(--lv-red-bg); color: var(--lv-red); }
+.jc-lvs .lb.orange { background: var(--lv-orange-bg); color: var(--lv-orange-ink); }
+.jc-lvs .lb.yellow { background: var(--lv-yellow-bg); color: var(--lv-yellow-ink); }
+.jc-lvs .lb.blue { background: var(--lv-blue-bg); color: var(--lv-blue-ink); }
+
+.jc-filters { padding: 0 10px 10px; }
+.jc-filters .ft-g { margin-top: 10px; }
+.jc-filters .ft-t { font-size: 12px; color: var(--text-3); margin-bottom: 5px; }
+.jc-filters .ft-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.jc-filters .ft-chip {
+  padding: 3px 9px; border: 1px solid var(--border-strong); border-radius: 20px;
+  font-size: 12px; color: var(--text-2); background: #fff; cursor: pointer; white-space: nowrap;
+}
+.jc-filters .ft-chip:hover { border-color: var(--primary); color: var(--primary); }
+.jc-filters .ft-chip.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+/* 四色预警指标卡（工作台与预警总览共用）：点击直达处置工作台并带上等级筛选 */
+.jc-lvcards { display: grid; grid-template-columns: repeat(auto-fit, minmax(178px, 1fr)); gap: 10px; }
+.jc-lvcard {
+  display: block; padding: 11px 13px; border-radius: var(--radius);
+  border: 1px solid var(--border); border-left-width: 4px; background: #fff;
+  transition: transform .12s, box-shadow .15s;
+}
+.jc-lvcard:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+.jc-lvcard .lv-n { font-size: 26px; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.jc-lvcard .lv-t { font-size: 13px; color: var(--text-1); font-weight: 600; margin-top: 2px; }
+.jc-lvcard .lv-s { font-size: 12px; color: var(--text-3); margin-top: 4px; }
+.jc-lvcard .lv-s b { color: var(--lv-red); }
+.jc-lvcard.red { border-left-color: var(--lv-red); background: var(--lv-red-bg); }
+.jc-lvcard.red .lv-n { color: var(--lv-red); }
+.jc-lvcard.orange { border-left-color: var(--lv-orange); background: var(--lv-orange-bg); }
+.jc-lvcard.orange .lv-n { color: var(--lv-orange-ink); }
+.jc-lvcard.yellow { border-left-color: var(--lv-yellow); background: var(--lv-yellow-bg); }
+.jc-lvcard.yellow .lv-n { color: var(--lv-yellow-ink); }
+.jc-lvcard.blue { border-left-color: var(--lv-blue); background: var(--lv-blue-bg); }
+.jc-lvcard.blue .lv-n { color: var(--lv-blue); }
+
+/* 引擎运行状态条：批次没跑成，页面上所有数字都要打折看 */
+.jc-engine {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; flex-shrink: 0;
+  padding: 8px 12px; margin-bottom: 10px;
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+  font-size: 12.5px; color: var(--text-2);
+}
+.jc-engine .en-d { width: 8px; height: 8px; border-radius: 50%; background: var(--border-strong); flex-shrink: 0; }
+.jc-engine .en-d.ok { background: var(--success); box-shadow: 0 0 0 3px var(--success-light); }
+.jc-engine .en-d.bad { background: var(--lv-red); box-shadow: 0 0 0 3px var(--lv-red-bg); }
+.jc-engine .en-t { font-weight: 700; color: var(--text-1); }
+.jc-engine .en-i b { color: var(--text-1); font-weight: 600; }
+.jc-engine .en-i.bad, .jc-engine .en-i.bad b { color: var(--lv-red); }
+.jc-engine .en-a { margin-left: auto; color: var(--primary); }
+
+/* 处置时限规则条：倒计时的依据常驻页面，不用翻文档 */
+.jc-sla {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; flex-shrink: 0;
+  padding: 7px 12px; margin-bottom: 10px;
+  background: var(--bg-soft); border: 1px solid var(--border); border-radius: var(--radius);
+  font-size: 12.5px; color: var(--text-2);
+}
+.jc-sla .sl-t { font-weight: 700; color: var(--text-1); }
+.jc-sla .sl-i { padding: 2px 9px; border-radius: 20px; background: #fff; border: 1px solid var(--border); }
+.jc-sla .sl-i b { margin-right: 4px; }
+.jc-sla .sl-i.red { border-color: var(--lv-red-line); } .jc-sla .sl-i.red b { color: var(--lv-red); }
+.jc-sla .sl-i.orange { border-color: var(--lv-orange-line); } .jc-sla .sl-i.orange b { color: var(--lv-orange); }
+.jc-sla .sl-i.yellow { border-color: var(--lv-yellow-line); }
+.jc-sla .sl-i.yellow b { color: var(--lv-yellow-ink); }
+.jc-sla .sl-i.blue { border-color: var(--lv-blue-line); } .jc-sla .sl-i.blue b { color: var(--lv-blue); }
+.jc-sla .sl-x { margin-left: auto; color: var(--text-3); }
+
+/* 预警大类折叠组：26 类规则的导航模型，与预警规则配置页左树一致 */
+.jc-cats { padding: 0 8px 4px; }
+.jc-cat { border-top: 1px solid var(--border); }
+.jc-cat > .ct-h {
+  display: flex; align-items: center; gap: 7px; padding: 8px 2px; cursor: pointer;
+  font-size: 12.5px; font-weight: 600; color: var(--text-1);
+}
+.jc-cat > .ct-h .ct-ar { font-size: 10px; color: var(--text-3); transition: transform .15s; }
+.jc-cat > .ct-h .ct-c { margin-left: auto; font-size: 11.5px; font-weight: 400; color: var(--text-3); }
+.jc-cat[data-open="0"] > .ct-h .ct-ar { transform: rotate(-90deg); }
+.jc-cat[data-open="0"] > .ct-b { display: none; }
+.jc-cat > .ct-b { padding-bottom: 4px; }
+.jc-cat .ct-i {
+  display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: var(--radius);
+  font-size: 12.5px; color: var(--text-2); cursor: pointer;
+}
+.jc-cat .ct-i:hover { background: var(--bg-soft); }
+.jc-cat .ct-i.on { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+.jc-cat .ct-i .ci-c { font-size: 11px; color: var(--text-3); font-family: ui-monospace, Consolas, monospace; }
+.jc-cat .ct-i .ci-n { margin-left: auto; font-size: 11.5px; color: var(--lv-red); font-weight: 600; }
+.jc-cat .ct-i.zero { color: var(--text-3); }
+
+/* 列表排序条 */
+.jc-sort {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  padding: 7px 10px 4px; font-size: 12px; color: var(--text-3);
+}
+.jc-sort .so { cursor: pointer; padding: 1px 7px; border-radius: 20px; }
+.jc-sort .so:hover { background: var(--bg-soft); color: var(--text-2); }
+.jc-sort .so.on { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+
+/* ----- 中间预警列表：卡片式，信息量大于表格行所能承载 ----- */
+.jc-alist { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 8px; }
+.jc-al {
+  position: relative; padding: 9px 11px 9px 16px; margin-bottom: 7px; cursor: pointer;
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+  transition: border-color .15s, box-shadow .15s;
+}
+.jc-al::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: var(--radius) 0 0 var(--radius); background: var(--border-strong); }
+.jc-al.red::before { background: var(--lv-red); }
+.jc-al.orange::before { background: var(--lv-orange); }
+.jc-al.yellow::before { background: var(--lv-yellow); }
+.jc-al.blue::before { background: var(--lv-blue); }
+.jc-al:hover { border-color: var(--primary); box-shadow: var(--shadow-sm); }
+.jc-al.on { border-color: var(--primary); background: var(--primary-light-2); box-shadow: var(--shadow-sm); }
+.jc-al .a-h { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+.jc-al .a-t { font-size: 13.5px; font-weight: 600; color: var(--text-1); }
+.jc-al .a-o { font-size: 12.5px; color: var(--text-2); line-height: 1.5; }
+.jc-al .a-m { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; font-size: 12px; color: var(--text-3); }
+.jc-al .a-amt { font-weight: 700; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.jc-al .a-ck { position: absolute; right: 9px; top: 9px; }
+.jc-al .a-ck input[disabled] { cursor: not-allowed; }
+/* 大类角标：一套列表里混排 26 类规则，得让人一眼看出这条属于哪个大类 */
+.jc-al .a-k { padding: 1px 7px; border-radius: 20px; font-size: 11px; }
+.jc-al .a-k.zj { background: var(--primary-light); color: var(--primary); }
+.jc-al .a-k.hg { background: #ede9fe; color: #6d28d9; }
+.jc-al .a-k.yq { background: #e6f4ea; color: #15803d; }
+
+/* 倒计时：越紧越红，这是列表里最该被一眼看到的字段 */
+.jc-cd { font-weight: 600; font-variant-numeric: tabular-nums; }
+.jc-cd.ok { color: var(--success); }
+.jc-cd.soon { color: var(--lv-orange-ink); }
+.jc-cd.over { color: var(--lv-red); }
+
+/* 实时预警到达提示条 */
+.jc-live {
+  display: flex; align-items: center; gap: 8px; margin: 8px 8px 0; padding: 7px 11px;
+  border-radius: var(--radius); background: var(--lv-red-bg); color: var(--lv-red);
+  font-size: 12.5px; border: 1px solid var(--lv-red-line);
+}
+.jc-live .dot-live { width: 8px; height: 8px; border-radius: 50%; background: var(--lv-red); animation: jcPulse 1.4s infinite; flex-shrink: 0; }
+@keyframes jcPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }
+
+/* ----- 右侧详情与处置面板 -----
+   五个固定分区统一节奏：分区标题 12px 灰、内容 13px、分区间距 12px。
+   不同类型预警的差异只发生在证据组件上，分区的字号与间距一律相同。 */
+.jc-wb-d > .dc-scroll { padding: 0; }
+.jc-dsec { padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.jc-dsec:last-child { border-bottom: none; }
+.jc-dsec > .ds-h {
+  display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700;
+  color: var(--text-3); letter-spacing: .3px; margin-bottom: 8px;
+}
+.jc-dsec > .ds-h > i:first-child { color: var(--primary); }
+.jc-dsec > .ds-h > .sub { margin-left: auto; font-size: 12px; font-weight: 400; color: var(--text-3); }
+.jc-dsec .timeline { padding-left: 22px; }
+.jc-dsec .timeline .tl-item { padding-bottom: 12px; }
+.jc-dsec .timeline .tl-title { font-size: 13px; }
+
+/* 证据快照：只读语义要在视觉上说清楚 */
+.jc-ev { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.jc-ev > .ev-h {
+  display: flex; align-items: center; gap: 6px; padding: 5px 10px;
+  background: var(--bg-soft); border-bottom: 1px solid var(--border);
+  font-size: 12px; color: var(--text-3);
+}
+.jc-ev > .ev-h .lock { margin-left: auto; }
+.jc-ev .table-wrap { max-height: 210px; }
+
+/* 判定过程：把阈值与实际值并排摆出来，可解释性落地（EN8） */
+.jc-calc { font-size: 12.5px; }
+.jc-calc .cl { display: grid; grid-template-columns: minmax(0, 1fr) 96px 96px 64px; gap: 8px; padding: 5px 0; border-bottom: 1px dashed var(--border); }
+.jc-calc .cl:last-child { border-bottom: none; }
+.jc-calc .cl.h { color: var(--text-3); font-size: 11.5px; border-bottom: 1px solid var(--border); }
+.jc-calc .cl > b, .jc-calc .cl > span { font-variant-numeric: tabular-nums; }
+.jc-calc .hit { color: var(--lv-red); font-weight: 700; }
+.jc-calc .miss { color: var(--text-3); }
+
+/* 处置区固定在面板底部，滚动详情时按钮不跑掉 */
+.jc-act { flex-shrink: 0; border-top: 1px solid var(--border); padding: 10px 14px; background: #fff; }
+.jc-act .ac-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.jc-act .ac-tip { font-size: 12px; color: var(--text-3); margin-top: 7px; }
+
+/* 键盘快捷键提示 */
+.jc-kbd {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px;
+  padding: 0 4px; margin: 0 1px; border: 1px solid var(--border-strong); border-bottom-width: 2px;
+  border-radius: 4px; background: var(--bg-soft); font-size: 11px; color: var(--text-2);
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+
+/* 三价 / 四价对照：合规类阴阳合同的核心证据（FR-056 R4） */
+.jc-price { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.jc-price .pc { padding: 9px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-soft); }
+.jc-price .pc .pl { font-size: 12px; color: var(--text-3); }
+.jc-price .pc .pv { font-size: 17px; font-weight: 700; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.jc-price .pc .pd { font-size: 12px; margin-top: 2px; }
+.jc-price .pc.bad { border-color: var(--lv-red); background: var(--lv-red-bg); }
+.jc-price .pc.bad .pv, .jc-price .pc.bad .pd { color: var(--lv-red); }
+.jc-price .pc.base { border-color: var(--primary); background: var(--primary-light); }
+
+/* 涉及户数 / 购房人数：舆情类详情置顶字段（YQ2），不能埋在字段列表里 */
+.jc-impact { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
+.jc-impact .im {
+  padding: 9px 11px; border-radius: var(--radius);
+  background: var(--lv-red-bg); border: 1px solid var(--lv-red-line);
+}
+.jc-impact .im .iv { font-size: 20px; font-weight: 700; color: var(--lv-red); line-height: 1.25; font-variant-numeric: tabular-nums; }
+.jc-impact .im .il { font-size: 12px; color: var(--lv-red-ink); }
+
+/* AI 判定依据（FR-063 R3）：来源、情感、置信度必须摆出来，否则「AI 说的」不可采信 */
+.jc-ai { border: 1px solid var(--info); border-radius: var(--radius); background: var(--info-light); padding: 10px 12px; }
+.jc-ai > .ai-h { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--info); font-weight: 600; margin-bottom: 8px; }
+.jc-ai > .ai-h .cf { margin-left: auto; font-weight: 400; }
+.jc-ai .ai-q {
+  background: #fff; border-left: 3px solid var(--info); border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 7px 10px; margin-bottom: 6px; font-size: 12.5px; color: var(--text-2); line-height: 1.6;
+}
+.jc-ai .ai-q .src { display: block; margin-top: 3px; font-size: 11.5px; color: var(--text-3); }
+.jc-ai .ai-bars { display: flex; gap: 4px; margin-top: 8px; }
+.jc-ai .ai-bar { flex: 1 1 auto; text-align: center; font-size: 11px; color: var(--text-3); }
+.jc-ai .ai-bar > i { display: block; height: 30px; border-radius: 3px 3px 0 0; background: var(--info); opacity: .5; margin-bottom: 3px; }
+.jc-ai .ai-bar.peak > i { opacity: 1; background: var(--lv-red); }
+
+/* 停工 / 滞销类型区分标签（FR-062 R3）：两者处置路径不同，界面必须分清 */
+.jc-ttag { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.jc-ttag.idle { background: var(--lv-red-bg); color: var(--lv-red); }
+.jc-ttag.slow { background: var(--lv-orange-bg); color: var(--lv-orange-ink); }
+
+/* 交付条件逐项核对清单（FR-061 R4） */
+.jc-check { font-size: 13px; }
+.jc-check .ck-i { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--border); }
+.jc-check .ck-i:last-child { border-bottom: none; }
+.jc-check .ck-i > i:first-child { margin-top: 2px; flex-shrink: 0; }
+.jc-check .ck-i .ck-s { margin-left: auto; font-size: 12px; color: var(--text-3); white-space: nowrap; }
+.jc-check .ck-i.no { color: var(--lv-red); }
+.jc-check .ck-i.no .ck-s { color: var(--lv-red); }
+
+/* ==========================================================================
+   督办闭环（wsjcfx-24）专用组件
+   ========================================================================== */
+/* 闭环流程条：常驻页顶，高亮当前页签所处环节 */
+.jc-loop {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 4px; flex-shrink: 0;
+  padding: 8px 12px; margin-bottom: 10px;
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+}
+.jc-loop .lp {
+  display: flex; align-items: center; gap: 6px; padding: 5px 11px; cursor: pointer;
+  border-radius: 20px; font-size: 13px; color: var(--text-3); white-space: nowrap;
+}
+.jc-loop .lp:hover { background: var(--bg-soft); }
+.jc-loop .lp .lp-n {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 17px; height: 17px; border-radius: 50%; flex-shrink: 0;
+  background: var(--border-strong); color: #fff; font-size: 11px; font-weight: 700;
+}
+.jc-loop .lp .lp-s { font-size: 11.5px; color: var(--text-3); }
+.jc-loop .lp.done { color: var(--text-2); }
+.jc-loop .lp.done .lp-n { background: var(--success); }
+.jc-loop .lp.on { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+.jc-loop .lp.on .lp-n { background: var(--primary); }
+.jc-loop .lp.on .lp-s { color: var(--primary); }
+.jc-loop .lp-a { color: var(--border-strong); font-size: 10px; }
+
+/* 矩阵热力图：区划 × 风险类型（FR-069），单元格点击下钻 */
+.jc-heat { border-collapse: separate; border-spacing: 3px; width: 100%; font-size: 12.5px; }
+.jc-heat th { font-weight: 600; color: var(--text-3); font-size: 12px; padding: 4px 6px; text-align: center; white-space: nowrap; }
+.jc-heat th.rh { text-align: left; }
+.jc-heat td {
+  text-align: center; padding: 9px 4px; border-radius: var(--radius);
+  color: var(--text-1); cursor: pointer; transition: transform .12s, box-shadow .12s;
+  font-variant-numeric: tabular-nums;
+}
+.jc-heat td:hover { transform: scale(1.04); box-shadow: var(--shadow-sm); }
+.jc-heat td.rh { text-align: left; background: none; cursor: default; color: var(--text-2); padding-left: 2px; }
+.jc-heat td.rh:hover { transform: none; box-shadow: none; }
+.jc-heat-legend { display: flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--text-3); margin-top: 8px; }
+.jc-heat-legend i { width: 26px; height: 12px; border-radius: 2px; display: inline-block; }
+
+/* 时间轴回放控件（FR-069 R6） */
+.jc-play { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--bg-soft); border: 1px solid var(--border); border-radius: var(--radius); }
+.jc-play input[type=range] { flex: 1 1 auto; min-width: 0; }
+.jc-play .pm { font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* 督办单卡片队列（我的办理 / 待审核） */
+.jc-orders { display: flex; flex-direction: column; gap: 7px; }
+.jc-order {
+  position: relative; padding: 10px 12px 10px 15px; cursor: pointer;
+  border: 1px solid var(--border); border-radius: var(--radius); background: #fff;
+  transition: border-color .15s, box-shadow .15s;
+}
+.jc-order::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: var(--radius) 0 0 var(--radius); background: var(--border-strong); }
+.jc-order.over::before { background: var(--lv-red); }
+.jc-order.soon::before { background: var(--lv-orange); }
+.jc-order.ok::before { background: var(--success); }
+.jc-order:hover { border-color: var(--primary); box-shadow: var(--shadow-sm); }
+.jc-order.on { border-color: var(--primary); background: var(--primary-light-2); }
+.jc-order .o-t { font-size: 13.5px; font-weight: 600; color: var(--text-1); margin-bottom: 3px; }
+.jc-order .o-m { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--text-3); }
+
+/* 规则回跑结果：本页签最有价值的设计（FR-068 R3） */
+.jc-rerun { border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; }
+.jc-rerun.still { border-color: var(--lv-red); background: var(--lv-red-bg); }
+.jc-rerun.clear { border-color: var(--success); background: var(--success-light); }
+.jc-rerun > .rr-h { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+.jc-rerun.still > .rr-h { color: var(--lv-red); }
+.jc-rerun.clear > .rr-h { color: var(--success); }
+
+/* 行状态底色：让「超期 / 失败 / 已停用」在长表里一眼可见，无需逐行读文字 */
+.data-table tbody tr.jc-bad > td { background: var(--lv-red-bg); }
+.data-table tbody tr.jc-bad:hover > td { background: #fde3e3; }
+.data-table tbody tr.jc-warn > td { background: var(--lv-orange-bg); }
+.data-table tbody tr.jc-warn:hover > td { background: #fbecd4; }
+.data-table tbody tr.jc-off > td { background: var(--bg-soft); color: var(--text-3); }
+.data-table tbody tr.jc-off > td a:not(.text-danger):not(.text-success) { color: var(--text-3); }
+
+/* 失效的行内操作链接（如强制派单类规则不允许停用） */
+.data-table td.op a.disabled,
+.data-table td.op a.disabled:hover { color: var(--text-3); cursor: not-allowed; text-decoration: none; }
+
+/* 批处理窗口甘特条（FR-035 引擎运行状态）：直观呈现窗口余量（N6 / CAP7） */
+.jc-gantt { font-size: 12.5px; }
+.jc-gantt .gt-axis {
+  display: flex; justify-content: space-between; color: var(--text-3);
+  font-size: 11.5px; padding-bottom: 6px; margin: 0 96px 8px 118px;
+  border-bottom: 1px dashed var(--border);
+}
+.jc-gantt .gt-row { display: grid; grid-template-columns: 118px minmax(0, 1fr) 96px; align-items: center; gap: 8px; padding: 3px 0; }
+.jc-gantt .gt-l { color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jc-gantt .gt-t { position: relative; height: 16px; background: var(--bg-soft); border-radius: 3px; }
+.jc-gantt .gt-b { position: absolute; top: 0; height: 16px; border-radius: 3px; background: var(--primary); }
+.jc-gantt .gt-b.warn { background: var(--lv-orange); }
+.jc-gantt .gt-b.free { background: repeating-linear-gradient(45deg, #dff3e3, #dff3e3 5px, #eef8f0 5px, #eef8f0 10px); border: 1px solid var(--success); }
+.jc-gantt .gt-v { text-align: right; color: var(--text-3); font-variant-numeric: tabular-nums; }
+
+/* 表格合计行：app.css 未提供，多处「按银行 / 按区划」汇总表需要区分合计与明细 */
+.data-table tbody tr.jc-total > td {
+  background: var(--bg-soft); font-weight: 600; color: var(--text-1);
+  border-top: 1px solid var(--border-strong);
+}
+.data-table tbody tr.jc-total:hover > td { background: var(--bg-soft); }
+
+/* ==========================================================================
+   项目视图（wsjcfx-17-view）专用组件
+   ========================================================================== */
+/* 项目身份信息的样式见下方「十八、项目档案头卡」的 .jc-phead */
+
+/* 全景流程泳道图：四条泳道纵向排列，泳道内节点横向串联 */
+.jc-flow { display: flex; flex-direction: column; }
+.jc-flow .fw-lane { display: flex; align-items: stretch; border-bottom: 1px solid var(--border); }
+.jc-flow .fw-lane:last-child { border-bottom: none; }
+.jc-flow .fw-lt {
+  width: 108px; flex-shrink: 0; display: flex; align-items: center; gap: 6px;
+  padding: 12px 10px; background: var(--bg-soft); border-right: 1px solid var(--border);
+  font-size: 13px; font-weight: 600; color: var(--text-1);
+}
+.jc-flow .fw-lt i { color: var(--primary); }
+.jc-flow .fw-nodes {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px;
+  padding: 12px; overflow-x: auto;
+}
+.jc-flow .fw-arrow { flex-shrink: 0; color: var(--border-strong); font-size: 12px; }
+.jc-flow .fw-node {
+  flex: 1 1 0; min-width: 176px; padding: 9px 11px; cursor: pointer;
+  border: 1px solid var(--border); border-left: 3px solid var(--border-strong);
+  border-radius: var(--radius); background: #fff; transition: box-shadow .15s, border-color .15s;
+}
+.jc-flow .fw-node:hover { border-color: var(--primary); box-shadow: var(--shadow-sm); }
+.jc-flow .fw-node .fn-t { font-size: 13.5px; font-weight: 600; color: var(--text-1); }
+.jc-flow .fw-node .fn-t .badge { margin-left: 5px; }
+.jc-flow .fw-node .fn-d { font-size: 12.5px; color: var(--text-2); margin-top: 3px; font-variant-numeric: tabular-nums; }
+.jc-flow .fw-node .fn-p { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.jc-flow .fw-node .fn-s { font-size: 11.5px; color: var(--text-3); margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--border); }
+.jc-flow .fw-node.done { border-left-color: var(--success); background: var(--success-light); }
+.jc-flow .fw-node.warn { border-left-color: var(--lv-orange); background: var(--lv-orange-bg); }
+.jc-flow .fw-node.bad { border-left-color: var(--lv-red); background: var(--lv-red-bg); }
+.jc-flow .fw-node.todo { border-left-color: var(--border-strong); background: var(--bg-soft); opacity: .72; }
+
+/* 流程图图例色块 */
+.fw-lg { display: inline-block; width: 20px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+.fw-lg.done { background: var(--success); }
+.fw-lg.warn { background: var(--lv-orange); }
+.fw-lg.bad { background: var(--lv-red); }
+.fw-lg.todo { background: var(--border-strong); }
+
+/* 置灰的行内链接与按钮（无权限 / 规则不允许），点击后由 JC.denied 说明原因，
+   不用 disabled 属性是因为原型要让用户点得到、并被告知为什么不行 */
+.link.disabled, .link.disabled:hover { color: var(--text-3); cursor: not-allowed; text-decoration: none; }
+.btn.disabled { opacity: .5; cursor: not-allowed; }
+
+/* 简化桑基图（FR-027 R4，完整版在大屏 FR-030）：三层节点 + 连接带 */
+.jc-sankey { width: 100%; }
+.jc-sankey svg { display: block; width: 100%; height: auto; }
+.jc-sankey .nd { rx: 2; }
+.jc-sankey .nd.a { fill: var(--primary); }
+.jc-sankey .nd.b { fill: var(--info); }
+.jc-sankey .nd.c { fill: var(--success); }
+.jc-sankey .nd.warn { fill: var(--lv-orange); }
+.jc-sankey .fl { fill: var(--primary); opacity: .16; cursor: pointer; }
+.jc-sankey .fl:hover { opacity: .34; }
+/* 异常流（不明出账 / 短期回流 / 大额其他）红色高亮，FR-030 R6 的监管价值所在 */
+.jc-sankey .fl.bad { fill: var(--lv-red); opacity: .3; }
+.jc-sankey .fl.bad:hover { opacity: .5; }
+.jc-sankey .fl.miss { fill: none; stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 4 3; opacity: .8; }
+.jc-sankey .nt { fill: var(--text-2); font-size: 10.5px; }
+.jc-sankey .nv { fill: var(--text-1); font-size: 10.5px; font-weight: 600; }
+
+/* --------------------------------------------------------------------------
+   十五、自定义报表设计器（wsjcfx-13，FR-007 / FR-008）
+   四步向导内的数据集卡、条件构造器、三栏拖拽设计器与模板市场。
+   -------------------------------------------------------------------------- */
+
+/* 顶部报表身份条：报表名可直接改写，右侧是不打断配置流程的三个旁路操作 */
+.jc-dsbar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 12px;
+  padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-soft);
+}
+.jc-dsbar .ds-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.jc-dsbar .ds-name > i { color: var(--primary); }
+.jc-dsbar .ds-name > input { width: 280px !important; }
+.jc-dsbar .ds-ops { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* 第 1 步 数据集卡：选中即锁定第 3 步的可用字段范围，所以要能一眼看出选了哪几张 */
+.jc-dsets { display: grid; grid-template-columns: repeat(auto-fill, minmax(228px, 1fr)); gap: 10px; }
+.jc-dset {
+  position: relative; padding: 11px 12px; cursor: pointer;
+  border: 1px solid var(--border); border-radius: var(--radius); background: #fff;
+  transition: border-color .15s, box-shadow .15s;
+}
+.jc-dset:hover { border-color: var(--primary); box-shadow: var(--shadow-sm); }
+.jc-dset.on { border-color: var(--primary); background: var(--primary-light); }
+.jc-dset.on::after {
+  content: "\f00c"; font-family: "Font Awesome 6 Free"; font-weight: 900;
+  position: absolute; top: 9px; right: 11px; font-size: 11px; color: var(--primary);
+}
+.jc-dset .ds-i {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: var(--radius); margin-bottom: 7px; font-size: 13px;
+}
+.jc-dset .ds-i.blue { background: var(--primary-light); color: var(--primary); }
+.jc-dset .ds-i.cyan { background: var(--info-light); color: var(--info); }
+.jc-dset .ds-i.green { background: var(--success-light); color: var(--success); }
+.jc-dset .ds-i.orange { background: var(--lv-orange-bg); color: var(--lv-orange-ink); }
+.jc-dset .ds-i.purple { background: #f0e9ff; color: #7c3aed; }
+.jc-dset .ds-n { font-size: 14px; font-weight: 700; color: var(--text-1); }
+.jc-dset .ds-d { font-size: 12.5px; color: var(--text-2); line-height: 1.55; margin-top: 3px; }
+.jc-dset .ds-m { font-size: 11.5px; color: var(--text-3); margin-top: 5px; }
+
+/* 复选项标签：把原生 checkbox 与文字绑成一个可点区域 */
+.jc-ck { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; color: var(--text-2); cursor: pointer; }
+.jc-ck input { margin: 0; cursor: pointer; }
+
+/* 向导底部导航：上一步靠左、下一步靠右、提示居中，四步共用同一条 */
+.jc-wznav {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border);
+}
+.wz-tip { margin: 0 auto; font-size: 12.5px; color: var(--text-3); }
+
+/* 第 2 步 条件构造器：组内为「且」，组间为「或」，层级靠缩进与「或」分隔条表达 */
+.jc-cond { display: flex; flex-direction: column; }
+.cd-group { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-soft); padding: 8px 10px 10px; }
+.cd-gh { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-3); margin-bottom: 7px; }
+.cd-op { padding: 0 6px; border-radius: 3px; background: var(--primary-light); color: var(--primary); font-size: 11.5px; font-weight: 600; }
+.cd-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.cd-row > select { width: 138px !important; flex-shrink: 0; }
+.cd-row > input { width: 160px !important; flex-shrink: 0; }
+.cd-x { color: var(--text-3); cursor: pointer; font-size: 12px; }
+.cd-x:hover { color: var(--lv-red); }
+.cd-or {
+  align-self: center; margin: 6px 0; padding: 1px 12px; border-radius: 10px;
+  background: var(--warning-light); color: var(--lv-orange-ink); font-size: 11.5px; font-weight: 600;
+}
+
+/* 第 3 步 三栏设计器：字段库 → 投放槽 → 实时预览，预览栏最宽 */
+.jc-design {
+  display: grid; grid-template-columns: 236px minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: 10px; align-items: start;
+}
+/* 窄屏放弃三栏：预览整条落到下方，避免三栏各自被挤到不可读 */
+@media (max-width: 1400px) {
+  .jc-design { grid-template-columns: 236px minmax(0, 1fr); }
+  .jc-design > .dg-prev { grid-column: 1 / -1; }
+}
+.jc-design > .jc-block { margin-bottom: 0; }
+.dg-search { margin-bottom: 8px; }
+.dg-scroll { max-height: 380px; overflow: auto; overscroll-behavior: contain; }
+.dg-gp {
+  font-size: 12px; color: var(--text-3); font-weight: 600;
+  margin: 9px 0 5px; padding-bottom: 3px; border-bottom: 1px dashed var(--border);
+}
+.dg-gp:first-child { margin-top: 0; }
+
+/* 字段胶囊：库内可拖，槽内带汇总方式与移除按钮。三色区分维度 / 指标 / 计算字段 */
+.jc-fld {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 4px;
+  padding: 5px 8px; border: 1px solid var(--border); border-left: 3px solid var(--border-strong);
+  border-radius: var(--radius); background: #fff; font-size: 12.5px; color: var(--text-1);
+}
+.jc-fld > i:first-child { color: var(--text-3); font-size: 10px; cursor: grab; }
+.jc-fld.dim { border-left-color: var(--primary); }
+.jc-fld.mea { border-left-color: var(--success); }
+.jc-fld.cal { border-left-color: #7c3aed; }
+.jc-fld .fx { font-size: 11px; color: var(--text-3); }
+.jc-fld.dragging { opacity: .45; }
+.jc-fld.in { background: var(--bg-soft); }
+.jc-fld.in .agg { width: 96px !important; height: 26px; padding: 0 6px; font-size: 12px; }
+.jc-fld .rm { margin-left: auto; color: var(--text-3); cursor: pointer; font-size: 11px; }
+.jc-fld .rm:hover { color: var(--lv-red); }
+
+/* 投放槽：拖拽经过时给落点高亮，不接受的槽同时置灰，避免"拖过去才被拒绝" */
+.jc-slot { border: 1px dashed var(--border-strong); border-radius: var(--radius); padding: 8px; margin-bottom: 8px; }
+.jc-slot:last-child { margin-bottom: 0; }
+.jc-slot .sl-h { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--text-2); }
+.jc-slot .sl-h > i { color: var(--primary); }
+.jc-slot .sl-c {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 17px; height: 17px;
+  padding: 0 4px; border-radius: 9px; background: var(--primary-light); color: var(--primary);
+  font-size: 11px; font-weight: 700;
+}
+.jc-slot .sl-tip { margin-left: auto; font-size: 11.5px; font-weight: 400; color: var(--text-3); }
+/* 空槽也要占位，给出"这里可以放东西"的虚框 */
+.jc-slot .sl-b { margin-top: 7px; min-height: 34px; }
+.jc-slot .sl-b:empty::before {
+  content: "拖字段到这里"; display: flex; align-items: center; justify-content: center;
+  height: 34px; border: 1px dashed var(--border); border-radius: var(--radius);
+  font-size: 12px; color: var(--text-3);
+}
+.jc-slot.can { border-color: var(--primary); background: var(--primary-light); }
+.jc-slot.cant { opacity: .5; }
+.jc-slot.over { border-color: var(--primary); border-style: solid; box-shadow: inset 0 0 0 2px var(--primary-soft); }
+
+/* 第 4 步 展现形式选择器 */
+.jc-viz { display: flex; flex-wrap: wrap; gap: 8px; }
+.jc-viz .vz {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; width: 74px; padding: 9px 0;
+  border: 1px solid var(--border); border-radius: var(--radius); background: #fff;
+  font-size: 12.5px; color: var(--text-2); cursor: pointer; transition: border-color .15s;
+}
+.jc-viz .vz > i { font-size: 16px; color: var(--text-3); }
+.jc-viz .vz:hover { border-color: var(--primary); }
+.jc-viz .vz.on { border-color: var(--primary); background: var(--primary-light); color: var(--primary); }
+.jc-viz .vz.on > i { color: var(--primary); }
+
+/* 模板市场：8 张内置模板作为起点，套用即回填前两步配置 */
+.jc-tpls { display: grid; grid-template-columns: repeat(auto-fill, minmax(258px, 1fr)); gap: 10px; }
+.jc-tpl { padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; }
+.jc-tpl:hover { border-color: var(--primary); box-shadow: var(--shadow-sm); }
+.jc-tpl .tp-i {
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: var(--radius); margin-bottom: 8px; font-size: 14px;
+}
+.jc-tpl .tp-i.blue { background: var(--primary-light); color: var(--primary); }
+.jc-tpl .tp-i.cyan { background: var(--info-light); color: var(--info); }
+.jc-tpl .tp-i.green { background: var(--success-light); color: var(--success); }
+.jc-tpl .tp-i.orange { background: var(--lv-orange-bg); color: var(--lv-orange-ink); }
+.jc-tpl .tp-i.purple { background: #f0e9ff; color: #7c3aed; }
+.jc-tpl .tp-n { font-size: 14px; font-weight: 700; color: var(--text-1); }
+.jc-tpl .tp-d { font-size: 12.5px; color: var(--text-2); line-height: 1.55; margin-top: 4px; min-height: 38px; }
+.jc-tpl .tp-m { display: flex; gap: 12px; font-size: 11.5px; color: var(--text-3); margin-top: 6px; }
+.jc-tpl .tp-o { display: flex; gap: 8px; margin-top: 9px; }
+
+/* --------------------------------------------------------------------------
+   十六、项目卡片视图（wsjcfx-17 项目清单的第二视图）
+   同一批项目在列表 / 卡片 / 地图三种视图间切换，卡片视图强调风险色与四个关键率值。
+   -------------------------------------------------------------------------- */
+.jc-pcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(272px, 1fr)); gap: 10px; }
+.jc-pcard {
+  display: block; padding: 11px 12px; color: inherit; text-decoration: none;
+  border: 1px solid var(--border); border-left: 3px solid var(--border-strong);
+  border-radius: var(--radius); background: #fff; transition: box-shadow .15s, border-color .15s;
+}
+.jc-pcard:hover { box-shadow: var(--shadow-sm); border-color: var(--primary); }
+.jc-pcard.red { border-left-color: var(--lv-red); }
+.jc-pcard.orange { border-left-color: var(--lv-orange); }
+.jc-pcard.yellow { border-left-color: var(--lv-yellow); }
+.jc-pcard.blue { border-left-color: var(--lv-blue); }
+.jc-pcard .pc-h { display: flex; align-items: center; gap: 8px; }
+.jc-pcard .pc-n { font-size: 14px; font-weight: 700; color: var(--text-1); }
+.jc-pcard .pc-h .lv { margin-left: auto; flex-shrink: 0; }
+.jc-pcard .pc-c { font-size: 12px; color: var(--text-3); margin-top: 3px; }
+.jc-pcard .pc-b {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 10px;
+  margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border);
+}
+.jc-pcard .pb { display: flex; align-items: baseline; gap: 6px; font-size: 12px; color: var(--text-3); }
+.jc-pcard .pb b { margin-left: auto; font-size: 13px; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.jc-pcard .pc-f { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+
+/* --------------------------------------------------------------------------
+   十七、市县项目分布堆叠条（wsjcfx-17 项目总览）
+   一行一个区划，条内按项目状态或风险等级分段，段宽即占比。比并排柱状更省纵向空间，
+   11 个区划能在一屏内看完，且各段左端对齐，跨区划比结构不用来回换算。
+   -------------------------------------------------------------------------- */
+.jc-stack { display: flex; flex-direction: column; gap: 7px; }
+.jc-stack .st { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.jc-stack .st:hover .st-l { color: var(--primary); }
+.jc-stack .st-l {
+  width: 96px; flex-shrink: 0; font-size: 12.5px; color: var(--text-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.jc-stack .st-b {
+  flex: 1; min-width: 0; display: flex; height: 16px;
+  border-radius: 3px; overflow: hidden; background: var(--bg-soft);
+}
+.jc-stack .st-b span {
+  display: block; height: 100%; transition: filter .15s;
+  font-size: 11px; line-height: 16px; text-align: center; color: #fff;
+  overflow: hidden; white-space: nowrap;
+}
+.jc-stack .st:hover .st-b span { filter: brightness(1.06); }
+.jc-stack .st-b .s1 { background: var(--primary); }
+.jc-stack .st-b .s2 { background: var(--info); }
+.jc-stack .st-b .s3 { background: var(--lv-orange); }
+.jc-stack .st-b .s4 { background: var(--text-3); }
+.jc-stack .st-b .red { background: var(--lv-red); }
+.jc-stack .st-b .orange { background: var(--lv-orange); }
+.jc-stack .st-b .yellow { background: var(--lv-yellow); }
+.jc-stack .st-b .blue { background: var(--lv-blue); }
+.jc-stack .st-v {
+  width: 44px; flex-shrink: 0; text-align: right;
+  font-size: 12.5px; font-weight: 600; color: var(--text-1); font-variant-numeric: tabular-nums;
+}
+/* 图例：与堆叠条同色序，放在块底 */
+.jc-stack-lg { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 12px; color: var(--text-2); }
+.jc-stack-lg i { display: inline-block; width: 12px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+
+/* --------------------------------------------------------------------------
+   十八、项目档案头卡（wsjcfx-17-view）
+   替代原先那条细长身份条：左半边是项目身份（名称、编号、标签、经办信息），
+   右半边是六个关键指标。六个页签翻到哪一页，这张卡都在，且指标不用回概况页去找。
+   -------------------------------------------------------------------------- */
+.jc-phead {
+  display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; flex-shrink: 0;
+  margin-bottom: 10px; background: #fff;
+  border: 1px solid var(--border); border-left: 4px solid var(--border-strong);
+  border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden;
+}
+.jc-phead.red { border-left-color: var(--lv-red); }
+.jc-phead.orange { border-left-color: var(--lv-orange); }
+.jc-phead.yellow { border-left-color: var(--lv-yellow); }
+.jc-phead.blue { border-left-color: var(--lv-blue); }
+
+.jc-phead .ph-id { flex: 1 1 420px; min-width: 0; padding: 12px 16px; }
+.jc-phead .ph-t { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.jc-phead .ph-n { font-size: 18px; font-weight: 700; color: var(--text-1); letter-spacing: .3px; }
+.jc-phead .ph-code {
+  font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums;
+  padding: 2px 8px; background: var(--bg-soft); border: 1px solid var(--border); border-radius: 20px;
+}
+.jc-phead .ph-tags { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+/* 风险等级在这里是主角，做成实心药丸，压过旁边一排 badge */
+.jc-phead .ph-tags .lv { padding: 3px 10px; border-radius: 20px; font-weight: 600; font-size: 12.5px; }
+.jc-phead .ph-tags .lv.red { background: var(--lv-red-bg); color: var(--lv-red-ink); }
+.jc-phead .ph-tags .lv.orange { background: var(--lv-orange-bg); color: var(--lv-orange-ink); }
+.jc-phead .ph-tags .lv.yellow { background: var(--lv-yellow-bg); color: var(--lv-yellow-ink); }
+.jc-phead .ph-tags .lv.blue { background: var(--lv-blue-bg); color: var(--lv-blue-ink); }
+.jc-phead .ph-m {
+  display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 10px;
+  padding-top: 10px; border-top: 1px dashed var(--border);
+  font-size: 12.5px; color: var(--text-2);
+}
+.jc-phead .ph-m span { display: inline-flex; align-items: center; gap: 6px; }
+.jc-phead .ph-m i { color: var(--text-3); }
+.jc-phead .ph-m b { color: var(--text-1); font-weight: 600; }
+
+/* 右侧关键指标：六格等宽，网格线用极细分隔，避免做成六张小卡片后又碎又散 */
+.jc-phead .ph-kpi {
+  flex: 1 1 520px; display: grid; grid-template-columns: repeat(6, 1fr);
+  background: var(--bg-soft); border-left: 1px solid var(--border);
+}
+.jc-phead .ph-kpi .kp {
+  padding: 12px 10px; text-align: center; border-left: 1px solid var(--border);
+}
+.jc-phead .ph-kpi .kp:first-child { border-left: none; }
+.jc-phead .ph-kpi .kv {
+  font-size: 20px; font-weight: 700; line-height: 1.2; color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+}
+.jc-phead .ph-kpi .kv.red { color: var(--lv-red); }
+.jc-phead .ph-kpi .kv.orange { color: var(--lv-orange-ink); }
+.jc-phead .ph-kpi .kv.green { color: var(--success); }
+.jc-phead .ph-kpi .kl { font-size: 12px; color: var(--text-3); margin-top: 4px; }
+.jc-phead .ph-kpi .ks { font-size: 11.5px; color: var(--text-3); margin-top: 3px; }
+@media (max-width: 1280px) {
+  .jc-phead .ph-kpi { grid-template-columns: repeat(3, 1fr); border-left: none; border-top: 1px solid var(--border); }
+  .jc-phead .ph-kpi .kp:nth-child(3n+1) { border-left: none; }
+  .jc-phead .ph-kpi .kp:nth-child(n+4) { border-top: 1px solid var(--border); }
+}
+
+/* --------------------------------------------------------------------------
+   十九、若干补位规则：本子系统在 app.css 组件上用到、但基线未覆盖的插槽
+   -------------------------------------------------------------------------- */
+/* 定列数指标卡：基线的 auto-fit 在宽屏能排到 6~7 列，一组 8 张卡就会掉一张单独占行。
+   工作台这类每屏都要看的页面按 4 列固定排，行永远是整的。 */
+.stat-grid.fix4 { grid-template-columns: repeat(4, 1fr); }
+.stat-grid.fix5 { grid-template-columns: repeat(5, 1fr); }
+@media (max-width: 1100px) {
+  .stat-grid.fix4, .stat-grid.fix5 { grid-template-columns: repeat(2, 1fr); }
+}
+/* 表尾左右两块：左侧放口径与选中数说明，右侧放批量操作按钮 */
+.table-foot .tf-l { color: var(--text-2); }
+.table-foot .tf-l b { color: var(--text-1); font-weight: 700; margin: 0 2px; }
+.table-foot .tf-r { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* 页头右上角的区划切换：基线 select 是 width:100%，在弹性行里必须收成内容宽 */
+.jc-said { width: auto !important; min-width: 156px; }

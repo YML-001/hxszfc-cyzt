@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>自助办件监控 · 存量房交易网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：自助终端设备状态卡与耗材条 */
+  .dev-card {
+    border: 1px solid var(--border); border-left: 4px solid var(--success);
+    border-radius: var(--radius); background: #fff; padding: 13px 14px;
+    display: flex; flex-direction: column; gap: 9px;
+  }
+  .dev-card.off { border-left-color: var(--danger); background: var(--danger-light); }
+  .dev-card.warn { border-left-color: var(--warning); background: var(--warning-light); }
+  .dev-card .dv-hd { display: flex; align-items: center; gap: 8px; }
+  .dev-card .dv-name { font-size: 13.5px; font-weight: 700; flex: 1; }
+  .dev-card .dv-meta { font-size: 12.5px; color: var(--text-3); line-height: 1.75; }
+  .dev-card .dv-num { display: flex; gap: 18px; font-size: 12.5px; color: var(--text-2); }
+  .dev-card .dv-num b { font-size: 17px; color: var(--text-1); font-variant-numeric: tabular-nums; }
+  .sup-row { display: flex; align-items: center; gap: 9px; font-size: 12.5px; }
+  .sup-row .sp-name { width: 62px; flex-shrink: 0; color: var(--text-3); }
+  .sup-row .sp-bar { flex: 1; }
+  .sup-row .sp-val { width: 38px; text-align: right; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wscwb-22">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 存量房交易网签备案管理系统
+        <span class="sep">/</span> <a class="link" href="filing-list.html">备案过户联办</a>
+        <span class="sep">/</span> <span class="cur">自助办件监控</span>
+      </div>
+      <div class="page-title">自助办理平台业务办件监控</div>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="sign-mobile.html"><i class="fa-solid fa-mobile-screen"></i> 移动端签约</a>
+      <button type="button" class="btn btn-primary" onclick="PMS.toast('已向全部在线终端下发配置刷新指令，预计 30 秒内生效','success')"><i class="fa-solid fa-rotate"></i> 下发配置刷新</button>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《自助办件监控台账》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-desktop"></i></div>
+      <div><div class="s-label">今日自助办件</div><div class="s-value">68</div><div class="s-trend text-success">↑ 环比 14.2%</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-file-signature"></i></div>
+      <div><div class="s-label">自助签约</div><div class="s-value">21</div><div class="s-trend">笔</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon purple"><i class="fa-solid fa-print"></i></div>
+      <div><div class="s-label">自助打印</div><div class="s-value">96</div><div class="s-trend">份</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hand-holding-hand"></i></div>
+      <div><div class="s-label">转窗口协办</div><div class="s-value">7</div><div class="s-trend text-warning">3 件待介入</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon cyan"><i class="fa-solid fa-chart-pie"></i></div>
+      <div><div class="s-label">自助占比</div><div class="s-value">43.2%</div><div class="s-trend text-success">↑ 5.8 个百分点</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>自助办件遇校验拦截时一键转窗口协办，办件保留原排队序号，不重新取号。</div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs" id="mainTabs">
+      <div class="tab active" data-tab="list">办件监控</div>
+      <div class="tab" data-tab="dev">设备状态与渠道分布 <span class="badge red">1</span></div>
+    </div>
+
+    <div class="tab-panel active" data-panel="list">
+      <div class="filter-bar">
+        <div class="filter-item">
+          <label>关键词</label>
+          <input type="text" placeholder="办件编号 / 办件码 / 申请人">
+        </div>
+        <div class="filter-item">
+          <label>办理事项</label>
+          <select><option value="">全部</option><option>房源查询</option><option>自助签约</option><option>备案进度查询</option><option>结果打印</option></select>
+        </div>
+        <div class="filter-item">
+          <label>申请渠道</label>
+          <select><option value="">全部</option><option>自助终端</option><option>网上大厅门户</option><option>掌上柳州小程序</option><option>银行网点</option></select>
+        </div>
+        <div class="filter-item">
+          <label>办件状态</label>
+          <select><option value="">全部</option><option>办理中</option><option>已办结</option><option>校验拦截</option><option>已转协办</option><option>已放弃</option></select>
+        </div>
+        <div class="filter-item">
+          <label>办件日期</label>
+          <input type="date" value="2026-07-31">
+        </div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 68 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table" id="tblSs" data-static>
+          <thead>
+            <tr>
+              <th>办件编号</th>
+              <th>办件码</th>
+              <th>办理事项</th>
+              <th>申请渠道</th>
+              <th>设备点位</th>
+              <th>申请人</th>
+              <th>开始时间</th>
+              <th>当前环节</th>
+              <th>办件状态</th>
+              <th>转协办</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-st="block" data-no="ZZ20260731068">
+              <td class="nowrap fw-600">ZZ20260731068</td>
+              <td class="nowrap">BJ8821</td>
+              <td class="nowrap">自助签约</td>
+              <td class="nowrap">自助终端</td>
+              <td class="cell-lg">市政务中心 A 区 3 号机</td>
+              <td class="nowrap">李**婷</td>
+              <td class="nowrap">2026-07-31 21:12</td>
+              <td class="cell-lg text-danger">购房资格核验被拦截</td>
+              <td class="nowrap"><span class="badge red">校验拦截</span></td>
+              <td class="nowrap" data-col="tr"><span class="badge orange">待介入</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openAssist('ZZ20260731068','购房资格需人工复核','李**婷','自助签约','市政务中心 A 区 3 号机','BJ8821')">协办介入</span>
+                <span class="link" onclick="PMS.toast('办件 ZZ20260731068 全链轨迹：取号 → 身份核验 → 合同确认 → 资格校验拦截')">查看</span>
+              </td>
+            </tr>
+            <tr data-st="block" data-no="ZZ20260731066">
+              <td class="nowrap fw-600">ZZ20260731066</td>
+              <td class="nowrap">BJ8817</td>
+              <td class="nowrap">自助签约</td>
+              <td class="nowrap">掌上柳州小程序</td>
+              <td class="cell-lg text-3">—（移动端）</td>
+              <td class="nowrap">覃**波</td>
+              <td class="nowrap">2026-07-31 20:48</td>
+              <td class="cell-lg text-danger">委托书未核验</td>
+              <td class="nowrap"><span class="badge red">校验拦截</span></td>
+              <td class="nowrap" data-col="tr"><span class="badge orange">待介入</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openAssist('ZZ20260731066','委托书未核验','覃**波','自助签约','掌上柳州小程序','BJ8817')">协办介入</span>
+                <span class="link" onclick="PMS.toast('办件 ZZ20260731066 全链轨迹：授权登录 → 合同确认 → 代理关系校验拦截')">查看</span>
+              </td>
+            </tr>
+            <tr data-st="block" data-no="ZZ20260731061">
+              <td class="nowrap fw-600">ZZ20260731061</td>
+              <td class="nowrap">BJ8802</td>
+              <td class="nowrap">结果打印</td>
+              <td class="nowrap">自助终端</td>
+              <td class="cell-lg">鱼峰区不动产大厅 2 号机</td>
+              <td class="nowrap">周**琴</td>
+              <td class="nowrap">2026-07-31 17:36</td>
+              <td class="cell-lg text-danger">打印纸耗尽，打印中断</td>
+              <td class="nowrap"><span class="badge red">校验拦截</span></td>
+              <td class="nowrap" data-col="tr"><span class="badge orange">待介入</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="openAssist('ZZ20260731061','自助终端打印纸耗尽','周**琴','结果打印','鱼峰区不动产大厅 2 号机','BJ8802')">协办介入</span>
+                <span class="link" onclick="PMS.toast('办件 ZZ20260731061 全链轨迹：扫码取件 → 身份核验 → 打印中断')">查看</span>
+              </td>
+            </tr>
+            <tr data-st="doing" data-no="ZZ20260731067">
+              <td class="nowrap fw-600">ZZ20260731067</td>
+              <td class="nowrap">BJ8819</td>
+              <td class="nowrap">自助签约</td>
+              <td class="nowrap">自助终端</td>
+              <td class="cell-lg">柳南区交易大厅 1 号机</td>
+              <td class="nowrap">黄**文</td>
+              <td class="nowrap">2026-07-31 21:04</td>
+              <td class="cell-lg">人脸核验中</td>
+              <td class="nowrap"><span class="badge blue">办理中</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="col-ops">
+                <span class="link" onclick="PMS.toast('已向柳南区交易大厅 1 号机推送坐席远程协助请求','success')">远程协助</span>
+                <span class="link" onclick="PMS.toast('办件 ZZ20260731067 全链轨迹：取号 → 身份核验 → 合同确认 → 人脸核验中')">查看</span>
+              </td>
+            </tr>
+            <tr data-st="doing" data-no="ZZ20260731065">
+              <td class="nowrap fw-600">ZZ20260731065</td>
+              <td class="nowrap">BJ8814</td>
+              <td class="nowrap">备案进度查询</td>
+              <td class="nowrap">网上大厅门户</td>
+              <td class="cell-lg text-3">—（PC 网页）</td>
+              <td class="nowrap">罗**东</td>
+              <td class="nowrap">2026-07-31 20:22</td>
+              <td class="cell-lg">进度查询结果展示</td>
+              <td class="nowrap"><span class="badge blue">办理中</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="col-ops">
+                <span class="link" onclick="PMS.toast('办件 ZZ20260731065 全链轨迹：实名登录 → 备案编号查询 → 结果展示')">查看</span>
+              </td>
+            </tr>
+            <tr data-st="done" data-no="ZZ20260731064">
+              <td class="nowrap fw-600">ZZ20260731064</td>
+              <td class="nowrap">BJ8811</td>
+              <td class="nowrap">自助签约</td>
+              <td class="nowrap">银行网点</td>
+              <td class="cell-lg">柳州银行城中支行代办点</td>
+              <td class="nowrap">吴**涵</td>
+              <td class="nowrap">2026-07-31 16:05</td>
+              <td class="cell-lg">签约完成，已自动网签备案</td>
+              <td class="nowrap"><span class="badge green">已办结</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="col-ops">
+                <span class="link" onclick="PMS.toast('办件 ZZ20260731064 用时 18 分钟，全程无人工干预')">查看</span>
+                <a class="link" href="onething-qrcode.html">办件码追溯</a>
+              </td>
+            </tr>
+            <tr data-st="done" data-no="ZZ20260731059">
+              <td class="nowrap fw-600">ZZ20260731059</td>
+              <td class="nowrap">BJ8796</td>
+              <td class="nowrap">房源查询</td>
+              <td class="nowrap">自助终端</td>
+              <td class="cell-lg">市政务中心 A 区 3 号机</td>
+              <td class="nowrap">黄**雅</td>
+              <td class="nowrap">2026-07-31 15:41</td>
+              <td class="cell-lg">核验码查询结果打印完成</td>
+              <td class="nowrap"><span class="badge green">已办结</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="col-ops">
+                <span class="link" onclick="PMS.toast('办件 ZZ20260731059 用时 3 分钟，打印房源核验结果 1 份')">查看</span>
+              </td>
+            </tr>
+            <tr data-st="assist" data-no="ZZ20260731057">
+              <td class="nowrap fw-600">ZZ20260731057</td>
+              <td class="nowrap">BJ8790</td>
+              <td class="nowrap">自助签约</td>
+              <td class="nowrap">自助终端</td>
+              <td class="cell-lg">柳北区交易大厅 1 号机</td>
+              <td class="nowrap">莫**华</td>
+              <td class="nowrap">2026-07-31 14:18</td>
+              <td class="cell-lg">窗口协办中（保留原序号 A0126）</td>
+              <td class="nowrap"><span class="badge purple">已转协办</span></td>
+              <td class="nowrap" data-col="tr"><span class="badge green">已介入</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="PMS.toast('协办坐席：3 号窗口 韦国强；拦截原因：共有人意见需现场确认')">协办详情</span>
+                <a class="link" href="sign-window.html">窗口签约</a>
+              </td>
+            </tr>
+            <tr data-st="give" data-no="ZZ20260731052">
+              <td class="nowrap fw-600">ZZ20260731052</td>
+              <td class="nowrap">BJ8781</td>
+              <td class="nowrap">自助签约</td>
+              <td class="nowrap">掌上柳州小程序</td>
+              <td class="cell-lg text-3">—（移动端）</td>
+              <td class="nowrap">陈**明</td>
+              <td class="nowrap">2026-07-31 11:26</td>
+              <td class="cell-lg text-3">合同确认环节超时放弃</td>
+              <td class="nowrap"><span class="badge gray">已放弃</span></td>
+              <td class="nowrap text-3">—</td>
+              <td class="col-ops">
+                <span class="link" onclick="PMS.toast('已向申请人推送继续办理提醒，办件保留 7 天','success')">续办提醒</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="dev">
+      <div class="table-wrap">
+       <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>鱼峰区不动产大厅 2 号机打印纸耗尽已离线，该点位办件已自动引导至相邻点位，请尽快补充耗材。</div>
+        </div>
+
+        <div class="card mt-16">
+          <div class="card-head">
+            <h3><i class="fa-solid fa-chart-column"></i> 今日办件量渠道分布</h3>
+            <span class="sub">全渠道合计 157 件，自助类渠道占 43.2%</span>
+          </div>
+          <div class="card-body">
+            <div class="bar-chart">
+              <div class="bar-col"><span class="bar-val">89</span><div class="bar" style="height:96%"></div><span class="bar-label">交易窗口</span></div>
+              <div class="bar-col"><span class="bar-val">26</span><div class="bar" style="height:28%"></div><span class="bar-label">网上大厅门户</span></div>
+              <div class="bar-col"><span class="bar-val">19</span><div class="bar" style="height:21%"></div><span class="bar-label">掌上柳州小程序</span></div>
+              <div class="bar-col"><span class="bar-val">15</span><div class="bar" style="height:16%"></div><span class="bar-label">自助终端</span></div>
+              <div class="bar-col"><span class="bar-val">8</span><div class="bar" style="height:9%"></div><span class="bar-label">银行网点</span></div>
+            </div>
+            <p class="text-3 text-sm mt-16" style="padding:0 2px">
+              <i class="fa-solid fa-circle-info"></i>
+              自助类渠道（门户 + 小程序 + 自助终端 + 银行网点）合计 68 件，占全渠道 43.2%，较上月提升 5.8 个百分点。
+            </p>
+          </div>
+        </div>
+
+        <div class="section-title mt-16">自助终端点位状态</div>
+        <div class="grid-3">
+          <div class="dev-card">
+            <div class="dv-hd">
+              <span class="dv-name">市政务中心 A 区 3 号机</span>
+              <span class="badge green">在线</span>
+            </div>
+            <div class="dv-meta">设备编号 ZZJ-LZ-0103 · 版本 v2.6.1 · 心跳 21:41</div>
+            <div class="dv-num"><span>今日办件 <b>26</b></span><span>自助签约 <b>9</b></span><span>打印 <b>34</b></span></div>
+            <div class="sup-row"><span class="sp-name">打印纸</span><div class="sp-bar progress green"><span style="width:78%"></span></div><span class="sp-val">78%</span></div>
+            <div class="sup-row"><span class="sp-name">证照卡</span><div class="sp-bar progress green"><span style="width:64%"></span></div><span class="sp-val">64%</span></div>
+            <div class="dv-num" style="gap:8px">
+              <span class="link" onclick="PMS.toast('已下发重启指令，设备将在 60 秒内恢复服务','success')">远程重启</span>
+              <span class="link" onclick="PMS.toast('ZZJ-LZ-0103 近 7 日办件 178 件，无故障记录')">运行日志</span>
+            </div>
+          </div>
+          <div class="dev-card">
+            <div class="dv-hd">
+              <span class="dv-name">柳南区交易大厅 1 号机</span>
+              <span class="badge green">在线</span>
+            </div>
+            <div class="dv-meta">设备编号 ZZJ-LZ-0201 · 版本 v2.6.1 · 心跳 21:41</div>
+            <div class="dv-num"><span>今日办件 <b>19</b></span><span>自助签约 <b>7</b></span><span>打印 <b>28</b></span></div>
+            <div class="sup-row"><span class="sp-name">打印纸</span><div class="sp-bar progress green"><span style="width:56%"></span></div><span class="sp-val">56%</span></div>
+            <div class="sup-row"><span class="sp-name">证照卡</span><div class="sp-bar progress green"><span style="width:81%"></span></div><span class="sp-val">81%</span></div>
+            <div class="dv-num" style="gap:8px">
+              <span class="link" onclick="PMS.toast('已下发重启指令，设备将在 60 秒内恢复服务','success')">远程重启</span>
+              <span class="link" onclick="PMS.toast('ZZJ-LZ-0201 近 7 日办件 132 件，无故障记录')">运行日志</span>
+            </div>
+          </div>
+          <div class="dev-card off">
+            <div class="dv-hd">
+              <span class="dv-name">鱼峰区不动产大厅 2 号机</span>
+              <span class="badge red">离线</span>
+            </div>
+            <div class="dv-meta">设备编号 ZZJ-LZ-0302 · 版本 v2.6.1 · 心跳 17:36（已中断 4 小时）</div>
+            <div class="dv-num"><span>今日办件 <b>6</b></span><span>自助签约 <b>0</b></span><span>打印 <b>11</b></span></div>
+            <div class="sup-row"><span class="sp-name">打印纸</span><div class="sp-bar progress"><span style="width:2%;background:var(--danger)"></span></div><span class="sp-val text-danger">2%</span></div>
+            <div class="sup-row"><span class="sp-name">证照卡</span><div class="sp-bar progress orange"><span style="width:23%"></span></div><span class="sp-val text-warning">23%</span></div>
+            <div class="dv-num" style="gap:8px">
+              <span class="link" onclick="PMS.toast('已向鱼峰区不动产大厅设备管理员派单补充耗材，预计 1 小时内处理','success')">派单补耗材</span>
+              <span class="link" onclick="PMS.toast('该点位今日 3 件办件已自动引导至市政务中心 A 区 3 号机')">引导记录</span>
+            </div>
+          </div>
+          <div class="dev-card warn">
+            <div class="dv-hd">
+              <span class="dv-name">柳北区交易大厅 1 号机</span>
+              <span class="badge orange">耗材预警</span>
+            </div>
+            <div class="dv-meta">设备编号 ZZJ-LZ-0401 · 版本 v2.6.0 · 心跳 21:40</div>
+            <div class="dv-num"><span>今日办件 <b>11</b></span><span>自助签约 <b>4</b></span><span>打印 <b>16</b></span></div>
+            <div class="sup-row"><span class="sp-name">打印纸</span><div class="sp-bar progress orange"><span style="width:18%"></span></div><span class="sp-val text-warning">18%</span></div>
+            <div class="sup-row"><span class="sp-name">证照卡</span><div class="sp-bar progress green"><span style="width:47%"></span></div><span class="sp-val">47%</span></div>
+            <div class="dv-num" style="gap:8px">
+              <span class="link" onclick="PMS.toast('已派单补充打印纸','success')">派单补耗材</span>
+              <span class="link" onclick="PMS.toast('该设备版本 v2.6.0 低于当前版本，已加入升级计划','success')">推送升级</span>
+            </div>
+          </div>
+          <div class="dev-card">
+            <div class="dv-hd">
+              <span class="dv-name">柳江区政务大厅 1 号机</span>
+              <span class="badge green">在线</span>
+            </div>
+            <div class="dv-meta">设备编号 ZZJ-LZ-0501 · 版本 v2.6.1 · 心跳 21:41</div>
+            <div class="dv-num"><span>今日办件 <b>8</b></span><span>自助签约 <b>1</b></span><span>打印 <b>7</b></span></div>
+            <div class="sup-row"><span class="sp-name">打印纸</span><div class="sp-bar progress green"><span style="width:92%"></span></div><span class="sp-val">92%</span></div>
+            <div class="sup-row"><span class="sp-name">证照卡</span><div class="sp-bar progress green"><span style="width:88%"></span></div><span class="sp-val">88%</span></div>
+            <div class="dv-num" style="gap:8px">
+              <span class="link" onclick="PMS.toast('已下发重启指令，设备将在 60 秒内恢复服务','success')">远程重启</span>
+              <span class="link" onclick="PMS.toast('ZZJ-LZ-0501 近 7 日办件 54 件，无故障记录')">运行日志</span>
+            </div>
+          </div>
+          <div class="dev-card">
+            <div class="dv-hd">
+              <span class="dv-name">柳州银行城中支行代办点</span>
+              <span class="badge green">在线</span>
+            </div>
+            <div class="dv-meta">设备编号 ZZJ-LZ-0601 · 版本 v2.6.1 · 心跳 21:39</div>
+            <div class="dv-num"><span>今日办件 <b>8</b></span><span>自助签约 <b>0</b></span><span>打印 <b>0</b></span></div>
+            <div class="sup-row"><span class="sp-name">打印纸</span><div class="sp-bar progress green"><span style="width:70%"></span></div><span class="sp-val">70%</span></div>
+            <div class="sup-row"><span class="sp-name">证照卡</span><div class="sp-bar progress green"><span style="width:95%"></span></div><span class="sp-val">95%</span></div>
+            <div class="dv-num" style="gap:8px">
+              <span class="link" onclick="PMS.toast('银行代办点由柳州银行运维，已推送巡检提醒','success')">通知运维</span>
+              <span class="link" onclick="PMS.toast('ZZJ-LZ-0601 近 7 日办件 41 件，均为银行代客签约')">运行日志</span>
+            </div>
+          </div>
+        </div>
+       </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 协办介入 -->
+  <div class="drawer-mask"></div>
+  <div class="drawer" id="dwAssist">
+    <div class="drawer-head">
+      <h3>转窗口协办介入</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-warning">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div id="asReason">—</div>
+      </div>
+
+      <div class="section-title mt-16">办件信息</div>
+      <dl class="desc-list">
+        <div class="desc-item"><dt>办件编号</dt><dd id="asNo">—</dd></div>
+        <div class="desc-item"><dt>办件码</dt><dd id="asCode">—</dd></div>
+        <div class="desc-item"><dt>办理事项</dt><dd id="asItem">—</dd></div>
+        <div class="desc-item"><dt>申请渠道 / 点位</dt><dd id="asDev">—</dd></div>
+        <div class="desc-item"><dt>申请人</dt><dd id="asName">—</dd></div>
+        <div class="desc-item"><dt>原排队序号</dt><dd class="fw-600 text-primary">A0138（协办后保留）</dd></div>
+      </dl>
+
+      <div class="section-title mt-16">协办处理</div>
+      <div class="form-grid">
+        <div class="form-item">
+          <label>协办窗口<span class="req">*</span></label>
+          <select><option>3 号窗口 · 韦国强</option><option>5 号窗口 · 梁美玲</option><option>7 号窗口 · 陆志刚</option></select>
+        </div>
+        <div class="form-item">
+          <label>处理方式<span class="req">*</span></label>
+          <select><option>人工复核后放行</option><option>补充材料后继续自助办理</option><option>转窗口全流程代办</option><option>不予办理并说明理由</option></select>
+        </div>
+        <div class="form-item col-full">
+          <label>协办处理意见<span class="req">*</span></label>
+          <textarea rows="3" placeholder="请填写拦截原因的核实情况与处理结论">经核验申请人家庭在本市名下住房 1 套，符合限购政策，人工复核通过，办件放行继续自助签约。</textarea>
+        </div>
+        <div class="form-item col-full">
+          <label>通知方式</label>
+          <div class="flex gap-16" style="flex-wrap:wrap;padding-top:6px">
+            <label class="flex items-center gap-8"><input type="checkbox" checked> 短信通知申请人</label>
+            <label class="flex items-center gap-8"><input type="checkbox" checked> 终端屏幕提示</label>
+            <label class="flex items-center gap-8"><input type="checkbox"> 电话联系</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title mt-16">办件轨迹</div>
+      <div class="timeline">
+        <div class="tl-item done">
+          <div class="tl-dot"></div>
+          <div class="tl-title">自助取号并完成实名身份核验</div>
+          <div class="tl-meta">2026-07-31 21:12 · 自助终端</div>
+        </div>
+        <div class="tl-item done">
+          <div class="tl-dot"></div>
+          <div class="tl-title">读取房源核验码，合同要素自动填充</div>
+          <div class="tl-meta">2026-07-31 21:14 · 系统</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot" style="background:var(--danger);border-color:var(--danger)"></div>
+          <div class="tl-title text-danger">购房资格校验拦截</div>
+          <div class="tl-meta">2026-07-31 21:16 · 系统</div>
+          <div class="tl-desc">住房套数共享数据返回 2 套，与申请人申报的 1 套不一致，需人工复核。</div>
+        </div>
+        <div class="tl-item pending">
+          <div class="tl-dot"></div>
+          <div class="tl-title">窗口协办介入</div>
+          <div class="tl-meta">待处理</div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn" onclick="PMS.toast('已通知申请人到 3 号窗口办理，原排队序号 A0138 保留','success')"><i class="fa-solid fa-bell"></i> 仅通知申请人</button>
+      <button type="button" class="btn btn-primary" onclick="submitAssist()"><i class="fa-solid fa-check"></i> 提交协办</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  PMS.renderPager(document.getElementById('tblSs'), {
+    pageNum: 1, pageSize: 20, total: 68,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+
+var curNo = '';
+
+function openAssist(no, reason, name, item, dev, code) {
+  curNo = no;
+  document.getElementById('asReason').textContent = '拦截原因：' + reason + '。转窗口协办后办件保留原排队序号，不重新取号。';
+  document.getElementById('asNo').textContent = no;
+  document.getElementById('asCode').textContent = code;
+  document.getElementById('asItem').textContent = item;
+  document.getElementById('asDev').textContent = dev;
+  document.getElementById('asName').textContent = name;
+  PMS.openDrawer('dwAssist');
+}
+
+function submitAssist() {
+  var tr = document.querySelector('#tblSs tbody tr[data-no="' + curNo + '"]');
+  if (tr) {
+    tr.setAttribute('data-st', 'assist');
+    tr.children[7].className = 'cell-lg';
+    tr.children[7].textContent = '窗口协办中（保留原序号 A0138）';
+    tr.children[8].innerHTML = '<span class="badge purple">已转协办</span>';
+    tr.children[9].innerHTML = '<span class="badge green">已介入</span>';
+    tr.querySelector('.col-ops').innerHTML =
+      '<span class="link" onclick="PMS.toast(\'协办坐席：3 号窗口 韦国强；已人工复核放行\')">协办详情</span>' +
+      '<a class="link" href="sign-window.html">窗口签约</a>';
+  }
+  PMS.closeDrawer();
+  PMS.toast('已介入协办，办件无需重新排队', 'success');
+}
+</script>
+</body>
+</html>

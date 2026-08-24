@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>备案注销受理 · 存量房交易网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：司法文书影像占位与退款金额强调 */
+  .doc-view {
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-soft);
+    height: 190px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; color: var(--text-3); font-size: 12.5px;
+  }
+  .doc-view i { font-size: 32px; color: var(--primary-soft); }
+  .money { font-family: Consolas, "Courier New", monospace; font-size: 15px; font-weight: 700; color: var(--danger); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wscwb-14">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 存量房交易网签备案管理系统
+        <span class="sep">/</span> <a class="link" href="filing-list.html">备案过户联办</a>
+        <span class="sep">/</span> <span class="cur">备案注销</span>
+      </div>
+      <div class="page-title">备案注销受理</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" data-open-drawer="dwNew"><i class="fa-solid fa-plus"></i> 新增注销申请</button>
+      <a class="btn" href="filing-change.html"><i class="fa-solid fa-arrow-right-arrow-left"></i> 备案变更</a>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《备案注销台账》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div><div class="s-label">待审</div><div class="s-value">3</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon blue"><i class="fa-solid fa-file-circle-xmark"></i></div>
+      <div><div class="s-label">已注销</div><div class="s-value">27</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon red"><i class="fa-solid fa-money-bill-transfer"></i></div>
+      <div><div class="s-label">涉及退款</div><div class="s-value">11</div><div class="s-trend text-danger">2 笔退款在途</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon green"><i class="fa-solid fa-lock-open"></i></div>
+      <div><div class="s-label">房源已解锁</div><div class="s-value">24</div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>注销生效后房源状态自动回退并解锁挂牌，成交台账写冲销记录；涉及资金退款的须待资金监管系统（wszjjg）退款完成后方可结案。</div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>关键词</label>
+        <input type="text" placeholder="解除编号 / 合同编号 / 坐落">
+      </div>
+      <div class="filter-item">
+        <label>解除类型</label>
+        <select><option value="">全部</option><option>协商解除</option><option>单方解除</option><option>司法解除</option><option>备案撤销</option><option>网签作废</option></select>
+      </div>
+      <div class="filter-item">
+        <label>解除原因</label>
+        <select><option value="">全部</option><option>买受人贷款未获批</option><option>买受人资格不符</option><option>出卖人违约</option><option>买受人违约</option><option>房屋存在权利瑕疵</option><option>双方协商不再交易</option><option>法院判决解除</option><option>重复网签作废</option><option>信息填报错误</option><option>其他</option></select>
+      </div>
+      <div class="filter-item">
+        <label>是否涉及退款</label>
+        <select><option value="">全部</option><option>是</option><option>否</option></select>
+      </div>
+      <div class="filter-item">
+        <label>退款状态</label>
+        <select><option value="">全部</option><option>无需退款</option><option>待退款</option><option>退款中</option><option>已退款</option></select>
+      </div>
+      <div class="filter-item">
+        <label>申请时间</label>
+        <input type="date" value="2026-07-01">
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 30 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        <button type="button" class="btn"><i class="fa-solid fa-rotate-left"></i> 重置</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="stTabs">
+      <div class="tab active" data-tab="all">全部</div>
+      <div class="tab" data-tab="wait">待审 <span class="badge orange">3</span></div>
+      <div class="tab" data-tab="done">已注销</div>
+      <div class="tab" data-tab="back">退回</div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tblCancel" data-static>
+        <thead>
+          <tr>
+            <th>解除编号</th>
+            <th>合同编号</th>
+            <th>坐落</th>
+            <th>解除类型</th>
+            <th>解除原因</th>
+            <th>申请方</th>
+            <th>申请时间</th>
+            <th>对方是否同意</th>
+            <th>涉及退款</th>
+            <th class="num">退款金额(元)</th>
+            <th>退款状态</th>
+            <th>审核结果</th>
+            <th>房源解锁</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">JC20260731003</td>
+            <td class="nowrap">CLF450200202600288</td>
+            <td class="cell-lg">荣和千千树 2-1-401</td>
+            <td class="nowrap"><span class="badge blue">协商解除</span></td>
+            <td class="cell-lg">买受人贷款未获批</td>
+            <td class="nowrap">李婉婷（买受人）</td>
+            <td class="nowrap">2026-07-31 09:36</td>
+            <td class="nowrap"><span class="badge green">已同意</span></td>
+            <td class="nowrap"><span class="badge orange">是</span></td>
+            <td class="num">324,800</td>
+            <td class="nowrap"><span class="badge orange">待退款</span></td>
+            <td class="nowrap"><span class="badge orange">待审</span></td>
+            <td class="nowrap"><span class="badge gray">未解锁</span></td>
+            <td class="col-ops"><span class="link" onclick="openApprove('JC20260731003','loan')">审批</span></td>
+          </tr>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">JC20260730002</td>
+            <td class="nowrap">CLF450200202600276</td>
+            <td class="cell-lg">金龙湾 9-3-2201</td>
+            <td class="nowrap"><span class="badge purple">司法解除</span></td>
+            <td class="cell-lg">法院判决解除</td>
+            <td class="nowrap">柳北区人民法院</td>
+            <td class="nowrap">2026-07-30 14:12</td>
+            <td class="nowrap"><span class="badge gray">司法文书</span></td>
+            <td class="nowrap"><span class="badge orange">是</span></td>
+            <td class="num">728,000</td>
+            <td class="nowrap"><span class="badge blue">退款中</span></td>
+            <td class="nowrap"><span class="badge orange">待审</span></td>
+            <td class="nowrap"><span class="badge gray">未解锁</span></td>
+            <td class="col-ops"><span class="link" onclick="openApprove('JC20260730002','court')">审批</span></td>
+          </tr>
+          <tr data-st="wait">
+            <td class="nowrap fw-600">JC20260729001</td>
+            <td class="nowrap">CLF450200202600255</td>
+            <td class="cell-lg">万科城 12-2-905</td>
+            <td class="nowrap"><span class="badge cyan">网签作废</span></td>
+            <td class="cell-lg">重复网签作废（同一房源误签两份）</td>
+            <td class="nowrap">XXXX市安家房地产经纪有限公司</td>
+            <td class="nowrap">2026-07-29 16:48</td>
+            <td class="nowrap"><span class="badge green">已同意</span></td>
+            <td class="nowrap"><span class="badge gray">否</span></td>
+            <td class="num text-3">—</td>
+            <td class="nowrap"><span class="badge gray">无需退款</span></td>
+            <td class="nowrap"><span class="badge orange">待审</span></td>
+            <td class="nowrap"><span class="badge gray">未解锁</span></td>
+            <td class="col-ops"><span class="link" onclick="openApprove('JC20260729001','dup')">审批</span></td>
+          </tr>
+          <tr data-st="done">
+            <td class="nowrap fw-600">JC20260716009</td>
+            <td class="nowrap">CLF450200202600231</td>
+            <td class="cell-lg">恒大城 3-2-706</td>
+            <td class="nowrap"><span class="badge blue">协商解除</span></td>
+            <td class="cell-lg">双方协商不再交易</td>
+            <td class="nowrap">周雅琴（出卖人）</td>
+            <td class="nowrap">2026-07-16 10:20</td>
+            <td class="nowrap"><span class="badge green">已同意</span></td>
+            <td class="nowrap"><span class="badge orange">是</span></td>
+            <td class="num">180,000</td>
+            <td class="nowrap"><span class="badge green">已退款</span></td>
+            <td class="nowrap"><span class="badge green">已注销</span></td>
+            <td class="nowrap"><span class="badge green">已解锁</span></td>
+            <td class="col-ops"><span class="link" onclick="openApprove('JC20260716009','done')">查看</span></td>
+          </tr>
+          <tr data-st="done">
+            <td class="nowrap fw-600">JC20260708007</td>
+            <td class="nowrap">CLF450200202600198</td>
+            <td class="cell-lg">阳光 100 城市广场 B 座 1102</td>
+            <td class="nowrap"><span class="badge red">单方解除</span></td>
+            <td class="cell-lg">买受人违约（逾期付款超 30 日）</td>
+            <td class="nowrap">罗建军（出卖人）</td>
+            <td class="nowrap">2026-07-08 11:05</td>
+            <td class="nowrap"><span class="badge orange">未回应</span></td>
+            <td class="nowrap"><span class="badge gray">否</span></td>
+            <td class="num text-3">—</td>
+            <td class="nowrap"><span class="badge gray">无需退款</span></td>
+            <td class="nowrap"><span class="badge green">已注销</span></td>
+            <td class="nowrap"><span class="badge green">已解锁</span></td>
+            <td class="col-ops"><span class="link" onclick="openApprove('JC20260708007','done')">查看</span></td>
+          </tr>
+          <tr data-st="back">
+            <td class="nowrap fw-600">JC20260702005</td>
+            <td class="nowrap">CLF450200202600176</td>
+            <td class="cell-lg">彰泰春天 1-1-802</td>
+            <td class="nowrap"><span class="badge red">单方解除</span></td>
+            <td class="cell-lg">出卖人违约</td>
+            <td class="nowrap">黄志文（买受人）</td>
+            <td class="nowrap">2026-07-02 15:27</td>
+            <td class="nowrap"><span class="badge red">不同意</span></td>
+            <td class="nowrap"><span class="badge orange">是</span></td>
+            <td class="num">96,000</td>
+            <td class="nowrap"><span class="badge gray">待退款</span></td>
+            <td class="nowrap"><span class="badge red">退回</span></td>
+            <td class="nowrap"><span class="badge gray">未解锁</span></td>
+            <td class="col-ops"><span class="link" onclick="PMS.toast('退回原因：对方明确不同意解除且存在争议，建议通过诉讼或仲裁解决后凭生效法律文书申请','error')">退回原因</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 注销审批 -->
+  <div class="drawer-mask"></div>
+  <div class="drawer drawer-lg" id="dwApprove">
+    <div class="drawer-head">
+      <h3 id="apTitle">备案注销审批</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="section-title">合同摘要</div>
+      <dl class="desc-list">
+        <div class="desc-item"><dt>合同编号</dt><dd id="apContract">—</dd></div>
+        <div class="desc-item"><dt>备案编号</dt><dd id="apFiling">—</dd></div>
+        <div class="desc-item"><dt>房屋坐落</dt><dd id="apAddr">—</dd></div>
+        <div class="desc-item"><dt>出卖人</dt><dd id="apSeller">—</dd></div>
+        <div class="desc-item"><dt>买受人</dt><dd id="apBuyer">—</dd></div>
+        <div class="desc-item"><dt>成交价格</dt><dd id="apPrice">—</dd></div>
+      </dl>
+
+      <div class="section-title mt-16">解除信息</div>
+      <dl class="desc-list">
+        <div class="desc-item"><dt>解除编号</dt><dd id="apNo">—</dd></div>
+        <div class="desc-item"><dt>解除类型</dt><dd id="apType">—</dd></div>
+        <div class="desc-item"><dt>解除原因</dt><dd id="apReason">—</dd></div>
+        <div class="desc-item"><dt>申请方</dt><dd id="apUser">—</dd></div>
+        <div class="desc-item"><dt>申请时间</dt><dd id="apTime">—</dd></div>
+        <div class="desc-item"><dt>对方同意情况</dt><dd id="apAgree">—</dd></div>
+        <div class="desc-item"><dt>违约金金额</dt><dd id="apPenalty">—</dd></div>
+        <div class="desc-item full"><dt>原因说明</dt><dd id="apDesc">—</dd></div>
+      </dl>
+
+      <div id="apCourt" style="display:none">
+        <div class="section-title mt-16">司法文书</div>
+        <div class="grid-2">
+          <div class="doc-view"><i class="fa-regular fa-file-lines"></i><span>（2026）桂0205民初1873号民事判决书.pdf</span></div>
+          <div class="doc-view"><i class="fa-regular fa-file-lines"></i><span>判决生效证明.pdf</span></div>
+        </div>
+      </div>
+
+      <div class="section-title mt-16">资金退款</div>
+      <dl class="desc-list">
+        <div class="desc-item"><dt>是否涉及退款</dt><dd id="apHasRefund">—</dd></div>
+        <div class="desc-item"><dt>退款金额</dt><dd id="apRefund">—</dd></div>
+        <div class="desc-item"><dt>退款状态</dt><dd id="apRefundSt">—</dd></div>
+        <div class="desc-item"><dt>监管协议编号</dt><dd><a class="link" onclick="PMS.toast('正在跳转资金监管系统（wszjjg）查看协议 ZJ450200202600188')">ZJ450200202600188</a></dd></div>
+        <div class="desc-item"><dt>监管账户</dt><dd>柳州银行 6217****3841（存量房交易资金监管专户）</dd></div>
+        <div class="desc-item"><dt>退款收款人</dt><dd id="apPayee">—</dd></div>
+      </dl>
+
+      <div class="section-title mt-16">解除轨迹</div>
+      <div class="timeline" id="apTl"></div>
+
+      <div class="section-title mt-16">审批意见</div>
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>审核人</label>
+          <input type="text" value="韦国强" readonly style="background:var(--bg-soft)">
+        </div>
+        <div class="form-item">
+          <label>审核时间</label>
+          <input type="text" value="2026-07-31 21:34" readonly style="background:var(--bg-soft)">
+        </div>
+        <div class="form-item col-full">
+          <label>审批意见<span class="req">*</span></label>
+          <textarea id="apOpinion">经核，解除事由真实、材料齐全，双方意思表示一致，同意注销本次网签备案，房源同步解锁。</textarea>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn" onclick="decide('back')"><i class="fa-solid fa-rotate-left"></i> 退回</button>
+      <button type="button" class="btn btn-primary" onclick="decide('pass')"><i class="fa-solid fa-circle-check"></i> 审核通过</button>
+    </div>
+  </div>
+
+  <!-- 新增注销申请 -->
+  <div class="drawer" id="dwNew">
+    <div class="drawer-head">
+      <h3>新增注销申请</h3>
+      <span class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></span>
+    </div>
+    <div class="drawer-body">
+      <div class="alert alert-danger">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>已办理不动产转移登记的备案不得注销，须通过登记机构办理更正或回转登记。</div>
+      </div>
+      <div class="form-grid form-align mt-16">
+        <div class="form-item">
+          <label>合同编号<span class="req">*</span></label>
+          <input type="text" placeholder="CLF450200…">
+        </div>
+        <div class="form-item">
+          <label>解除类型<span class="req">*</span></label>
+          <select><option>协商解除</option><option>单方解除</option><option>司法解除</option><option>备案撤销</option><option>网签作废</option></select>
+        </div>
+        <div class="form-item">
+          <label>解除原因<span class="req">*</span></label>
+          <select><option>买受人贷款未获批</option><option>买受人资格不符</option><option>出卖人违约</option><option>买受人违约</option><option>房屋存在权利瑕疵</option><option>双方协商不再交易</option><option>法院判决解除</option><option>重复网签作废</option><option>信息填报错误</option><option>其他</option></select>
+        </div>
+        <div class="form-item">
+          <label>申请方<span class="req">*</span></label>
+          <select><option>出卖人</option><option>买受人</option><option>经纪机构</option><option>司法机关</option></select>
+        </div>
+        <div class="form-item">
+          <label>是否涉及退款<span class="req">*</span></label>
+          <select><option>是</option><option>否</option></select>
+        </div>
+        <div class="form-item">
+          <label>退款金额（元）</label>
+          <input type="number" placeholder="0.00">
+        </div>
+        <div class="form-item col-full">
+          <label>原因说明<span class="req">*</span></label>
+          <textarea placeholder="说明解除事由、协商经过与违约责任承担"></textarea>
+        </div>
+        <div class="form-item col-full">
+          <label>申请材料<span class="req">*</span></label>
+          <div class="file-up">
+            <input type="hidden" class="file-up-val" value="">
+            <div class="file-up-grid">
+              <div class="file-up-tile file-up-add" title="添加文件（可多选）">
+                <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png">
+                <i class="fa-solid fa-plus"></i><span>上传</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer('dwNew');PMS.toast('注销申请已提交，等待对方确认','success')"><i class="fa-solid fa-paper-plane"></i> 提交申请</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+(function () {
+  var table = document.getElementById('tblCancel');
+  document.getElementById('stTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var name = tab.getAttribute('data-tab');
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.style.display = (name === 'all' || tr.getAttribute('data-st') === name) ? '' : 'none';
+    });
+  });
+  PMS.renderPager(table, {
+    pageNum: 1, pageSize: 20, total: 30,
+    onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+  });
+})();
+
+var CASES = {
+  loan: {
+    contract: 'CLF450200202600288', filing: 'BA450200202600288', addr: '荣和千千树 2-1-401',
+    seller: '梁美华', buyer: '李婉婷', price: '812,000 元',
+    type: '协商解除', reason: '买受人贷款未获批', user: '李婉婷（买受人）', time: '2026-07-31 09:36',
+    agree: '<span class="badge green">已同意</span> 2026-07-31 11:02', penalty: '无（双方约定免除）',
+    desc: '买受人因征信记录问题，商业贷款申请被两家银行拒批，双方协商一致解除合同，出卖人同意全额退还已付款项，互不追究违约责任。',
+    hasRefund: '是', refund: '<span class="money">324,800</span> 元', refundSt: '<span class="badge orange">待退款</span>',
+    payee: '李婉婷　柳州银行 6217****9902',
+    court: false,
+    tl: [
+      ['done', '提交解除申请', '2026-07-31 09:36 · 李婉婷', '因贷款未获批申请协商解除合同，并申请退还监管资金。'],
+      ['done', '对方确认', '2026-07-31 11:02 · 梁美华', '出卖人同意解除，确认全额退款、互不追究违约责任。'],
+      ['active', '业务审核', '待办理 · 当前节点', ''],
+      ['', '注销生效', '待办理', ''],
+      ['', '房源解锁', '待办理', ''],
+      ['', '资金退款', '待办理 · 由 wszjjg 执行', '']
+    ]
+  },
+  court: {
+    contract: 'CLF450200202600276', filing: 'BA450200202600276', addr: '金龙湾 9-3-2201',
+    seller: '罗建军', buyer: '黄志文', price: '728,000 元',
+    type: '司法解除', reason: '法院判决解除', user: '柳北区人民法院', time: '2026-07-30 14:12',
+    agree: '<span class="badge gray">以生效判决为准</span>', penalty: '出卖人承担 145,600 元',
+    desc: '（2026）桂0205民初1873号民事判决：因出卖人隐瞒房屋存在查封事实，判决解除双方存量房买卖合同，出卖人退还全部购房款并支付违约金。判决已于 2026-07-25 生效。',
+    hasRefund: '是', refund: '<span class="money">728,000</span> 元', refundSt: '<span class="badge blue">退款中</span>',
+    payee: '黄志文　中国工商银行 6222****4471',
+    court: true,
+    tl: [
+      ['done', '法院判决生效', '2026-07-25 · 柳北区人民法院', '（2026）桂0205民初1873号民事判决书生效。'],
+      ['done', '推送解除申请', '2026-07-30 14:12 · 司法协同接口', '经司法协同接口推送判决文书与解除申请，系统自动受理。'],
+      ['active', '业务审核', '待办理 · 当前节点', '核验司法文书真实性与生效状态。'],
+      ['', '注销生效', '待办理', ''],
+      ['', '房源解锁', '待办理', ''],
+      ['', '资金退款', '进行中 · 由 wszjjg 执行', '']
+    ]
+  },
+  dup: {
+    contract: 'CLF450200202600255', filing: 'BA450200202600255', addr: '万科城 12-2-905',
+    seller: '陈美玲', buyer: '黄小雅', price: '1,638,000 元',
+    type: '网签作废', reason: '重复网签作废（同一房源误签两份）', user: 'XXXX市安家房地产经纪有限公司', time: '2026-07-29 16:48',
+    agree: '<span class="badge green">已同意</span> 2026-07-29 17:20', penalty: '无',
+    desc: '经纪机构操作失误，同一房源同一对当事人重复拟定并签署两份合同，申请作废后签订的 CLF450200202600255，保留先签订的 CLF450200202600249。',
+    hasRefund: '否', refund: '—', refundSt: '<span class="badge gray">无需退款</span>',
+    payee: '—',
+    court: false,
+    tl: [
+      ['done', '提交作废申请', '2026-07-29 16:48 · XXXX市安家房地产经纪有限公司', '申请作废重复签订的网签合同。'],
+      ['done', '双方确认', '2026-07-29 17:20 · 陈美玲、黄小雅', '买卖双方均确认系重复签署，同意作废。'],
+      ['active', '业务审核', '待办理 · 当前节点', '核验两份合同要素一致性，确认确属重复。'],
+      ['', '注销生效', '待办理', ''],
+      ['', '房源解锁', '待办理 · 保留在先合同的房源锁定', ''],
+      ['', '资金退款', '不涉及', '']
+    ]
+  },
+  done: {
+    contract: 'CLF450200202600231', filing: 'BA450200202600231', addr: '恒大城 3-2-706',
+    seller: '周雅琴', buyer: '覃海波', price: '596,000 元',
+    type: '协商解除', reason: '双方协商不再交易', user: '周雅琴（出卖人）', time: '2026-07-16 10:20',
+    agree: '<span class="badge green">已同意</span> 2026-07-16 15:44', penalty: '出卖人承担 30,000 元',
+    desc: '出卖人因家庭原因决定不再出售房屋，与买受人协商一致解除合同，出卖人退还全部已付款并支付违约金 3 万元。',
+    hasRefund: '是', refund: '<span class="money">180,000</span> 元', refundSt: '<span class="badge green">已退款</span>',
+    payee: '覃海波　中国建设银行 6217****1128',
+    court: false,
+    tl: [
+      ['done', '提交解除申请', '2026-07-16 10:20 · 周雅琴', ''],
+      ['done', '对方确认', '2026-07-16 15:44 · 覃海波', '同意解除，确认违约金金额。'],
+      ['done', '业务审核', '2026-07-17 09:12 · 韦国强', '材料齐全，同意注销。'],
+      ['done', '注销生效', '2026-07-17 09:13 · 系统', '备案证明作废，成交台账写入冲销记录。'],
+      ['done', '房源解锁', '2026-07-17 09:13 · 系统', '房源恢复可挂牌状态，核验码继续有效。'],
+      ['done', '资金退款', '2026-07-19 16:30 · wszjjg', '监管资金 18 万元已退还买受人，本单结案。']
+    ]
+  }
+};
+
+var curRow = null, curKey = null;
+
+function openApprove(no, key) {
+  var c = CASES[key];
+  curKey = key;
+  curRow = [].slice.call(document.querySelectorAll('#tblCancel tbody tr')).filter(function (tr) {
+    return tr.children[0].textContent.trim() === no;
+  })[0];
+  document.getElementById('apTitle').textContent = '备案注销审批 · ' + no;
+  var set = function (id, v) { document.getElementById(id).innerHTML = v; };
+  set('apNo', no);
+  set('apContract', c.contract); set('apFiling', c.filing); set('apAddr', c.addr);
+  set('apSeller', c.seller); set('apBuyer', c.buyer); set('apPrice', c.price);
+  set('apType', c.type); set('apReason', c.reason); set('apUser', c.user);
+  set('apTime', c.time); set('apAgree', c.agree); set('apPenalty', c.penalty);
+  set('apDesc', c.desc);
+  set('apHasRefund', c.hasRefund); set('apRefund', c.refund);
+  set('apRefundSt', c.refundSt); set('apPayee', c.payee);
+  document.getElementById('apCourt').style.display = c.court ? '' : 'none';
+  document.getElementById('apTl').innerHTML = c.tl.map(function (t) {
+    return '<div class="tl-item ' + (t[0] === 'active' ? 'pending' : t[0]) + '">' +
+      '<div class="tl-dot"></div>' +
+      '<div class="tl-title">' + t[1] + '</div>' +
+      '<div class="tl-meta">' + t[2] + '</div>' +
+      (t[3] ? '<div class="tl-desc">' + t[3] + '</div>' : '') +
+    '</div>';
+  }).join('');
+  PMS.openDrawer('dwApprove');
+}
+
+function decide(r) {
+  if (curKey === 'done') { PMS.toast('本单已办结，仅供查看'); return; }
+  var pass = r === 'pass';
+  var c = CASES[curKey];
+  var needRefund = c.hasRefund === '是';
+  PMS.confirm({
+    title: pass ? '审核通过' : '退回申请',
+    message: pass ? '确认注销本次网签备案？' : '确认退回本次注销申请？',
+    detail: pass
+      ? '注销生效后备案证明作废、房源自动解锁、成交台账写入冲销记录' +
+        (needRefund ? '；涉及资金退款的须待 wszjjg 退款完成后方可结案' : '') + '。'
+      : '退回后申请人可补充材料后重新提交。',
+    type: pass ? 'danger' : 'warning',
+    okText: pass ? '确认注销' : '确认退回',
+    onOk: function () {
+      PMS.closeDrawer('dwApprove');
+      if (curRow) {
+        curRow.setAttribute('data-st', pass ? 'done' : 'back');
+        curRow.children[11].innerHTML = pass
+          ? '<span class="badge green">已注销</span>'
+          : '<span class="badge red">退回</span>';
+        if (pass) {
+          curRow.children[12].innerHTML = '<span class="badge green">已解锁</span>';
+          curRow.querySelector('.col-ops').innerHTML =
+            '<span class="link" onclick="openApprove(\'' + curRow.children[0].textContent.trim() + '\',\'done\')">查看</span>';
+        }
+      }
+      if (pass) {
+        PMS.toast('备案已注销，房源已解锁，成交台账已写入冲销记录', 'success');
+        if (needRefund) setTimeout(function () { PMS.toast('退款指令已推送资金监管系统（wszjjg），退款完成后自动结案'); }, 900);
+      } else {
+        PMS.toast('申请已退回，已通知申请人', 'success');
+      }
+    }
+  });
+}
+</script>
+</body>
+</html>

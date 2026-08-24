@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>求租登记与撮合 · 房屋租赁网签备案管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<style>
+  /* 本页特有：左右分栏撮合看板、匹配房源卡 */
+  .dc-layout { display: grid; grid-template-columns: 42% 1fr; gap: 12px; }
+  .dc-layout > .card { display: flex; flex-direction: column; }
+  #matchCard > .card-body { overflow: auto; flex: 1 1 auto; min-height: 0; }
+
+  .cond-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cond-tags span {
+    border: 1px solid var(--primary-soft); background: var(--primary-light); color: var(--primary);
+    border-radius: 20px; padding: 4px 12px; font-size: 12.5px;
+  }
+
+  .match-card {
+    display: flex; gap: 12px; border: 1px solid var(--border); border-radius: var(--radius);
+    background: #fff; padding: 12px; position: relative; transition: .18s;
+  }
+  .match-card + .match-card { margin-top: 10px; }
+  .match-card:hover { border-color: var(--primary-soft); box-shadow: 0 4px 12px rgba(38, 86, 187, .1); }
+  .match-card .mc-pic { width: 132px; flex-shrink: 0; aspect-ratio: 4 / 3; border-radius: 8px; overflow: hidden; background: var(--bg-soft); }
+  .match-card .mc-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .match-card .mc-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+  .match-card .mc-addr { font-size: 14px; font-weight: 600; }
+  .match-card .mc-meta { font-size: 12.5px; color: var(--text-2); display: flex; flex-wrap: wrap; gap: 12px; }
+  .match-card .mc-rent { font-size: 18px; font-weight: 700; color: var(--danger); }
+  .match-card .mc-rent small { font-size: 12px; color: var(--text-3); font-weight: 400; margin-left: 3px; }
+  .match-card .mc-code { font-family: Consolas, monospace; font-size: 12px; color: var(--text-3); }
+  .match-card .mc-score {
+    position: absolute; right: 12px; top: 12px;
+    font-size: 13px; font-weight: 700; border-radius: 20px; padding: 3px 12px;
+  }
+  .match-card .mc-score.hi { background: var(--success-light); color: var(--success); }
+  .match-card .mc-score.mid { background: var(--warning-light); color: var(--warning); }
+  .match-card .mc-score.low { background: var(--bg-soft); color: var(--text-3); }
+  .match-card .mc-btns { display: flex; gap: 8px; margin-top: auto; flex-wrap: wrap; }
+
+  .data-table tbody tr.picked > td { background: var(--primary-light); }
+</style>
+</head>
+<body data-role="reviewer" data-active="wszwb-10">
+<main class="app-main">
+
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋租赁网签备案管理系统
+        <span class="sep">/</span> 租赁房源管理
+        <span class="sep">/</span> <span class="cur">求租登记与撮合</span>
+      </div>
+      <div class="page-title">求租登记与撮合看板</div>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" data-open-drawer="drDemand"><i class="fa-solid fa-plus"></i> 新增求租登记</button>
+      <a class="btn" href="listing-list.html"><i class="fa-solid fa-list"></i> 租赁房源台账</a>
+      <button type="button" class="btn" onclick="PMS.toast('已生成《求租撮合结果》Excel，正在下载','success')"><i class="fa-solid fa-download"></i> 导出撮合结果</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-scale-balanced"></i>
+    <div>
+      <b>匹配度算法：</b>意向区域 40% + 租金区间 30% + 户型与面积 20% + 可租日期 10% 加权计算。
+      区域完全一致得满分、相邻城区按 60% 折算；租金落在区间内得满分，超出区间每 10% 扣 30%；
+      户型一致且面积落在区间内得满分；可租日期早于期望入住日得满分。
+    </div>
+  </div>
+
+  <div class="dc-layout">
+
+    <div class="card">
+      <div class="filter-bar">
+        <div class="filter-item">
+          <label>求租人 / 编号</label>
+          <input type="text" placeholder="姓名 / 电话 / 求租编号">
+        </div>
+        <div class="filter-item">
+          <label>意向区域</label>
+          <select>
+            <option value="">全部</option>
+            <option>城中区</option><option>鱼峰区</option><option>柳南区</option><option>柳北区</option><option>柳江区</option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <label>状态</label>
+          <select><option value="">全部</option><option>登记中</option><option>撮合中</option><option>已看房</option><option>已签约</option><option>已关闭</option></select>
+        </div>
+        <div class="filter-actions">
+          <button type="button" class="btn btn-primary" onclick="PMS.toast('已按条件筛选，共 268 条')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table" id="tblQz" data-static>
+          <thead>
+            <tr>
+              <th>求租编号</th><th>求租人</th><th>意向区域</th><th>租金区间(元/月)</th>
+              <th>户型</th><th>面积区间(㎡)</th><th>租赁方式</th><th>可租日期</th><th>登记渠道</th><th>状态</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="clickable picked" data-key="li" onclick="pick(this,'li')">
+              <td class="nowrap fw-600">QZ2026000842</td>
+              <td class="nowrap">李某某</td>
+              <td class="nowrap">城中区 / 鱼峰区</td>
+              <td class="nowrap">1,800 - 2,500</td>
+              <td class="nowrap">2 室</td>
+              <td class="nowrap">70 - 95</td>
+              <td class="nowrap">整租</td>
+              <td class="nowrap">2026-08-01</td>
+              <td class="nowrap">小程序</td>
+              <td class="nowrap"><span class="badge blue">撮合中</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="event.stopPropagation();pick(this.closest('tr'),'li')">撮合</span>
+                <span class="link danger" onclick="event.stopPropagation();closeDemand('QZ2026000842')">关闭</span>
+              </td>
+            </tr>
+            <tr class="clickable" data-key="wu" onclick="pick(this,'wu')">
+              <td class="nowrap fw-600">QZ2026000836</td>
+              <td class="nowrap">吴某某</td>
+              <td class="nowrap">柳北区</td>
+              <td class="nowrap">800 - 1,400</td>
+              <td class="nowrap">单间</td>
+              <td class="nowrap">15 - 25</td>
+              <td class="nowrap">分间合租</td>
+              <td class="nowrap">2026-08-10</td>
+              <td class="nowrap">窗口</td>
+              <td class="nowrap"><span class="badge blue">撮合中</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="event.stopPropagation();pick(this.closest('tr'),'wu')">撮合</span>
+                <span class="link danger" onclick="event.stopPropagation();closeDemand('QZ2026000836')">关闭</span>
+              </td>
+            </tr>
+            <tr class="clickable" data-key="liu" onclick="pick(this,'liu')">
+              <td class="nowrap fw-600">QZ2026000824</td>
+              <td class="nowrap">刘某某</td>
+              <td class="nowrap">城中区</td>
+              <td class="nowrap">900 - 1,300</td>
+              <td class="nowrap">1 室</td>
+              <td class="nowrap">45 - 65</td>
+              <td class="nowrap">整租</td>
+              <td class="nowrap">2026-08-15</td>
+              <td class="nowrap">人才服务专窗</td>
+              <td class="nowrap"><span class="badge green">已签约</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="event.stopPropagation();pick(this.closest('tr'),'liu')">撮合</span>
+                <a class="link" href="contract-detail.html" onclick="event.stopPropagation()">查看合同</a>
+              </td>
+            </tr>
+            <tr class="clickable" data-key="li" onclick="pick(this,'li')">
+              <td class="nowrap fw-600">QZ2026000817</td>
+              <td class="nowrap">黄某某</td>
+              <td class="nowrap">鱼峰区</td>
+              <td class="nowrap">2,600 - 3,500</td>
+              <td class="nowrap">3 室</td>
+              <td class="nowrap">95 - 130</td>
+              <td class="nowrap">整租</td>
+              <td class="nowrap">2026-08-05</td>
+              <td class="nowrap">租房超市</td>
+              <td class="nowrap"><span class="badge orange">已看房</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="event.stopPropagation();pick(this.closest('tr'),'li')">撮合</span>
+                <span class="link danger" onclick="event.stopPropagation();closeDemand('QZ2026000817')">关闭</span>
+              </td>
+            </tr>
+            <tr class="clickable" data-key="wu" onclick="pick(this,'wu')">
+              <td class="nowrap fw-600">QZ2026000805</td>
+              <td class="nowrap">罗某某</td>
+              <td class="nowrap">城中区 / 柳北区</td>
+              <td class="nowrap">500 - 800</td>
+              <td class="nowrap">床位</td>
+              <td class="nowrap">—</td>
+              <td class="nowrap">床位</td>
+              <td class="nowrap">2026-08-15</td>
+              <td class="nowrap">企业集中登记</td>
+              <td class="nowrap"><span class="badge gray">登记中</span></td>
+              <td class="col-ops">
+                <span class="link" onclick="event.stopPropagation();pick(this.closest('tr'),'wu')">撮合</span>
+                <span class="link danger" onclick="event.stopPropagation();closeDemand('QZ2026000805')">关闭</span>
+              </td>
+            </tr>
+            <tr class="clickable" data-key="liu" onclick="pick(this,'liu')">
+              <td class="nowrap fw-600">QZ2026000792</td>
+              <td class="nowrap">覃某某</td>
+              <td class="nowrap">柳南区</td>
+              <td class="nowrap">1,500 - 2,200</td>
+              <td class="nowrap">2 室</td>
+              <td class="nowrap">65 - 90</td>
+              <td class="nowrap">整租</td>
+              <td class="nowrap">2026-09-01</td>
+              <td class="nowrap">小程序</td>
+              <td class="nowrap"><span class="badge gray">已关闭</span></td>
+              <td class="col-ops"><span class="link" onclick="event.stopPropagation();PMS.toast('已重新开启求租登记','success')">重新开启</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" id="matchCard">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-handshake-angle"></i> 撮合结果 · <span id="mcName">李某某</span></h3>
+        <span class="sub" id="mcCount">匹配到 4 套房源，按匹配度降序排列</span>
+      </div>
+      <div class="card-body">
+        <div class="cond-tags mb-16" id="mcTags">
+          <span>城中区 / 鱼峰区</span><span>1,800 - 2,500 元/月</span><span>2 室</span>
+          <span>70 - 95 ㎡</span><span>整租</span><span>2026-08-01 可入住</span><span>需家电齐全</span>
+        </div>
+        <div id="mcList"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 新增求租登记 -->
+  <div class="drawer-mask" data-close-drawer></div>
+  <div class="drawer" id="drDemand">
+    <div class="drawer-head">
+      <span>新增求租登记</span>
+      <i class="fa-solid fa-xmark" data-close-drawer></i>
+    </div>
+    <div class="drawer-body">
+      <div class="form-grid form-align">
+        <div class="form-item">
+          <label>求租人姓名<span class="req">*</span></label>
+          <input type="text" placeholder="请输入姓名">
+        </div>
+        <div class="form-item">
+          <label>证件类型 / 号码<span class="req">*</span></label>
+          <input type="text" placeholder="居民身份证 4502…">
+        </div>
+        <div class="form-item">
+          <label>联系电话<span class="req">*</span></label>
+          <input type="text" placeholder="11 位手机号">
+        </div>
+        <div class="form-item">
+          <label>登记渠道</label>
+          <select><option>窗口</option><option>小程序</option><option>租房超市</option><option>人才服务专窗</option><option>企业集中登记</option></select>
+        </div>
+        <div class="form-item col-full">
+          <label>意向区域<span class="req">*</span></label>
+          <div class="flex items-center gap-16" style="flex-wrap:wrap">
+            <label class="flex items-center gap-8"><input type="checkbox" checked> 城中区</label>
+            <label class="flex items-center gap-8"><input type="checkbox" checked> 鱼峰区</label>
+            <label class="flex items-center gap-8"><input type="checkbox"> 柳南区</label>
+            <label class="flex items-center gap-8"><input type="checkbox"> 柳北区</label>
+            <label class="flex items-center gap-8"><input type="checkbox"> 柳江区</label>
+          </div>
+        </div>
+        <div class="form-item">
+          <label>可接受租金下限(元/月)</label>
+          <input type="number" value="1800">
+        </div>
+        <div class="form-item">
+          <label>可接受租金上限(元/月)</label>
+          <input type="number" value="2500">
+        </div>
+        <div class="form-item">
+          <label>户型</label>
+          <select><option>单间</option><option>1 室</option><option selected>2 室</option><option>3 室</option><option>4 室及以上</option><option>床位</option></select>
+        </div>
+        <div class="form-item">
+          <label>面积区间(㎡)</label>
+          <input type="text" value="70 - 95">
+        </div>
+        <div class="form-item">
+          <label>租赁方式</label>
+          <select><option selected>整租</option><option>分间合租</option><option>床位</option></select>
+        </div>
+        <div class="form-item">
+          <label>可租日期</label>
+          <input type="date" value="2026-08-01">
+        </div>
+        <div class="form-item">
+          <label>期望租期(月)</label>
+          <input type="number" value="12">
+        </div>
+        <div class="form-item">
+          <label>可租对象类别</label>
+          <select><option selected>不限</option><option>家庭</option><option>学生</option><option>人才</option><option>企业员工</option></select>
+        </div>
+        <div class="form-item col-full">
+          <label>特殊要求</label>
+          <div class="flex items-center gap-16" style="flex-wrap:wrap">
+            <label class="flex items-center gap-8"><input type="checkbox"> 可养宠物</label>
+            <label class="flex items-center gap-8"><input type="checkbox" checked> 需家电齐全</label>
+            <label class="flex items-center gap-8"><input type="checkbox"> 通勤时长 ≤ 30 分钟</label>
+            <label class="flex items-center gap-8"><input type="checkbox"> 需独立卫浴</label>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn" data-close-drawer>取消</button>
+      <button type="button" class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('求租登记成功，编号 QZ2026000851，已自动撮合 4 套房源','success')">提交并撮合</button>
+    </div>
+  </div>
+
+</main>
+<script src="../../assets/js/app.js"></script>
+<script>
+var DEMAND = {
+  li: {
+    name: '李某某',
+    tags: ['城中区 / 鱼峰区', '1,800 - 2,500 元/月', '2 室', '70 - 95 ㎡', '整租', '2026-08-01 可入住', '需家电齐全'],
+    list: [
+      { score: 92, addr: '阳光 100 城市广场 3-2-1602', meta: '2 室 1 厅 · 82.60 ㎡ · 精装 · 整租', rent: '2,300', st: '已核验待发布', code: 'ZLHY-450200-2026-000386', pic: 'photo-1502672260266-1c1ef2d93688' },
+      { score: 86, addr: '万科城 7-1-902', meta: '3 室 2 厅 · 108.60 ㎡ · 精装 · 整租', rent: '3,200', st: '已发布招租中', code: 'ZLHY-450200-2026-000371', pic: 'photo-1522708323590-d24dbb6b0267' },
+      { score: 74, addr: '荣和公园大道 5-1-806', meta: '3 室 2 厅 · 96.30 ㎡ · 简装 · 整租', rent: '2,800', st: '待核验', code: '—', pic: 'photo-1560448204-e02f11c3d0e2' },
+      { score: 61, addr: '龙光玖誉城 4-1-706', meta: '2 室 1 厅 · 74.80 ㎡ · 简装 · 整租', rent: '1,680', st: '已备案出租中', code: 'ZLHY-450200-2026-000168', pic: 'photo-1493809842364-78817add7ffb' }
+    ]
+  },
+  wu: {
+    name: '吴某某',
+    tags: ['柳北区', '800 - 1,400 元/月', '单间', '15 - 25 ㎡', '分间合租', '2026-08-10 可入住'],
+    list: [
+      { score: 95, addr: '桂中华府 6-2-1104 分间 B', meta: '单间带阳台 · 22.30 ㎡ · 独立卫浴 · 分间合租', rent: '1,380', st: '已发布招租中', code: 'ZLHY-450200-2026-000358', pic: 'photo-1556911220-bff31c812dba' },
+      { score: 88, addr: '桂中华府 6-2-1104 分间 A', meta: '单间 · 18.60 ㎡ · 公用卫浴 · 分间合租', rent: '1,180', st: '已发布招租中', code: 'ZLHY-450200-2026-000358', pic: 'photo-1620626011761-996317b8d101' },
+      { score: 68, addr: '华润幸福里 3-2-1701 分间 C', meta: '单间 · 16.20 ㎡ · 公用卫浴 · 分间合租', rent: '980', st: '已下架', code: 'ZLHY-450200-2026-000389', pic: 'photo-1493809842364-78817add7ffb' }
+    ]
+  },
+  liu: {
+    name: '刘某某',
+    tags: ['城中区', '900 - 1,300 元/月', '1 室', '45 - 65 ㎡', '整租', '2026-08-15 可入住', '人才优先'],
+    list: [
+      { score: 96, addr: '天湖国际 2-1-1508', meta: '1 室 1 厅 · 56.20 ㎡ · 精装 · 保障性租赁住房', rent: '1,120', st: '已备案出租中', code: 'ZLHY-450200-2026-000214', pic: 'photo-1502672260266-1c1ef2d93688' },
+      { score: 72, addr: '彰泰滨江学府 8-1-501', meta: '1 室 1 厅 · 48.60 ㎡ · 简装 · 整租', rent: '1,280', st: '待核验', code: '—', pic: 'photo-1560448204-e02f11c3d0e2' }
+    ]
+  }
+};
+
+function scoreCls(n) { return n >= 85 ? 'hi' : n >= 70 ? 'mid' : 'low'; }
+
+function render(key) {
+  var d = DEMAND[key] || DEMAND.li;
+  document.getElementById('mcName').textContent = d.name;
+  document.getElementById('mcCount').textContent = '匹配到 ' + d.list.length + ' 套房源，按匹配度降序排列';
+  document.getElementById('mcTags').innerHTML = d.tags.map(function (t) { return '<span>' + t + '</span>'; }).join('');
+  document.getElementById('mcList').innerHTML = d.list.map(function (m) {
+    return '<div class="match-card">' +
+      '<span class="mc-score ' + scoreCls(m.score) + '">匹配度 ' + m.score + '%</span>' +
+      '<div class="mc-pic"><img src="https://images.unsplash.com/' + m.pic + '?w=360&q=60" alt="房源"></div>' +
+      '<div class="mc-main">' +
+        '<div class="mc-addr">' + m.addr + '</div>' +
+        '<div class="mc-meta"><span>' + m.meta + '</span></div>' +
+        '<div class="flex items-center gap-16" style="flex-wrap:wrap">' +
+          '<span class="mc-rent">' + m.rent + '<small>元/月</small></span>' +
+          '<span class="badge cyan">' + m.st + '</span>' +
+          '<span class="mc-code">' + m.code + '</span>' +
+        '</div>' +
+        '<div class="mc-btns">' +
+          '<a class="btn btn-sm" href="listing-detail.html"><i class="fa-solid fa-eye"></i> 查看房源</a>' +
+          '<button type="button" class="btn btn-sm" onclick="PMS.toast(\'已将房源推送至求租人手机，等待反馈\',\'success\')"><i class="fa-solid fa-paper-plane"></i> 推送给求租人</button>' +
+          '<a class="btn btn-sm btn-primary" href="viewing-appointment.html"><i class="fa-solid fa-calendar-check"></i> 代约看房</a>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function pick(tr, key) {
+  document.querySelectorAll('#tblQz tbody tr').forEach(function (r) { r.classList.remove('picked'); });
+  tr.classList.add('picked');
+  render(key);
+}
+
+function closeDemand(no) {
+  PMS.confirm({
+    title: '关闭求租登记',
+    message: '关闭求租登记「' + no + '」？',
+    detail: '关闭后不再参与撮合，可在列表中重新开启。',
+    type: 'warning',
+    okText: '关闭',
+    onOk: function () { PMS.toast('已关闭 ' + no, 'success'); }
+  });
+}
+
+render('li');
+PMS.renderPager(document.getElementById('tblQz'), {
+  pageNum: 1, pageSize: 20, total: 268,
+  onChange: function () { PMS.toast('演示数据仅提供首页样例'); }
+});
+</script>
+</body>
+</html>
