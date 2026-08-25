@@ -451,6 +451,12 @@
               ]
             },
             {
+              key: "wsztxy-25",
+              label: "电子钥匙配置管理",
+              icon: "fa-key",
+              href: "../modules/wsztxy/wsztxy-25.html"
+            },
+            {
               label: "双随机一公开",
               icon: "fa-bullhorn",
               children: [
@@ -479,6 +485,14 @@
                 { key: "wsztxy-15", label: "企业全景画像", href: "../modules/wsztxy/wsztxy-15.html" },
                 { key: "wsztxy-16", label: "经营行为查处", href: "../modules/wsztxy/wsztxy-16.html" },
                 { key: "wsztxy-17", label: "主体台账统计", href: "../modules/wsztxy/wsztxy-17.html" }
+              ]
+            },
+            {
+              label: "系统配置",
+              icon: "fa-sliders",
+              children: [
+                { key: "wsztxy-26", label: "角色权限与数据范围", href: "../modules/wsztxy/wsztxy-26.html" },
+                { key: "wsztxy-27", label: "业务闭环与验收", href: "../modules/wsztxy/wsztxy-27.html" }
               ]
             }
           ]
@@ -966,7 +980,7 @@
         window: [
           "wsbiz-06", "wsbiz-07", "wsbiz-08", "wsbiz-09", "wsbiz-10", "wsbiz-12", "wsbiz-13", "wsbiz-14",
           "wsbiz-15", "wsswb-01", "wscwb-01", "wscwb-03", "wscwb-05", "wszwb-01", "wsdwb-01", "wsdwb-04",
-          "wschcg-01", "wsdagl-01", "wsztxy-01", "wsztxy-18", "wsztxy-24", "wsszjjg-01", "wszjjg-01",
+          "wschcg-01", "wsdagl-01", "wsztxy-01", "wsztxy-25", "wsztxy-18", "wsztxy-24", "wsszjjg-01", "wszjjg-01",
           "wswxzj-01", "wsjcfx-02",
           "wsjcfx-03", "wsjcfx-04", "wsjcfx-05", "wsjcfx-06", "wsjcfx-07", "wsjcfx-08", "wsjcfx-10",
           "wsjcfx-18", "wspt-01", "wssvc-01", "wssvc-31", "wssvc-14", "wsops-01", "wsszjjg-02", "wsszjjg-03",
@@ -998,7 +1012,7 @@
           "wschcg-19", "wschcg-20", "wschcg-21", "wschcg-22", "wschcg-23", "wsdagl-01", "wsdagl-02",
           "wsdagl-03", "wsdagl-04", "wsdagl-05", "wsdagl-06", "wsdagl-07", "wsdagl-08", "wsdagl-09",
           "wsdagl-10", "wsdagl-11", "wsdagl-12", "wsdagl-13", "wsdagl-14", "wsdagl-15", "wsdagl-16",
-          "wsdagl-17", "wsdagl-18", "wsdagl-19", "wsdagl-20", "wsztxy-01", "wsztxy-02", "wsztxy-03",
+          "wsdagl-17", "wsdagl-18", "wsdagl-19", "wsdagl-20", "wsztxy-01", "wsztxy-25", "wsztxy-02", "wsztxy-03",
           "wsztxy-04", "wsztxy-06", "wsztxy-07", "wsztxy-08", "wsztxy-10", "wsztxy-18", "wsztxy-19",
           "wsztxy-23", "wsztxy-24", "wsszjjg-01", "wsszjjg-02", "wsszjjg-05",
           "wsszjjg-06", "wsszjjg-08", "wsszjjg-09", "wsszjjg-10", "wsszjjg-12", "wsszjjg-13", "wszjjg-01",
@@ -1020,7 +1034,7 @@
           "wscwb-01", "wscwb-06", "wszwb-01", "wszwb-02", "wszwb-04", "wszwb-05", "wszwb-06", "wsdwb-01",
           "wsdwb-04", "wschcg-01", "wsdagl-01", "wsztxy-01", "wsztxy-02", "wsztxy-03", "wsztxy-05",
           "wsztxy-06", "wsztxy-07", "wsztxy-08", "wsztxy-09", "wsztxy-10", "wsztxy-11", "wsztxy-12",
-          "wsztxy-13", "wsztxy-14", "wsztxy-15", "wsztxy-16", "wsztxy-17", "wsztxy-18", "wsztxy-19",
+          "wsztxy-13", "wsztxy-14", "wsztxy-15", "wsztxy-16", "wsztxy-17", "wsztxy-25", "wsztxy-26", "wsztxy-27", "wsztxy-18", "wsztxy-19",
           "wsztxy-20", "wsztxy-21", "wsztxy-22", "wsztxy-23", "wsztxy-24", "wsszjjg-01", "wsszjjg-02",
           "wsszjjg-03", "wsszjjg-05", "wsszjjg-06", "wsszjjg-07", "wsszjjg-08", "wsszjjg-09", "wsszjjg-11",
           "wszjjg-01", "wszjjg-02", "wswxzj-01", "wswxzj-02", "wswxzj-04", "wswxzj-05", "wswxzj-06",
@@ -1038,7 +1052,7 @@
         ],
         leader: [
           "wsbiz-17", "wsbiz-18", "wsswb-01", "wscwb-01", "wszwb-01", "wsdwb-01", "wschcg-01", "wsdagl-01",
-          "wsztxy-01", "wsztxy-15", "wsztxy-17", "wsztxy-20", "wsszjjg-01", "wszjjg-01", "wswxzj-01",
+          "wsztxy-01", "wsztxy-15", "wsztxy-17", "wsztxy-27", "wsztxy-20", "wsszjjg-01", "wszjjg-01", "wswxzj-01",
           "wswxzj-06", "wswxzj-08",
           "wsjcfx-01", "wsjcfx-02", "wsjcfx-03", "wsjcfx-04", "wsjcfx-05", "wsjcfx-06", "wsjcfx-07",
           "wsjcfx-08", "wsjcfx-10", "wsjcfx-11", "wsjcfx-13", "wsjcfx-14", "wsjcfx-15", "wsjcfx-16",
@@ -1055,7 +1069,7 @@
         ],
         admin: [
           "wsbiz-05", "wsbiz-10", "wsbiz-11", "wsbiz-13", "wsbiz-20", "wsswb-01", "wscwb-01", "wszwb-01",
-          "wsdwb-01", "wschcg-01", "wschcg-02", "wschcg-05", "wsdagl-01", "wsztxy-01", "wsztxy-20",
+          "wsdwb-01", "wschcg-01", "wschcg-02", "wschcg-05", "wsdagl-01", "wsztxy-01", "wsztxy-25", "wsztxy-26", "wsztxy-27", "wsztxy-20",
           "wsztxy-21", "wsztxy-22", "wsztxy-24", "wsszjjg-01",
           "wsszjjg-02", "wsszjjg-03", "wsszjjg-04", "wszjjg-01", "wswxzj-01", "wswxzj-02", "wsjcfx-02",
           "wsjcfx-03", "wsjcfx-04", "wsjcfx-05", "wsjcfx-06", "wsjcfx-07", "wsjcfx-08", "wsjcfx-09",

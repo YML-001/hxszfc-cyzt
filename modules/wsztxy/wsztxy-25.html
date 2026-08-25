@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>电子钥匙配置管理 · 从业主体与信用监管系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<link rel="stylesheet" href="../../assets/css/wsztxy.css">
+</head>
+<body data-role="reviewer" data-active="wsztxy-25">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 从业主体与信用监管系统
+        <span class="sep">/</span> 电子钥匙
+        <span class="sep">/</span> <span class="cur">电子钥匙配置管理</span>
+      </div>
+      <div class="page-title">电子钥匙配置管理</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="ZT.todo('已从本地介质读取钥匙硬件编号 IK4502000186312，已写入新增表单；手工录入的编号会单独标记并纳入抽查范围（13.6 R-K14）')"><i class="fa-solid fa-usb"></i> 读取介质编号</button>
+      <button class="btn" onclick="ZT.todo('已按预警提前量重跑到期扫描：正常 1,042 支，其中 90 日内到期 36 支、已过期 24 支；过期钥匙的绑定账号已自动禁止登录（13.6 R-K6）')"><i class="fa-solid fa-radar"></i> 重跑到期扫描</button>
+      <button class="btn btn-primary" onclick="ZT.exportAsync('电子钥匙台账')"><i class="fa-solid fa-download"></i> 导出台账</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>电子钥匙是企业经办人员办理网签、备案等业务的<b>必备凭据</b>，未配发有效钥匙的账号只能登录查看、不得提交任何业务办件（13.6 R-K1）。
+      它同时承担<b>身份凭据、账号载体、签约授权、计费与介质管理</b>四重作用，因此不能简化为一个登录 U 盘。
+      钥匙状态与账号登录状态<b>强联动</b>：置为回收、过期、正在注销、已注销时绑定账号自动禁止登录，恢复正常时自动放开（13.6 R-K5）。
+      存量系统中「钥匙 / 电子钥匙 / Ikey / 电子密匙」四种叫法本次统一为「电子钥匙」，数据库字段沿用 <code>ik</code> 前缀。</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-key"></i></div><div>
+      <div class="s-label">正常</div><div class="s-value">1,042</div><div class="s-trend text-success">可登录并签约</div></div></div>
+    <div class="stat-card"><div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div><div>
+      <div class="s-label">90 日内到期</div><div class="s-value">36</div><div class="s-trend text-warning">已推送续费提醒</div></div></div>
+    <div class="stat-card dc-alarm"><div class="s-icon red"><i class="fa-solid fa-circle-xmark"></i></div><div>
+      <div class="s-label">已过期</div><div class="s-value">24</div><div class="s-trend">绑定账号已禁登</div></div></div>
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-rotate-left"></i></div><div>
+      <div class="s-label">已回收</div><div class="s-value">68</div><div class="s-trend text-2">离职 / 暂停业务</div></div></div>
+    <div class="stat-card"><div class="s-icon purple"><i class="fa-solid fa-gift"></i></div><div>
+      <div class="s-label">免费更换过期</div><div class="s-value">7</div><div class="s-trend text-2">系统或介质原因</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-inbox"></i></div><div>
+      <div class="s-label">待办钥匙办件</div><div class="s-value">12</div><div class="s-trend text-2">4005 新增 5 / 续费 4 / 更换 3</div></div></div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="tz">钥匙台账</div>
+      <div class="tab" data-tab="bj">钥匙办件 <span class="badge orange">12</span></div>
+      <div class="tab" data-tab="bd">绑定与楼栋授权</div>
+      <div class="tab" data-tab="ls">变更流水与数量台账</div>
+      <div class="tab" data-tab="zt">状态机与介质迁移</div>
+    </div>
+
+    <!-- ===================== 页签一 · 钥匙台账 ===================== -->
+    <div class="tab-panel active" data-panel="tz">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>数据范围</label><select data-dict="said" data-selected="450200" data-ph=""></select></div>
+          <div class="filter-item"><label>企业类型</label>
+            <select><option>全部</option><option>开发企业</option><option>经纪机构</option><option>金融机构</option><option>政府部门</option></select>
+          </div>
+          <div class="filter-item"><label>企业名称 / 入网编号</label><input type="text" placeholder="企业名称或入网编号"></div>
+          <div class="filter-item"><label>钥匙编号</label><input type="text" placeholder="全市唯一（13.6 R-K2）"></div>
+          <div class="filter-item"><label>钥匙状态</label>
+            <select><option>全部</option><option>正常</option><option>回收</option><option>过期</option><option>免费更换过期</option><option>正在注销</option><option>已注销</option></select>
+          </div>
+          <div class="filter-item"><label>绑定经办人</label><input type="text" placeholder="姓名或证件号后 4 位"></div>
+          <div class="filter-item"><label>有效期止</label><input type="date" value="2026-12-31"></div>
+          <div class="filter-item"><label>介质类型</label>
+            <select><option>全部</option><option>存量 Ikey</option><option>国密证书载体</option></select>
+          </div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按所选条件检索钥匙台账','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="PMS.toast('已重置为默认条件')">重置</button>
+            <button class="btn btn-primary" data-roles-not="developer agency bank" onclick="PMS.openDrawer('xzDrawer')"><i class="fa-solid fa-plus"></i> 钥匙新增</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>钥匙编号</th><th>所属企业 / 入网编号</th><th>绑定经办人</th><th>有效期止</th>
+              <th>钥匙状态</th><th>介质类型</th><th>工本费</th><th class="num">授权楼栋</th><th>配发办件号</th><th>操作</th>
+            </tr></thead>
+            <tbody>
+              <tr class="clickable" onclick="openYs('IK4502000186301','荣和房地产开发')">
+                <td>IK4502000186301</td>
+                <td class="cell-lg">XXXX市荣和房地产开发有限公司 <span class="muted">RW2019-0186</span></td>
+                <td>周××<span class="zt-meta" title="一支钥匙可绑定一个或多个经办人员账号（13.6 R-K4）">?</span></td>
+                <td>2027-04-15</td>
+                <td><span class="zt-st done">正常</span></td>
+                <td>存量 Ikey</td>
+                <td><span class="badge green">已缴</span></td>
+                <td class="num">12</td>
+                <td>BJ2024-19-001188</td>
+                <td>
+                  <span class="link" onclick="event.stopPropagation();openYs('IK4502000186301','荣和房地产开发')">查看</span>
+                  <span class="link" onclick="event.stopPropagation();openBd(this)">绑定管理</span>
+                  <span class="link" data-roles-not="developer agency bank" onclick="event.stopPropagation();openHs(this)">回收</span>
+                </td>
+              </tr>
+              <tr class="clickable row-warn" onclick="openYs('IK4502000186302','荣和房地产开发')">
+                <td>IK4502000186302</td>
+                <td class="cell-lg">XXXX市荣和房地产开发有限公司 <span class="muted">RW2019-0186</span></td>
+                <td>陆××</td>
+                <td><b>2026-09-20</b> <span class="text-warning">剩 26 天</span></td>
+                <td><span class="zt-st done">正常</span></td>
+                <td>存量 Ikey</td>
+                <td><span class="badge green">已缴</span></td>
+                <td class="num">12</td>
+                <td>BJ2024-19-001189</td>
+                <td>
+                  <span class="link" onclick="event.stopPropagation();openYs('IK4502000186302','荣和房地产开发')">查看</span>
+                  <span class="link" data-roles-not="developer agency bank" onclick="event.stopPropagation();openXf(this)">办理续费</span>
+                  <span class="link" onclick="event.stopPropagation();ZT.todo('已向该企业经办人推送续费提醒（PC-34 短信 + 站内信 + 企业端弹窗），并附在线续费入口')">催办续费</span>
+                </td>
+              </tr>
+              <tr class="clickable row-bad" onclick="openYs('IK4502000264105','恒大置业')">
+                <td>IK4502000264105</td>
+                <td class="cell-lg">XXXX市恒大置业有限公司 <span class="muted">RW2018-0264</span></td>
+                <td>张××</td>
+                <td><b>2026-06-30</b> <span class="text-danger">已逾期 56 天</span></td>
+                <td><span class="zt-st bad">过期</span></td>
+                <td>存量 Ikey</td>
+                <td><span class="badge orange">待缴续费</span></td>
+                <td class="num">8</td>
+                <td>BJ2023-19-000922</td>
+                <td>
+                  <span class="link" onclick="event.stopPropagation();openYs('IK4502000264105','恒大置业')">查看</span>
+                  <span class="link" data-roles-not="developer agency bank" onclick="event.stopPropagation();openXf(this)">办理续费</span>
+                  <span class="link" onclick="event.stopPropagation();ZT.todo('该钥匙已过期，绑定账号「张××」已被自动禁止登录（13.6 R-K5）；续费办结后自动恢复')">禁登说明</span>
+                </td>
+              </tr>
+              <tr class="clickable" onclick="openYs('IK4502000356201','安居房地产经纪')">
+                <td>IK4502000356201</td>
+                <td class="cell-lg">XXXX市安居房地产经纪有限公司 <span class="muted">RW2021-0356</span></td>
+                <td>莫××、梁××</td>
+                <td>2028-08-02</td>
+                <td><span class="zt-st done">正常</span></td>
+                <td><span class="badge cyan">国密证书载体</span></td>
+                <td><span class="badge green">已缴</span></td>
+                <td class="num">—</td>
+                <td>BJ2025-19-002841</td>
+                <td>
+                  <span class="link" onclick="event.stopPropagation();openYs('IK4502000356201','安居房地产经纪')">查看</span>
+                  <span class="link" onclick="event.stopPropagation();openBd(this)">绑定管理</span>
+                  <span class="link" onclick="event.stopPropagation();ZT.todo('经纪机构办理存量房与租赁网签，不涉及商品房楼栋授权；楼栋授权仅在商品房网签场景使用（13.6 R-K9）')">授权口径</span>
+                </td>
+              </tr>
+              <tr class="clickable row-warn" onclick="openYs('IK4502000733108','中天房地产经纪')">
+                <td>IK4502000733108</td>
+                <td class="cell-lg">XXXX市中天房地产经纪有限公司 <span class="muted">RW2021-0733</span></td>
+                <td><span class="muted">已解绑</span></td>
+                <td>2027-07-29</td>
+                <td><span class="zt-st init">回收</span></td>
+                <td>存量 Ikey</td>
+                <td><span class="badge green">已缴</span></td>
+                <td class="num">—</td>
+                <td>BJ2021-19-000733</td>
+                <td>
+                  <span class="link" onclick="event.stopPropagation();openYs('IK4502000733108','中天房地产经纪')">查看</span>
+                  <span class="link" onclick="event.stopPropagation();ZT.todo('回收原因：该企业资质被吊销、业务暂停。绑定账号已禁止登录，回收流水已生成（13.6 R-K11）')">回收原因</span>
+                </td>
+              </tr>
+              <tr class="clickable" onclick="openYs('IK4502000186315','荣和房地产开发')">
+                <td>IK4502000186315</td>
+                <td class="cell-lg">XXXX市荣和房地产开发有限公司 <span class="muted">RW2019-0186</span></td>
+                <td>覃××</td>
+                <td>2027-03-11</td>
+                <td><span class="zt-st wait">免费更换过期</span></td>
+                <td>存量 Ikey</td>
+                <td><span class="badge cyan">免收</span></td>
+                <td class="num">12</td>
+                <td>BJ2026-19-003318</td>
+                <td>
+                  <span class="link" onclick="event.stopPropagation();openYs('IK4502000186315','荣和房地产开发')">查看</span>
+                  <span class="link" onclick="event.stopPropagation();ZT.todo('认定为介质本身故障导致的过期，按免费更换处理、不重复收取工本费，状态单独标识以便统计与审计（13.6 R-K7）。免费次数上限待业务确认')">免费认定</span>
+                </td>
+              </tr>
+              <tr class="clickable row-warn" onclick="openYs('IK4502000421088','宜家房地产经纪')">
+                <td>IK4502000421088</td>
+                <td class="cell-lg">XXXX市宜家房地产经纪有限公司 <span class="muted">RW2022-0421</span></td>
+                <td>黄××</td>
+                <td>2027-03-14</td>
+                <td><span class="zt-st wait">正在注销</span></td>
+                <td>存量 Ikey</td>
+                <td><span class="badge green">已缴</span></td>
+                <td class="num">—</td>
+                <td>BJ2022-19-000421</td>
+                <td>
+                  <span class="link" onclick="event.stopPropagation();openYs('IK4502000421088','宜家房地产经纪')">查看</span>
+                  <span class="link is-off" onclick="event.stopPropagation();ZT.denied('正在注销的钥匙已锁定，不可用于签约，也不可再办理续费与绑定变更（13.3 状态机）')">办理续费</span>
+                </td>
+              </tr>
+              <tr class="clickable row-off" onclick="openYs('IK4502000421066','宜家房地产经纪')">
+                <td>IK4502000421066</td>
+                <td class="cell-lg">XXXX市宜家房地产经纪有限公司 <span class="muted">RW2022-0421</span></td>
+                <td><span class="muted">已解除全部绑定</span></td>
+                <td>2027-03-14</td>
+                <td><span class="zt-st dead">已注销</span></td>
+                <td>存量 Ikey</td>
+                <td><span class="badge gray">—</span></td>
+                <td class="num">—</td>
+                <td>BJ2022-19-000421</td>
+                <td>
+                  <span class="link" onclick="event.stopPropagation();openYs('IK4502000421066','宜家房地产经纪')">查看</span>
+                  <span class="link" onclick="event.stopPropagation();ZT.todo('主体注销生效时钥匙一并注销，注销办件号 BJ2026-19-001904 已回写钥匙档案；状态不可逆（13.3 状态机 / 13.6 R-K10）')">注销说明</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="zt-srcbar">
+          <span><b>钥匙编号</b> 全市唯一，同一编号不得在两家企业名下同时有效（13.6 R-K2）</span>
+          <span><b>数据隔离</b> 县区只管本辖区企业钥匙，市局可见全市，企业端只见本企业（13.6 R-K15）</span>
+          <span><b>存量表</b> <code>wsztxy.IK_YSPZJBXX</code>，本次扩展有效期止、工本费缴纳标识、介质类型三个字段</span>
+        </div>
+        <p class="hint">
+          <i class="fa-solid fa-circle-info"></i>
+          钥匙必须挂在<b>已入网且审核通过</b>的企业名下；企业未入网、暂停业务或已注销的，不得新增或续费钥匙（13.6 R-K3）。
+        </p>
+      </div>
+    </div>
+
+    <!-- ===================== 页签二 · 钥匙办件 ===================== -->
+    <div class="tab-panel" data-panel="bj">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>钥匙类业务分两类：<b>独立事项</b>走完整办件流程并计时限（<b>4005</b> 电子钥匙新增，7 个工作日，申请 → 受理 → 审核（含税费核算与缴交）→ 配钥匙；
+            <b>1H04</b> 企业人员入网含配钥匙，受理 → 审核 → 收费 → 配钥匙 → 发证）；<b>派生操作</b>不单独立项，在钥匙台账内直接办理但同样留痕。
+            4005 为外网自助申报事项，按流程 B 模式设计，企业端提交后由窗口签收受理。</div>
+        </div>
+
+        <div class="filter-bar">
+          <div class="filter-item"><label>数据范围</label><select data-dict="said" data-selected="450200" data-ph=""></select></div>
+          <div class="filter-item"><label>业务类型</label>
+            <select><option>全部</option><option>4005 电子钥匙新增</option><option>1H04 企业人员入网（含配钥匙）</option><option>续费</option><option>遗失补办</option><option>损坏更换</option></select>
+          </div>
+          <div class="filter-item"><label>企业名称</label><input type="text" placeholder="企业名称或入网编号"></div>
+          <div class="filter-item"><label>当前环节</label>
+            <select><option>全部</option><option>待签收</option><option>待受理</option><option>待审核</option><option>待缴费</option><option>待配钥匙</option><option>已办结</option></select>
+          </div>
+          <div class="filter-item"><label>缴费状态</label><select><option>全部</option><option>已缴</option><option>待缴</option><option>免收</option></select></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按所选条件检索钥匙办件','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="PMS.toast('已重置为默认条件')">重置</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>办件号</th><th>事项 / 业务类型</th><th>企业名称</th><th>申请人员</th>
+              <th>当前环节</th><th>承诺时限</th><th>剩余</th><th>工本费</th><th>申报渠道</th><th>操作</th>
+            </tr></thead>
+            <tbody>
+              <tr class="clickable" onclick="openBjSh('BJ2026-19-005120','荣和房地产开发','4005 电子钥匙新增')">
+                <td>BJ2026-19-005120</td>
+                <td class="cell-lg"><b>4005</b> 电子钥匙新增</td>
+                <td class="cell-lg">XXXX市荣和房地产开发有限公司</td>
+                <td>周××</td>
+                <td><span class="zt-step"><span class="sp">申请</span><i class="fa-solid fa-angle-right ar"></i><span class="sp">受理</span><i class="fa-solid fa-angle-right ar"></i><span class="sp key">审核·税费</span><i class="fa-solid fa-angle-right ar"></i><span class="sp todo">配钥匙</span></span></td>
+                <td>7 个工作日</td><td>剩 5 天</td>
+                <td><span class="badge orange">待缴</span></td>
+                <td>企业工作台</td>
+                <td>
+                  <span class="link" data-roles-not="developer agency bank" onclick="event.stopPropagation();openBjSh('BJ2026-19-005120','荣和房地产开发','4005 电子钥匙新增')">审核</span>
+                  <span class="link" onclick="event.stopPropagation();ZT.todo('税费核算与缴交沿用平台既有节点，未缴费不得进入配钥匙环节（13.5 流程 J）')">税费说明</span>
+                </td>
+              </tr>
+              <tr class="clickable row-warn" onclick="openBjSh('BJ2026-19-005118','安居房地产经纪','4005 电子钥匙新增')">
+                <td>BJ2026-19-005118</td>
+                <td class="cell-lg"><b>4005</b> 电子钥匙新增</td>
+                <td class="cell-lg">XXXX市安居房地产经纪有限公司</td>
+                <td>梁××</td>
+                <td><span class="zt-step"><span class="sp">申请</span><i class="fa-solid fa-angle-right ar"></i><span class="sp">受理</span><i class="fa-solid fa-angle-right ar"></i><span class="sp">审核·税费</span><i class="fa-solid fa-angle-right ar"></i><span class="sp key">配钥匙</span></span></td>
+                <td>7 个工作日</td><td><span class="text-warning">剩 1 天</span></td>
+                <td><span class="badge green">已缴</span></td>
+                <td>企业工作台</td>
+                <td>
+                  <span class="link" data-roles-not="developer agency bank" onclick="event.stopPropagation();PMS.openDrawer('pyDrawer')">配钥匙</span>
+                  <span class="link" onclick="event.stopPropagation();ZT.todo('配钥匙环节必须完成钥匙编号采集与人员绑定两个动作，楼栋授权可一并完成或后续单独办理（13.5 流程 J）')">环节要求</span>
+                </td>
+              </tr>
+              <tr class="clickable" onclick="openBjSh('BJ2026-19-004521','安居房地产经纪','1H04 企业人员入网')">
+                <td>BJ2026-19-004521</td>
+                <td class="cell-lg"><b>1H04</b> 企业人员入网（含配钥匙）</td>
+                <td class="cell-lg">XXXX市安居房地产经纪有限公司</td>
+                <td>梁××</td>
+                <td><span class="zt-step"><span class="sp">受理</span><i class="fa-solid fa-angle-right ar"></i><span class="sp">审核</span><i class="fa-solid fa-angle-right ar"></i><span class="sp key">收费</span><i class="fa-solid fa-angle-right ar"></i><span class="sp todo">配钥匙</span><i class="fa-solid fa-angle-right ar"></i><span class="sp todo">发证</span></span></td>
+                <td>7 个工作日</td><td>剩 6 天</td>
+                <td><span class="badge orange">待缴</span></td>
+                <td>企业工作台</td>
+                <td>
+                  <span class="link" onclick="event.stopPropagation();location.href='wsztxy-24.html?tab=ys'">去人员办件</span>
+                  <span class="link" onclick="event.stopPropagation();ZT.todo('人员入网与钥匙配发一次办结，不再另行提交 4005（13.2）。配钥匙节点时限口径「30」单位待核实（12.6 第 14 项）')">口径说明</span>
+                </td>
+              </tr>
+              <tr class="clickable" onclick="openBjSh('BJ2026-19-005102','恒大置业','续费')">
+                <td>BJ2026-19-005102</td>
+                <td class="cell-lg">派生 · 钥匙续费</td>
+                <td class="cell-lg">XXXX市恒大置业有限公司</td>
+                <td>张××</td>
+                <td><span class="zt-step"><span class="sp key">缴费</span><i class="fa-solid fa-angle-right ar"></i><span class="sp todo">更新有效期</span></span></td>
+                <td><span class="muted">派生操作不计时限</span></td><td>—</td>
+                <td><span class="badge orange">待缴</span></td>
+                <td>窗口代办</td>
+                <td>
+                  <span class="link" data-roles-not="developer agency bank" onclick="event.stopPropagation();openXf(this)">办理续费</span>
+                </td>
+              </tr>
+              <tr class="clickable" onclick="openBjSh('BJ2026-19-005096','荣和房地产开发','遗失补办')">
+                <td>BJ2026-19-005096</td>
+                <td class="cell-lg">派生 · 遗失补办</td>
+                <td class="cell-lg">XXXX市荣和房地产开发有限公司</td>
+                <td>覃××</td>
+                <td><span class="zt-step"><span class="sp">遗失声明</span><i class="fa-solid fa-angle-right ar"></i><span class="sp key">原钥匙回收</span><i class="fa-solid fa-angle-right ar"></i><span class="sp todo">新钥匙配发</span></span></td>
+                <td><span class="muted">派生操作不计时限</span></td><td>—</td>
+                <td><span class="badge orange">待缴</span></td>
+                <td>企业工作台</td>
+                <td>
+                  <span class="link" data-roles-not="developer agency bank" onclick="event.stopPropagation();openGh(this,'遗失补办')">办理更换</span>
+                  <span class="link" onclick="event.stopPropagation();ZT.todo('新钥匙自动继承原钥匙的人员绑定与楼栋授权关系，不要求企业重新提交，否则会出现更换后合同签不了的断点（13.5 流程 K / 13.6 R-K8）')">继承说明</span>
+                </td>
+              </tr>
+              <tr class="clickable" onclick="openBjSh('BJ2026-19-005088','柳建工程测绘','损坏更换')">
+                <td>BJ2026-19-005088</td>
+                <td class="cell-lg">派生 · 损坏更换</td>
+                <td class="cell-lg">广西柳建工程测绘有限公司</td>
+                <td>韦××</td>
+                <td><span class="zt-step"><span class="sp">损坏说明</span><i class="fa-solid fa-angle-right ar"></i><span class="sp key">免费认定</span><i class="fa-solid fa-angle-right ar"></i><span class="sp todo">原介质交回</span><i class="fa-solid fa-angle-right ar"></i><span class="sp todo">新钥匙配发</span></span></td>
+                <td><span class="muted">派生操作不计时限</span></td><td>—</td>
+                <td><span class="badge cyan">拟免收</span></td>
+                <td>窗口现场</td>
+                <td>
+                  <span class="link" data-roles-not="developer agency bank" onclick="event.stopPropagation();openGh(this,'损坏更换')">办理更换</span>
+                  <span class="link" onclick="event.stopPropagation();ZT.todo('须判定是否属于免费更换情形，判定结论与依据一并留痕（13.5 流程 K）。免费认定情形与次数上限待业务确认（12.6 第 15 项）')">免费判定</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="hint">
+          <i class="fa-solid fa-circle-info"></i>
+          受理环节校验<b>企业入网状态与经办人在册状态</b>，两者任一不满足即不予受理；工本费收费标准由 PC-29 业务资源与事项配置统一维护、支持市县分级（13.6 R-K13）。
+          <span class="badge yellow">待业务确认</span> 钥匙有效期时长、工本费标准与续费周期（12.6 第 13 项）。
+        </p>
+      </div>
+    </div>
+
+    <!-- ===================== 页签三 · 绑定与楼栋授权 ===================== -->
+    <div class="tab-panel" data-panel="bd">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>一支钥匙可绑定<b>一个或多个</b>经办人员账号，绑定与解绑均须写入变更流水并同步回写从业人员档案的「已配置电子钥匙」标识（13.6 R-K4）。
+            商品房网签场景下钥匙须与<b>楼栋（测量号）</b>建立授权关系，<b>未授权楼栋的合同不得由该钥匙签署</b>（13.6 R-K9 / R-I14）。</div>
+        </div>
+
+        <div class="zt-split">
+          <aside class="zt-side">
+            <div class="filter-item" style="padding:0 2px 8px"><input type="text" placeholder="搜索钥匙编号或企业"></div>
+            <div class="zt-tree-item on" onclick="pickKey(this,'IK4502000186301','荣和房地产开发')">
+              <i class="fa-solid fa-key"></i> IK…186301 <span class="tc">1 人 / 12 栋</span></div>
+            <div class="zt-tree-item" onclick="pickKey(this,'IK4502000186302','荣和房地产开发')">
+              <i class="fa-solid fa-key"></i> IK…186302 <span class="tc">1 人 / 12 栋</span></div>
+            <div class="zt-tree-item" onclick="pickKey(this,'IK4502000356201','安居房地产经纪')">
+              <i class="fa-solid fa-key"></i> IK…356201 <span class="tc">2 人 / —</span></div>
+            <div class="zt-tree-item" onclick="pickKey(this,'IK4502000186315','荣和房地产开发')">
+              <i class="fa-solid fa-key"></i> IK…186315 <span class="tc">1 人 / 12 栋</span></div>
+            <div class="zt-tree-item veto" onclick="pickKey(this,'IK4502000264105','恒大置业')">
+              <i class="fa-solid fa-key"></i> IK…264105 <span class="tc">已过期</span></div>
+            <p class="hint" style="padding:10px 2px 0">
+              <i class="fa-solid fa-circle-info"></i>
+              解绑后该账号<b>立即失去业务办理能力</b>，但仍可登录查看。
+            </p>
+          </aside>
+
+          <div class="zt-pane">
+            <div class="zt-block">
+              <div class="zt-block-h"><i class="fa-solid fa-user-gear"></i> 人员绑定
+                <span class="sub" id="bdKey">IK4502000186301 · XXXX市荣和房地产开发有限公司</span></div>
+              <div class="zt-block-b pad0">
+                <div class="zt-tw">
+                  <table class="data-table compact">
+                    <thead><tr><th>经办人员</th><th>平台账号</th><th>在册状态</th><th>绑定时间</th><th>账号登录状态</th><th>操作</th></tr></thead>
+                    <tbody>
+                      <tr>
+                        <td class="cell-lg"><div class="zt-who"><span class="zt-avatar zt-avatar--sm f">周</span><div class="wh-b"><div class="wh-n">周××</div><div class="wh-s">后 4 位 2264</div></div></div></td>
+                        <td>ronghe_zhou</td>
+                        <td><span class="badge green">在职执业</span></td>
+                        <td>2024-04-16</td>
+                        <td><span class="badge green">可登录并办理</span></td>
+                        <td>
+                          <span class="link" data-roles-not="developer agency bank" onclick="openJb(this)">解绑</span>
+                          <span class="link" onclick="ZT.todo('已回写从业人员档案 sfpzdzms「是否配置电子钥匙」=是（存量表 wsztxy.ES_CYRY）')">档案回写</span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="btn-row" style="padding:9px 12px">
+                  <button class="btn btn-sm btn-primary" data-roles-not="developer agency bank" onclick="PMS.openDrawer('bdDrawer')"><i class="fa-solid fa-link"></i> 新增绑定</button>
+                  <button class="btn btn-sm" onclick="ZT.todo('已批量解绑该企业全部钥匙的人员绑定，共 3 支钥匙 4 个账号，绑定账号即时失去业务办理能力，流水已生成')">批量解绑</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="zt-block">
+              <div class="zt-block-h"><i class="fa-solid fa-building"></i> 楼栋签约授权
+                <span class="sub">存量表 wsswb.PB_MYYLDGL · 本次扩展授权生效与失效时间</span></div>
+              <div class="zt-block-b pad0">
+                <div class="filter-bar">
+                  <div class="filter-item"><label>所属项目</label>
+                    <select><option>全部</option><option>荣和·公园大道三期</option><option>荣和·山水观邸</option></select>
+                  </div>
+                  <div class="filter-item"><label>楼栋测量号</label><input type="text" placeholder="测量号"></div>
+                  <div class="filter-item"><label>授权状态</label><select><option>全部</option><option>授权中</option><option>已撤销</option></select></div>
+                  <div class="filter-actions">
+                    <button class="btn btn-primary" onclick="PMS.toast('已按所选条件检索楼栋授权','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+                    <button class="btn" data-roles-not="developer agency bank district" onclick="PMS.openDrawer('ldDrawer')"><i class="fa-solid fa-plus"></i> 批量授权</button>
+                  </div>
+                </div>
+                <div class="zt-tw">
+                  <table class="data-table compact">
+                    <thead><tr><th>项目名称</th><th>楼栋 / 测量号</th><th>可签约业务</th><th>授权生效</th><th>授权失效</th><th>授权状态</th><th>操作</th></tr></thead>
+                    <tbody>
+                      <tr><td class="cell-lg">荣和·公园大道三期</td><td>1 号楼 / CL2025-0186-01</td><td>商品房买卖合同网签</td><td>2025-06-12</td><td>—</td><td><span class="badge green">授权中</span></td>
+                        <td><span class="link" data-roles-not="developer agency bank district" onclick="openCx(this)">撤销授权</span></td></tr>
+                      <tr><td class="cell-lg">荣和·公园大道三期</td><td>2 号楼 / CL2025-0186-02</td><td>商品房买卖合同网签</td><td>2025-06-12</td><td>—</td><td><span class="badge green">授权中</span></td>
+                        <td><span class="link" data-roles-not="developer agency bank district" onclick="openCx(this)">撤销授权</span></td></tr>
+                      <tr><td class="cell-lg">荣和·公园大道三期</td><td>3 号楼 / CL2025-0186-03</td><td>商品房买卖合同网签</td><td>2025-06-12</td><td>—</td><td><span class="badge green">授权中</span></td>
+                        <td><span class="link" data-roles-not="developer agency bank district" onclick="openCx(this)">撤销授权</span></td></tr>
+                      <tr class="row-off"><td class="cell-lg">荣和·山水观邸</td><td>8 号楼 / CL2023-0186-08</td><td>商品房买卖合同网签</td><td>2023-09-01</td><td>2026-05-30</td><td><span class="badge gray">已撤销</span></td>
+                        <td><span class="link" onclick="ZT.todo('撤销原因：该楼栋已售毕。楼栋售毕或项目终止时撤销授权（13.2 派生操作）；撤销后该钥匙不得再签署本楼栋合同')">撤销原因</span></td></tr>
+                      <tr class="row-off"><td class="cell-lg">荣和·山水观邸</td><td>9 号楼 / CL2023-0186-09</td><td>商品房买卖合同网签</td><td>2023-09-01</td><td>2026-05-30</td><td><span class="badge gray">已撤销</span></td>
+                        <td><span class="link" onclick="ZT.todo('撤销原因：该楼栋已售毕')">撤销原因</span></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p class="hint" style="padding:9px 12px">
+                  <i class="fa-solid fa-circle-info"></i>
+                  对外提供「<b>电子钥匙有效性校验</b>」接口（8.2 新增）：按钥匙编号返回钥匙状态、绑定人员、已授权楼栋范围与有效期，供 PC-08 / PC-09 / PC-10 与统一签约平台<b>签约前置校验</b>。
+                  钥匙过期、回收、注销或未授权该楼栋的一律拦截（R-I14）。
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 页签四 · 变更流水与数量台账 ===================== -->
+    <div class="tab-panel" data-panel="ls">
+      <div class="card-body">
+        <div class="alert alert-danger">
+          <i class="fa-solid fa-lock"></i>
+          <div>钥匙的每一次<b>新增、启用、关闭、更换、绑定、解绑</b>都必须生成流水记录，含操作类型、操作原因、操作人与操作时间。
+            流水<b>不可删除、不可修改</b>（13.6 R-K11）。钥匙回收与注销、楼栋授权变更属高敏操作须双人授权，绑定关系变更以流水留痕控制（12.3）。</div>
+        </div>
+
+        <div class="grid-2">
+          <div class="zt-block">
+            <div class="zt-block-h"><i class="fa-solid fa-list-check"></i> 钥匙数量台账
+              <span class="sub">按企业统计 · 供工本费核算与介质库存管理</span></div>
+            <div class="zt-block-b pad0">
+              <div class="zt-tw">
+                <table class="data-table compact">
+                  <thead><tr><th>企业名称</th><th class="num">持有</th><th class="num">新增</th><th class="num">遗失新增</th><th class="num">损坏更换</th><th class="num">工本费（元）</th></tr></thead>
+                  <tbody>
+                    <tr><td class="cell-lg">荣和房地产开发</td><td class="num">4</td><td class="num">3</td><td class="num">1</td><td class="num">1</td><td class="num">1,200</td></tr>
+                    <tr><td class="cell-lg">安居房地产经纪</td><td class="num">2</td><td class="num">2</td><td class="num">0</td><td class="num">0</td><td class="num">600</td></tr>
+                    <tr><td class="cell-lg">恒大置业</td><td class="num">3</td><td class="num">2</td><td class="num">1</td><td class="num">0</td><td class="num">900</td></tr>
+                    <tr><td class="cell-lg">柳建工程测绘</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">1</td><td class="num">300</td></tr>
+                    <tr class="row-off"><td class="cell-lg">中天房地产经纪</td><td class="num">0</td><td class="num">1</td><td class="num">0</td><td class="num">0</td><td class="num">300</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="hint" style="padding:9px 12px">
+                <i class="fa-solid fa-circle-info"></i>
+                变动原因三类：新增、遗失新增、损坏更换（13.6 R-K12）。存量表 <code>wsztxy.IK_YSSL</code>。
+              </p>
+            </div>
+          </div>
+
+          <div class="zt-block">
+            <div class="zt-block-h"><i class="fa-solid fa-chart-pie"></i> 介质迁移进度
+              <span class="sub">存量 Ikey → 国密证书载体</span></div>
+            <div class="zt-block-b">
+              <div class="dc-mini" style="margin-bottom:10px">
+                <div class="mi"><div class="mv">1,142</div><div class="ml">存量 Ikey</div></div>
+                <div class="mi ok"><div class="mv">86</div><div class="ml">已迁国密证书</div></div>
+                <div class="mi warn"><div class="mv">7.0%</div><div class="ml">迁移完成率</div></div>
+                <div class="mi"><div class="mv">并行中</div><div class="ml">新旧介质状态</div></div>
+              </div>
+              <div class="zt-score">
+                <div class="sc-row"><span class="sc-name">开发企业</span><span class="sc-bar"><span style="width:12%"></span></span><span class="sc-val">42 / 358</span></div>
+                <div class="sc-row"><span class="sc-name">经纪机构</span><span class="sc-bar"><span style="width:6%"></span></span><span class="sc-val">38 / 642</span></div>
+                <div class="sc-row"><span class="sc-name">金融机构</span><span class="sc-bar"><span style="width:13%"></span></span><span class="sc-val">6 / 46</span></div>
+                <div class="sc-row"><span class="sc-name">政府部门</span><span class="sc-bar"><span style="width:0%"></span></span><span class="sc-val">0 / 96</span></div>
+              </div>
+              <div class="btn-row" style="margin-top:10px">
+                <button class="btn btn-sm" data-roles-not="developer agency bank district reviewer" onclick="PMS.openDrawer('qyDrawer')"><i class="fa-solid fa-right-left"></i> 批量迁移登记</button>
+                <button class="btn btn-sm" onclick="ZT.todo('迁移期间新旧介质并行有效，迁移进度可按企业查询（13.6 R-K16）；是否随本次升级改造更换介质及存量迁移方案待业务确认（12.6 第 16 项）')">迁移口径</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-bar">
+          <div class="filter-item"><label>钥匙编号</label><input type="text" placeholder="按钥匙检索流水"></div>
+          <div class="filter-item"><label>企业名称</label><input type="text" placeholder="按企业检索流水"></div>
+          <div class="filter-item"><label>操作类型</label>
+            <select><option>全部</option><option>新增</option><option>启用</option><option>关闭</option><option>更换</option><option>绑定</option><option>解绑</option></select>
+          </div>
+          <div class="filter-item"><label>操作时间</label><input type="date" value="2026-08-01"></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按所选条件检索变更流水','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="ZT.exportAsync('钥匙变更流水')"><i class="fa-solid fa-download"></i> 导出流水</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>操作时间</th><th>钥匙编号</th><th>企业名称</th><th>操作类型</th><th>关联人员</th>
+              <th>操作原因</th><th>新旧编号对应</th><th>关联办件号</th><th>操作人</th>
+            </tr></thead>
+            <tbody>
+              <tr><td>2026-08-25 10:12</td><td>IK4502000186315</td><td class="cell-lg">荣和房地产开发</td>
+                <td><span class="badge blue">更换</span></td><td>覃××</td>
+                <td class="cell-lg">介质本身故障，认定为免费更换</td>
+                <td>IK…186308 → IK…186315</td><td>BJ2026-19-003318</td><td>韦国强</td></tr>
+              <tr><td>2026-08-24 16:44</td><td>IK4502000264105</td><td class="cell-lg">恒大置业</td>
+                <td><span class="badge orange">关闭</span></td><td>张××</td>
+                <td class="cell-lg">有效期届满未续费，系统自动置为过期并禁登</td>
+                <td>—</td><td>—</td><td>系统（日批）</td></tr>
+              <tr><td>2026-08-20 09:18</td><td>IK4502000356201</td><td class="cell-lg">安居房地产经纪</td>
+                <td><span class="badge green">绑定</span></td><td>梁××</td>
+                <td class="cell-lg">新增经办人，一钥多人绑定</td>
+                <td>—</td><td>BJ2026-19-004521</td><td>覃永明</td></tr>
+              <tr><td>2026-07-30 10:22</td><td>IK4502000733108</td><td class="cell-lg">中天房地产经纪</td>
+                <td><span class="badge orange">关闭</span></td><td>陈××</td>
+                <td class="cell-lg">资质被吊销、业务暂停，窗口回收钥匙</td>
+                <td>—</td><td>—</td><td>韦国强</td></tr>
+              <tr><td>2026-07-30 10:22</td><td>IK4502000733108</td><td class="cell-lg">中天房地产经纪</td>
+                <td><span class="badge gray">解绑</span></td><td>陈××</td>
+                <td class="cell-lg">随回收自动解除绑定，账号禁止登录</td>
+                <td>—</td><td>—</td><td>系统（联动）</td></tr>
+              <tr><td>2026-05-20 16:12</td><td>IK4502000421066</td><td class="cell-lg">宜家房地产经纪</td>
+                <td><span class="badge red">关闭</span></td><td>黄××</td>
+                <td class="cell-lg">主体注销生效，钥匙一并注销并回写注销办件号</td>
+                <td>—</td><td>BJ2026-19-001904</td><td>系统（联动）</td></tr>
+              <tr><td>2025-08-03 14:06</td><td>IK4502000356201</td><td class="cell-lg">安居房地产经纪</td>
+                <td><span class="badge green">新增</span></td><td>莫××</td>
+                <td class="cell-lg">机构管理员首次配发，介质为国密证书载体</td>
+                <td>—</td><td>BJ2025-19-002841</td><td>覃永明</td></tr>
+              <tr><td>2024-04-16 10:22</td><td>IK4502000186301</td><td class="cell-lg">荣和房地产开发</td>
+                <td><span class="badge green">新增</span></td><td>周××</td>
+                <td class="cell-lg">企业人员入网（1H04）内嵌配钥匙环节办结</td>
+                <td>—</td><td>BJ2024-19-001188</td><td>覃永明</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="zt-srcbar">
+          <span><b>存量表</b> <code>wsztxy.IK_YSPZLSXX</code>，本次扩展新旧钥匙编号对应关系以支撑更换回溯</span>
+          <span><b>操作类型字典</b> 关闭、启用、更换（6.3 新增）</span>
+          <span><b>日志保留</b> 高敏操作日志建议不少于三年，统一写入应用支撑平台的数据安全审计</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 页签五 · 状态机与介质迁移 ===================== -->
+    <div class="tab-panel" data-panel="zt">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>钥匙状态是本模块的<b>核心控制项</b>：账号能否登录、合同能否签署，一律以钥匙状态为准，<b>不另设开关</b>（13.3）。
+            下表定义合法流转，未列出的流转一律不允许。企业注销与人员注销时钥匙先进入<b>正在注销</b>中间态，待主体注销生效后才置为已注销，避免注销撤回时钥匙已不可恢复（13.5 流程 L）。</div>
+        </div>
+
+        <div class="zt-block">
+          <div class="zt-block-h"><i class="fa-solid fa-diagram-project"></i> 钥匙状态机
+            <span class="sub">6 个状态 · 字典「电子钥匙状态」（6.3 新增）</span></div>
+          <div class="zt-block-b">
+            <div class="zt-map">
+              <div class="mr">
+                <div><span class="zt-st init">—（无档案）</span></div>
+                <div class="to">
+                  <div class="zt-tr"><span class="op">配发办结并采集钥匙编号</span><i class="fa-solid fa-arrow-right ar"></i><span class="zt-st done">正常</span>
+                    <span class="muted">生成钥匙档案与配发流水；绑定经办人账号；人员档案回写「已配置电子钥匙」</span></div>
+                </div>
+              </div>
+              <div class="mr">
+                <div><span class="zt-st done">正常</span></div>
+                <div class="to">
+                  <div class="zt-tr"><span class="op">有效期届满未续费（系统自动）</span><i class="fa-solid fa-arrow-right ar"></i><span class="zt-st bad">过期</span>
+                    <span class="muted">绑定账号禁登；在办签约动作一并拦截；推送续费提醒</span></div>
+                  <div class="zt-tr"><span class="op">窗口回收（离职 / 暂停业务）</span><i class="fa-solid fa-arrow-right ar"></i><span class="zt-st init">回收</span>
+                    <span class="muted">绑定账号禁登；生成关闭类流水并记录回收原因</span></div>
+                </div>
+              </div>
+              <div class="mr">
+                <div><span class="zt-st bad">过期</span></div>
+                <div class="to">
+                  <div class="zt-tr"><span class="op">缴费续费办结</span><i class="fa-solid fa-arrow-right ar"></i><span class="zt-st done">正常</span>
+                    <span class="muted">更新有效期；绑定账号恢复可登录；生成启用类流水</span></div>
+                  <div class="zt-tr"><span class="op">认定为系统或介质原因</span><i class="fa-solid fa-arrow-right ar"></i><span class="zt-st wait">免费更换过期</span>
+                    <span class="muted">单独标识以便统计与审计；不重复收取工本费</span></div>
+                </div>
+              </div>
+              <div class="mr">
+                <div><span class="zt-st done">正常</span> <span class="zt-st bad">过期</span> <span class="zt-st init">回收</span></div>
+                <div class="to">
+                  <div class="zt-tr"><span class="op">遗失补办 / 损坏更换</span><i class="fa-solid fa-arrow-right ar"></i><span class="zt-st init">回收（原）</span><span class="muted">＋</span><span class="zt-st done">正常（新）</span>
+                    <span class="muted">新钥匙<b>继承</b>原人员绑定与楼栋授权；生成更换类流水关联新旧编号</span></div>
+                  <div class="zt-tr"><span class="op">企业或人员注销受理</span><i class="fa-solid fa-arrow-right ar"></i><span class="zt-st wait">正在注销</span>
+                    <span class="muted">锁定不可签约；不可再办续费与绑定变更</span></div>
+                </div>
+              </div>
+              <div class="mr term">
+                <div><span class="zt-st wait">正在注销</span></div>
+                <div class="to">
+                  <div class="zt-tr"><span class="op">注销生效</span><i class="fa-solid fa-arrow-right ar"></i><span class="zt-st dead">已注销</span>
+                    <span class="muted">回写注销办件号；解除全部人员绑定与楼栋授权；<b>状态不可逆</b></span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="zt-block">
+            <div class="zt-block-h"><i class="fa-solid fa-bolt"></i> 失效联动（流程 L）</div>
+            <div class="zt-block-b">
+              <div class="zt-check">
+                <div class="ck-item block"><i class="fa-solid fa-building-circle-xmark"></i><div class="ck-body">
+                  <div class="ck-title">企业注销</div>
+                  <div class="ck-desc">受理时该企业全部钥匙转「正在注销」，注销生效后置为「已注销」并回写注销办件号（13.6 R-K10）。</div></div></div>
+                <div class="ck-item block"><i class="fa-solid fa-user-xmark"></i><div class="ck-body">
+                  <div class="ck-title">人员注销</div>
+                  <div class="ck-desc">该人员绑定的钥匙解除绑定；若为该钥匙唯一绑定人则钥匙转「正在注销」。人员注销后不得继续承接业务（R-D3）。</div></div></div>
+                <div class="ck-item wait"><i class="fa-solid fa-calendar-xmark"></i><div class="ck-body">
+                  <div class="ck-title">年审不通过</div>
+                  <div class="ck-desc">企业业务暂停，钥匙由窗口回收，绑定账号禁止登录；整改通过恢复后重新配发或启用。</div></div>
+                  <div class="ck-op"><span class="link" onclick="location.href='wsztxy-23.html?tab=qx'">看暂停台账</span></div></div>
+                <div class="ck-item pass"><i class="fa-solid fa-circle-info"></i><div class="ck-body">
+                  <div class="ck-title">三种情形均由主体侧业务驱动</div>
+                  <div class="ck-desc">钥匙侧被动联动，<b>不需要企业另行申请</b>（13.5 流程 L 说明）。</div></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="zt-block">
+            <div class="zt-block-h"><i class="fa-solid fa-database"></i> 数据对象与承接关系
+              <span class="sub">13.7 · 存量表结构须可承接</span></div>
+            <div class="zt-block-b pad0">
+              <div class="zt-tw">
+                <table class="data-table compact">
+                  <thead><tr><th>数据对象</th><th>存量表</th><th>升级要求</th></tr></thead>
+                  <tbody>
+                    <tr><td>电子钥匙档案</td><td><code>wsztxy.IK_YSPZJBXX</code></td><td class="cell-lg">扩展有效期止、工本费缴纳标识、介质类型三个字段</td></tr>
+                    <tr><td>钥匙变更流水</td><td><code>wsztxy.IK_YSPZLSXX</code></td><td class="cell-lg">扩展新旧钥匙编号对应关系以支撑更换回溯</td></tr>
+                    <tr><td>钥匙数量台账</td><td><code>wsztxy.IK_YSSL</code></td><td class="cell-lg">按企业与办件统计数量及变动原因</td></tr>
+                    <tr><td>钥匙楼栋授权</td><td><code>wsswb.PB_MYYLDGL</code></td><td class="cell-lg">扩展授权生效与失效时间，支持授权历史回溯</td></tr>
+                    <tr><td>人员钥匙标识</td><td><code>wsztxy.ES_CYRY</code></td><td class="cell-lg"><code>sfpzdzms</code> 随绑定与解绑同步回写</td></tr>
+                    <tr class="row-warn"><td>账号钥匙绑定</td><td><code>wssys.RBAC_YH</code></td><td class="cell-lg">钥匙状态变更时同步刷新账号登录状态，是 <b>R-K5 的落地位置</b></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="hint" style="padding:9px 12px">
+                <i class="fa-solid fa-circle-info"></i>
+                钥匙数据分布在从业主体库与商品房交易库两处，新增要求以<b>扩展字段</b>方式实现，不重建表结构。
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="zt-block">
+          <div class="zt-block-h"><i class="fa-solid fa-clipboard-check"></i> 验-13 电子钥匙闭环验收
+            <span class="sub">12.5 · 逐条可打勾</span></div>
+          <div class="zt-block-b">
+            <div class="zt-check">
+              <div class="ck-item pass"><i class="fa-solid fa-circle-check"></i><div class="ck-body">
+                <div class="ck-title">配发后经办人可登录并签约</div>
+                <div class="ck-desc">4005 办结 → 钥匙状态「正常」→ 绑定账号可登录 → 在已授权楼栋范围内可签署商品房买卖合同。</div></div></div>
+              <div class="ck-item pass"><i class="fa-solid fa-circle-check"></i><div class="ck-body">
+                <div class="ck-title">钥匙置为过期后同一账号登录被拒且提示续费入口</div>
+                <div class="ck-desc">状态变更即时联动 <code>wssys.RBAC_YH</code> 的登录状态，登录页给出续费入口而非笼统报错。</div></div></div>
+              <div class="ck-item pass"><i class="fa-solid fa-circle-check"></i><div class="ck-body">
+                <div class="ck-title">遗失补办后新钥匙自动继承原人员绑定与楼栋授权</div>
+                <div class="ck-desc">不要求企业重新提交绑定与授权，避免「更换后合同签不了」的断点。</div></div></div>
+              <div class="ck-item pass"><i class="fa-solid fa-circle-check"></i><div class="ck-body">
+                <div class="ck-title">钥匙变更流水可完整回溯每一次操作</div>
+                <div class="ck-desc">流水含操作类型、原因、操作人、时间与新旧编号对应，不可删除不可修改。</div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ========== 抽屉一 · 钥匙新增（4005） ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="xzDrawer">
+  <div class="drawer-head"><h3>电子钥匙新增</h3>
+    <span class="badge blue">事项 4005</span>
+    <span class="muted">7 个工作日 · 申请 → 受理 → 审核（含税费）→ 配钥匙</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div>
+  </div>
+  <div class="drawer-body">
+    <div class="alert alert-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div>受理环节校验<b>企业入网状态与经办人在册状态</b>，两者任一不满足即不予受理（13.5 流程 J）。钥匙编号<b>全市唯一</b>，新增前必须校验编号是否已被占用（13.6 R-K2）。</div>
+    </div>
+
+    <div class="zt-block">
+      <div class="zt-block-h"><i class="fa-solid fa-shield-halved"></i> 受理前置校验</div>
+      <div class="zt-block-b">
+        <div class="zt-check">
+          <div class="ck-item pass"><i class="fa-solid fa-circle-check"></i><div class="ck-body">
+            <div class="ck-title">企业入网状态 · 已入网</div>
+            <div class="ck-desc">XXXX市荣和房地产开发有限公司，入网有效期至 2028-04-15，未处于暂停业务或注销状态（13.6 R-K3）。</div></div></div>
+          <div class="ck-item pass"><i class="fa-solid fa-circle-check"></i><div class="ck-body">
+            <div class="ck-title">经办人在册状态 · 在职执业</div>
+            <div class="ck-desc">周××，已完成人员实名登记，执业资格证书在有效期内。</div></div></div>
+          <div class="ck-item pass"><i class="fa-solid fa-circle-check"></i><div class="ck-body">
+            <div class="ck-title">钥匙编号未被占用</div>
+            <div class="ck-desc">IK4502000186312 在全市范围内校验通过，未在其他企业名下有效。</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-grid form-align" style="margin-top:12px">
+      <div class="form-item"><label>所属企业 <span class="req">*</span></label>
+        <select><option>XXXX市荣和房地产开发有限公司（RW2019-0186）</option><option>XXXX市安居房地产经纪有限公司（RW2021-0356）</option><option>广西柳建工程测绘有限公司（RW2023-0512）</option></select></div>
+      <div class="form-item"><label>申请类型 <span class="req">*</span></label>
+        <select><option>新增</option><option>遗失新增</option></select></div>
+      <div class="form-item col-full"><label>钥匙编号 <span class="req">*</span></label>
+        <div class="btn-row">
+          <input type="text" id="xzBh" value="IK4502000186312" style="flex:1" readonly>
+          <button class="btn btn-sm" onclick="ZT.todo('已从本地介质读取硬件编号 IK4502000186312 并写入表单')"><i class="fa-solid fa-usb"></i> 从介质读取</button>
+          <button class="btn btn-sm" onclick="onManual()"><i class="fa-solid fa-keyboard"></i> 手工录入</button>
+        </div>
+        <div class="hint" id="xzBhTip">编号须支持从本地介质读取，<b>不允许纯手工填写</b>；确需手工录入的须留痕并标记，纳入抽查范围（13.6 R-K14）。</div></div>
+      <div class="form-item"><label>钥匙说明</label><input type="text" placeholder="如「预售部经办用」"></div>
+      <div class="form-item"><label>介质类型 <span class="req">*</span></label>
+        <select><option>存量 Ikey</option><option>国密证书载体</option></select></div>
+      <div class="form-item"><label>领取日期 <span class="req">*</span></label><input type="date" value="2026-08-25"></div>
+      <div class="form-item"><label>有效期止 <span class="req">*</span></label><input type="date" value="2029-08-24">
+        <div class="hint"><span class="badge yellow">待业务确认</span> 有效期时长（12.6 第 13 项）。</div></div>
+      <div class="form-item"><label>绑定经办人 <span class="req">*</span></label>
+        <select><option>周××（在职执业 · 后 4 位 2264）</option><option>陆××（在职执业 · 后 4 位 1234）</option><option>覃××（在职执业 · 后 4 位 3390）</option></select></div>
+      <div class="form-item"><label>工本费（元） <span class="req">*</span></label><input type="text" value="300" readonly>
+        <div class="hint">收费标准由 PC-29 统一维护、支持市县分级（13.6 R-K13）。</div></div>
+      <div class="form-item col-full"><label>楼栋签约授权</label>
+        <select><option>暂不授权（后续单独办理）</option><option>荣和·公园大道三期 全部楼栋</option><option>手工选择楼栋</option></select>
+        <div class="hint">配钥匙环节必须完成<b>编号采集与人员绑定</b>两个动作，楼栋授权可一并完成或后续单独办理（13.5 流程 J）。</div></div>
+      <div class="form-item col-full"><label>收件材料 <span class="req">*</span></label>
+        <div class="zt-tw" style="margin-top:4px">
+          <table class="data-table compact">
+            <thead><tr><th>材料名称</th><th>收取要求</th><th>来源</th><th>状态</th></tr></thead>
+            <tbody>
+              <tr><td class="cell-lg">电子钥匙申请表（新增）</td><td><span class="badge red">必收</span></td><td>企业上传</td><td><span class="badge green">已收</span></td></tr>
+              <tr><td class="cell-lg">经办人授权委托书</td><td><span class="badge red">必收</span></td><td><span class="badge cyan">证照库调取 V1</span></td><td><span class="badge green">已免提交</span></td></tr>
+              <tr><td class="cell-lg">经办人身份证件</td><td><span class="badge red">必收</span></td><td><span class="badge cyan">证照库调取 V1</span></td><td><span class="badge green">已免提交</span></td></tr>
+              <tr><td class="cell-lg">从业人员在册证明</td><td><span class="badge gray">系统内部校验</span></td><td>系统</td><td><span class="badge green">校验通过</span></td></tr>
+              <tr><td class="cell-lg">工本费缴款凭证</td><td><span class="badge gray">系统内生成</span></td><td>缴费后自动关联</td><td><span class="badge orange">待缴费</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn" onclick="ZT.todo('已生成工本费缴款单 300 元并推送企业端在线缴纳；未缴费不得进入配钥匙环节')"><i class="fa-solid fa-money-bill"></i> 生成缴款单</button>
+    <button class="btn btn-primary" onclick="submitXz()"><i class="fa-solid fa-key"></i> 配钥匙并办结</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉二 · 钥匙详情 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="ysDrawer">
+  <div class="drawer-head">
+    <h3>钥匙详情 · <span data-fill="bh">IK4502000186301</span></h3>
+    <span class="muted" data-fill="qy">XXXX市荣和房地产开发有限公司</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div>
+  </div>
+  <div class="drawer-body">
+    <dl class="desc-list">
+      <div class="desc-item"><dt>钥匙编号</dt><dd data-fill="bh2">IK4502000186301</dd></div>
+      <div class="desc-item"><dt>钥匙说明</dt><dd>预售部经办用</dd></div>
+      <div class="desc-item"><dt>所属企业</dt><dd data-fill="qy2">XXXX市荣和房地产开发有限公司</dd></div>
+      <div class="desc-item"><dt>企业入网编号</dt><dd>RW2019-0186</dd></div>
+      <div class="desc-item"><dt>领取日期</dt><dd>2024-04-16</dd></div>
+      <div class="desc-item"><dt>有效期止</dt><dd>2027-04-15</dd></div>
+      <div class="desc-item"><dt>钥匙状态</dt><dd><span class="zt-st done">正常</span></dd></div>
+      <div class="desc-item"><dt>介质类型</dt><dd>存量 Ikey</dd></div>
+      <div class="desc-item"><dt>工本费</dt><dd>300 元 <span class="badge green">已缴</span></dd></div>
+      <div class="desc-item"><dt>编号采集方式</dt><dd>本地介质读取 <span class="badge green">未手工录入</span></dd></div>
+      <div class="desc-item"><dt>配发办件号</dt><dd>BJ2024-19-001188</dd></div>
+      <div class="desc-item"><dt>注销办件号</dt><dd><span class="muted">—</span></dd></div>
+      <div class="desc-item"><dt>所属行政区划</dt><dd>柳南区 <code>450204</code></dd></div>
+      <div class="desc-item"><dt>绑定账号登录状态</dt><dd><span class="badge green">可登录并办理</span></dd></div>
+      <div class="desc-item full"><dt>绑定经办人</dt><dd>周××（ronghe_zhou · 在职执业）</dd></div>
+      <div class="desc-item full"><dt>已授权楼栋</dt><dd>荣和·公园大道三期 1—12 号楼（测量号 CL2025-0186-01 至 12）<span class="muted">· 可签署商品房买卖合同</span></dd></div>
+    </dl>
+
+    <div class="zt-block" style="margin-top:12px">
+      <div class="zt-block-h"><i class="fa-solid fa-timeline"></i> 本钥匙变更流水
+        <span class="sub">不可删除、不可修改</span></div>
+      <div class="zt-block-b pad0">
+        <div class="zt-tw">
+          <table class="data-table compact">
+            <thead><tr><th>时间</th><th>操作类型</th><th>关联人员</th><th>操作原因</th><th>关联办件号</th><th>操作人</th></tr></thead>
+            <tbody>
+              <tr><td>2025-06-12 09:30</td><td><span class="badge cyan">楼栋授权</span></td><td>—</td><td class="cell-lg">荣和·公园大道三期取得预售许可，批量授权 1—12 号楼</td><td>BJ2025-08-002106</td><td>韦国强</td></tr>
+              <tr><td>2024-04-16 10:22</td><td><span class="badge green">绑定</span></td><td>周××</td><td class="cell-lg">配发时绑定经办人账号</td><td>BJ2024-19-001188</td><td>覃永明</td></tr>
+              <tr><td>2024-04-16 10:22</td><td><span class="badge green">新增</span></td><td>周××</td><td class="cell-lg">企业人员入网（1H04）内嵌配钥匙环节办结</td><td>BJ2024-19-001188</td><td>覃永明</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn" data-roles-not="developer agency bank" onclick="PMS.closeDrawer();PMS.openDrawer('bdDrawer')">绑定管理</button>
+    <button class="btn" data-roles-not="developer agency bank" onclick="PMS.closeDrawer();PMS.openDrawer('ldDrawer')">楼栋授权</button>
+    <button class="btn btn-primary" onclick="ZT.exportAsync('钥匙档案 · IK4502000186301')"><i class="fa-solid fa-download"></i> 导出档案</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉三 · 人员绑定 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="bdDrawer">
+  <div class="drawer-head"><h3>钥匙人员绑定</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div>绑定与解绑均须写入变更流水，并同步回写从业人员档案的「是否配置电子钥匙」标识（13.6 R-K4）。绑定关系变更以流水留痕控制，不要求双人授权（12.3）。</div>
+    </div>
+    <div class="form-grid form-align">
+      <div class="form-item"><label>钥匙编号</label><input type="text" value="IK4502000186301" readonly></div>
+      <div class="form-item"><label>钥匙状态</label><input type="text" value="正常" readonly></div>
+      <div class="form-item col-full"><label>新增绑定人员 <span class="req">*</span></label>
+        <select id="bdRy" onchange="onBdRy(this)">
+          <option value="ok">陆××（在职执业 · 法定代表人 · 后 4 位 1234）</option>
+          <option value="ok2">覃××（在职执业 · 经办人 · 后 4 位 3390）</option>
+          <option value="no">王××（执业资格证书已过期 · 后 4 位 6602）</option>
+        </select></div>
+      <div class="form-item col-full"><label>绑定原因 <span class="req">*</span></label>
+        <textarea id="bdReason" rows="2" placeholder="必填，不少于 10 字。如「新增预售部经办人，需办理商品房网签」"></textarea></div>
+    </div>
+    <div id="bdTip" class="alert alert-success" style="margin-top:10px">
+      <i class="fa-solid fa-circle-check"></i>
+      <div>该人员在册状态正常，绑定后可使用本钥匙登录并在已授权楼栋范围内签约。<b>一支钥匙可绑定多个经办人员账号。</b></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" id="bdOk" onclick="submitBd()"><i class="fa-solid fa-link"></i> 确认绑定</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉四 · 楼栋授权 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="ldDrawer">
+  <div class="drawer-head"><h3>楼栋签约授权</h3>
+    <span class="badge red">高敏操作 · 双人授权</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div>
+  </div>
+  <div class="drawer-body">
+    <div class="zt-dual">
+      <i class="fa-solid fa-user-shield lead"></i>
+      <div>楼栋授权变更属高敏操作，须<b>双人授权</b>并留痕（操作人、时间、钥匙编号、楼栋测量号、授权或撤销、原因）。授权范围直接决定该钥匙能签哪些楼栋的合同（12.3）。</div>
+      <div class="who"><span class="muted">发起人</span> <b id="ldWho">韦国强</b></div>
+    </div>
+    <div class="form-grid form-align" style="margin-top:12px">
+      <div class="form-item"><label>钥匙编号</label><input type="text" value="IK4502000186301" readonly></div>
+      <div class="form-item"><label>操作类型 <span class="req">*</span></label>
+        <select><option>批量授权</option><option>批量撤销</option></select></div>
+      <div class="form-item"><label>所属项目 <span class="req">*</span></label>
+        <select><option>荣和·公园大道三期（已取得预售许可）</option><option>荣和·山水观邸（已售毕）</option></select></div>
+      <div class="form-item"><label>授权生效日期 <span class="req">*</span></label><input type="date" value="2026-08-25"></div>
+      <div class="form-item col-full"><label>选择楼栋 <span class="req">*</span></label>
+        <div class="radio-line">
+          <label><input type="checkbox" checked> 1 号楼 / CL2025-0186-01</label>
+          <label><input type="checkbox" checked> 2 号楼 / CL2025-0186-02</label>
+          <label><input type="checkbox" checked> 3 号楼 / CL2025-0186-03</label>
+          <label><input type="checkbox"> 4 号楼 / CL2025-0186-04</label>
+          <label><input type="checkbox"> 5 号楼 / CL2025-0186-05</label>
+        </div></div>
+      <div class="form-item col-full"><label>操作原因 <span class="req">*</span></label>
+        <textarea id="ldReason" rows="2" placeholder="必填，不少于 10 字。如「项目取得预售许可，授权经办人签署本批次楼栋合同」"></textarea></div>
+    </div>
+    <p class="hint" style="margin-top:10px">
+      <i class="fa-solid fa-circle-info"></i>
+      授权关系存于 <code>wsswb.PB_MYYLDGL</code>，本次扩展生效与失效时间以支持历史回溯。楼栋<b>售毕或项目终止</b>时应及时撤销授权。
+    </p>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="submitLd()"><i class="fa-solid fa-building-lock"></i> 提交授权</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉五 · 续费 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="xfDrawer">
+  <div class="drawer-head"><h3>钥匙续费 · <span data-fill="bh">IK4502000264105</span></h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-warning">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div>该钥匙<b>已过期 56 天</b>，绑定账号「张××」当前处于禁止登录状态。缴费续费办结后钥匙回到「正常」、账号<b>自动恢复可登录</b>，并生成启用类流水（13.3 状态机 / 13.6 R-K5）。</div>
+    </div>
+    <div class="form-grid form-align">
+      <div class="form-item"><label>钥匙编号</label><input type="text" value="IK4502000264105" readonly></div>
+      <div class="form-item"><label>所属企业</label><input type="text" value="XXXX市恒大置业有限公司" readonly></div>
+      <div class="form-item"><label>原有效期止</label><input type="text" value="2026-06-30" readonly></div>
+      <div class="form-item"><label>续费周期 <span class="req">*</span></label>
+        <select><option>3 年</option><option>2 年</option><option>1 年</option></select>
+        <div class="hint"><span class="badge yellow">待业务确认</span> 续费周期（12.6 第 13 项）。</div></div>
+      <div class="form-item"><label>新有效期止</label><input type="text" value="2029-08-24" readonly></div>
+      <div class="form-item"><label>续费金额（元） <span class="req">*</span></label><input type="text" value="300" readonly></div>
+      <div class="form-item col-full"><label>是否认定为免费更换</label>
+        <select id="xfFree" onchange="onXfFree(this)">
+          <option value="no">否，正常收费</option>
+          <option value="yes">是，系统或介质原因导致过期（免收工本费）</option>
+        </select></div>
+      <div class="form-item col-full" id="xfFreeItem" style="display:none"><label>免费认定依据 <span class="req">*</span></label>
+        <textarea rows="2" placeholder="必填。说明系统或介质原因的具体情形与核实过程，判定结论与依据一并留痕"></textarea>
+        <div class="hint">认定为免费的钥匙状态单独标识为「免费更换过期」以便统计与审计（13.6 R-K7）。免费情形与次数上限待业务确认。</div></div>
+    </div>
+
+    <div class="zt-block" style="margin-top:12px">
+      <div class="zt-block-h"><i class="fa-solid fa-bolt"></i> 办结后的联动</div>
+      <div class="zt-block-b">
+        <div class="zt-check">
+          <div class="ck-item pass"><i class="fa-solid fa-circle-check"></i><div class="ck-body">
+            <div class="ck-title">钥匙状态回到「正常」并更新有效期</div></div></div>
+          <div class="ck-item pass"><i class="fa-solid fa-circle-check"></i><div class="ck-body">
+            <div class="ck-title">绑定账号「张××」恢复可登录并办理</div>
+            <div class="ck-desc">同步刷新 <code>wssys.RBAC_YH</code> 的登录状态。</div></div></div>
+          <div class="ck-item pass"><i class="fa-solid fa-circle-check"></i><div class="ck-body">
+            <div class="ck-title">生成启用类变更流水</div></div></div>
+          <div class="ck-item wait"><i class="fa-solid fa-money-bill"></i><div class="ck-body">
+            <div class="ck-title">缴费凭证与办件关联</div>
+            <div class="ck-desc">缴费成功后自动关联，不另行收取纸质凭证（13.8）。</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('已办理续费，钥匙状态回到「正常」，绑定账号已恢复登录，启用类流水已生成','success')"><i class="fa-solid fa-arrows-rotate"></i> 缴费并办结续费</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉六 · 更换（遗失补办 / 损坏更换） ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="ghDrawer">
+  <div class="drawer-head"><h3>钥匙更换 · <span data-fill="lx">遗失补办</span></h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-warning">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div>更换的关键在于<b>绑定关系必须自动平移</b>：新钥匙自动继承原钥匙的人员绑定与楼栋授权，<b>不要求企业重新提交</b>，
+        否则会出现「更换后合同签不了」的断点（13.5 流程 K / 13.6 R-K8）。</div>
+    </div>
+
+    <div class="grid-2">
+      <div class="zt-block">
+        <div class="zt-block-h"><i class="fa-solid fa-key"></i> 原钥匙（将置为回收）</div>
+        <div class="zt-block-b">
+          <div class="zt-kv">
+            <div class="kv-row"><span class="k">钥匙编号</span><span class="v">IK4502000186308</span></div>
+            <div class="kv-row"><span class="k">当前状态</span><span class="v"><span class="zt-st done">正常</span></span></div>
+            <div class="kv-row"><span class="k">绑定经办人</span><span class="v">覃××</span></div>
+            <div class="kv-row"><span class="k">授权楼栋</span><span class="v">12 栋</span></div>
+            <div class="kv-row"><span class="k">有效期止</span><span class="v">2027-03-11</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="zt-block">
+        <div class="zt-block-h"><i class="fa-solid fa-key"></i> 新钥匙（自动继承）</div>
+        <div class="zt-block-b">
+          <div class="zt-kv">
+            <div class="kv-row"><span class="k">钥匙编号</span><span class="v">IK4502000186315</span><span class="muted">介质读取</span></div>
+            <div class="kv-row"><span class="k">配发后状态</span><span class="v"><span class="zt-st done">正常</span></span></div>
+            <div class="kv-row"><span class="k">绑定经办人</span><span class="v">覃××</span><span class="muted">自动平移</span></div>
+            <div class="kv-row"><span class="k">授权楼栋</span><span class="v">12 栋</span><span class="muted">自动平移</span></div>
+            <div class="kv-row"><span class="k">有效期止</span><span class="v">2027-03-11</span><span class="muted">沿用原期限</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-grid form-align" style="margin-top:12px">
+      <div class="form-item"><label>更换类型 <span class="req">*</span></label>
+        <select id="ghLx" onchange="onGhLx(this)"><option value="ys">遗失补办</option><option value="sh">损坏更换</option></select></div>
+      <div class="form-item"><label>新钥匙编号 <span class="req">*</span></label><input type="text" value="IK4502000186315" readonly></div>
+      <div class="form-item" id="ghFreeItem" style="display:none"><label>是否免费更换 <span class="req">*</span></label>
+        <select><option>是，属系统或介质原因</option><option>否，属使用不当</option></select></div>
+      <div class="form-item"><label>工本费（元）</label><input type="text" id="ghFee" value="300" readonly></div>
+      <div class="form-item col-full"><label>更换原因 <span class="req">*</span></label>
+        <textarea id="ghReason" rows="2" placeholder="必填，不少于 10 字"></textarea></div>
+      <div class="form-item col-full" id="ghMatItem"><label>遗失声明（材料） <span class="req">*</span></label><input type="text" data-upload="1">
+        <div class="hint">遗失补办须提交遗失声明，<b>由企业加盖公章</b>（13.8）。</div></div>
+      <div class="form-item col-full" id="ghMat2" style="display:none"><label>损坏说明与原介质交回 <span class="req">*</span></label><input type="text" data-upload="1">
+        <div class="hint">损坏更换须收回原介质并留存损坏说明，<b>原介质须现场交回并登记</b>（13.8）。</div></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="submitGh()"><i class="fa-solid fa-right-left"></i> 回收原钥匙并配发新钥匙</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉七 · 回收 / 解绑 / 撤销授权（双人授权） ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="hsDrawer">
+  <div class="drawer-head"><h3><span data-fill="act">钥匙回收</span></h3>
+    <span class="badge red">高敏操作 · 双人授权</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div>
+  </div>
+  <div class="drawer-body">
+    <div class="zt-dual">
+      <i class="fa-solid fa-user-shield lead"></i>
+      <div>钥匙回收与注销属高敏操作，须<b>双人授权</b>，留痕字段含操作人、时间、钥匙编号、操作原因与受影响账号数（12.3）。</div>
+      <div class="who"><span class="muted">发起人</span> <b id="hsWho">韦国强</b></div>
+    </div>
+    <div class="form-grid form-align" style="margin-top:12px">
+      <div class="form-item"><label>钥匙编号</label><input type="text" data-fill="bh" value="IK4502000186301" readonly></div>
+      <div class="form-item"><label>所属企业</label><input type="text" data-fill="qy" value="XXXX市荣和房地产开发有限公司" readonly></div>
+      <div class="form-item col-full"><label>回收原因 <span class="req">*</span></label>
+        <select><option>经办人离职</option><option>企业业务暂停</option><option>年审不通过</option><option>企业主动交回</option><option>其他（须在说明中写明）</option></select></div>
+      <div class="form-item col-full"><label>情况说明 <span class="req">*</span></label>
+        <textarea id="hsReason" rows="3" placeholder="必填，不少于 10 字"></textarea></div>
+      <div class="form-item"><label>介质是否交回</label><select data-dict="yesNo" data-selected="1"></select></div>
+      <div class="form-item"><label>生效时间 <span class="req">*</span></label><input type="date" value="2026-08-25"></div>
+    </div>
+
+    <div class="zt-block" style="margin-top:12px">
+      <div class="zt-block-h"><i class="fa-solid fa-triangle-exclamation"></i> 影响面预检</div>
+      <div class="zt-block-b">
+        <div class="zt-check">
+          <div class="ck-item block"><i class="fa-solid fa-circle-xmark"></i><div class="ck-body">
+            <div class="ck-title">绑定账号立即禁止登录 · 1 个账号</div>
+            <div class="ck-desc">周××（ronghe_zhou）回收后无法登录办理业务，仅保留查看权限（13.6 R-K5）。</div></div></div>
+          <div class="ck-item block"><i class="fa-solid fa-circle-xmark"></i><div class="ck-body">
+            <div class="ck-title">该钥匙的在办签约动作一并拦截</div>
+            <div class="ck-desc">已授权的 12 栋楼将无法由该钥匙签署合同；如企业仍需签约须另行配发钥匙。</div></div></div>
+          <div class="ck-item wait"><i class="fa-solid fa-file-lines"></i><div class="ck-body">
+            <div class="ck-title">生成关闭类变更流水</div>
+            <div class="ck-desc">记录回收原因、操作人与时间，流水不可删除不可修改（13.6 R-K11）。</div></div></div>
+          <div class="ck-item pass"><i class="fa-solid fa-circle-check"></i><div class="ck-body">
+            <div class="ck-title">已签署的历史合同不受影响</div>
+            <div class="ck-desc">回收只阻断后续签约，已办结合同与办件保留可查。</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-danger-solid" onclick="submitHs()"><i class="fa-solid fa-rotate-left"></i> 提交回收</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉八 · 介质迁移登记 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="qyDrawer">
+  <div class="drawer-head"><h3>钥匙介质批量迁移登记</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div>本次升级改造须支持钥匙介质向<b>国密算法证书载体</b>迁移，迁移期间<b>新旧介质并行有效</b>，迁移进度可按企业查询（13.6 R-K16）。
+        <span class="badge yellow">待业务确认</span> 是否随本次升级更换介质及存量迁移方案（12.6 第 16 项）。</div>
+    </div>
+    <div class="form-grid form-align">
+      <div class="form-item"><label>迁移批次号</label><input type="text" value="QY2026-08-001" readonly></div>
+      <div class="form-item"><label>目标介质类型</label><input type="text" value="国密证书载体" readonly></div>
+      <div class="form-item"><label>企业范围 <span class="req">*</span></label>
+        <select><option>按企业类型：开发企业</option><option>按行政区划：柳南区</option><option>手工选择企业</option></select></div>
+      <div class="form-item"><label>并行期截止 <span class="req">*</span></label><input type="date" value="2027-06-30">
+        <div class="hint">并行期内新旧介质均有效，到期后存量 Ikey 不再受理续费。</div></div>
+      <div class="form-item col-full"><label>迁移说明 <span class="req">*</span></label>
+        <textarea rows="2" placeholder="必填。说明本批次迁移范围、通知方式与现场换发安排"></textarea></div>
+    </div>
+    <div class="zt-srcbar">
+      <span><b>本批次预计</b> 358 支存量 Ikey · 涉及 128 家开发企业</span>
+      <span><b>迁移方式</b> 现场换发，原介质交回登记，绑定关系与楼栋授权自动平移</span>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('已创建迁移批次 QY2026-08-001，已向 128 家企业推送换发通知','success')"><i class="fa-solid fa-right-left"></i> 创建迁移批次</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉九 · 4005 审核 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="shDrawer">
+  <div class="drawer-head">
+    <h3>钥匙办件审核 · <span data-fill="qy">荣和房地产开发</span></h3>
+    <span class="badge blue" data-fill="sx">4005 电子钥匙新增</span>
+    <span class="muted" data-fill="bjh">BJ2026-19-005120</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div>
+  </div>
+  <div class="drawer-body">
+    <div class="zt-three">
+      <div>
+        <div class="zt-block">
+          <div class="zt-block-h"><i class="fa-solid fa-folder-open"></i> 收件材料</div>
+          <div class="zt-block-b">
+            <div class="zt-doc" onclick="ZT.todo('已打开材料在线预览（PC-33）')">
+              <i class="fa-solid fa-file-lines"></i><span>申请表等 5 项</span><span class="muted">点击预览</span>
+            </div>
+            <div class="zt-kv" style="margin-top:9px">
+              <div class="kv-row"><span class="k">证照库调取</span><span class="v">2 项</span><span class="muted">免提交</span></div>
+              <div class="kv-row"><span class="k">企业上传</span><span class="v">1 项</span></div>
+              <div class="kv-row"><span class="k">系统校验</span><span class="v">1 项</span></div>
+              <div class="kv-row"><span class="k">缴费凭证</span><span class="v warn">待缴费</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="zt-block">
+          <div class="zt-block-h"><i class="fa-solid fa-timeline"></i> 办件轨迹</div>
+          <div class="zt-block-b">
+            <div class="timeline">
+              <div class="tl-item done"><div class="tl-dot"></div><div class="tl-title">申请</div>
+                <div class="tl-meta">2026-08-25 09:12 · 企业工作台自助申报</div></div>
+              <div class="tl-item done"><div class="tl-dot"></div><div class="tl-title">受理</div>
+                <div class="tl-meta">2026-08-25 10:06 · 覃永明</div>
+                <div class="tl-desc">企业入网状态与经办人在册状态校验通过，予以受理。</div></div>
+              <div class="tl-item"><div class="tl-dot"></div><div class="tl-title">审核（含税费核算与缴交）· 当前</div>
+                <div class="tl-meta">承办 韦国强 · 剩余 5 天</div></div>
+              <div class="tl-item pending"><div class="tl-dot"></div><div class="tl-title">配钥匙</div>
+                <div class="tl-meta">须完成编号采集与人员绑定两个动作</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="zt-block">
+          <div class="zt-block-h"><i class="fa-solid fa-clipboard-check"></i> 审核要点</div>
+          <div class="zt-block-b">
+            <div class="zt-check">
+              <div class="ck-item pass"><i class="fa-solid fa-circle-check"></i><div class="ck-body">
+                <div class="ck-title">企业已入网且审核通过</div>
+                <div class="ck-desc">RW2019-0186，入网有效期至 2028-04-15，非暂停业务、非注销（13.6 R-K3）。</div></div></div>
+              <div class="ck-item pass"><i class="fa-solid fa-circle-check"></i><div class="ck-body">
+                <div class="ck-title">经办人在册且执业资格有效</div>
+                <div class="ck-desc">周××，在职执业，执业资格证书至 2029-05-17。</div></div></div>
+              <div class="ck-item pass"><i class="fa-solid fa-circle-check"></i><div class="ck-body">
+                <div class="ck-title">经办人授权委托书有效</div>
+                <div class="ck-desc">从证照库调取 V1，有效期至 2027-03-31，未过期。</div></div></div>
+              <div class="ck-item pass"><i class="fa-solid fa-circle-check"></i><div class="ck-body">
+                <div class="ck-title">钥匙编号全市未占用</div>
+                <div class="ck-desc">IK4502000186312 校验通过（13.6 R-K2）。</div></div></div>
+              <div class="ck-item wait"><i class="fa-solid fa-money-bill"></i><div class="ck-body">
+                <div class="ck-title">工本费待缴交 · 300 元</div>
+                <div class="ck-desc"><b>未缴费不得进入配钥匙环节</b>（13.5 流程 J）。</div></div>
+                <div class="ck-op"><span class="link" onclick="ZT.todo('已生成缴款单并推送企业端在线缴纳')">生成缴款单</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="zt-block">
+          <div class="zt-block-h"><i class="fa-solid fa-pen-to-square"></i> 审核结论</div>
+          <div class="zt-block-b">
+            <div class="form-grid form-align">
+              <div class="form-item col-full"><label>审核结论 <span class="req">*</span></label>
+                <select><option>通过（转税费缴交）</option><option>退回补正</option><option>不通过</option></select></div>
+              <div class="form-item col-full"><label>工本费核算（元）</label><input type="text" value="300" readonly></div>
+              <div class="form-item col-full"><label>审核意见 <span class="req">*</span></label>
+                <textarea id="shOpinion" rows="5" placeholder="必填，不少于 10 字；意见原文不向企业展示，仅输出结论与补正内容"></textarea></div>
+            </div>
+            <div class="btn-row" style="margin-top:10px">
+              <button class="btn btn-success" onclick="submitSh()"><i class="fa-solid fa-check"></i> 提交结论</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn btn-primary" onclick="submitSh()"><i class="fa-solid fa-paper-plane"></i> 提交结论</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/wsztxy.js"></script>
+<script>
+  function openYs(bh, qy) {
+    PMS.fill('ysDrawer', { bh: bh, bh2: bh, qy: qy, qy2: qy });
+    PMS.openDrawer('ysDrawer');
+  }
+  function openBjSh(bjh, qy, sx) {
+    PMS.fill('shDrawer', { bjh: bjh, qy: qy, sx: sx });
+    PMS.openDrawer('shDrawer');
+  }
+  function pickKey(el, bh, qy) {
+    ZT.pick(el, '.zt-tree-item');
+    document.getElementById('bdKey').textContent = bh + ' · ' + qy;
+    PMS.toast('已切换到钥匙「' + bh + '」的绑定与授权');
+  }
+
+  /* ---------- 新增 ---------- */
+  function onManual() {
+    var t = document.getElementById('xzBhTip');
+    var i = document.getElementById('xzBh');
+    i.readOnly = false;
+    i.value = '';
+    i.focus();
+    t.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color:var(--lv-orange)"></i> 已切换为<b>手工录入</b>：本次录入将<b>标记为手工</b>并留痕，纳入抽查范围（13.6 R-K14）。建议优先使用介质读取，避免编号与介质不一致。';
+    PMS.toast('已切换为手工录入，本次录入会被标记并纳入抽查', 'error');
+  }
+  function submitXz() {
+    PMS.confirm({
+      title: '配钥匙并办结确认',
+      message: '确认完成钥匙编号采集与人员绑定，办结本件？',
+      detail: '办结后生成钥匙档案与配发流水，绑定经办人账号，并回写从业人员档案的「已配置电子钥匙」标识。未缴纳工本费的不得进入本环节（13.5 流程 J）。',
+      type: 'warning', okText: '配钥匙并办结',
+      onOk: function () { PMS.closeDrawer(); PMS.toast('已配发钥匙 IK4502000186312 并办结，绑定账号即时可登录办理', 'success'); }
+    });
+  }
+
+  /* ---------- 绑定 ---------- */
+  function onBdRy(sel) {
+    var bad = sel.value === 'no';
+    var tip = document.getElementById('bdTip');
+    document.getElementById('bdOk').disabled = bad;
+    if (bad) {
+      tip.className = 'alert alert-danger';
+      tip.innerHTML = '<i class="fa-solid fa-circle-xmark"></i><div>该人员<b>执业资格证书已过期</b>，不满足在册执业条件，绑定被阻断。请先在「从业人员管理」办理资格证书换发并核验通过后再绑定。</div>';
+    } else {
+      tip.className = 'alert alert-success';
+      tip.innerHTML = '<i class="fa-solid fa-circle-check"></i><div>该人员在册状态正常，绑定后可使用本钥匙登录并在已授权楼栋范围内签约。<b>一支钥匙可绑定多个经办人员账号。</b></div>';
+    }
+  }
+  function submitBd() {
+    var r = document.getElementById('bdReason');
+    if ((r.value || '').trim().length < 10) { ZT.denied('绑定原因为必填且不少于 10 字'); r.focus(); return; }
+    PMS.closeDrawer();
+    PMS.toast('已完成绑定，变更流水已生成，从业人员档案「已配置电子钥匙」标识已回写', 'success');
+  }
+  function openJb(el) {
+    PMS.confirm({
+      title: '解除钥匙绑定',
+      message: '确认解除该经办人与本钥匙的绑定？',
+      detail: '解绑后该账号立即失去业务办理能力（仍可登录查看）。解绑写入变更流水，并同步回写从业人员档案的「是否配置电子钥匙」标识（13.6 R-K4）。',
+      type: 'warning', okText: '确认解绑',
+      onOk: function () { PMS.toast('已解除绑定，该账号即时失去业务办理能力，流水已生成', 'success'); }
+    });
+  }
+
+  /* ---------- 楼栋授权（双人授权） ---------- */
+  function submitLd() {
+    var r = document.getElementById('ldReason');
+    if ((r.value || '').trim().length < 10) { ZT.denied('操作原因为必填且不少于 10 字'); r.focus(); return; }
+    ZT.dual('楼栋签约授权变更', document.getElementById('ldWho').textContent.trim(), function () {
+      PMS.closeDrawer();
+      PMS.toast('已提交楼栋授权，待同岗其他人员复核后生效', 'success');
+    });
+  }
+  function openCx(el) {
+    var tds = el.closest('tr').querySelectorAll('td');
+    PMS.confirm({
+      title: '撤销楼栋签约授权',
+      message: '确认撤销「' + tds[1].textContent.trim() + '」的签约授权？',
+      detail: '撤销后该钥匙不得再签署本楼栋的合同，未授权楼栋的合同一律拦截（13.6 R-K9 / R-I14）。本操作属高敏操作，须双人授权并留痕。',
+      type: 'warning', okText: '提交撤销',
+      onOk: function () { PMS.toast('已提交撤销授权，待复核后生效', 'success'); }
+    });
+  }
+
+  /* ---------- 续费 ---------- */
+  function openXf(el) {
+    var tr = el.closest('tr');
+    PMS.fill('xfDrawer', { bh: tr.querySelector('td').textContent.trim() });
+    PMS.openDrawer('xfDrawer');
+  }
+  function onXfFree(sel) {
+    document.getElementById('xfFreeItem').style.display = sel.value === 'yes' ? '' : 'none';
+  }
+
+  /* ---------- 更换 ---------- */
+  function openGh(el, lx) {
+    PMS.fill('ghDrawer', { lx: lx });
+    PMS.openDrawer('ghDrawer');
+    var s = document.getElementById('ghLx');
+    s.value = lx === '损坏更换' ? 'sh' : 'ys';
+    onGhLx(s);
+  }
+  function onGhLx(sel) {
+    var sh = sel.value === 'sh';
+    document.getElementById('ghFreeItem').style.display = sh ? '' : 'none';
+    document.getElementById('ghMatItem').style.display = sh ? 'none' : '';
+    document.getElementById('ghMat2').style.display = sh ? '' : 'none';
+    document.getElementById('ghFee').value = sh ? '0（拟免收，待认定）' : '300';
+  }
+  function submitGh() {
+    var r = document.getElementById('ghReason');
+    if ((r.value || '').trim().length < 10) { ZT.denied('更换原因为必填且不少于 10 字'); r.focus(); return; }
+    PMS.confirm({
+      title: '钥匙更换确认',
+      message: '确认回收原钥匙并配发新钥匙？',
+      detail: '原钥匙置为「回收」，新钥匙自动继承原钥匙的人员绑定与楼栋授权关系，生成更换类流水并关联新旧编号（13.6 R-K8）。企业无需重新提交绑定与授权。',
+      type: 'warning', okText: '确认更换',
+      onOk: function () { PMS.closeDrawer(); PMS.toast('已完成更换：原钥匙转「回收」，新钥匙已配发并继承 1 名经办人与 12 栋授权', 'success'); }
+    });
+  }
+
+  /* ---------- 回收（双人授权） ---------- */
+  function openHs(el) {
+    var tds = el.closest('tr').querySelectorAll('td');
+    PMS.fill('hsDrawer', { act: '钥匙回收', bh: tds[0].textContent.trim(), qy: tds[1].textContent.trim().split(' ')[0] });
+    PMS.openDrawer('hsDrawer');
+  }
+  function submitHs() {
+    var r = document.getElementById('hsReason');
+    if ((r.value || '').trim().length < 10) { ZT.denied('情况说明为必填且不少于 10 字'); r.focus(); return; }
+    ZT.dual('钥匙回收', document.getElementById('hsWho').textContent.trim(), function () {
+      PMS.closeDrawer();
+      PMS.toast('已提交钥匙回收，待复核后生效；生效即禁止绑定账号登录', 'success');
+    });
+  }
+
+  /* ---------- 4005 审核 ---------- */
+  function submitSh() {
+    var op = document.getElementById('shOpinion');
+    if ((op.value || '').trim().length < 10) { ZT.denied('审核意见为必填且不少于 10 字'); op.focus(); return; }
+    PMS.confirm({
+      title: '钥匙办件审核结论确认',
+      message: '确认提交审核结论？',
+      detail: '通过后进入税费缴交环节，未缴费不得进入配钥匙环节。审核人不得为本件受理人，系统已校验（RO-3 / R-K21）。',
+      type: 'warning', okText: '提交结论',
+      onOk: function () { PMS.closeDrawer(); PMS.toast('已提交审核结论并转税费缴交', 'success'); }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    ['ldWho', 'hsWho'].forEach(function (id) {
+      var e = document.getElementById(id);
+      if (e) e.textContent = ZT.me();
+    });
+    var t = ZT.param('tab');
+    if (t) ZT.tab(t);
+  });
+</script>
+</body>
+</html>

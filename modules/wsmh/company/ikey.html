@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>电子钥匙申请与管理 · 企业与机构工作台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/portal.css">
+<style>
+  .corp-bar {
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card);
+    padding: 12px 16px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 18px;
+  }
+  .corp-bar .cb-t { font-size: 13.5px; font-weight: 700; color: var(--text-2); white-space: nowrap; }
+  .corp-bar .cb-d { font-size: 12.5px; color: var(--text-3); margin-left: auto; }
+  .wz-acts { display: flex; gap: 10px; justify-content: flex-end; padding-top: 16px; margin-top: 18px; border-top: 1px dashed var(--row-line); }
+
+  /* 钥匙卡片：左侧色条一眼看出能不能用 */
+  .ik-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+  .ik-card {
+    border: 1px solid var(--border); border-left: 4px solid var(--success);
+    border-radius: var(--radius-card); background: #fff; padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 9px;
+  }
+  .ik-card.soon { border-left-color: #f59e0b; }
+  .ik-card.bad { border-left-color: var(--danger); background: #fdefee; }
+  .ik-card.off { border-left-color: var(--border-strong); background: var(--bg-soft); }
+  .ik-card .ic-t { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; color: var(--text-1); }
+  .ik-card .ic-t i { color: var(--primary); }
+  .ik-card .ic-kv { display: flex; flex-direction: column; gap: 3px; font-size: 13px; color: var(--text-2); }
+  .ik-card .ic-kv b { color: var(--text-1); font-weight: 600; }
+  .ik-card .ic-f { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 4px; }
+
+  /* 状态胶囊 */
+  .ik-st { display: inline-flex; align-items: center; padding: 0 9px; border-radius: 20px;
+    font-size: 12px; font-weight: 600; line-height: 21px; white-space: nowrap; }
+  .ik-st.ok { background: var(--success-light); color: var(--success); }
+  .ik-st.bad { background: #fdeaee; color: var(--danger); }
+  .ik-st.wait { background: #fff2e2; color: #b45309; }
+  .ik-st.off { background: var(--bg-soft); color: var(--text-3); }
+  .ik-st.dead { background: #3f4652; color: #fff; }
+
+  /* 剩余天数条 */
+  .ik-days { display: flex; align-items: center; gap: 8px; }
+  .ik-days .dv { font-weight: 700; font-family: "DIN Alternate", var(--font); }
+  .ik-days .db { flex: 1; height: 6px; border-radius: 4px; background: var(--bg-soft); overflow: hidden; }
+  .ik-days .db > span { display: block; height: 100%; border-radius: 4px; background: var(--success); }
+  .ik-days.warn .dv { color: #b45309; } .ik-days.warn .db > span { background: #f59e0b; }
+  .ik-days.bad .dv { color: var(--danger); } .ik-days.bad .db > span { background: var(--danger); }
+
+  /* 楼栋授权标签 */
+  .ld-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ld-tags .lt { padding: 2px 9px; border-radius: 3px; font-size: 12px;
+    background: var(--primary-light-2); border: 1px solid var(--primary-soft); color: var(--primary); }
+  .ld-tags .lt.off { background: var(--bg-soft); border-color: var(--border-strong); color: var(--text-3); text-decoration: line-through; }
+</style>
+</head>
+<body data-nav="home">
+
+<div class="wrap">
+  <div class="crumb">
+    <a href="../web/home.html" data-fp="wsmh-38-01">首页</a><i class="fa-solid fa-angle-right"></i>
+    <a href="index.html" data-fp="wsmh-38-01">企业与机构工作台</a><i class="fa-solid fa-angle-right"></i>电子钥匙申请与管理
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="desk">
+    <aside class="side-menu" id="side"></aside>
+    <main class="desk-main">
+
+      <div class="corp-bar" id="corp-bar"></div>
+
+      <div class="alert alert-warning">
+        <i class="fa-solid fa-key"></i>
+        <span>电子钥匙是贵企业经办人员办理<b>网签、备案</b>等业务的必备凭据。未配发有效钥匙的账号<b>只能登录查看，不能提交任何业务办件</b>。
+          钥匙<b>过期、被回收或注销</b>时，绑定该钥匙的账号会自动禁止登录；续费办结后自动恢复。
+          商品房网签还需钥匙与<b>楼栋</b>建立授权关系，未授权楼栋的合同无法签署。</span>
+      </div>
+
+      <div id="ik-warn"></div>
+
+      <div class="stat-grid c5" id="ik-kpi"></div>
+
+      <div class="tabs" data-tabs data-scope="ik-box">
+        <a class="on" data-tab="ik-list" data-fp="wsmh-38-01"><i class="fa-solid fa-key"></i> 本企业钥匙台账</a>
+        <a data-tab="ik-apply" data-fp="wsmh-38-02"><i class="fa-solid fa-file-circle-plus"></i> 申请办理</a>
+        <a data-tab="ik-bind" data-fp="wsmh-38-06"><i class="fa-solid fa-user-gear"></i> 经办人绑定申请</a>
+        <a data-tab="ik-msg" data-fp="wsmh-38-07"><i class="fa-solid fa-bell"></i> 进度与到期提醒</a>
+      </div>
+
+      <div id="ik-box">
+
+        <!-- ========= Tab 1：本企业钥匙台账（wsmh-38-01） ========= -->
+        <div class="tab-pane on" id="ik-list">
+          <div class="desk-card">
+            <div class="card-head"><h3><i class="fa-solid fa-key text-primary"></i> 我的电子钥匙</h3>
+              <span class="sub">编号、状态、有效期、绑定经办人与可签约楼栋</span>
+              <div class="ca"><a class="btn btn-sm btn-primary" href="javascript:;" id="ik-goapply" data-fp="wsmh-38-02"><i class="fa-solid fa-plus"></i> 申请新增钥匙</a></div>
+            </div>
+            <div class="card-body">
+              <div class="ik-grid" id="ik-cards"></div>
+            </div>
+          </div>
+
+          <div class="desk-card">
+            <div class="card-head"><h3><i class="fa-solid fa-building text-primary"></i> 可签约楼栋授权</h3>
+              <span class="sub">未授权楼栋的商品房买卖合同无法由该钥匙签署</span>
+              <div class="ca">
+                <select class="select" id="ik-ldkey" style="width:auto;min-width:200px"></select>
+              </div>
+            </div>
+            <div class="card-body">
+              <div id="ik-ld"></div>
+              <div class="table-note" style="margin-top:12px"><i class="fa-solid fa-circle-info"></i>
+                楼栋授权由窗口按项目办理。项目取得预售许可后可申请授权；楼栋售毕或项目终止后授权会被撤销。如需新增授权，请联系办理窗口或在「申请办理」中提交。</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========= Tab 2：申请办理（wsmh-38-02/03/04/05） ========= -->
+        <div class="tab-pane" id="ik-apply">
+          <div class="desk-card">
+            <div class="card-head"><h3><i class="fa-solid fa-list-check text-primary"></i> 选择申请类型</h3></div>
+            <div class="card-body">
+              <div class="radio-row" id="ap-type">
+                <label><input type="radio" name="aptype" value="new" checked> 钥匙新增（事项 4005）</label>
+                <label><input type="radio" name="aptype" value="renew"> 钥匙续费</label>
+                <label><input type="radio" name="aptype" value="lost"> 遗失补办</label>
+                <label><input type="radio" name="aptype" value="broken"> 损坏更换</label>
+              </div>
+              <div id="ap-desc" class="mt-16"></div>
+            </div>
+          </div>
+
+          <div class="desk-card" id="ap-targetbox" style="display:none">
+            <div class="card-head"><h3><i class="fa-solid fa-key text-primary"></i> 选择要办理的钥匙</h3></div>
+            <div class="card-body">
+              <div class="form-grid c1">
+                <div class="form-item"><label><span class="req">*</span>钥匙</label>
+                  <select class="select" id="ap-target"></select>
+                  <div class="tip">遗失补办与损坏更换后，<b>新钥匙会自动继承原钥匙的经办人绑定与楼栋授权</b>，您无需重新提交。</div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="desk-card">
+            <div class="card-head"><h3><i class="fa-solid fa-file-pen text-primary"></i> 申请信息</h3>
+              <span class="sub" id="ap-sxsub">事项 4005 · 承诺 7 个工作日 · 申请 → 受理 → 审核（含税费）→ 配钥匙</span></div>
+            <div class="card-body">
+              <div class="form-grid">
+                <div class="form-item"><label><span class="req">*</span>绑定经办人</label>
+                  <select class="select" id="ap-ry"></select>
+                  <div class="tip">须为本企业已完成实名登记且在册执业的人员。</div></div>
+                <div class="form-item"><label>钥匙说明</label><input class="input" id="ap-sm" placeholder="如「预售部经办用」，便于本企业内部区分"></div>
+                <div class="form-item"><label>介质类型</label><select class="select" id="ap-jz">
+                  <option>国密证书载体（推荐）</option><option>存量 Ikey</option></select>
+                  <div class="tip">平台正在将钥匙介质迁移至国密证书载体，迁移期间新旧介质并行有效。</div></div>
+                <div class="form-item"><label>工本费（元）</label><input class="input" id="ap-fee" value="300" readonly>
+                  <div class="tip">收费标准以办理窗口核定为准，缴费后方可进入配钥匙环节。</div></div>
+                <div class="form-item full" id="ap-ldbox"><label>需要授权的楼栋</label>
+                  <div class="check-row">
+                    <label><input type="checkbox"> 荣和·公园大道三期 1—12 号楼</label>
+                    <label><input type="checkbox"> 荣和·山水观邸 1—6 号楼</label>
+                    <label><input type="checkbox" checked> 暂不申请，后续单独办理</label>
+                  </div>
+                  <div class="tip">楼栋授权可在配钥匙时一并完成，也可后续单独办理。</div></div>
+                <div class="form-item full" id="ap-matbox"></div>
+                <div class="form-item full"><label>申请说明</label>
+                  <textarea class="textarea" id="ap-note" placeholder="补充说明本次申请的原因，便于窗口受理"></textarea></div>
+              </div>
+              <div class="check-row mt-16">
+                <label><input type="checkbox" id="ap-cn"> 本企业承诺所填信息与所交材料真实有效，并已了解钥匙状态直接决定绑定账号能否登录办理业务</label>
+              </div>
+              <div class="wz-acts">
+                <button class="btn" id="ap-demo" data-fp="wsmh-38-02"><i class="fa-solid fa-wand-magic-sparkles"></i> 填入演示数据</button>
+                <button class="btn btn-accent" id="ap-submit" data-fp="wsmh-38-02"><i class="fa-solid fa-paper-plane"></i> 提交申请</button>
+              </div>
+              <div id="ap-res" class="mt-16"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========= Tab 3：经办人绑定申请（wsmh-38-06） ========= -->
+        <div class="tab-pane" id="ik-bind">
+          <div class="alert alert-info">
+            <i class="fa-solid fa-circle-info"></i>
+            <span>一支钥匙可绑定<b>一个或多个</b>经办人员。调整绑定关系需提交申请，<b>审核通过后生效</b>。
+              解绑后该账号立即失去业务办理能力（仍可登录查看）。经办人须为本企业已实名登记且在册执业的人员。</span>
+          </div>
+
+          <div class="desk-card">
+            <div class="card-head"><h3><i class="fa-solid fa-user-gear text-primary"></i> 当前绑定关系</h3></div>
+            <div class="card-body np">
+              <div class="table-wrap">
+                <table class="pub-table">
+                  <thead><tr>
+                    <th>钥匙编号</th><th>绑定经办人</th><th>平台账号</th><th style="width:110px">在册状态</th>
+                    <th style="width:110px">绑定时间</th><th style="width:130px">账号办理能力</th><th style="width:96px">操作</th>
+                  </tr></thead>
+                  <tbody id="bd-list"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="desk-card">
+            <div class="card-head"><h3><i class="fa-solid fa-link text-primary"></i> 提交绑定调整申请</h3></div>
+            <div class="card-body">
+              <div class="form-grid">
+                <div class="form-item"><label><span class="req">*</span>调整类型</label>
+                  <select class="select" id="bd-lx"><option>新增绑定</option><option>解除绑定</option><option>更换绑定人</option></select></div>
+                <div class="form-item"><label><span class="req">*</span>钥匙</label><select class="select" id="bd-key"></select></div>
+                <div class="form-item"><label><span class="req">*</span>经办人</label><select class="select" id="bd-ry"></select></div>
+                <div class="form-item"><label>期望生效日期</label><input class="input" type="date" id="bd-rq"></div>
+                <div class="form-item full"><label><span class="req">*</span>调整原因</label>
+                  <textarea class="textarea" id="bd-note" placeholder="如「原经办人调岗，由新任预售部经办人接手」"></textarea></div>
+              </div>
+              <div id="bd-tip" class="mt-16"></div>
+              <div class="wz-acts">
+                <button class="btn btn-accent" id="bd-submit" data-fp="wsmh-38-06"><i class="fa-solid fa-paper-plane"></i> 提交绑定申请</button>
+              </div>
+              <div id="bd-res" class="mt-16"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========= Tab 4：进度与到期提醒（wsmh-38-07） ========= -->
+        <div class="tab-pane" id="ik-msg">
+          <div class="desk-card">
+            <div class="card-head"><h3><i class="fa-solid fa-hourglass-half text-primary"></i> 到期与失效提醒</h3>
+              <span class="sub">到期前分级提醒，过期后绑定账号将被禁止登录</span>
+              <div class="ca"><a class="btn btn-sm" href="javascript:;" id="msg-goapply" data-fp="wsmh-38-03"><i class="fa-solid fa-arrows-rotate"></i> 去办理续费</a></div>
+            </div>
+            <div class="card-body np">
+              <div class="table-wrap">
+                <table class="pub-table">
+                  <thead><tr>
+                    <th>钥匙编号 / 经办人</th><th style="width:110px">有效期止</th><th style="width:180px">剩余</th>
+                    <th style="width:120px">提醒级别</th><th>影响范围</th><th style="width:110px">操作</th>
+                  </tr></thead>
+                  <tbody id="msg-exp"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="desk-card">
+            <div class="card-head"><h3><i class="fa-solid fa-list-check text-primary"></i> 办件进度</h3>
+              <span class="sub">钥匙类申请的办理环节、承诺时限与结果</span></div>
+            <div class="card-body np">
+              <div class="table-wrap">
+                <table class="pub-table">
+                  <thead><tr>
+                    <th style="width:160px">办件号</th><th>业务类型</th><th style="width:96px">经办人</th>
+                    <th>当前环节</th><th style="width:110px">承诺时限</th><th style="width:96px">缴费</th><th style="width:110px">操作</th>
+                  </tr></thead>
+                  <tbody id="msg-bj"></tbody>
+                </table>
+              </div>
+              <div class="table-note"><i class="fa-solid fa-circle-info"></i>
+                钥匙新增为事项 4005，承诺 7 个工作日；续费、补办、更换为派生操作，不单独计时限但同样留有办理记录。</div>
+            </div>
+          </div>
+
+          <div class="desk-card">
+            <div class="card-head"><h3><i class="fa-solid fa-bell text-primary"></i> 提醒接收设置</h3>
+              <span class="sub">提醒由统一消息服务平台推送，同一钥匙按级别控制频次</span></div>
+            <div class="card-body">
+              <div class="form-grid">
+                <div class="form-item"><label>接收人</label><input class="input" value="周**（经办人）、陆**（法定代表人）" readonly>
+                  <div class="tip">接收人取自「经办人账号管理」，如需调整请在工作台首页维护。</div></div>
+                <div class="form-item"><label>接收手机号</label><input class="input" value="139****2264" readonly></div>
+                <div class="form-item full"><label>接收渠道</label>
+                  <div class="check-row">
+                    <label><input type="checkbox" checked> 短信</label>
+                    <label><input type="checkbox" checked> 站内信</label>
+                    <label><input type="checkbox" checked> 企业端登录弹窗</label>
+                    <label><input type="checkbox"> 微信公众号</label>
+                  </div></div>
+              </div>
+              <div class="wz-acts">
+                <button class="btn btn-primary" id="msg-save" data-fp="wsmh-38-07"><i class="fa-solid fa-floppy-disk"></i> 保存设置</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div id="src-note"></div>
+    </main>
+  </div>
+</div>
+
+<script src="../assets/js/portal-data.js"></script>
+<script src="../assets/js/portal-flow.js"></script>
+<script src="../assets/js/portal.js"></script>
+<script>
+/* ============ 公共骨架 ============ */
+var ROLES = [
+  { k: '开发企业', n: '开发企业', lx: '房地产开发企业', ico: 'fa-building-flag' },
+  { k: '经纪机构', n: '房地产经纪机构', lx: '房地产经纪机构', ico: 'fa-handshake' },
+  { k: '测绘机构', n: '房产测绘机构', lx: '房产测绘机构', ico: 'fa-ruler-combined' },
+  { k: '评估公证', n: '评估公证机构', lx: '评估公证机构', ico: 'fa-stamp' },
+  { k: '租赁企业', n: '住房租赁企业', lx: '住房租赁企业', ico: 'fa-key' }
+];
+function ssGet(k, d) { try { return sessionStorage.getItem(k) || d; } catch (e) { return d; } }
+function ssSet(k, v) { try { sessionStorage.setItem(k, v); } catch (e) { } }
+function roleName(k) { for (var i = 0; i < ROLES.length; i++) if (ROLES[i].k === k) return ROLES[i].n; return k; }
+
+var CORP = {
+  key: function () {
+    var q = UI.param('corp');
+    if (q) { for (var i = 0; i < ROLES.length; i++) { if (ROLES[i].k === q || ROLES[i].n === q) { ssSet('wsmh.corp', ROLES[i].k); break; } } }
+    return ssGet('wsmh.corp', '开发企业');
+  },
+  role: function () { var k = CORP.key(); for (var i = 0; i < ROLES.length; i++) if (ROLES[i].k === k) return ROLES[i]; return ROLES[0]; },
+  set: function (k) { ssSet('wsmh.corp', k); },
+  agency: function () {
+    var r = CORP.role(), list = PORTAL.agencies({ lx: r.lx });
+    var ok = list.filter(function (a) { return a.rwzt === '1'; })[0];
+    return ok || list[0] || null;
+  }
+};
+
+function renderSide(active) {
+  var r = CORP.role(), a = CORP.agency();
+  var nm = r.k === '开发企业' ? UI.user().name : (a ? a.mc : UI.user().name);
+  var G = [
+    ['', [['index.html', '工作台首页', 'fa-gauge', '']]],
+    ['主体管理', [
+      ['net-apply.html', '企业入网备案', 'fa-id-card-clip', ''],
+      ['staff-register.html', '从业人员实名登记', 'fa-user-check', ''],
+      ['cert-library.html', '我的证照与材料库', 'fa-folder-tree', ''],
+      ['ikey.html', '电子钥匙申请与管理', 'fa-key', '']]],
+    ['开发企业', [
+      ['dev-project.html', '项目预售与进度申报', 'fa-building-flag', '开发企业'],
+      ['dev-fund.html', '监管账户与资金申报', 'fa-shield-halved', '开发企业']]],
+    ['机构服务', [
+      ['agency-desk.html', '经纪机构端', 'fa-handshake', '经纪机构'],
+      ['org-desk.html', '测绘与评估公证端', 'fa-ruler-combined', '测绘机构,评估公证'],
+      ['rent-company.html', '租赁企业办事', 'fa-key', '租赁企业']]],
+    ['', [['../web/home.html', '返回门户首页', 'fa-arrow-left', '']]]
+  ];
+  var h = '<div class="sm-head"><div class="sm-n">' + UI.esc(nm.length > 13 ? nm.slice(0, 13) + '…' : nm) + '</div>'
+    + '<div class="sm-r"><i class="fa-solid ' + r.ico + '"></i> ' + r.n + '　'
+    + (a ? PORTAL.AG_ST[a.rwzt].n : '未入网') + '</div></div>';
+  G.forEach(function (g) {
+    h += '<div class="sm-g">' + (g[0] ? '<div class="sm-gt">' + g[0] + '</div>' : '');
+    g[1].forEach(function (x) {
+      var allow = x[3] ? x[3].split(',') : null;
+      var ok = !allow || allow.indexOf(r.k) >= 0;
+      if (ok) {
+        h += '<a class="' + (x[0] === active ? 'on' : '') + '" href="' + x[0] + '" data-fp="wsmh-23-01">'
+          + '<i class="fa-solid ' + x[2] + '"></i>' + x[1] + '</a>';
+      } else {
+        var ns = allow.map(roleName).join('、');
+        h += '<a href="javascript:;" style="opacity:.42" data-dis="' + ns + '" data-fp="wsmh-23-01">'
+          + '<i class="fa-solid ' + x[2] + '"></i>' + x[1]
+          + '<i class="fa-solid fa-lock" style="margin-left:auto;font-size:11px"></i></a>';
+      }
+    });
+    h += '</div>';
+  });
+  var el = document.getElementById('side');
+  el.innerHTML = h;
+  el.querySelectorAll('[data-dis]').forEach(function (x) {
+    x.onclick = function () { UI.toast('该功能仅' + x.getAttribute('data-dis') + '可用，请先在页面顶部切换主体角色', 'warning'); };
+  });
+}
+
+function renderCorpBar(id, fp) {
+  var cur = CORP.key(), box = document.getElementById(id);
+  box.innerHTML = '<span class="cb-t"><i class="fa-solid fa-user-gear text-primary"></i> 主体角色</span>'
+    + '<div class="pill-tabs">' + ROLES.map(function (r) {
+      return '<a class="' + (r.k === cur ? 'on' : '') + '" data-corp="' + r.k + '" data-fp="' + fp + '">'
+        + '<i class="fa-solid ' + r.ico + '"></i> ' + r.n + '</a>';
+    }).join('') + '</div>'
+    + '<span class="cb-d">同一门户账号可关联多类主体身份，切换后左侧菜单与页面内容按角色适配</span>';
+  box.querySelectorAll('[data-corp]').forEach(function (a) {
+    a.onclick = function () {
+      var k = a.getAttribute('data-corp');
+      if (k === CORP.key()) { UI.toast('当前已是「' + roleName(k) + '」角色', 'info'); return; }
+      CORP.set(k);
+      UI.toast('已切换为「' + roleName(k) + '」，页面即将按新角色刷新', 'success');
+      setTimeout(function () { location.href = location.pathname; }, 700);
+    };
+  });
+}
+
+function corpGuard(file) {
+  if (UI.isLogin()) return true;
+  UI.needLogin('企业与机构工作台');
+  var m = document.querySelector('.desk-main');
+  if (m) m.innerHTML = '<div class="desk-card"><div class="card-body">' + UI.empty(
+    '电子钥匙申请与管理需要登录后使用',
+    '演示环境提供企业演示账号，可一键进入体验钥匙申请、续费、补办、绑定与到期提醒全流程。',
+    '<a class="btn btn-primary" href="' + file + '?user=company" data-fp="wsmh-38-01">使用企业演示账号进入</a>'
+    + '<a class="btn" style="margin-left:10px" href="../web/login.html" data-fp="wsmh-38-01">去登录页</a>')
+    + '</div></div>';
+  return false;
+}
+
+/* ============ 演示数据 ============ */
+var IK = [
+  { bh: 'IK4502000186301', ry: '周**', zh: 'ronghe_zhou', yxq: '2027-04-15', days: 598, st: 'ok', jz: '存量 Ikey', ld: 12, fee: '已缴', sm: '预售部经办用' },
+  { bh: 'IK4502000186302', ry: '陆**', zh: 'ronghe_lu', yxq: '2026-09-20', days: 26, st: 'soon', jz: '存量 Ikey', ld: 12, fee: '已缴', sm: '法定代表人用' },
+  { bh: 'IK4502000186315', ry: '覃**', zh: 'ronghe_qin', yxq: '2027-03-11', days: 563, st: 'free', jz: '存量 Ikey', ld: 12, fee: '免收', sm: '介质故障免费更换' },
+  { bh: 'IK4502000186288', ry: '—', zh: '—', yxq: '2026-05-30', days: -87, st: 'off', jz: '存量 Ikey', ld: 0, fee: '已缴', sm: '原经办人离职已回收' }
+];
+
+var LD = {
+  'IK4502000186301': [['荣和·公园大道三期 1 号楼', 1], ['2 号楼', 1], ['3 号楼', 1], ['4 号楼', 1], ['5 号楼', 1], ['6 号楼', 1],
+    ['7 号楼', 1], ['8 号楼', 1], ['9 号楼', 1], ['10 号楼', 1], ['11 号楼', 1], ['12 号楼', 1],
+    ['荣和·山水观邸 8 号楼', 0], ['9 号楼', 0]],
+  'IK4502000186302': [['荣和·公园大道三期 1 号楼', 1], ['2 号楼', 1], ['3 号楼', 1], ['4 号楼', 1], ['5 号楼', 1], ['6 号楼', 1],
+    ['7 号楼', 1], ['8 号楼', 1], ['9 号楼', 1], ['10 号楼', 1], ['11 号楼', 1], ['12 号楼', 1]],
+  'IK4502000186315': [['荣和·公园大道三期 1 号楼', 1], ['2 号楼', 1], ['3 号楼', 1], ['4 号楼', 1], ['5 号楼', 1], ['6 号楼', 1],
+    ['7 号楼', 1], ['8 号楼', 1], ['9 号楼', 1], ['10 号楼', 1], ['11 号楼', 1], ['12 号楼', 1]],
+  'IK4502000186288': []
+};
+
+var RY = ['周**（在职执业 · 预售部经办）', '陆**（在职执业 · 法定代表人）', '覃**（在职执业 · 经办人）', '吴**（在职执业 · 新入职经办）'];
+
+var BJ = [
+  { bh: 'BJ2026-19-005120', lx: '4005 电子钥匙新增', ry: '吴**', hj: ['申请', '受理', '审核·税费', '配钥匙'], cur: 2, sx: '7 个工作日 · 剩 5 天', fee: '待缴' },
+  { bh: 'BJ2026-19-005096', lx: '派生 · 遗失补办', ry: '覃**', hj: ['遗失声明', '原钥匙回收', '新钥匙配发'], cur: 1, sx: '不计时限', fee: '待缴' },
+  { bh: 'BJ2026-19-004988', lx: '派生 · 钥匙续费', ry: '陆**', hj: ['缴费', '更新有效期'], cur: 2, sx: '不计时限', fee: '已缴' }
+];
+
+var AP = {
+  new: ['事项 4005 · 承诺 7 个工作日 · 申请 → 受理 → 审核（含税费）→ 配钥匙',
+    'alert-info', '<b>钥匙新增</b>为独立事项，走完整办件流程。提交后由办理窗口签收受理，审核通过并缴纳工本费后配发钥匙。'
+    + '配发时会完成<b>钥匙编号采集与经办人绑定</b>两个动作，楼栋授权可一并办理或后续单独申请。'],
+  renew: ['派生操作 · 不单独计时限 · 缴费后即时生效',
+    'alert-warning', '<b>钥匙续费</b>建议在到期前办理。钥匙一旦过期，绑定该钥匙的账号会被<b>自动禁止登录</b>，'
+    + '续费办结后自动恢复。若过期系平台系统或介质本身原因导致，可申请认定为<b>免费更换</b>，不重复收取工本费。'],
+  lost: ['派生操作 · 不单独计时限 · 须提交遗失声明',
+    'alert-danger', '<b>遗失补办</b>须提交加盖企业公章的遗失声明。原钥匙会先置为「回收」，再配发新钥匙。'
+    + '<b>新钥匙自动继承原钥匙的经办人绑定与楼栋授权，您无需重新提交</b>，避免更换后合同签不了。'],
+  broken: ['派生操作 · 不单独计时限 · 须交回原介质',
+    'alert-warning', '<b>损坏更换</b>须提交损坏说明并<b>现场交回原介质</b>。属平台系统或介质本身原因的按<b>免费更换</b>处理，'
+    + '不重复收取工本费；属使用不当的按标准收费。新钥匙同样自动继承原绑定与楼栋授权。']
+};
+
+var MAT = {
+  new: [['电子钥匙申请表（新增）', '必收', '本次填报生成', 'need'],
+    ['经办人授权委托书', '必收', '证照库调取 V1', 'auto'],
+    ['经办人身份证件', '必收', '证照库调取 V1', 'auto'],
+    ['从业人员在册证明', '系统内部校验', '系统自动', 'sys'],
+    ['工本费缴款凭证', '系统内生成', '缴费后自动关联', 'sys']],
+  renew: [['电子钥匙申请表（续费）', '必收', '本次填报生成', 'need'],
+    ['经办人身份证件', '必收', '证照库调取 V1', 'auto'],
+    ['工本费缴款凭证', '系统内生成', '缴费后自动关联', 'sys']],
+  lost: [['电子钥匙申请表（遗失补办）', '必收', '本次填报生成', 'need'],
+    ['遗失声明（须加盖企业公章）', '必收', '本次上传', 'need'],
+    ['经办人授权委托书', '必收', '证照库调取 V1', 'auto'],
+    ['工本费缴款凭证', '系统内生成', '缴费后自动关联', 'sys']],
+  broken: [['电子钥匙申请表（损坏更换）', '必收', '本次填报生成', 'need'],
+    ['损坏说明', '必收', '本次上传', 'need'],
+    ['原介质交回', '必收', '现场交回并登记', 'need'],
+    ['工本费缴款凭证', '免费更换的不收取', '认定后确定', 'sys']]
+};
+
+/* ============ 渲染 ============ */
+function stBadge(st) {
+  var m = { ok: ['ok', '正常'], soon: ['ok', '正常'], free: ['wait', '免费更换过期'], bad: ['bad', '过期'], off: ['off', '回收'], dead: ['dead', '已注销'] };
+  return '<span class="ik-st ' + m[st][0] + '">' + m[st][1] + '</span>';
+}
+function daysCell(d) {
+  var cls = d < 0 ? 'bad' : d <= 90 ? 'warn' : '';
+  var txt = d < 0 ? ('已逾期 ' + (-d) + ' 天') : (d + ' 天');
+  var pct = d < 0 ? 100 : Math.max(4, Math.min(100, Math.round(d / 365 * 100)));
+  return '<div class="ik-days ' + cls + '"><span class="dv">' + txt + '</span>'
+    + '<span class="db"><span style="width:' + pct + '%"></span></span></div>';
+}
+
+function renderKpi() {
+  var ok = IK.filter(function (k) { return k.st === 'ok' || k.st === 'soon' || k.st === 'free'; }).length;
+  var soon = IK.filter(function (k) { return k.st === 'soon'; }).length;
+  var off = IK.filter(function (k) { return k.st === 'off'; }).length;
+  var ld = IK.reduce(function (s, k) { return s + k.ld; }, 0);
+  var K = [
+    ['blue', 'fa-key', '持有钥匙', IK.length, '支'],
+    ['green', 'fa-circle-check', '可用', ok, '支'],
+    ['orange', 'fa-hourglass-half', '90 日内到期', soon, '支'],
+    ['gray', 'fa-rotate-left', '已回收', off, '支'],
+    ['cyan', 'fa-building', '可签约楼栋', ld, '栋']
+  ];
+  document.getElementById('ik-kpi').innerHTML = K.map(function (k) {
+    return '<div class="stat-card"><div class="s-ico si-ico ' + k[0] + '"><i class="fa-solid ' + k[1] + '"></i></div>'
+      + '<div><div class="s-label">' + k[2] + '</div>'
+      + '<div class="s-value">' + k[3] + '<em>' + k[4] + '</em></div></div></div>';
+  }).join('');
+
+  var soonList = IK.filter(function (k) { return k.st === 'soon'; });
+  var w = document.getElementById('ik-warn');
+  w.innerHTML = soonList.length
+    ? '<div class="alert alert-warning"><i class="fa-solid fa-hourglass-half"></i><span>钥匙 <b>'
+      + soonList.map(function (k) { return k.bh; }).join('、') + '</b> 将于 <b>' + soonList[0].yxq
+      + '</b> 到期（剩 ' + soonList[0].days + ' 天）。到期后绑定账号「' + soonList[0].ry
+      + '」将被禁止登录办理业务，请提前办理续费。'
+      + '<button class="btn btn-sm btn-accent" style="margin-left:10px" onclick="goApply(\'renew\')" data-fp="wsmh-38-03">去办理续费</button></span></div>'
+    : '';
+}
+
+function renderCards() {
+  document.getElementById('ik-cards').innerHTML = IK.map(function (k) {
+    var cls = k.st === 'off' ? 'off' : k.st === 'bad' ? 'bad' : k.st === 'soon' ? 'soon' : '';
+    return '<div class="ik-card ' + cls + '">'
+      + '<div class="ic-t"><i class="fa-solid fa-key"></i>' + UI.esc(k.bh) + '</div>'
+      + '<div class="ic-kv">'
+      + '<span>绑定经办人　<b>' + UI.esc(k.ry) + '</b>' + (k.zh !== '—' ? '（' + UI.esc(k.zh) + '）' : '') + '</span>'
+      + '<span>有效期止　<b>' + k.yxq + '</b></span>'
+      + '<span>可签约楼栋　<b>' + (k.ld || '—') + '</b>' + (k.ld ? ' 栋' : '') + '</span>'
+      + '<span>介质 / 工本费　' + UI.esc(k.jz) + ' · ' + k.fee + '</span>'
+      + (k.sm ? '<span class="text-3">' + UI.esc(k.sm) + '</span>' : '')
+      + '</div>'
+      + '<div style="margin-top:2px">' + daysCell(k.days) + '</div>'
+      + '<div class="ic-f">' + stBadge(k.st)
+      + (k.st === 'off' ? '<span class="badge gray">账号已禁办</span>'
+        : k.st === 'bad' ? '<span class="badge red">账号已禁登</span>'
+          : '<span class="badge green">账号可办理</span>')
+      + (k.st === 'soon' ? '<a class="btn btn-sm btn-accent" href="javascript:;" onclick="goApply(\'renew\')" data-fp="wsmh-38-03">续费</a>' : '')
+      + (k.st === 'ok' || k.st === 'free' ? '<a class="btn btn-sm" href="javascript:;" onclick="goApply(\'lost\')" data-fp="wsmh-38-04">遗失补办</a>' : '')
+      + '</div></div>';
+  }).join('');
+}
+
+function renderLd() {
+  var sel = document.getElementById('ik-ldkey');
+  if (!sel.options.length) {
+    sel.innerHTML = IK.filter(function (k) { return k.ld; })
+      .map(function (k) { return '<option>' + k.bh + '</option>'; }).join('');
+    sel.onchange = renderLd;
+  }
+  var arr = LD[sel.value] || [];
+  document.getElementById('ik-ld').innerHTML = arr.length
+    ? '<div class="ld-tags">' + arr.map(function (l) {
+      return '<span class="lt' + (l[1] ? '' : ' off') + '">' + UI.esc(l[0]) + (l[1] ? '' : '（已撤销）') + '</span>';
+    }).join('') + '</div>'
+    + '<div class="mt-16 text-sm text-3">授权中 <b class="text-primary">' + arr.filter(function (l) { return l[1]; }).length
+    + '</b> 栋，已撤销 ' + arr.filter(function (l) { return !l[1]; }).length + ' 栋。已撤销的楼栋通常是售毕或项目终止。</div>'
+    : UI.empty('该钥匙暂无楼栋授权', '经纪机构办理存量房与租赁网签不涉及楼栋授权；商品房网签需先由窗口按项目授权。');
+}
+
+function renderBind() {
+  document.getElementById('bd-list').innerHTML = IK.filter(function (k) { return k.zh !== '—'; }).map(function (k) {
+    return '<tr' + (k.st === 'off' || k.st === 'bad' ? ' style="background:#fdefee"' : '') + '>'
+      + '<td class="strong">' + UI.esc(k.bh) + '</td>'
+      + '<td>' + UI.esc(k.ry) + '</td>'
+      + '<td>' + UI.esc(k.zh) + '</td>'
+      + '<td><span class="badge green">在职执业</span></td>'
+      + '<td>2024-04-16</td>'
+      + '<td>' + (k.st === 'ok' || k.st === 'soon' || k.st === 'free'
+        ? '<span class="badge green">可登录并办理</span>' : '<span class="badge red">已禁止办理</span>') + '</td>'
+      + '<td class="acts"><a href="javascript:;" onclick="goBind(\'解除绑定\',\'' + k.bh + '\')">申请解绑</a></td>'
+      + '</tr>';
+  }).join('');
+
+  ['bd-key'].forEach(function (id) {
+    var s = document.getElementById(id);
+    if (!s.options.length) s.innerHTML = IK.map(function (k) { return '<option>' + k.bh + '</option>'; }).join('');
+  });
+  ['ap-ry', 'bd-ry'].forEach(function (id) {
+    var s = document.getElementById(id);
+    if (!s.options.length) s.innerHTML = RY.map(function (r) { return '<option>' + r + '</option>'; }).join('');
+  });
+  document.getElementById('bd-tip').innerHTML =
+    '<div class="alert alert-info" style="margin:0"><i class="fa-solid fa-circle-info"></i>'
+    + '<span>绑定调整须<b>审核通过后生效</b>。解绑后该账号立即失去业务办理能力，但仍可登录查看本企业信息。</span></div>';
+}
+
+function renderMsg() {
+  var IMPACT = {
+    ok: '暂不影响', soon: '到期后该经办人无法登录办理网签、备案等业务',
+    free: '暂不影响（已按免费更换处理）', bad: '该经办人已无法登录办理业务',
+    off: '钥匙已回收，绑定关系已解除'
+  };
+  document.getElementById('msg-exp').innerHTML = IK.map(function (k) {
+    var lvl = k.days < 0 ? '<span class="badge red">已过期</span>'
+      : k.days <= 7 ? '<span class="badge red">红色（7 日内）</span>'
+        : k.days <= 30 ? '<span class="badge orange">橙色（30 日内）</span>'
+          : k.days <= 90 ? '<span class="badge orange">黄色（90 日内）</span>'
+            : '<span class="badge gray">未进入预警</span>';
+    return '<tr' + (k.days < 0 ? ' style="background:#fdefee"' : '') + '>'
+      + '<td class="strong">' + UI.esc(k.bh) + '<div class="text-sm text-3">' + UI.esc(k.ry) + '</div></td>'
+      + '<td>' + k.yxq + '</td>'
+      + '<td>' + daysCell(k.days) + '</td>'
+      + '<td>' + lvl + '</td>'
+      + '<td>' + UI.esc(IMPACT[k.st] || '—') + '</td>'
+      + '<td class="acts">' + (k.days <= 90 && k.st !== 'off'
+        ? '<a href="javascript:;" onclick="goApply(\'renew\')">去续费</a>'
+        : '<a href="javascript:;" class="dis" onclick="UI.demo(\'该钥匙尚未进入预警区间，到期前 90 日会自动提醒\')">暂无需办理</a>')
+      + '</td></tr>';
+  }).join('');
+
+  document.getElementById('msg-bj').innerHTML = BJ.map(function (b) {
+    var steps = b.hj.map(function (h, i) {
+      var cls = i < b.cur ? 'badge green' : i === b.cur ? 'badge blue' : 'badge gray';
+      return '<span class="' + cls + '">' + h + '</span>';
+    }).join(' <i class="fa-solid fa-angle-right text-3" style="font-size:10px"></i> ');
+    return '<tr><td class="strong">' + b.bh + '</td>'
+      + '<td>' + UI.esc(b.lx) + '</td><td>' + UI.esc(b.ry) + '</td>'
+      + '<td>' + steps + '</td>'
+      + '<td>' + UI.esc(b.sx) + '</td>'
+      + '<td>' + (b.fee === '已缴' ? '<span class="badge green">已缴</span>' : '<span class="badge orange">待缴</span>') + '</td>'
+      + '<td class="acts">' + (b.fee === '待缴'
+        ? '<a href="javascript:;" onclick="UI.demo(\'已跳转在线缴费页面（演示环境），缴费成功后自动进入下一环节\')">去缴费</a>'
+        : '<a href="javascript:;" onclick="UI.demo(\'已打开办件详情（演示环境）\')">查看</a>') + '</td></tr>';
+  }).join('');
+}
+
+/* ---- 申请办理 ---- */
+function apType() {
+  var v = document.querySelector('input[name=aptype]:checked').value;
+  var d = AP[v];
+  document.getElementById('ap-sxsub').textContent = d[0];
+  document.getElementById('ap-desc').innerHTML =
+    '<div class="alert ' + d[1] + '" style="margin:0"><i class="fa-solid fa-circle-info"></i><span>' + d[2] + '</span></div>';
+  document.getElementById('ap-targetbox').style.display = v === 'new' ? 'none' : '';
+  document.getElementById('ap-ldbox').style.display = v === 'new' ? '' : 'none';
+  document.getElementById('ap-fee').value = v === 'broken' ? '0（拟免收，待认定）' : '300';
+
+  var t = document.getElementById('ap-target');
+  t.innerHTML = IK.filter(function (k) { return k.st !== 'off'; })
+    .map(function (k) { return '<option>' + k.bh + '　' + k.ry + '（' + stName(k.st) + '，至 ' + k.yxq + '）</option>'; }).join('');
+
+  document.getElementById('ap-matbox').innerHTML =
+    '<label>收件材料</label>'
+    + '<div class="table-wrap" style="margin-top:6px"><table class="pub-table">'
+    + '<thead><tr><th style="width:52px">序号</th><th>材料名称</th><th style="width:130px">收取要求</th><th style="width:160px">来源</th><th style="width:110px">状态</th></tr></thead><tbody>'
+    + MAT[v].map(function (m, i) {
+      var st = m[3] === 'auto' ? '<span class="badge green">已免提交</span>'
+        : m[3] === 'sys' ? '<span class="badge gray">系统处理</span>'
+          : '<span class="badge blue">需提交</span>';
+      return '<tr><td class="num">' + (i + 1) + '</td><td class="strong">' + m[0] + '</td>'
+        + '<td>' + (m[1] === '必收' ? PORTAL.badge('必收', 'red') : PORTAL.badge(m[1], 'gray')) + '</td>'
+        + '<td>' + m[2] + '</td><td>' + st + '</td></tr>';
+    }).join('')
+    + '</tbody></table></div>'
+    + '<div class="tip">证照库已有的有效证照<b>不会要求您重复上传</b>，系统自动调取当前有效版本。</div>';
+}
+function stName(st) {
+  return { ok: '正常', soon: '正常', free: '免费更换过期', bad: '过期', off: '回收', dead: '已注销' }[st] || st;
+}
+
+function goApply(type) {
+  document.querySelector('[data-tab="ik-apply"]').click();
+  var r = document.querySelector('input[name=aptype][value=' + type + ']');
+  if (r) { r.checked = true; apType(); }
+  UI.toast('已切换到「' + { new: '钥匙新增', renew: '钥匙续费', lost: '遗失补办', broken: '损坏更换' }[type] + '」申请', 'success');
+}
+function goBind(lx, bh) {
+  document.querySelector('[data-tab="ik-bind"]').click();
+  document.getElementById('bd-lx').value = lx;
+  var s = document.getElementById('bd-key');
+  for (var i = 0; i < s.options.length; i++) if (s.options[i].text === bh) { s.selectedIndex = i; break; }
+  UI.toast('已切换到绑定调整申请', 'success');
+}
+
+function submitAp() {
+  var v = document.querySelector('input[name=aptype]:checked').value;
+  if (!document.getElementById('ap-cn').checked) { UI.toast('请先勾选真实性承诺', 'warning'); return; }
+  var nm = { new: '钥匙新增（事项 4005）', renew: '钥匙续费', lost: '遗失补办', broken: '损坏更换' }[v];
+  var extra = v === 'new'
+    ? '窗口签收受理后进入审核与税费核算，缴纳工本费后配发钥匙并完成经办人绑定。'
+    : v === 'renew'
+      ? '缴费办结后钥匙状态回到「正常」，绑定账号<b>自动恢复登录与办理能力</b>。'
+      : '原钥匙将先置为「回收」，新钥匙配发后<b>自动继承原经办人绑定与楼栋授权</b>，您无需重新提交。';
+  document.getElementById('ap-res').innerHTML =
+    '<div class="alert alert-success" style="margin:0"><i class="fa-solid fa-circle-check"></i>'
+    + '<span>已提交<b>' + nm + '</b>申请，当前状态<b>「待签收」</b>。' + extra
+    + '办理进度与缴费入口可在「进度与到期提醒」页签查看，重要节点会通过短信与站内信通知您。</span></div>';
+  UI.toast('已提交' + nm + '申请', 'success');
+}
+
+function submitBd() {
+  if (!document.getElementById('bd-note').value.trim()) { UI.toast('请填写调整原因', 'warning'); return; }
+  var lx = document.getElementById('bd-lx').value;
+  document.getElementById('bd-res').innerHTML =
+    '<div class="alert alert-success" style="margin:0"><i class="fa-solid fa-circle-check"></i>'
+    + '<span>已提交<b>' + UI.esc(lx) + '</b>申请，待审核通过后生效。'
+    + (lx === '解除绑定'
+      ? '解绑生效后该账号将<b>立即失去业务办理能力</b>，但仍可登录查看本企业信息。'
+      : '生效后该经办人即可使用本钥匙登录并在已授权楼栋范围内签约。')
+    + '</span></div>';
+  UI.toast('已提交绑定调整申请', 'success');
+}
+
+/* ============ 初始化 ============ */
+function pageInit() {
+  if (!corpGuard('ikey.html')) return;
+  renderSide('ikey.html');
+  renderCorpBar('corp-bar', 'wsmh-38-01');
+  renderKpi();
+  renderCards();
+  renderLd();
+  renderBind();
+  renderMsg();
+  apType();
+
+  document.querySelectorAll('input[name=aptype]').forEach(function (r) { r.onchange = apType; });
+  document.getElementById('ap-submit').onclick = submitAp;
+  document.getElementById('bd-submit').onclick = submitBd;
+  document.getElementById('ik-goapply').onclick = function () { goApply('new'); };
+  document.getElementById('msg-goapply').onclick = function () { goApply('renew'); };
+  document.getElementById('msg-save').onclick = function () { UI.toast('已保存提醒接收设置', 'success'); };
+  document.getElementById('ap-demo').onclick = function () {
+    document.getElementById('ap-sm').value = '预售部经办用';
+    document.getElementById('ap-note').value = '新入职经办人吴**负责荣和·公园大道三期的商品房网签，申请配发电子钥匙并授权该项目楼栋。';
+    document.getElementById('ap-cn').checked = true;
+    UI.toast('已填入演示数据', 'info');
+  };
+
+  var t = UI.param('tab');
+  if (t) { var a = document.querySelector('[data-tab="' + t + '"]'); if (a) a.click(); }
+
+  var sn = document.getElementById('src-note');
+  if (sn) sn.innerHTML = UI.sourceNote('钥匙状态、绑定关系与楼栋授权由从业主体与信用监管子系统统一维护，企业端展示与监管端同源');
+}
+</script>
+</body>
+</html>
