@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>面积取值与差异模型 · 房屋交易面积信息管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<link rel="stylesheet" href="../../assets/css/spec.css">
+</head>
+<body data-role="reviewer" data-active="wschcg-25">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易面积信息管理系统
+        <span class="sep">/</span> 面积核验管理
+        <span class="sep">/</span> <span class="cur">面积取值与差异模型</span>
+      </div>
+      <div class="page-title">面积取值与预测实测差异模型 <span class="badge blue">唯一口径</span></div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="SP.todo('已按历史批次试算：以拟发布阈值版本回溯近 12 个月 386 个批次，受影响房屋 1,284 户，其中档位上移 62 户、下移 41 户，清单已生成')"><i class="fa-solid fa-calculator"></i> 阈值试算</button>
+      <button class="btn" onclick="SP.exportAsync('面积取值与差异判定参数库')"><i class="fa-solid fa-download"></i> 导出参数库</button>
+      <button class="btn btn-primary" data-roles-not="developer reviewer" onclick="PMS.openDrawer('fbDrawer')"><i class="fa-solid fa-upload"></i> 发布阈值版本</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div><b>全平台只有一套面积取值模型，且只在本子系统计算</b>。其他板块、统一服务门户、移动端与数据中心<b>只展示不计算</b>（R-K1）。
+      房源超市、网签备案、计税、发证的面积一律取本模型的结果，任何端不得自行计算或另立标准。
+      阈值与判定参数一律作为<b>可配置参数</b>存放，不得写入程序代码（R-K6）。</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-ruler-combined"></i></div><div>
+      <div class="s-label">本月已判定房屋</div><div class="s-value">8,462</div><div class="s-trend text-2">已完成实测核验</div></div></div>
+    <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-equals"></i></div><div>
+      <div class="s-label">一档 · 无差异</div><div class="s-value">6,128</div><div class="s-trend text-success">占 72.4%</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-check"></i></div><div>
+      <div class="s-label">二档 · 阈值内</div><div class="s-value">2,092</div><div class="s-trend text-2">占 24.7% · 同步并留痕</div></div></div>
+    <div class="stat-card dc-alarm"><div class="s-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div><div>
+      <div class="s-label">三档 · 超阈值</div><div class="s-value">196</div><div class="s-trend">阻断交付确认</div></div></div>
+    <div class="stat-card dc-alarm"><div class="s-icon red"><i class="fa-solid fa-circle-exclamation"></i></div><div>
+      <div class="s-label">四档 · 重大差异</div><div class="s-value">46</div><div class="s-trend">阻断交付与网签 · 已督办</div></div></div>
+    <div class="stat-card"><div class="s-icon purple"><i class="fa-solid fa-lock"></i></div><div>
+      <div class="s-label">取值冻结中</div><div class="s-value">242</div><div class="s-trend text-2">处理期间不接新成果</div></div></div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="zz">模型总则与取值顺序</div>
+      <div class="tab" data-tab="dw">档位与映射</div>
+      <div class="tab" data-tab="cs">参数库</div>
+      <div class="tab" data-tab="tz">结果台账 <span class="badge red">4</span></div>
+      <div class="tab" data-tab="ss">申诉与更正</div>
+    </div>
+
+    <!-- ===================== 页签一 · 模型总则与取值顺序 ===================== -->
+    <div class="tab-panel active" data-panel="zz">
+      <div class="card-body">
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-sort"></i> 面积取值判定顺序
+            <span class="sub">R-K2 · 顺序固定，上位来源缺失时方下移一档</span></div>
+          <div class="sp-b">
+            <div class="sp-fx">
+              <b>产权登记面积</b> <em>优先于</em> <b>实测面积</b> <em>优先于</em> <b>预测面积</b>
+            </div>
+            <div class="sp-check" style="margin-top:10px">
+              <div class="ck pass"><i class="fa-solid fa-1"></i><div class="cb">
+                <div class="ct">产权登记面积 · 最高优先</div>
+                <div class="cd">已完成不动产首次登记或转移登记的房屋，一律取登记面积。此时即便后续报送新的实测成果，也不改变取值，须走面积更正流程。</div></div>
+                <div class="co"><span class="badge green">已登记 4,208 户</span></div></div>
+              <div class="ck pass"><i class="fa-solid fa-2"></i><div class="cb">
+                <div class="ct">实测面积 · 次优</div>
+                <div class="cd">已完成实测成果核验并同步楼盘表的房屋取实测面积。竣工交付、计税、发证阶段均取此值。</div></div>
+                <div class="co"><span class="badge blue">已实测 8,462 户</span></div></div>
+              <div class="ck wait"><i class="fa-solid fa-3"></i><div class="cb">
+                <div class="ct">预测面积 · 兜底</div>
+                <div class="cd">尚未实测的房屋取预测面积。预售、认购、网签阶段以此为准，合同须标注为预测面积并约定面积差处理方式。</div></div>
+                <div class="co"><span class="badge orange">仅预测 12,846 户</span></div></div>
+            </div>
+            <p class="hint">
+              <i class="fa-solid fa-circle-info"></i>
+              取值结果<b>自成果同步办结时点生效</b>，同步前一律沿用原取值，<b>不存在中间态取值</b>（R-K4）。
+            </p>
+          </div>
+        </div>
+
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-divide"></i> 差异比例计算方式
+            <span class="sub">R-K3 · 计算方式固定</span></div>
+          <div class="sp-b">
+            <div class="sp-fx">
+              <span class="lb">差异比例 ＝</span>
+              | <b>实测建筑面积</b> − <b>预测建筑面积</b> | ÷ <b>预测建筑面积</b>
+              <span class="muted">（取绝对值，保留两位小数）</span>
+            </div>
+            <div class="grid-2" style="margin-top:10px">
+              <div class="sp-kv">
+                <div class="kv"><span class="k">示例房屋</span><span class="v">荣和公园大道二期 8-1-1502</span></div>
+                <div class="kv"><span class="k">预测建筑面积</span><span class="v">118.60 ㎡</span></div>
+                <div class="kv"><span class="k">实测建筑面积</span><span class="v">122.94 ㎡</span></div>
+                <div class="kv"><span class="k">面积差</span><span class="v warn">+4.34 ㎡</span></div>
+                <div class="kv"><span class="k">差异比例</span><span class="v bad">3.66%</span><span class="sp-lv g3">三档</span></div>
+              </div>
+              <div class="sp-kv">
+                <div class="kv"><span class="k">判定结论</span><span class="v bad">超阈值差异</span></div>
+                <div class="kv"><span class="k">对外表述</span><span class="v">面积差异需处理</span></div>
+                <div class="kv"><span class="k">系统动作</span><span class="v">生成差异台账、推送补差处理</span></div>
+                <div class="kv"><span class="k">业务阻断</span><span class="v bad">阻断交付确认</span></div>
+                <div class="kv"><span class="k">取值状态</span><span class="v warn">处理期间冻结</span>
+                  <a href="javascript:SP.tab('tz')">看台账</a></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-scale-balanced"></i> 模型总则
+            <span class="sub">11.1 · R-K1 至 R-K7</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>编号</th><th>规则</th><th>原型落点</th></tr></thead>
+                <tbody>
+                  <tr><td><b>R-K1</b></td><td class="cell-lg">全平台只有一套面积取值模型，且只在本子系统计算，其他板块、门户、移动端与数据中心<b>只展示不计算</b></td>
+                    <td><span class="link" onclick="SP.drill('面积成果对外服务','各调用方统一取本模型结果','area-service.html')">对外服务</span></td></tr>
+                  <tr><td><b>R-K2</b></td><td class="cell-lg">取值判定顺序固定为产权登记面积 ＞ 实测面积 ＞ 预测面积，上位来源缺失时方下移一档</td>
+                    <td><span class="muted">本页签</span></td></tr>
+                  <tr><td><b>R-K3</b></td><td class="cell-lg">差异比例＝（实测建筑面积 − 预测建筑面积）÷ 预测建筑面积，取绝对值，保留两位小数</td>
+                    <td><span class="muted">本页签</span></td></tr>
+                  <tr><td><b>R-K4</b></td><td class="cell-lg">取值结果<b>自成果同步办结时点生效</b>，同步前沿用原取值，不存在中间态取值</td>
+                    <td><span class="link" onclick="SP.drill('面积同步楼盘表','同步办结即生效','area-sync.html')">成果同步</span></td></tr>
+                  <tr><td><b>R-K5</b></td><td class="cell-lg">取值与差异判定的每一次变化写入<b>状态流水与生命周期事件</b>，可追溯至具体办件与成果版本</td>
+                    <td><span class="link" onclick="SP.drill('面积变更记录','按房屋查取值变更流水','area-change.html')">变更记录</span></td></tr>
+                  <tr><td><b>R-K6</b></td><td class="cell-lg">阈值与判定参数一律作为<b>可配置参数</b>存放，<b>不得写入程序代码</b>，支持市县分级配置并保留版本与生效日期</td>
+                    <td><span class="link" onclick="SP.tab('cs')">参数库</span></td></tr>
+                  <tr><td><b>R-K7</b></td><td class="cell-lg">已固化的面积统计快照<b>不因后续成果变更、更正或阈值调整而回改</b></td>
+                    <td><span class="muted">统计口径</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-layer-group"></i> 批次与周期约束
+            <span class="sub">11.4 · R-K8 至 R-K14</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>编号</th><th>规则</th></tr></thead>
+                <tbody>
+                  <tr><td><b>R-K8</b></td><td class="cell-lg">批次属性至少包含批次编号、项目主键、楼栋主键、成果类型、模板版本、报送主体、报送时间、条数与状态
+                    <span class="link" onclick="location.href='batch-manage.html'">（看批次台账）</span></td></tr>
+                  <tr><td><b>R-K9</b></td><td class="cell-lg">阈值版本的生效周期取值来源于<b>一城一策政策参数配置</b>，本子系统不自行设定生效日期</td></tr>
+                  <tr class="row-warn"><td><b>R-K10</b></td><td class="cell-lg">阈值调整发布前<b>须以历史批次试算比对</b>，输出受影响房屋清单，<b>未试算的不得发布</b></td></tr>
+                  <tr class="row-warn"><td><b>R-K11</b></td><td class="cell-lg">差异初判与超阈值复核<b>须分人办理</b>，同一自然人不得兼任</td></tr>
+                  <tr><td><b>R-K12</b></td><td class="cell-lg">阈值版本发布后<b>不可修改</b>，需调整的发布新版本并保留原版本可查</td></tr>
+                  <tr><td><b>R-K13</b></td><td class="cell-lg">参评范围界定为<b>已完成实测成果核验的房屋</b>，未实测房屋不参与差异判定</td></tr>
+                  <tr><td><b>R-K14</b></td><td class="cell-lg">成果备案的公示期与公示标注由成果公示配置控制，<b>公示期内内容不得替换</b></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 页签二 · 档位与映射 ===================== -->
+    <div class="tab-panel" data-panel="dw">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>下表阈值为<b>建议值</b>，需业务在需求确认阶段核定；核定前按下表实现。
+            阈值作为可配置参数存放，支持<b>市县分级配置</b>并保留版本与生效日期（11.2）。
+            当前生效阈值版本 <b>YZ-2026-01</b>：下限 3%、上限 5%，生效日期 2026-07-01。</div>
+        </div>
+
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-chart-simple"></i> 四档映射
+            <span class="sub">差异比例 → 归并类别 → 对外表述 → 业务后果</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table">
+                <thead><tr>
+                  <th>档位</th><th>取值区间</th><th>归并类别</th><th>对外表述</th><th>常见应用</th><th class="num">本月房屋数</th><th>业务阻断</th>
+                </tr></thead>
+                <tbody>
+                  <tr>
+                    <td><span class="sp-lv g1">一档</span></td>
+                    <td>差异比例为 <b>0</b></td>
+                    <td><span class="badge green">无差异</span></td>
+                    <td>面积一致</td>
+                    <td class="cell-lg">正常同步，<b>不产生差异台账</b></td>
+                    <td class="num">6,128</td>
+                    <td><span class="muted">无</span></td>
+                  </tr>
+                  <tr>
+                    <td><span class="sp-lv g2">二档</span></td>
+                    <td>＞ 0 且 ≤ <b>3%</b> <span class="muted">（下限，待定）</span></td>
+                    <td><span class="badge blue">阈值内差异</span></td>
+                    <td>面积在约定误差内</td>
+                    <td class="cell-lg">同步并留痕，<b>不阻断交付确认</b></td>
+                    <td class="num">2,092</td>
+                    <td><span class="muted">无</span></td>
+                  </tr>
+                  <tr class="row-warn">
+                    <td><span class="sp-lv g3">三档</span></td>
+                    <td>＞ <b>3%</b> 且 ≤ <b>5%</b> <span class="muted">（上限，待定）</span></td>
+                    <td><span class="badge orange">超阈值差异</span></td>
+                    <td>面积差异需处理</td>
+                    <td class="cell-lg">生成差异台账，<b>推送补差处理</b></td>
+                    <td class="num">196</td>
+                    <td><span class="badge orange">阻断交付确认</span></td>
+                  </tr>
+                  <tr class="row-bad">
+                    <td><span class="sp-lv g4">四档</span></td>
+                    <td>＞ <b>5%</b> <span class="muted">（待定）</span></td>
+                    <td><span class="badge red">重大差异</span></td>
+                    <td>面积差异重大</td>
+                    <td class="cell-lg">生成差异台账并<b>同时推送预警督办</b></td>
+                    <td class="num">46</td>
+                    <td><span class="badge red">阻断交付确认与网签</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="sp-src">
+              <span><b>当前阈值版本</b> YZ-2026-01（下限 3%、上限 5%）</span>
+              <span><b>生效日期</b> 2026-07-01 · 来源一城一策政策参数配置（R-K9）</span>
+              <span><b>参评范围</b> 已完成实测成果核验的房屋（R-K13）</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-chart-pie"></i> 本月档位分布
+              <span class="sub">8,462 户已判定</span></div>
+            <div class="sp-b">
+              <div class="sp-bars">
+                <div class="b"><span class="n">一档 · 无差异</span><span class="t g"><span style="width:72.4%"></span></span><span class="v">6,128 · 72.4%</span></div>
+                <div class="b"><span class="n">二档 · 阈值内</span><span class="t"><span style="width:24.7%"></span></span><span class="v">2,092 · 24.7%</span></div>
+                <div class="b"><span class="n">三档 · 超阈值</span><span class="t o"><span style="width:2.3%"></span></span><span class="v">196 · 2.3%</span></div>
+                <div class="b"><span class="n">四档 · 重大差异</span><span class="t r"><span style="width:0.6%"></span></span><span class="v">46 · 0.6%</span></div>
+              </div>
+              <p class="hint">
+                <i class="fa-solid fa-circle-info"></i>
+                三档与四档合计 242 户，均已入面积差异台账并<b>冻结面积取值变更</b>。
+              </p>
+            </div>
+          </div>
+
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-code-branch"></i> 阈值版本
+              <span class="sub">R-K12 · 发布后不可修改</span></div>
+            <div class="sp-b pad0">
+              <div class="sp-tw">
+                <table class="data-table compact">
+                  <thead><tr><th>版本</th><th>下限</th><th>上限</th><th>适用层级</th><th>生效日期</th><th>状态</th></tr></thead>
+                  <tbody>
+                    <tr><td><span class="sp-vt cur">YZ-2026-01</span></td><td>3%</td><td>5%</td><td>市本级</td><td>2026-07-01</td><td><span class="badge green">生效</span></td></tr>
+                    <tr class="row-off"><td><span class="sp-vt old">YZ-2024-01</span></td><td>3%</td><td>——</td><td>市本级</td><td>2024-01-01</td><td><span class="badge gray">历史</span></td></tr>
+                    <tr><td><span class="sp-vt">YZ-2026-RS</span></td><td>3%</td><td>5%</td><td>融水苗族自治县</td><td>2026-09-01</td><td><span class="badge blue">待生效</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="hint" style="padding:9px 12px">
+                <i class="fa-solid fa-circle-info"></i>
+                历史版本 YZ-2024-01 未设上限，四档判定自 YZ-2026-01 起启用。
+                <b>已固化的统计快照不因阈值调整而回改</b>（R-K7）。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 页签三 · 参数库 ===================== -->
+    <div class="tab-panel" data-panel="cs">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>参数编码前缀区分类型：<b>取值类 QZ、阈值类 YZ、否决类 FJ</b>，后接类别序号与项序号。
+            参数名称全平台不重复；取值一律写<b>待定</b>，不得预置数值（11.3）。
+            <b>是否一票否决</b>命中即阻断业务，须同时给出<b>修复条件</b>。</div>
+        </div>
+
+        <div class="sp-split">
+          <aside class="sp-tree">
+            <div class="sp-ti on" onclick="pickCs(this,'all')"><i class="fa-solid fa-list"></i> 全部参数 <span class="tc">6</span></div>
+            <div class="sp-ti lv2" style="font-weight:700;color:var(--text-2);margin-top:6px">按参数类型</div>
+            <div class="sp-ti lv2" onclick="pickCs(this,'qz')">取值顺序类 <span class="tc">2</span></div>
+            <div class="sp-ti lv2" onclick="pickCs(this,'yz')">阈值类 <span class="tc">3</span></div>
+            <div class="sp-ti lv2 veto" onclick="pickCs(this,'fj')">否决类 <span class="tc">1</span></div>
+            <div class="sp-ti lv2" style="font-weight:700;color:var(--text-2);margin-top:6px">按适用层级</div>
+            <div class="sp-ti lv2" onclick="pickCs(this,'city')">全市统一 <span class="tc">5</span></div>
+            <div class="sp-ti lv2" onclick="pickCs(this,'area')">市县分级 <span class="tc">1</span></div>
+            <p class="hint" style="padding:10px 2px 0">
+              <i class="fa-solid fa-circle-info"></i>
+              一票否决参数共 <b>2</b> 个（YZ-01-02、FJ-01-01），命中后须满足修复条件方可解除。
+            </p>
+          </aside>
+
+          <div class="sp-pane">
+            <div class="filter-bar">
+              <div class="filter-item"><label>当前筛选</label><input type="text" id="csScope" value="全部参数" readonly></div>
+              <div class="filter-item"><label>参数编码</label><input type="text" placeholder="如 YZ-01-01"></div>
+              <div class="filter-item"><label>是否一票否决</label><select><option>全部</option><option>是</option><option>否</option></select></div>
+              <div class="filter-actions">
+                <button class="btn btn-primary" onclick="PMS.toast('已按所选条件检索参数','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+                <button class="btn" data-roles-not="developer reviewer" onclick="PMS.openDrawer('csDrawer')"><i class="fa-solid fa-plus"></i> 新增参数</button>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead><tr>
+                  <th>参数编码</th><th>参数名称</th><th>参数类型</th><th>单次取值</th><th>上下限</th>
+                  <th>一票否决</th><th>修复条件</th><th>适用层级</th><th>操作</th>
+                </tr></thead>
+                <tbody>
+                  <tr>
+                    <td><b>QZ-01-01</b></td><td class="cell-lg">预售阶段面积取值来源</td><td>取值顺序类</td>
+                    <td><span class="badge yellow">待定</span></td><td class="cell-lg">枚举：预测 / 实测 / 登记</td>
+                    <td><span class="badge gray">否</span></td><td><span class="muted">—</span></td><td><span class="sp-scope city">全市统一</span></td>
+                    <td><span class="link" onclick="PMS.openDrawer('csDrawer')">查看</span></td>
+                  </tr>
+                  <tr>
+                    <td><b>QZ-01-02</b></td><td class="cell-lg">交付阶段面积取值来源</td><td>取值顺序类</td>
+                    <td><span class="badge yellow">待定</span></td><td class="cell-lg">枚举：实测 / 登记</td>
+                    <td><span class="badge gray">否</span></td><td><span class="muted">—</span></td><td><span class="sp-scope city">全市统一</span></td>
+                    <td><span class="link" onclick="PMS.openDrawer('csDrawer')">查看</span></td>
+                  </tr>
+                  <tr>
+                    <td><b>YZ-01-01</b></td><td class="cell-lg">预实差异阈值下限</td><td>阈值类</td>
+                    <td><span class="badge yellow">待定</span> <span class="muted">建议 3%</span></td><td class="cell-lg">0% ～ 5%</td>
+                    <td><span class="badge gray">否</span></td><td><span class="muted">—</span></td><td><span class="sp-scope area">市县分级</span></td>
+                    <td><span class="link" onclick="PMS.openDrawer('csDrawer')">查看</span></td>
+                  </tr>
+                  <tr class="row-bad">
+                    <td><b>YZ-01-02</b></td><td class="cell-lg">预实差异阈值上限</td><td>阈值类</td>
+                    <td><span class="badge yellow">待定</span> <span class="muted">建议 5%</span></td><td class="cell-lg">3% ～ 10%</td>
+                    <td><span class="badge red">是</span></td>
+                    <td class="cell-lg">补差处理办结<b>或</b>差异经核定不成立</td><td><span class="sp-scope city">全市统一</span></td>
+                    <td><span class="link" onclick="PMS.openDrawer('csDrawer')">查看</span></td>
+                  </tr>
+                  <tr>
+                    <td><b>YZ-02-01</b></td><td class="cell-lg">套内与分摊比例合理区间</td><td>阈值类</td>
+                    <td><span class="badge yellow">待定</span></td><td class="cell-lg">0.60 ～ 0.95</td>
+                    <td><span class="badge gray">否</span></td>
+                    <td class="cell-lg">异常核查出处理结论</td><td><span class="sp-scope city">全市统一</span></td>
+                    <td><span class="link" onclick="PMS.openDrawer('csDrawer')">查看</span></td>
+                  </tr>
+                  <tr class="row-bad">
+                    <td><b>FJ-01-01</b></td><td class="cell-lg">合同面积与楼盘表面积不一致</td><td>否决类</td>
+                    <td><span class="badge yellow">待定</span></td><td class="cell-lg">布尔</td>
+                    <td><span class="badge red">是</span></td>
+                    <td class="cell-lg">面积更正办结<b>或</b>合同变更备案办结</td><td><span class="sp-scope city">全市统一</span></td>
+                    <td><span class="link" onclick="PMS.openDrawer('csDrawer')">查看</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <p class="hint">
+              <i class="fa-solid fa-circle-info"></i>
+              本表为<b>示范写法</b>，实施时须按 11.3 的 12 项属性结构补全：参数编码、参数名称、参数类型、计算方式、单次取值、上下限、权重、影响有效期、依据来源、是否一票否决、修复条件、适用层级。
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 页签四 · 结果台账 ===================== -->
+    <div class="tab-panel" data-panel="tz">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>台账内房屋在处理期间<b>冻结面积取值变更</b>，冻结期间<b>不接受同一房源的新成果同步请求</b>；
+            处理办结或差异不成立后<b>自动解冻</b>，冻结与解冻均写入状态流水（11.5）。
+            当前冻结 <b>242</b> 户。</div>
+        </div>
+
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-table-list"></i> 四类结果台账
+            <span class="sub">生成规则 · 认定与发布 · 退出方式</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table">
+                <thead><tr>
+                  <th>名单</th><th>候选生成规则（系统自动）</th><th>认定与发布</th><th>退出方式</th><th class="num">在册</th><th>操作</th>
+                </tr></thead>
+                <tbody>
+                  <tr class="row-bad">
+                    <td><b>面积差异台账</b></td>
+                    <td class="cell-lg">核验计算差异比例落入<b>三档或四档</b>的房屋自动入账</td>
+                    <td class="cell-lg">reviewer 出处理结论，<b>city 复核</b></td>
+                    <td class="cell-lg">补差处理办结或差异经核定不成立</td>
+                    <td class="num">242</td>
+                    <td><span class="link" onclick="SP.drill('面积差异处理与找补','查看逐户差异与找补测算','area-diff.html')">处理</span></td>
+                  </tr>
+                  <tr class="row-warn">
+                    <td><b>待匹配房号清单</b></td>
+                    <td class="cell-lg">成果房号在楼盘表<b>无匹配或多条匹配</b>的自动入账</td>
+                    <td class="cell-lg">reviewer 人工确认或转补录流程</td>
+                    <td class="cell-lg">确认唯一房源主键并回填</td>
+                    <td class="num">18</td>
+                    <td><span class="link" onclick="SP.drill('楼盘表房号匹配','查看差异清单并人工确认','room-match.html')">处理</span></td>
+                  </tr>
+                  <tr class="row-warn">
+                    <td><b>面积异常核查清单</b></td>
+                    <td class="cell-lg">套内与分摊比例、同层同户型一致性、总分合计校验<b>命中</b>的自动入账</td>
+                    <td class="cell-lg">reviewer 出处理结论</td>
+                    <td class="cell-lg">处理结论办结或经审定已忽略</td>
+                    <td class="num">64</td>
+                    <td><span class="link" onclick="SP.drill('面积异常核查','查看七类异常与核查结论','area-exception.html')">处理</span></td>
+                  </tr>
+                  <tr>
+                    <td><b>一致性核查差异清单</b></td>
+                    <td class="cell-lg"><b>每日核对</b>成果备案与楼盘表面积状态不一致的自动入账</td>
+                    <td class="cell-lg"><b>city 分派</b>对应板块处理</td>
+                    <td class="cell-lg">两侧数据一致后<b>自动出账</b></td>
+                    <td class="num">6</td>
+                    <td><span class="link" onclick="SP.todo('已分派：6 条不一致中 4 条为楼盘表未同步、2 条为成果备案状态滞后，已分派至对应板块处理，两侧一致后自动出账')">分派</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-bar">
+          <div class="filter-item"><label>台账</label>
+            <select id="tzPick" onchange="PMS.toast('已切换至「'+this.value+'」')">
+              <option>面积差异台账</option><option>待匹配房号清单</option><option>面积异常核查清单</option><option>一致性核查差异清单</option>
+            </select>
+          </div>
+          <div class="filter-item"><label>档位</label><select><option>全部</option><option>三档 · 超阈值</option><option>四档 · 重大差异</option></select></div>
+          <div class="filter-item"><label>项目名称</label><input type="text" placeholder="项目名称"></div>
+          <div class="filter-item"><label>取值状态</label><select><option>全部</option><option>冻结中</option><option>已解冻</option></select></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按所选条件检索台账','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="SP.exportAsync('面积差异台账')"><i class="fa-solid fa-download"></i> 导出</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>房屋坐落</th><th class="num">预测建面</th><th class="num">实测建面</th><th class="num">面积差</th>
+              <th class="num">差异比例</th><th>档位</th><th>合同状态</th><th>取值状态</th><th>处理结论</th><th>操作</th>
+            </tr></thead>
+            <tbody>
+              <tr class="row-bad">
+                <td class="cell-lg">荣和公园大道二期 8-1-1502</td>
+                <td class="num">118.60</td><td class="num">122.94</td><td class="num text-danger">+4.34</td>
+                <td class="num"><b>3.66%</b></td><td><span class="sp-lv g3">三档</span></td>
+                <td><span class="badge blue">已网签</span></td>
+                <td><span class="sp-st bad">冻结中</span></td>
+                <td><span class="muted">待出结论</span></td>
+                <td>
+                  <span class="link" onclick="PMS.openDrawer('cyDrawer')">出结论</span>
+                  <span class="link" onclick="SP.drill('面积差异处理与找补','按合同约定测算找补款','area-diff.html')">找补测算</span>
+                </td>
+              </tr>
+              <tr class="row-bad">
+                <td class="cell-lg">荣和公园大道二期 8-2-1806</td>
+                <td class="num">142.30</td><td class="num">150.86</td><td class="num text-danger">+8.56</td>
+                <td class="num"><b>6.02%</b></td><td><span class="sp-lv g4">四档</span></td>
+                <td><span class="badge blue">已网签</span></td>
+                <td><span class="sp-st bad">冻结中</span></td>
+                <td><span class="badge red">已推督办</span></td>
+                <td>
+                  <span class="link" onclick="PMS.openDrawer('cyDrawer')">出结论</span>
+                  <span class="link" onclick="SP.todo('四档重大差异已同时推送预警督办，阻断交付确认与网签。督办单号 DB2026-0827-0046，限 5 个工作日反馈')">看督办</span>
+                </td>
+              </tr>
+              <tr class="row-warn">
+                <td class="cell-lg">彰泰滨江学府 6-1-0902</td>
+                <td class="num">96.40</td><td class="num">99.82</td><td class="num text-warning">+3.42</td>
+                <td class="num"><b>3.55%</b></td><td><span class="sp-lv g3">三档</span></td>
+                <td><span class="badge gray">未网签</span></td>
+                <td><span class="sp-st bad">冻结中</span></td>
+                <td class="cell-lg">差异成立，按合同约定找补</td>
+                <td>
+                  <span class="link" onclick="SP.dual('超阈值差异复核','韦国强',function(){PMS.toast('已复核确认，转补差处理，办结后自动解冻','success')})">city 复核</span>
+                </td>
+              </tr>
+              <tr>
+                <td class="cell-lg">万科城 12-2-0603</td>
+                <td class="num">88.20</td><td class="num">91.46</td><td class="num text-warning">+3.26</td>
+                <td class="num"><b>3.70%</b></td><td><span class="sp-lv g3">三档</span></td>
+                <td><span class="badge gray">未网签</span></td>
+                <td><span class="sp-st done">已解冻</span></td>
+                <td class="cell-lg"><span class="badge green">差异经核定不成立</span> 原预测成果阳台计算有误</td>
+                <td>
+                  <span class="link" onclick="SP.todo('差异经核定不成立，已自动解冻取值。原预测成果阳台按半计报送有误，已转更正测绘流程，不在申诉流程内直接改面积（R-K18）')">看结论</span>
+                </td>
+              </tr>
+              <tr>
+                <td class="cell-lg">荣和公园大道一期 2-1-1102</td>
+                <td class="num">124.80</td><td class="num">129.62</td><td class="num text-warning">+4.82</td>
+                <td class="num"><b>3.86%</b></td><td><span class="sp-lv g3">三档</span></td>
+                <td><span class="badge blue">已网签</span></td>
+                <td><span class="sp-st done">已解冻</span></td>
+                <td class="cell-lg"><span class="badge green">补差处理已办结</span></td>
+                <td><span class="link" onclick="SP.todo('补差处理已办结，取值自动解冻，楼盘表按实测面积 129.62 ㎡ 生效，交付确认已放行')">看结论</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="sp-src">
+          <span><b>初判与复核分人</b> 差异初判与超阈值复核不得同一自然人兼任（R-K11）</span>
+          <span><b>责任板块</b> 面积补差的责任板块与后续办理方式<b>待业务确认</b>（R-K20）</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 页签五 · 申诉与更正 ===================== -->
+    <div class="tab-panel" data-panel="ss">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>申诉入口<b>设在企业与机构工作台的面积差异通知页</b>，不另设线下入口（R-K15）。
+            <b>申诉涉及成果本身有误的转更正测绘或变更测绘流程办理，不在申诉流程内直接改面积</b>（R-K18）。</div>
+        </div>
+
+        <div class="grid-2">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-scale-balanced"></i> 申诉规则
+              <span class="sub">11.6 · R-K15 至 R-K20</span></div>
+            <div class="sp-b pad0">
+              <div class="sp-tw">
+                <table class="data-table compact">
+                  <thead><tr><th>编号</th><th>规则</th></tr></thead>
+                  <tbody>
+                    <tr><td><b>R-K15</b></td><td class="cell-lg">申诉入口设在企业与机构工作台的面积差异通知页，<b>不另设线下入口</b></td></tr>
+                    <tr><td><b>R-K16</b></td><td class="cell-lg">申诉成立的须<b>重新核验并重算差异比例</b>，重算结果回流楼盘表与差异台账</td></tr>
+                    <tr><td><b>R-K17</b></td><td class="cell-lg">申诉不成立的须写明理由并反馈申诉人，<b>理由不得为空</b></td></tr>
+                    <tr class="row-warn"><td><b>R-K18</b></td><td class="cell-lg">申诉涉及成果本身有误的转<b>更正测绘或变更测绘</b>流程办理，<b>不在申诉流程内直接改面积</b></td></tr>
+                    <tr><td><b>R-K19</b></td><td class="cell-lg">申诉全过程留痕，含申诉时间、申诉理由、受理人、结论与反馈时间</td></tr>
+                    <tr class="row-warn"><td><b>R-K20</b></td><td class="cell-lg">面积补差的责任板块与后续办理方式为<b>待业务确认</b>，本子系统只负责生成差异台账与推送</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-route"></i> 申诉处置三条出路</div>
+            <div class="sp-b">
+              <div class="sp-check">
+                <div class="ck pass"><i class="fa-solid fa-circle-check"></i><div class="cb">
+                  <div class="ct">申诉成立 · 重新核验并重算</div>
+                  <div class="cd">重新核验成果并按 R-K3 重算差异比例，重算结果<b>回流楼盘表与差异台账</b>，档位随之调整。</div></div>
+                  <div class="co"><span class="badge green">4 件</span></div></div>
+                <div class="ck block"><i class="fa-solid fa-circle-xmark"></i><div class="cb">
+                  <div class="ct">申诉不成立 · 写明理由并反馈</div>
+                  <div class="cd">理由<b>不得为空</b>，反馈至申诉人。差异台账保持在册，取值继续冻结。</div></div>
+                  <div class="co"><span class="badge red">2 件</span></div></div>
+                <div class="ck wait"><i class="fa-solid fa-arrow-right-arrow-left"></i><div class="cb">
+                  <div class="ct">成果本身有误 · 转更正或变更测绘</div>
+                  <div class="cd">申诉流程内<b>不直接改面积</b>，转 FW17 / FW18 变更申报或更正流程，由新批次重新入库。</div></div>
+                  <div class="co"><span class="badge orange">3 件</span></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-bar">
+          <div class="filter-item"><label>申诉状态</label><select><option>全部</option><option>待受理</option><option>核实中</option><option>已办结</option></select></div>
+          <div class="filter-item"><label>房屋坐落</label><input type="text" placeholder="项目或房号"></div>
+          <div class="filter-item"><label>申诉人</label><input type="text" placeholder="企业或权利人"></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按所选条件检索申诉记录','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>申诉编号</th><th>房屋坐落</th><th>申诉人</th><th>申诉理由</th><th>申诉时间</th>
+              <th>受理人</th><th>结论</th><th>反馈时间</th><th>操作</th>
+            </tr></thead>
+            <tbody>
+              <tr class="row-warn">
+                <td>SS2026-0826-0018</td><td class="cell-lg">荣和公园大道二期 8-2-1806</td><td>周××（权利人）</td>
+                <td class="cell-lg">实测阳台按全计，认为应按半计，与合同附图不符</td><td>2026-08-26</td>
+                <td>韦国强</td><td><span class="sp-st doing">核实中</span></td><td><span class="muted">—</span></td>
+                <td>
+                  <span class="link" onclick="PMS.openDrawer('ssDrawer')">办理</span>
+                  <span class="link" onclick="SP.todo('已调取该户成果版本 V3 的阳台计算方式字段：报送值为「全计」。正在核对规划验收依据与合同附图，核实成立的转更正测绘（R-K18）')">调取成果</span>
+                </td>
+              </tr>
+              <tr>
+                <td>SS2026-0820-0014</td><td class="cell-lg">彰泰滨江学府 6-1-0902</td><td>彰泰置业（开发企业）</td>
+                <td class="cell-lg">分摊系数计算基数有误</td><td>2026-08-20</td>
+                <td>韦国强</td>
+                <td><span class="badge green">申诉成立</span></td><td>2026-08-24</td>
+                <td><span class="link" onclick="SP.todo('申诉成立，已重新核验并重算差异比例：由 4.82% 降为 3.55%，档位由四档调整为三档，重算结果已回流楼盘表与差异台账（R-K16）')">看重算</span></td>
+              </tr>
+              <tr>
+                <td>SS2026-0818-0011</td><td class="cell-lg">万科城 12-2-0603</td><td>周××（权利人）</td>
+                <td class="cell-lg">认为实测面积偏大</td><td>2026-08-18</td>
+                <td>韦国强</td>
+                <td><span class="badge red">申诉不成立</span></td><td>2026-08-21</td>
+                <td><span class="link" onclick="SP.todo('申诉不成立理由：经复核实测成果与规划验收一致，套内与分摊合计关系成立，差异比例 3.70% 在三档区间内。理由已反馈申诉人（R-K17）')">看理由</span></td>
+              </tr>
+              <tr>
+                <td>SS2026-0812-0008</td><td class="cell-lg">荣和公园大道一期 2-1-1102</td><td>荣和地产（开发企业）</td>
+                <td class="cell-lg">成果房号与楼盘表不符</td><td>2026-08-12</td>
+                <td>韦国强</td>
+                <td><span class="badge orange">转更正测绘</span></td><td>2026-08-15</td>
+                <td><span class="link" onclick="SP.todo('成果本身有误，已转更正测绘流程办理（FW18），不在申诉流程内直接改面积。新批次 PC2026-0818-0148 已入库，面积按新版本生效（R-K18）')">看转办</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="sp-src">
+          <span><b>企业端入口</b> 面积差异通知页 · 不另设线下入口（R-K15）</span>
+          <span><b>留痕</b> 申诉时间、理由、受理人、结论与反馈时间全程留痕（R-K19）</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ========== 抽屉一 · 参数详情 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="csDrawer">
+  <div class="drawer-head"><h3>参数详情 · YZ-01-02 预实差异阈值上限</h3>
+    <span class="badge red">一票否决</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div>
+  </div>
+  <div class="drawer-body">
+    <div class="alert alert-warning">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div>取值一律写<b>待定</b>，不得预置数值（11.3）。本参数为<b>一票否决</b>参数，命中即阻断业务，须同时给出修复条件。</div>
+    </div>
+    <div class="form-grid form-align">
+      <div class="form-item"><label>参数编码 <span class="req">*</span></label><input type="text" value="YZ-01-02" readonly>
+        <div class="hint">前缀区分类型：取值类 <b>QZ</b>、阈值类 <b>YZ</b>、否决类 <b>FJ</b>，后接类别序号与项序号。</div></div>
+      <div class="form-item"><label>参数名称 <span class="req">*</span></label><input type="text" value="预实差异阈值上限">
+        <div class="hint">业务可读名称，<b>全平台不重复</b>。</div></div>
+      <div class="form-item"><label>参数类型 <span class="req">*</span></label>
+        <select><option>阈值类</option><option>取值顺序类</option><option>开关类</option></select></div>
+      <div class="form-item"><label>单次取值 <span class="req">*</span></label><input type="text" value="待定" placeholder="待定">
+        <div class="hint">建议 5%，需业务在需求确认阶段核定。</div></div>
+      <div class="form-item"><label>上下限 <span class="req">*</span></label><input type="text" value="3% ～ 10%">
+        <div class="hint">超出区间<b>不予保存</b>。</div></div>
+      <div class="form-item"><label>权重</label><input type="text" placeholder="多参数联合判定时使用"></div>
+      <div class="form-item"><label>影响有效期 · 生效 <span class="req">*</span></label><input type="date" value="2026-07-01"></div>
+      <div class="form-item"><label>影响有效期 · 失效</label><input type="date" placeholder="不填为长期有效"></div>
+      <div class="form-item"><label>是否一票否决 <span class="req">*</span></label><select data-dict="yesNo" data-selected="1"></select></div>
+      <div class="form-item"><label>适用层级 <span class="req">*</span></label><select><option>全市统一</option><option>市县分级</option></select></div>
+      <div class="form-item col-full"><label>计算方式 <span class="req">*</span></label>
+        <textarea rows="2">差异比例 ＝ |实测建筑面积 − 预测建筑面积| ÷ 预测建筑面积，取绝对值保留两位小数；比例 ＞ 本参数取值的判为四档重大差异。</textarea></div>
+      <div class="form-item col-full"><label>修复条件</label>
+        <textarea rows="2">补差处理办结，或差异经核定不成立。</textarea>
+        <div class="hint">命中否决后解除的条件，一票否决参数<b>必填</b>。</div></div>
+      <div class="form-item col-full"><label>依据来源 <span class="req">*</span></label>
+        <textarea rows="2">《商品房销售管理办法》面积误差处理条款；市住建局一城一策政策参数配置 YZ-2026-01。</textarea></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn" onclick="SP.todo('已试算：本参数由建议 5% 调整为 6% 时，近 12 个月受影响房屋 62 户，其中四档降为三档 62 户。未试算的不得发布（R-K10）')"><i class="fa-solid fa-calculator"></i> 试算影响</button>
+    <button class="btn btn-primary" data-roles-not="developer reviewer" onclick="PMS.closeDrawer();PMS.toast('已保存参数配置，须经阈值版本发布后生效','success')">保存</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉二 · 发布阈值版本 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="fbDrawer">
+  <div class="drawer-head"><h3>发布阈值版本</h3><span class="badge red">高敏操作</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div>
+  </div>
+  <div class="drawer-body">
+    <div class="alert alert-danger">
+      <i class="fa-solid fa-circle-exclamation"></i>
+      <div><b>阈值调整发布前须以历史批次试算比对，输出受影响房屋清单，未试算的不得发布</b>（R-K10）。
+        阈值版本<b>发布后不可修改</b>，需调整的发布新版本并保留原版本可查（R-K12）。
+        生效日期取值来源于<b>一城一策政策参数配置</b>，本子系统不自行设定（R-K9）。</div>
+    </div>
+    <div class="form-grid form-align">
+      <div class="form-item"><label>版本编号 <span class="req">*</span></label><input type="text" value="YZ-2026-02" readonly></div>
+      <div class="form-item"><label>适用层级 <span class="req">*</span></label><select data-dict="said" data-selected="450200"></select></div>
+      <div class="form-item"><label>阈值下限 <span class="req">*</span></label><input type="text" value="3%"></div>
+      <div class="form-item"><label>阈值上限 <span class="req">*</span></label><input type="text" value="5%"></div>
+      <div class="form-item"><label>生效日期 <span class="req">*</span></label><input type="date" value="2026-10-01">
+        <div class="hint">来源一城一策政策参数配置，本页只读取。</div></div>
+      <div class="form-item"><label>原版本处理</label><input type="text" value="YZ-2026-01 自动转历史，保留可查" readonly></div>
+      <div class="form-item col-full"><label>调整依据 <span class="req">*</span></label>
+        <textarea rows="2" placeholder="必填。写明政策依据或业务依据"></textarea></div>
+    </div>
+
+    <div class="sp-block" style="margin-top:12px">
+      <div class="sp-h"><i class="fa-solid fa-shield-halved"></i> 发布前置校验</div>
+      <div class="sp-b">
+        <div class="sp-check">
+          <div class="ck block" id="ckTrial"><i class="fa-solid fa-circle-xmark"></i><div class="cb">
+            <div class="ct">历史批次试算 · 未执行</div>
+            <div class="cd"><b>未试算的不得发布</b>（R-K10）。须以拟发布阈值回溯历史批次，输出受影响房屋清单。</div></div>
+            <div class="co"><button class="btn btn-sm btn-primary" onclick="runTrial()">执行试算</button></div></div>
+          <div class="ck pass"><i class="fa-solid fa-circle-check"></i><div class="cb">
+            <div class="ct">初判与复核分人 · 已满足</div>
+            <div class="cd">差异初判由 reviewer 办理、超阈值复核由 city 办理，同一自然人不得兼任（R-K11）。</div></div></div>
+          <div class="ck wait"><i class="fa-solid fa-lock"></i><div class="cb">
+            <div class="ct">已固化统计快照不回改</div>
+            <div class="cd">本次调整<b>不影响</b>已固化的历史统计快照（R-K7）。</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" id="fbBtn" disabled onclick="submitFb()"><i class="fa-solid fa-upload"></i> 发布版本</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉三 · 出处理结论 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="cyDrawer">
+  <div class="drawer-head"><h3>面积差异处理结论</h3>
+    <span class="muted">荣和公园大道二期 8-1-1502</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div>
+  </div>
+  <div class="drawer-body">
+    <dl class="desc-list">
+      <div class="desc-item"><dt>预测建筑面积</dt><dd>118.60 ㎡ <span class="muted">（版本 V1）</span></dd></div>
+      <div class="desc-item"><dt>实测建筑面积</dt><dd>122.94 ㎡ <span class="muted">（版本 V3）</span></dd></div>
+      <div class="desc-item"><dt>面积差</dt><dd class="text-danger">+4.34 ㎡</dd></div>
+      <div class="desc-item"><dt>差异比例</dt><dd><b>3.66%</b> <span class="sp-lv g3">三档</span></dd></div>
+      <div class="desc-item"><dt>归并类别</dt><dd>超阈值差异</dd></div>
+      <div class="desc-item"><dt>对外表述</dt><dd>面积差异需处理</dd></div>
+      <div class="desc-item"><dt>合同状态</dt><dd><span class="badge blue">已网签备案</span> HT2026-004186</dd></div>
+      <div class="desc-item"><dt>业务阻断</dt><dd><span class="badge orange">已阻断交付确认</span></dd></div>
+      <div class="desc-item"><dt>取值状态</dt><dd><span class="sp-st bad">冻结中</span> <span class="muted">不接受新成果同步</span></dd></div>
+    </dl>
+
+    <div class="form-grid form-align" style="margin-top:12px">
+      <div class="form-item col-full"><label>处理结论 <span class="req">*</span></label>
+        <select id="cyType">
+          <option value="">请选择</option>
+          <option>差异成立，按合同约定找补</option>
+          <option>差异经核定不成立</option>
+          <option>成果本身有误，转更正测绘</option>
+        </select></div>
+      <div class="form-item col-full"><label>结论说明 <span class="req">*</span></label>
+        <textarea id="cyReason" rows="3" placeholder="必填，不少于 10 字。说明对权利人与开发企业完整可见"></textarea></div>
+      <div class="form-item col-full"><label>依据材料</label><input type="text" data-upload="1"></div>
+    </div>
+
+    <p class="hint">
+      <i class="fa-solid fa-circle-info"></i>
+      结论由 reviewer 出、<b>city 复核</b>；初判与复核<b>不得同一自然人兼任</b>（R-K11）。
+      办结或差异不成立后<b>自动解冻</b>取值，冻结与解冻均写入状态流水。
+      面积补差的<b>责任板块与后续办理方式为待业务确认</b>（R-K20），本子系统只生成台账与推送。
+    </p>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="submitCy()"><i class="fa-solid fa-check"></i> 提交结论</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉四 · 申诉办理 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="ssDrawer">
+  <div class="drawer-head"><h3>申诉办理 · SS2026-0826-0018</h3>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div>
+  </div>
+  <div class="drawer-body">
+    <dl class="desc-list">
+      <div class="desc-item"><dt>房屋坐落</dt><dd>荣和公园大道二期 8-2-1806</dd></div>
+      <div class="desc-item"><dt>申诉人</dt><dd>周×× <span class="muted">（权利人）</span></dd></div>
+      <div class="desc-item"><dt>申诉时间</dt><dd>2026-08-26 14:22</dd></div>
+      <div class="desc-item"><dt>申诉入口</dt><dd>企业与机构工作台 · 面积差异通知页</dd></div>
+      <div class="desc-item"><dt>当前差异比例</dt><dd><b>6.02%</b> <span class="sp-lv g4">四档</span></dd></div>
+      <div class="desc-item"><dt>受理人</dt><dd>韦国强</dd></div>
+      <div class="desc-item col-full"><dt>申诉理由</dt><dd>实测阳台按全计，认为应按半计，与合同附图不符。</dd></div>
+    </dl>
+
+    <div class="form-grid form-align" style="margin-top:12px">
+      <div class="form-item col-full"><label>申诉结论 <span class="req">*</span></label>
+        <select id="ssType">
+          <option value="">请选择</option>
+          <option>申诉成立，重新核验并重算差异比例</option>
+          <option>申诉不成立，写明理由并反馈</option>
+          <option>成果本身有误，转更正测绘或变更测绘</option>
+        </select>
+        <div class="hint">选「成果本身有误」的<b>不在申诉流程内直接改面积</b>，转 FW17 / FW18 办理（R-K18）。</div></div>
+      <div class="form-item col-full"><label>结论理由 <span class="req">*</span></label>
+        <textarea id="ssReason" rows="3" placeholder="必填。申诉不成立的理由不得为空，须反馈申诉人（R-K17）"></textarea></div>
+    </div>
+
+    <p class="hint">
+      <i class="fa-solid fa-circle-info"></i>
+      申诉全过程留痕：申诉时间、申诉理由、受理人、结论与反馈时间（R-K19）。
+    </p>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="submitSs()"><i class="fa-solid fa-check"></i> 提交结论并反馈</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/spec.js"></script>
+<script>
+function pickCs(el, k) {
+  SP.pick(el, '.sp-ti');
+  document.getElementById('csScope').value = el.textContent.trim().replace(/\s+\d+$/, '');
+  PMS.toast('已按「' + document.getElementById('csScope').value + '」筛选参数');
+}
+
+/* R-K10：未试算的不得发布 */
+function runTrial() {
+  PMS.toast('正在以拟发布阈值回溯历史批次…');
+  setTimeout(function () {
+    var ck = document.getElementById('ckTrial');
+    ck.className = 'ck pass';
+    ck.querySelector('i').className = 'fa-solid fa-circle-check';
+    ck.querySelector('.ct').textContent = '历史批次试算 · 已执行';
+    ck.querySelector('.cd').innerHTML = '回溯近 12 个月 386 个批次，受影响房屋 <b>1,284</b> 户：档位上移 62 户、下移 41 户，其余不变。清单已生成可导出。';
+    ck.querySelector('.co').innerHTML = '<span class="link" onclick="SP.exportAsync(\'阈值调整受影响房屋清单\')">导出清单</span>';
+    document.getElementById('fbBtn').disabled = false;
+    PMS.toast('试算完成，受影响房屋 1,284 户，可提交发布', 'success');
+  }, 900);
+}
+
+function submitFb() {
+  PMS.confirm({
+    title: '发布阈值版本确认',
+    message: '确认发布阈值版本 YZ-2026-02？',
+    detail: '发布后本版本不可修改，需调整的发布新版本（R-K12）。原版本 YZ-2026-01 自动转历史并保留可查。已固化的统计快照不因本次调整而回改（R-K7）。',
+    type: 'warning', okText: '确认发布',
+    onOk: function () { PMS.closeDrawer(); PMS.toast('已发布阈值版本 YZ-2026-02，自 2026-10-01 生效', 'success'); }
+  });
+}
+
+function submitCy() {
+  var t = document.getElementById('cyType'), r = document.getElementById('cyReason');
+  if (!t.value) { SP.denied('请先选择处理结论'); t.focus(); return; }
+  if ((r.value || '').trim().length < 10) { SP.denied('结论说明为必填且不少于 10 字'); r.focus(); return; }
+  PMS.closeDrawer();
+  PMS.toast('已提交结论「' + t.value + '」，待 city 复核。复核通过后自动解冻取值', 'success');
+}
+
+function submitSs() {
+  var t = document.getElementById('ssType'), r = document.getElementById('ssReason');
+  if (!t.value) { SP.denied('请先选择申诉结论'); t.focus(); return; }
+  if ((r.value || '').trim().length < 10) { SP.denied('结论理由为必填，申诉不成立的理由不得为空（R-K17）'); r.focus(); return; }
+  PMS.closeDrawer();
+  if (t.value.indexOf('成果本身有误') === 0) {
+    PMS.toast('已转更正测绘流程办理，不在申诉流程内直接改面积（R-K18）', 'success');
+  } else if (t.value.indexOf('申诉成立') === 0) {
+    PMS.toast('已重新核验并重算差异比例，重算结果回流楼盘表与差异台账（R-K16）', 'success');
+  } else {
+    PMS.toast('已写明理由并反馈申诉人，差异台账保持在册', 'success');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  var t = SP.param('tab');
+  if (t) SP.tab(t);
+});
+</script>
+</body>
+</html>

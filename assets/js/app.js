@@ -365,7 +365,16 @@
                 { key: "wschcg-20", label: "面积异常核查", href: "../modules/wschcg/area-exception.html" },
                 { key: "wschcg-21", label: "面积变更记录", href: "../modules/wschcg/area-change.html" },
                 { key: "wschcg-22", label: "分摊系数管理", href: "../modules/wschcg/coefficient.html" },
-                { key: "wschcg-23", label: "面积成果对外服务", href: "../modules/wschcg/area-service.html" }
+                { key: "wschcg-23", label: "面积成果对外服务", href: "../modules/wschcg/area-service.html" },
+                { key: "wschcg-25", label: "面积取值与差异模型", href: "../modules/wschcg/area-model.html" }
+              ]
+            },
+            {
+              label: "配置与口径",
+              icon: "fa-sliders",
+              children: [
+                { key: "wschcg-24", label: "批次与模板版本管理", href: "../modules/wschcg/batch-manage.html" },
+                { key: "wschcg-26", label: "角色权限与业务闭环", href: "../modules/wschcg/role-closure.html" }
               ]
             }
           ]
@@ -524,6 +533,11 @@
             { key: "wsszjjg-12", label: "资金对账管理", href: "../modules/wsszjjg/gov/reconcile.html" },
             { key: "wsszjjg-13", label: "解除监管管理", href: "../modules/wsszjjg/gov/release.html" }
           ]},
+          { label: "保交楼与口径", icon: "fa-building-shield", children: [
+            { key: "wsszjjg-25", label: "保交楼专户管理", href: "../modules/wsszjjg/gov/bjl.html" },
+            { key: "wsszjjg-26", label: "重点监管额度模型", href: "../modules/wsszjjg/gov/quota-model.html" },
+            { key: "wsszjjg-27", label: "角色权限与业务闭环", href: "../modules/wsszjjg/gov/role-closure.html" }
+          ]},
           { label: "开发企业办理", icon: "fa-building-user", children: [
             { label: "开发企业工作台", href: "../modules/wsszjjg/dev/workbench.html" },
             { key: "wsszjjg-15", label: "我的监管账户", href: "../modules/wsszjjg/dev/account.html" },
@@ -531,7 +545,8 @@
             { key: "wsszjjg-17", label: "形象进度申报", href: "../modules/wsszjjg/dev/progress-apply.html" },
             { key: "wsszjjg-18", label: "我的用款申请", href: "../modules/wsszjjg/dev/usage.html" },
             { key: "wsszjjg-19", label: "保函替代申请", href: "../modules/wsszjjg/dev/guarantee-apply.html" },
-            { key: "wsszjjg-20", label: "解除监管申请", href: "../modules/wsszjjg/dev/release-apply.html" }
+            { key: "wsszjjg-20", label: "解除监管申请", href: "../modules/wsszjjg/dev/release-apply.html" },
+            { key: "wsszjjg-28", label: "保交楼业务申报", href: "../modules/wsszjjg/dev/bjl-apply.html" }
           ]},
           { label: "监管银行办理", icon: "fa-building-columns", children: [
             { key: "wsszjjg-14", label: "银行服务工作台", href: "../modules/wsszjjg/bank/workbench.html" },
@@ -984,7 +999,7 @@
           "wswxzj-01", "wsjcfx-02",
           "wsjcfx-03", "wsjcfx-04", "wsjcfx-05", "wsjcfx-06", "wsjcfx-07", "wsjcfx-08", "wsjcfx-10",
           "wsjcfx-18", "wspt-01", "wssvc-01", "wssvc-31", "wssvc-14", "wsops-01", "wsszjjg-02", "wsszjjg-03",
-          "wsszjjg-04", "wsszjjg-05", "wsszjjg-06", "wsszjjg-07", "wsszjjg-08", "wsszjjg-09", "wsszjjg-10",
+          "wsszjjg-05", "wsszjjg-06", "wsszjjg-07", "wsszjjg-08", "wsszjjg-09", "wsszjjg-10",
           "wsszjjg-11", "wsszjjg-12", "wsszjjg-13", "wsszjjg-14", "wsszjjg-15", "wsszjjg-16", "wsszjjg-17",
           "wsszjjg-18", "wsszjjg-19", "wsszjjg-20", "wsszjjg-21", "wsszjjg-22", "wsszjjg-23", "wsszjjg-24",
           "wsszjjg-31", "wsszjjg-32", "wsszjjg-33", "wsszjjg-34", "wswxzj-02", "wswxzj-03", "wswxzj-04",
@@ -992,7 +1007,7 @@
           "wswxzj-13", "wswxzj-14", "wswxzj-21", "wswxzj-22", "wswxzj-31", "wswxzj-32", "wswxzj-33",
           "wszjjg-02", "wszjjg-03", "wszjjg-04", "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14",
           "wszjjg-15", "wszjjg-31", "wszjjg-32"
-        ],
+        , "wschcg-02", "wschcg-06", "wschcg-10", "wschcg-24", "wsszjjg-28"],
         reviewer: [
           "wsbiz-01", "wsbiz-02", "wsbiz-03", "wsbiz-04", "wsbiz-16", "wsbiz-19", "wsbiz-20", "wsswb-01",
           "wsswb-02", "wsswb-03", "wsswb-04", "wsswb-05", "wsswb-06", "wsswb-07", "wsswb-08", "wsswb-09",
@@ -1007,9 +1022,9 @@
           "wsdwb-03", "wsdwb-04", "wsdwb-05", "wsdwb-06", "wsdwb-07", "wsdwb-08", "wsdwb-09", "wsdwb-10",
           "wsdwb-11", "wsdwb-12", "wsdwb-13", "wsdwb-14", "wsdwb-15", "wsdwb-16", "wsdwb-17", "wsdwb-18",
           "wsdwb-19", "wsdwb-20", "wsdwb-21", "wschcg-01", "wschcg-02", "wschcg-03", "wschcg-04",
-          "wschcg-05", "wschcg-06", "wschcg-07", "wschcg-08", "wschcg-09", "wschcg-10", "wschcg-11",
+          "wschcg-05", "wschcg-06", "wschcg-07", "wschcg-08", "wschcg-09", "wschcg-10",
           "wschcg-12", "wschcg-13", "wschcg-14", "wschcg-15", "wschcg-16", "wschcg-17", "wschcg-18",
-          "wschcg-19", "wschcg-20", "wschcg-21", "wschcg-22", "wschcg-23", "wsdagl-01", "wsdagl-02",
+          "wschcg-19", "wschcg-20", "wschcg-21", "wschcg-22", "wsdagl-01", "wsdagl-02",
           "wsdagl-03", "wsdagl-04", "wsdagl-05", "wsdagl-06", "wsdagl-07", "wsdagl-08", "wsdagl-09",
           "wsdagl-10", "wsdagl-11", "wsdagl-12", "wsdagl-13", "wsdagl-14", "wsdagl-15", "wsdagl-16",
           "wsdagl-17", "wsdagl-18", "wsdagl-19", "wsdagl-20", "wsztxy-01", "wsztxy-25", "wsztxy-02", "wsztxy-03",
@@ -1026,7 +1041,7 @@
           "wswxzj-12", "wswxzj-13", "wswxzj-14", "wswxzj-21", "wswxzj-22", "wswxzj-31", "wswxzj-32",
           "wswxzj-33", "wszjjg-02", "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14", "wszjjg-15",
           "wszjjg-31", "wszjjg-32"
-        ],
+        , "wschcg-24", "wschcg-25", "wsszjjg-25", "wsszjjg-26", "wsszjjg-28"],
         manager: [
           "wsbiz-10", "wsbiz-11", "wsbiz-15", "wsbiz-16", "wsbiz-17", "wsbiz-18", "wsbiz-19", "wsbiz-20",
           "wsswb-01", "wsswb-02", "wsswb-03", "wsswb-04", "wsswb-05", "wsswb-06", "wsswb-09", "wsswb-11",
@@ -1049,7 +1064,7 @@
           "wswxzj-14", "wswxzj-21", "wswxzj-22", "wswxzj-31", "wswxzj-32", "wswxzj-33", "wszjjg-03",
           "wszjjg-04", "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14", "wszjjg-15", "wszjjg-31",
           "wszjjg-32"
-        ],
+        , "wschcg-24", "wschcg-25", "wschcg-26", "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-05", "wschcg-09", "wschcg-12", "wschcg-17", "wschcg-18", "wschcg-19", "wschcg-20", "wschcg-23"],
         leader: [
           "wsbiz-17", "wsbiz-18", "wsswb-01", "wscwb-01", "wszwb-01", "wsdwb-01", "wschcg-01", "wsdagl-01",
           "wsztxy-01", "wsztxy-15", "wsztxy-17", "wsztxy-27", "wsztxy-20", "wsszjjg-01", "wszjjg-01", "wswxzj-01",
@@ -1066,7 +1081,7 @@
           "wswxzj-21", "wswxzj-22", "wswxzj-31", "wswxzj-32", "wswxzj-33", "wszjjg-02", "wszjjg-03",
           "wszjjg-04", "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14", "wszjjg-15", "wszjjg-31",
           "wszjjg-32"
-        ],
+        , "wschcg-26", "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28"],
         admin: [
           "wsbiz-05", "wsbiz-10", "wsbiz-11", "wsbiz-13", "wsbiz-20", "wsswb-01", "wscwb-01", "wszwb-01",
           "wsdwb-01", "wschcg-01", "wschcg-02", "wschcg-05", "wsdagl-01", "wsztxy-01", "wsztxy-25", "wsztxy-26", "wsztxy-27", "wsztxy-20",
@@ -1090,7 +1105,7 @@
           "wswxzj-08", "wswxzj-09", "wswxzj-11", "wswxzj-12", "wswxzj-13", "wswxzj-14", "wswxzj-21",
           "wswxzj-22", "wswxzj-31", "wswxzj-32", "wswxzj-33", "wszjjg-02", "wszjjg-03", "wszjjg-04",
           "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14", "wszjjg-15", "wszjjg-31", "wszjjg-32"
-        ],
+        , "wschcg-24", "wschcg-25", "wschcg-26", "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28"],
         ops: [
           "wsswb-01", "wscwb-01", "wszwb-01", "wsdwb-01", "wschcg-01", "wsdagl-01", "wsdagl-02", "wsztxy-01",
           "wsszjjg-01", "wszjjg-01", "wswxzj-01", "wsjcfx-02", "wsjcfx-03", "wsjcfx-04", "wsjcfx-05",
@@ -1106,7 +1121,7 @@
           "wswxzj-13", "wswxzj-14", "wswxzj-21", "wswxzj-22", "wswxzj-31", "wswxzj-32", "wswxzj-33",
           "wszjjg-02", "wszjjg-03", "wszjjg-04", "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14",
           "wszjjg-15", "wszjjg-31", "wszjjg-32"
-        ]
+        , "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28"]
       },
       dict: {
         said: [
@@ -1655,7 +1670,8 @@
               icon: "fa-sack-dollar",
               children: [
                 { key: "wsszjjg-08", label: "资金归集管理", href: "../modules/wsszjjg/dev/collect.html" },
-                { key: "wsszjjg-09", label: "资金使用管理", href: "../modules/wsszjjg/dev/usage.html" }
+                { key: "wsszjjg-09", label: "资金使用管理", href: "../modules/wsszjjg/dev/usage.html" },
+                { key: "wsszjjg-28", label: "保交楼业务申报", href: "../modules/wsszjjg/dev/bjl-apply.html" }
               ]
             }
           ]
@@ -3034,6 +3050,11 @@
             { key: "wsszjjg-12", label: "资金对账管理", href: "../modules/wsszjjg/gov/reconcile.html" },
             { key: "wsszjjg-13", label: "解除监管管理", href: "../modules/wsszjjg/gov/release.html" }
           ]},
+          { label: "保交楼与口径", icon: "fa-building-shield", children: [
+            { key: "wsszjjg-25", label: "保交楼专户管理", href: "../modules/wsszjjg/gov/bjl.html" },
+            { key: "wsszjjg-26", label: "重点监管额度模型", href: "../modules/wsszjjg/gov/quota-model.html" },
+            { key: "wsszjjg-27", label: "角色权限与业务闭环", href: "../modules/wsszjjg/gov/role-closure.html" }
+          ]},
           { label: "开发企业办理", icon: "fa-building-user", children: [
             { label: "开发企业工作台", href: "../modules/wsszjjg/dev/workbench.html" },
             { key: "wsszjjg-15", label: "我的监管账户", href: "../modules/wsszjjg/dev/account.html" },
@@ -3041,7 +3062,8 @@
             { key: "wsszjjg-17", label: "形象进度申报", href: "../modules/wsszjjg/dev/progress-apply.html" },
             { key: "wsszjjg-18", label: "我的用款申请", href: "../modules/wsszjjg/dev/usage.html" },
             { key: "wsszjjg-19", label: "保函替代申请", href: "../modules/wsszjjg/dev/guarantee-apply.html" },
-            { key: "wsszjjg-20", label: "解除监管申请", href: "../modules/wsszjjg/dev/release-apply.html" }
+            { key: "wsszjjg-20", label: "解除监管申请", href: "../modules/wsszjjg/dev/release-apply.html" },
+            { key: "wsszjjg-28", label: "保交楼业务申报", href: "../modules/wsszjjg/dev/bjl-apply.html" }
           ]},
           { label: "监管银行办理", icon: "fa-building-columns", children: [
             { key: "wsszjjg-14", label: "银行服务工作台", href: "../modules/wsszjjg/bank/workbench.html" },
@@ -3579,6 +3601,143 @@
     return html;
   }
 
+  /* ==========================================================================
+     角色切换器（《房屋交易面积信息管理系统业务需求说明 v1.0》第 3.4 节）
+     要达到的效果是「选定角色即呈现该角色的真实工作界面」：菜单树、首页、数据范围、
+     按钮与字段显示形态全部随角色变化，而不是所有角色共用一棵完整菜单树。
+     角色解析、href 带参与 roleMenu 过滤本来就有（resolveRole / withRole / ROLE_MENU），
+     这里补的是切换入口本身。
+       SW-1 下拉列出角色，每项三行「角色名称 · 示例用户 · 所属单位」，当前角色高亮
+       SW-2 内部角色停留在本外壳内，外部角色跳转统一服务门户，不在监管端嵌外部页
+       SW-3 角色以 URL 参数与会话共同承载，刷新与复制链接均还原当前角色
+       SW-4 不提供「全部角色」与「超级角色」选项
+       SW-5 切换时清空上一角色的查询条件、暂存草稿与已选行
+       SW-6 仅用于原型演示与权限核对，正式环境按统一身份认证平台的授权结果加载
+     ========================================================================== */
+
+  /* SW-2：外部角色不在监管端外壳内呈现，改为跳转统一服务门户的对应外壳 */
+  var EXT_ROLES = [
+    { key: 'dev', name: '开发企业', user: '周××', org: '统一服务门户 · 企业与机构工作台',
+      href: 'modules/wsmh/company/index.html?user=company' },
+    { key: 'public', name: '群众用户', user: '匿名访客', org: '统一服务门户 · 公示与查询',
+      href: 'modules/wsmh/web/agency-public.html' }
+  ];
+
+  function rsEsc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function roleIcon(k) {
+    return {
+      window: 'fa-building-columns', district: 'fa-building-columns',
+      reviewer: 'fa-user-check', manager: 'fa-city', city: 'fa-city',
+      leader: 'fa-user-tie', admin: 'fa-gear', ops: 'fa-screwdriver-wrench',
+      dev: 'fa-building-flag', agency: 'fa-handshake', bank: 'fa-building-columns',
+      builder: 'fa-helmet-safety', public: 'fa-users', citizen: 'fa-users'
+    }[k] || 'fa-user';
+  }
+
+  /* 角色名称取 ROLE_META[k].role 的「单位 · 岗位」里的岗位段，单位段单独展示 */
+  function roleParts(k) {
+    var m = ROLE_META[k] || {};
+    var s = String(m.role || k);
+    var i = s.lastIndexOf(' · ');
+    return i > 0
+      ? { name: s.slice(i + 3), org: s.slice(0, i) }
+      : { name: s, org: m.tag || '' };
+  }
+
+  function roleSwitchHTML(curRole) {
+    var keys = Object.keys(ROLE_META).filter(function (k) { return k !== 'all'; });
+    /* 全功能视图端只有一个 all 角色，本身就是「不分角色」，不提供切换器（SW-4） */
+    if (!keys.length) return '';
+
+    var cur = roleParts(curRole);
+    var h = '<div class="rs-wrap">'
+      + '<button class="rs-btn" id="rsBtn" type="button" title="切换角色（仅用于原型演示与权限核对）">'
+      + '<i class="rb-ic fa-solid ' + roleIcon(curRole) + '"></i>'
+      + '<span class="rb-n">' + rsEsc(cur.name) + '</span>'
+      + '<i class="rb-a fa-solid fa-angle-down"></i></button>'
+      + '<div class="rs-pop" id="rsPop">'
+      + '<div class="rp-h">选定角色即按该角色重建菜单树、首页与数据范围。'
+      + '本切换器仅用于原型演示与权限核对，正式环境按统一身份认证与权限授权平台的授权结果加载。</div>';
+
+    h += '<div class="rp-g">内部办理角色 · 留在本端</div>';
+    keys.forEach(function (k) {
+      var p = roleParts(k), m = ROLE_META[k];
+      var on = k === curRole;
+      h += '<div class="rp-i' + (on ? ' on' : '') + '" data-role-pick="' + k + '">'
+        + '<i class="fa-solid ' + roleIcon(k) + '"></i>'
+        + '<div class="rp-b"><div class="rp-n">' + rsEsc(p.name) + '</div>'
+        + '<div class="rp-u">' + rsEsc(m.user || '') + '</div>'
+        + '<div class="rp-o">' + rsEsc(p.org) + '</div></div>'
+        + (on ? '<span class="rp-tag">当前</span>' : '') + '</div>';
+    });
+
+    h += '<div class="rp-g">外部角色 · 跳转统一服务门户</div>';
+    EXT_ROLES.forEach(function (r) {
+      h += '<div class="rp-i" data-role-out="' + rsEsc(r.href) + '">'
+        + '<i class="fa-solid ' + roleIcon(r.key) + '"></i>'
+        + '<div class="rp-b"><div class="rp-n">' + rsEsc(r.name) + '</div>'
+        + '<div class="rp-u">' + rsEsc(r.user) + '</div>'
+        + '<div class="rp-o">' + rsEsc(r.org) + '</div></div>'
+        + '<span class="rp-tag out">跳转</span></div>';
+    });
+
+    h += '<div class="rp-f">不提供「全部角色」与「超级角色」选项，任何角色都不得看见全量菜单树。'
+      + '切换后上一角色的查询条件与暂存草稿一并清空，不跨角色带出数据。</div>'
+      + '</div></div>';
+    return h;
+  }
+
+  function initRoleSwitch(topbar) {
+    var btn = topbar.querySelector('#rsBtn');
+    var pop = topbar.querySelector('#rsPop');
+    if (!btn || !pop) return;
+
+    function close() { pop.classList.remove('open'); btn.classList.remove('on'); }
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var open = pop.classList.toggle('open');
+      btn.classList.toggle('on', open);
+    });
+    document.addEventListener('click', function (e) {
+      if (!pop.contains(e.target) && e.target !== btn) close();
+    });
+
+    /* SW-5：切换角色前清空上一角色的查询条件、暂存草稿与已选行 */
+    function clearRoleScoped() {
+      try {
+        Object.keys(sessionStorage).forEach(function (k) {
+          if (k !== 'app-role' && /^(app-|wsmh\.|pms-)/.test(k)) sessionStorage.removeItem(k);
+        });
+      } catch (e) {}
+    }
+
+    pop.querySelectorAll('[data-role-pick]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var k = el.getAttribute('data-role-pick');
+        if (k === CUR_ROLE) { close(); return; }
+        clearRoleScoped();
+        try { sessionStorage.setItem('app-role', k); } catch (e) {}
+        /* SW-3：角色写入 URL，刷新、前进后退与复制链接都还原为当前角色 */
+        var u = new URL(window.location.href);
+        u.searchParams.set('role', k);
+        window.location.href = u.toString();
+      });
+    });
+
+    /* SW-2：外部角色跳出监管端外壳，不在本外壳内嵌外部端页面 */
+    pop.querySelectorAll('[data-role-out]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        clearRoleScoped();
+        var href = el.getAttribute('data-role-out');
+        window.location.href = ROOT_BASE + href;
+      });
+    });
+  }
+
   function topbarHTML(meta) {
     /* 补丁 H：品牌区换成上传的市局 logo + 平台名，右接当前子系统胶囊 */
     return '<div class="brand">' +
@@ -3587,11 +3746,12 @@
         '<div class="name">' + SYS_NAME + '</div>' +
       '</div>' + sysCapsuleHTML() +
       '<div class="topbar-right">' +
+        roleSwitchHTML(CUR_ROLE) +
         '<div class="topbar-icon" title="消息"><i class="fa-solid fa-bell"></i><span class="dot">5</span></div>' +
         '<div class="topbar-icon" title="帮助"><i class="fa-solid fa-circle-question"></i></div>' +
         '<div class="user"><div class="avatar">' + meta.user.charAt(0) + '</div>' +
           '<div class="u-meta"><div class="u-name">' + meta.user + '</div><div class="u-role">' + meta.role + '</div></div>' +
-          '<i class="fa-solid fa-angle-down" style="font-size:12px;opacity:.8"></i></div>' +
+        '</div>' +
         '<a href="' + (APP_CONFIG.portalHref || '../index.html') + '" class="topbar-icon" title="返回门户/退出"><i class="fa-solid fa-right-from-bracket"></i></a>' +
       '</div>';
   }
@@ -3725,6 +3885,7 @@
         if (m) { location.href = withRole(m.href, role); return; }
         applySystem(code, sidebar);
       });
+      initRoleSwitch(topbar);
     }
     renderHome(role, meta);
     applyRolePerms(role);
@@ -3775,6 +3936,7 @@
       applySystem(code, sidebar);
       loadPage(withRole(m ? m.href : 'dashboard.html', role));
     });
+    initRoleSwitch(topbar);
 
     frame.addEventListener('load', function () {
       /* 补丁 D：业务页面分目录存放且全部菜单共用一个占位页，

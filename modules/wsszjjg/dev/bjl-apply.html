@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>保交楼业务申报 · 新建商品房预售资金监管系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../../assets/css/app.css">
+<link rel="stylesheet" href="../../../assets/css/spec.css">
+<style>
+  /* 房间勾选：已签约房间不可勾选（R-L2） */
+  .rm-grid { display: flex; flex-direction: column; gap: 4px; }
+  .rm-row { display: flex; align-items: center; gap: 4px; }
+  .rm-row > .fl { width: 38px; flex-shrink: 0; font-size: 12px; color: var(--text-3); text-align: right; padding-right: 4px; }
+  .rm {
+    width: 60px; height: 36px; flex-shrink: 0; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: #fff; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-size: 11px; line-height: 1.25; color: var(--text-2);
+  }
+  .rm .rn { font-weight: 600; }
+  .rm .rv { font-size: 10px; color: var(--text-3); }
+  .rm.signed { background: var(--bg-soft); border-style: dashed; color: var(--text-3); cursor: not-allowed; }
+  .rm.bjl { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+  .rm.bjl .rv { color: var(--primary); }
+  .rm.keep { background: var(--warning-light); border-color: #f0d9ab; color: #8a6100; }
+  .rm.keep .rv { color: #8a6100; }
+  .rm-lg { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; color: var(--text-3); }
+  .rm-lg .k { display: inline-flex; align-items: center; gap: 5px; }
+  .rm-lg .sw { width: 13px; height: 13px; border-radius: 3px; border: 1px solid var(--border); }
+  .rm-lg .sw.bjl { background: var(--primary-light); border-color: var(--primary); }
+  .rm-lg .sw.signed { background: var(--bg-soft); border-style: dashed; }
+  .rm-lg .sw.keep { background: var(--warning-light); border-color: #f0d9ab; }
+</style>
+</head>
+<body data-role="developer" data-active="wsszjjg-28">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 企业与机构工作台
+        <span class="sep">/</span> 预售资金监管
+        <span class="sep">/</span> <span class="cur">保交楼业务申报</span>
+      </div>
+      <div class="page-title">保交楼业务申报 <span class="badge orange">须专用电子钥匙</span></div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="SP.todo('已下载保交楼房间清单模板。清单由系统按选定房间生成，企业确认后上传')"><i class="fa-solid fa-download"></i> 下载房间清单</button>
+      <button class="btn btn-primary" onclick="SP.tab('zh')"><i class="fa-solid fa-plus"></i> 新增专户申报</button>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-key"></i>
+    <div>保交楼业务办理权限须<b>单独配置电子钥匙</b>，该钥匙<b>仅可用于保交楼业务办理与保交楼楼栋资金查询，不得用于常规资金监管业务</b>（R-L11）。
+      当前登录经办人已绑定保交楼专用钥匙 <b>IK-BJL-2026-0142</b>，有效期至 2027-07-11。
+      <b>项目未纳入监管的不得申请保交楼专户</b>（R-L1）。</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-building-shield"></i></div><div>
+      <div class="s-label">本企业保交楼专户</div><div class="s-value">2</div><div class="s-trend text-2">涉 3 栋</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-door-closed"></i></div><div>
+      <div class="s-label">已纳管保交楼房间</div><div class="s-value">248</div><div class="s-trend text-2">原监管房间 386 间</div></div></div>
+    <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-wallet"></i></div><div>
+      <div class="s-label">专户余额</div><div class="s-value">3,486</div><div class="s-trend text-2">万元</div></div></div>
+    <div class="stat-card"><div class="s-icon orange"><i class="fa-solid fa-hand-holding-dollar"></i></div><div>
+      <div class="s-label">可申请额度</div><div class="s-value">1,842</div><div class="s-trend text-2">万元 · 按节点同步</div></div></div>
+    <div class="stat-card"><div class="s-icon purple"><i class="fa-solid fa-clock"></i></div><div>
+      <div class="s-label">在办申报</div><div class="s-value">3</div><div class="s-trend text-2">1 件待补正</div></div></div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="zh">保交楼账户申报</div>
+      <div class="tab" data-tab="fj">保交楼房间申报</div>
+      <div class="tab" data-tab="zj">资金业务申报</div>
+      <div class="tab" data-tab="td">资金台账查询</div>
+      <div class="tab" data-tab="jd">申报进度 <span class="badge orange">1</span></div>
+    </div>
+
+    <!-- ===================== 页签一 · 账户申报 ===================== -->
+    <div class="tab-panel active" data-panel="zh">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>在线提交<b>保交楼账户备案（5601）与注销（5602）</b>申请。办理环节：
+            <span class="sp-step"><span class="sp">申请（本企业）</span><i class="fa-solid fa-angle-right ar"></i><span class="sp">初审（房管科）</span><i class="fa-solid fa-angle-right ar"></i><span class="sp">审核（房管科）</span></span>
+            <br>备案办结后系统<b>推送该保交楼账号到清算账户白名单</b>；注销办结后<b>从白名单解除，且关联楼栋自动恢复原监管账号监管</b>，
+            <b>无需重新办理房间备案</b>（R-L9）。</div>
+        </div>
+
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-file-signature"></i> 保交楼账户备案申请 · 5601
+            <span class="sub">主体证照从证照库调取，实现免提交</span></div>
+          <div class="sp-b">
+            <div class="form-grid form-align">
+              <div class="form-item"><label>开发企业</label><input type="text" value="荣和地产（XXXX）有限公司" readonly>
+                <div class="hint">已入网，信用等级 A。营业执照与资质证书<b>从证照库调取</b>。</div></div>
+              <div class="form-item"><label>监管项目 <span class="req">*</span></label>
+                <select id="zhXm"><option>荣和公园大道二期（已纳管 5001-2025-0142）</option><option>荣和公园大道三期（已纳管 5001-2026-0208）</option></select>
+                <div class="hint">只列出<b>已纳入监管</b>的项目（R-L1）。</div></div>
+              <div class="form-item"><label>保交楼项目名称 <span class="req">*</span></label><input type="text" id="zhMc" value="荣和公园大道二期保交楼项目"></div>
+              <div class="form-item"><label>专户账号 <span class="req">*</span></label><input type="text" id="zhZh" placeholder="保交楼专户账号"></div>
+              <div class="form-item"><label>开户行 <span class="req">*</span></label>
+                <select><option>建设银行XXXX分行营业部</option><option>工商银行XXXX分行</option><option>农业银行XXXX分行</option></select>
+                <div class="hint">须在<b>合作银行名录</b>内。</div></div>
+              <div class="form-item"><label>开户时间 <span class="req">*</span></label><input type="date"></div>
+              <div class="form-item"><label>关联原监管账户</label><input type="text" value="6222 **** **** 1024（建设银行XXXX分行）" readonly>
+                <div class="hint">保交楼专户与原监管账户<b>并行存在</b>，不是替代关系。</div></div>
+              <div class="form-item"><label>关联监管楼栋 <span class="req">*</span></label>
+                <div class="radio-line">
+                  <label><input type="checkbox" checked> 8 号楼</label>
+                  <label><input type="checkbox" checked> 9 号楼</label>
+                  <label><input type="checkbox"> 10 号楼</label>
+                </div></div>
+              <div class="form-item col-full"><label>保交楼账户备案申请表 <span class="req">*</span></label><input type="text" data-upload="1">
+                <div class="hint">须含保交楼项目名称。</div></div>
+              <div class="form-item col-full"><label>专户开户证明与开户许可信息 <span class="req">*</span></label><input type="text" data-upload="1"></div>
+              <div class="form-item col-full"><label>上级保交楼工作相关文件或批复</label><input type="text" data-upload="1">
+                <div class="hint">是否必收<b>待业务确认</b>，可先不上传。</div></div>
+            </div>
+            <div class="btn-row" style="margin-top:10px">
+              <button class="btn" onclick="SP.todo('已暂存为草稿，可稍后继续填报。草稿不占用办件编号')"><i class="fa-solid fa-floppy-disk"></i> 暂存草稿</button>
+              <button class="btn btn-primary" onclick="submitZh()"><i class="fa-solid fa-paper-plane"></i> 提交备案申请</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-list"></i> 本企业保交楼专户
+            <span class="sub">可发起注销申报（5602）</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>保交楼项目</th><th>专户账号 / 开户行</th><th>关联楼栋</th><th class="num">房间数</th><th class="num">余额（万元）</th><th>专户状态</th><th>操作</th></tr></thead>
+                <tbody>
+                  <tr><td class="cell-lg">荣和公园大道二期保交楼项目</td>
+                    <td>6222 **** **** 8842<div class="muted">建设银行XXXX分行</div></td>
+                    <td class="cell-lg">8 号楼、9 号楼</td><td class="num">248</td><td class="num">3,486.20</td>
+                    <td><span class="sp-st done">正常</span></td>
+                    <td>
+                      <span class="link" onclick="SP.tab('fj')">房间申报</span>
+                      <span class="link" onclick="PMS.openDrawer('zxDrawer')">申请注销</span>
+                    </td></tr>
+                  <tr class="row-off"><td class="cell-lg">荣和公园大道一期保交楼项目</td>
+                    <td>6222 **** **** 1108<div class="muted">建设银行XXXX分行</div></td>
+                    <td class="cell-lg"><span class="muted">已恢复原监管账号监管</span></td><td class="num">0</td><td class="num">0.00</td>
+                    <td><span class="sp-st dead">已注销</span></td>
+                    <td><span class="link" onclick="SP.todo('注销办结时系统已自动完成三个动作：从清算白名单解除该账号、关联楼栋房间全部恢复原监管账号监管、回写注销办件号。无需本企业重新办理房间备案（R-L9）')">注销结果</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 页签二 · 房间申报 ===================== -->
+    <div class="tab-panel" data-panel="fj">
+      <div class="card-body">
+        <div class="alert alert-danger">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <div><b>已签订合同的房间不可勾选</b>为保交楼房间；对未签订房间系统<b>默认全部勾选</b>，可自行取消（R-L2）。
+            取消勾选的房间<b>仍归原监管账户</b>，其售房资金按原规则收存并清算（R-L3）。
+            监管协议由系统生成，<b>办结节点为上传线下签订的协议</b>（R-L5）。</div>
+        </div>
+
+        <div class="sp-split">
+          <aside class="sp-side">
+            <div class="sp-block">
+              <div class="sp-h"><i class="fa-solid fa-building"></i> 选择楼栋</div>
+              <div class="sp-b">
+                <div class="sp-ti on" onclick="pickLd(this,'8')"><i class="fa-solid fa-building"></i> 8 号楼 <span class="tc">128</span></div>
+                <div class="sp-ti" onclick="pickLd(this,'9')"><i class="fa-solid fa-building"></i> 9 号楼 <span class="tc">120</span></div>
+              </div>
+            </div>
+            <div class="sp-block">
+              <div class="sp-h"><i class="fa-solid fa-calculator"></i> 本次申报汇总</div>
+              <div class="sp-b">
+                <div class="sp-kv">
+                  <div class="kv"><span class="k">总房间</span><span class="v">128 间</span></div>
+                  <div class="kv"><span class="k">已签约</span><span class="v">42 间</span><span class="muted">不可勾选</span></div>
+                  <div class="kv"><span class="k">拟纳入保交楼</span><span class="v" id="sumB">80 间</span></div>
+                  <div class="kv"><span class="k">已取消勾选</span><span class="v warn" id="sumK">6 间</span></div>
+                  <div class="kv"><span class="k">监管额度</span><span class="v" id="sumE">11,386.00 万元</span></div>
+                </div>
+                <p class="hint">
+                  <i class="fa-solid fa-circle-info"></i>
+                  监管额度按<b>保交楼房间预售金额</b>提取，与额度内节点额度<b>同步</b>（R-L5、R-L6）。
+                </p>
+              </div>
+            </div>
+            <div class="sp-block">
+              <div class="sp-h"><i class="fa-solid fa-money-check-dollar"></i> 资金使用收款账号</div>
+              <div class="sp-b">
+                <select style="width:100%">
+                  <option>XXXX建工集团有限公司 · 工程款账户 …4402</option>
+                  <option>XXXX建工集团 · 农民工工资专户 …7718</option>
+                  <option>暂不设定</option>
+                </select>
+                <p class="hint" style="margin-top:6px">
+                  <i class="fa-solid fa-circle-info"></i>
+                  在<b>房间备案或变更环节</b>设定，类似额度内施工企业账号管理；<b>是否必设待业务确认</b>（R-L7）。
+                </p>
+              </div>
+            </div>
+          </aside>
+
+          <div class="sp-pane">
+            <div class="sp-block">
+              <div class="sp-h"><i class="fa-solid fa-table-cells"></i> 8 号楼 房间勾选
+                <span class="sub">点击未签约房间可切换</span></div>
+              <div class="sp-b">
+                <div class="rm-lg" style="margin-bottom:10px">
+                  <span class="k"><span class="sw bjl"></span> 纳入保交楼专户</span>
+                  <span class="k"><span class="sw keep"></span> 已取消（仍归原监管账户）</span>
+                  <span class="k"><span class="sw signed"></span> 已签约 · 不可勾选</span>
+                </div>
+                <div class="sp-scroll" style="max-height:320px">
+                  <div class="rm-grid" id="rmGrid"></div>
+                </div>
+                <div class="btn-row" style="margin-top:10px">
+                  <button class="btn btn-sm" onclick="allBjl(true)"><i class="fa-solid fa-check-double"></i> 未签约全选</button>
+                  <button class="btn btn-sm" onclick="allBjl(false)">全部取消</button>
+                  <button class="btn btn-sm" onclick="SP.todo('已生成保交楼房间清单 BJL-房间清单-8号楼.xlsx，请确认后随申报上传')"><i class="fa-solid fa-file-excel"></i> 生成房间清单</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="sp-block">
+              <div class="sp-h"><i class="fa-solid fa-paperclip"></i> 申报材料</div>
+              <div class="sp-b">
+                <div class="form-grid form-align">
+                  <div class="form-item col-full"><label>保交楼房间清单 <span class="req">*</span></label>
+                    <input type="text" value="BJL-房间清单-8号楼-20260827.xlsx（系统生成）" readonly>
+                    <div class="hint">清单由<b>系统生成</b>，企业确认后上传。</div></div>
+                  <div class="form-item col-full"><label>线下签订的保交楼协议 <span class="req">*</span></label><input type="text" data-upload="1">
+                    <div class="hint">办结节点为<b>上传签订协议完成</b>（R-L5）。协议中的房屋信息与监管额度由系统按保交楼房间提取。</div></div>
+                </div>
+                <div class="btn-row" style="margin-top:10px">
+                  <button class="btn" onclick="SP.todo('已暂存为草稿')"><i class="fa-solid fa-floppy-disk"></i> 暂存草稿</button>
+                  <button class="btn btn-primary" onclick="submitFj()"><i class="fa-solid fa-paper-plane"></i> 提交房间备案（5603）</button>
+                  <button class="btn" onclick="submitFj(true)"><i class="fa-solid fa-pen"></i> 提交房间变更（5604）</button>
+                </div>
+                <p class="hint">
+                  <i class="fa-solid fa-circle-info"></i>
+                  变更时，<b>变更前为保交楼监管、变更后不需保交楼监管的房间，其房间监管信息恢复至原监管账号监管</b>（R-L8）。
+                  完成房间备案后，<b>抵押合同中的监管账户信息将同步变更为保交楼专户信息</b>（R-L10）。
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 页签三 · 资金业务申报 ===================== -->
+    <div class="tab-panel" data-panel="zj">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>保交楼资金使用（5605）参考<b>额度内资金使用</b>业务设计：可申请额度按<b>额度内节点额度同步</b>，使用记录<b>计入额度内</b>，
+            收款账号从<b>保交楼资金使用收款账户</b>中选择（R-L6）。
+            保交楼资金核退（5606）由<b>监管科初审、资金监管科审核</b>，可选择要核退的保交楼房间或按合同编号查询后发起。</div>
+        </div>
+
+        <div class="grid-2">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-gauge-high"></i> 可申请额度
+              <span class="sub">与额度内节点额度同步 · 实时计算</span></div>
+            <div class="sp-b">
+              <div class="sp-sum" style="margin-bottom:10px">
+                <span class="sv">1,842.60</span><span class="su">万元 · 保交楼资金可申请额度</span>
+              </div>
+              <div class="sp-fx">
+                <span class="lb">按节点累计可拨付 ＝</span> 11,386.00 × 55% ＝ <b>6,262.30</b><br>
+                <span class="lb">减 · 累计已使用 ＝</span> <em>− 4,419.70</em><br>
+                <span class="lb">减 · 在途冻结 ＝</span> <em>− 0.00</em><br>
+                <span class="lb">可申请额度 ＝</span> <b>1,842.60 万元</b>
+              </div>
+              <div class="sp-kv" style="margin-top:10px">
+                <div class="kv"><span class="k">当前已核验节点</span><span class="v">主体结构封顶（55%）</span></div>
+                <div class="kv"><span class="k">额度归属</span><span class="v">使用记录计入额度内</span></div>
+                <div class="kv"><span class="k">专户余额</span><span class="v">3,486.20 万元</span></div>
+              </div>
+              <p class="hint">
+                <i class="fa-solid fa-circle-info"></i>
+                额度由<b>监管端统一计算</b>，本页只展示计算结果与各项组成部分，<b>企业端不自行推导</b>（R-K1）。
+              </p>
+            </div>
+          </div>
+
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-file-invoice-dollar"></i> 发起资金业务申报</div>
+            <div class="sp-b">
+              <div class="form-grid form-align">
+                <div class="form-item col-full"><label>业务类型 <span class="req">*</span></label>
+                  <select id="zjType" onchange="pickZj()">
+                    <option value="5605">保交楼资金使用（5605）</option>
+                    <option value="5606">保交楼资金核退（5606）</option>
+                  </select></div>
+                <div class="form-item"><label>保交楼专户</label><input type="text" value="6222 **** **** 8842" readonly></div>
+                <div class="form-item"><label>楼栋 <span class="req">*</span></label><select><option>8 号楼</option><option>9 号楼</option></select></div>
+                <div class="form-item"><label>申请金额（万元）<span class="req">*</span></label><input type="text" id="zjAmt" placeholder="不超过可申请额度"></div>
+                <div class="form-item" id="zjPayBox"><label>收款账号 <span class="req">*</span></label>
+                  <select><option>XXXX建工集团有限公司 · 工程款账户 …4402</option><option>XXXX建工集团 · 农民工工资专户 …7718</option></select>
+                  <div class="hint">从保交楼资金使用收款账户中选择。</div></div>
+                <div class="form-item" id="zjRoomBox" style="display:none"><label>核退房间 <span class="req">*</span></label>
+                  <input type="text" placeholder="房间号或合同编号">
+                  <div class="hint">可选择保交楼房间，或按合同编号查询房间监管信息后发起。</div></div>
+                <div class="form-item col-full"><label>申请材料 <span class="req">*</span></label><input type="text" data-upload="1">
+                  <div class="hint" id="zjMat">资金使用申请表与情况说明。</div></div>
+                <div class="form-item col-full"><label>情况说明 <span class="req">*</span></label>
+                  <textarea id="zjNote" rows="2" placeholder="必填，不少于 10 字"></textarea></div>
+              </div>
+              <div class="btn-row" style="margin-top:10px">
+                <button class="btn btn-primary" onclick="submitZj()"><i class="fa-solid fa-paper-plane"></i> 提交申报</button>
+              </div>
+              <p class="hint" id="zjFlow">
+                <i class="fa-solid fa-circle-info"></i>
+                办理环节：<span class="sp-step"><span class="sp">申请</span><i class="fa-solid fa-angle-right ar"></i><span class="sp">房管科初审</span><i class="fa-solid fa-angle-right ar"></i><span class="sp">房管科审核</span></span>
+                审核无误后进行资金划拨。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 页签四 · 资金台账查询 ===================== -->
+    <div class="tab-panel" data-panel="td">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>查询本企业保交楼专户的<b>归集、使用、余额与流水明细</b>。
+            专户流水与原监管账户流水<b>分账记录、分别可查</b>（R-L12）。</div>
+        </div>
+
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-code-compare"></i> 分账对照 · 荣和公园大道二期 8 号楼</div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>科目</th><th class="num">保交楼专户</th><th class="num">原监管账户</th><th class="num">合计</th></tr></thead>
+                <tbody>
+                  <tr><td>累计已缴存（万元）</td><td class="num">3,486.20</td><td class="num">8,642.40</td><td class="num"><b>12,128.60</b></td></tr>
+                  <tr><td>累计已使用（万元）</td><td class="num">4,419.70</td><td class="num">6,208.30</td><td class="num"><b>10,628.00</b></td></tr>
+                  <tr><td>累计已核退（万元）</td><td class="num">62.40</td><td class="num">184.60</td><td class="num"><b>247.00</b></td></tr>
+                  <tr><td>当前余额（万元）</td><td class="num">3,486.20</td><td class="num">2,249.50</td><td class="num"><b>5,735.70</b></td></tr>
+                  <tr><td>纳管房间数</td><td class="num">248</td><td class="num">386</td><td class="num"><b>634</b></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-bar">
+          <div class="filter-item"><label>流水类型</label>
+            <select id="lsType" onchange="renderLs()"><option value="in">资金入账</option><option value="out">资金使用</option></select>
+          </div>
+          <div class="filter-item"><label>楼栋</label><select><option>8 号楼</option><option>9 号楼</option><option>全部</option></select></div>
+          <div class="filter-item"><label>日期起</label><input type="date" value="2026-08-01"></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按所选条件检索专户流水','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="SP.exportAsync('本企业保交楼专户流水')"><i class="fa-solid fa-download"></i> 导出</button>
+          </div>
+        </div>
+
+        <div class="sp-tw">
+          <table class="data-table">
+            <thead><tr id="lsHead"></tr></thead>
+            <tbody id="lsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 页签五 · 申报进度 ===================== -->
+    <div class="tab-panel" data-panel="jd">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>事项</label>
+            <select><option>全部</option><option>5601 账户备案</option><option>5602 账户注销</option><option>5603 房间备案</option><option>5604 房间变更</option><option>5605 资金使用</option><option>5606 资金核退</option></select>
+          </div>
+          <div class="filter-item"><label>状态</label>
+            <select><option>全部</option><option>待签收</option><option>在办</option><option>补正中</option><option>已办结</option><option>已退回</option></select>
+          </div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按所选条件检索申报记录','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>办件编号</th><th>事项</th><th>保交楼项目 / 楼栋</th><th>提交时间</th><th>当前环节</th><th>状态</th><th>反馈</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr class="row-warn">
+                <td>5603-2026-0104</td><td>5603 房间备案</td><td class="cell-lg">荣和公园大道二期 / 9 号楼</td><td>2026-08-25</td>
+                <td>房管科初审</td><td><span class="sp-st wait">补正中</span></td>
+                <td class="cell-lg">线下签订的保交楼协议缺第 3 页签章页</td>
+                <td><span class="link" onclick="SP.todo('补正要求已一次性列全：线下签订的保交楼协议缺第 3 页签章页。补正期间不计承诺时限，补正后回到待受理，已完成环节不重复办理')">去补正</span></td>
+              </tr>
+              <tr>
+                <td>5605-2026-0186</td><td>5605 资金使用</td><td class="cell-lg">荣和公园大道二期 / 8 号楼</td><td>2026-08-26</td>
+                <td>房管科审核</td><td><span class="sp-st doing">在办</span></td>
+                <td class="cell-lg"><span class="muted">初审已通过</span></td>
+                <td><span class="link" onclick="SP.todo('本件已过房管科初审，正在房管科审核。审核无误后进行资金划拨，可申请额度按额度内节点额度同步')">看进度</span></td>
+              </tr>
+              <tr>
+                <td>5606-2026-0042</td><td>5606 资金核退</td><td class="cell-lg">荣和公园大道二期 / 8-1-1502</td><td>2026-08-20</td>
+                <td>资金监管科审核</td><td><span class="sp-st doing">在办</span></td>
+                <td class="cell-lg"><span class="muted">监管科初审已通过</span></td>
+                <td><span class="link" onclick="SP.todo('5606 保交楼资金核退由监管科初审、资金监管科审核，与其余五项事项的审核方不同。审核无误后进行资金划拨退还购房人')">看进度</span></td>
+              </tr>
+              <tr>
+                <td>5603-2026-0091</td><td>5603 房间备案</td><td class="cell-lg">荣和公园大道二期 / 8 号楼</td><td>2026-07-16</td>
+                <td>已归档</td><td><span class="sp-st done">已办结</span></td>
+                <td class="cell-lg">已生成 248 间房间监管信息与监管协议</td>
+                <td><span class="link" onclick="SP.todo('办结动作：已按选定房间生成监管账号为保交楼账号的房间监管信息、生成并归档监管协议、抵押合同监管账户信息已同步变更为保交楼专户（R-L10）')">办结详情</span></td>
+              </tr>
+              <tr>
+                <td>5601-2026-0086</td><td>5601 账户备案</td><td class="cell-lg">荣和公园大道二期</td><td>2026-07-10</td>
+                <td>已归档</td><td><span class="sp-st done">已办结</span></td>
+                <td class="cell-lg">已推送清算账户白名单</td>
+                <td><span class="link" onclick="SP.todo('办结动作：已生成保交楼专户档案、推送清算账户白名单、记录备案办件号。此后须办 5603 房间备案，两步完成后购房款才会自动清算至保交楼专户')">办结详情</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="hint">
+          <i class="fa-solid fa-circle-info"></i>
+          审核反馈只输出<b>结论与需补正内容</b>，<b>不输出内部审核意见原文</b>。补正要求<b>一次性列全</b>，补正期间不计承诺时限。
+        </p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ========== 抽屉 · 专户注销申报 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="zxDrawer">
+  <div class="drawer-head"><h3>保交楼账户注销申报 · 5602</h3>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div>
+  </div>
+  <div class="drawer-body">
+    <div class="alert alert-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div>注销办结后系统<b>自动完成三件事</b>：从清算白名单解除该账号、<b>关联楼栋房间全部恢复原监管账号监管</b>、回写注销办件号。
+        <b>无需本企业重新办理一遍房间备案</b>（R-L9）。</div>
+    </div>
+    <div class="form-grid form-align">
+      <div class="form-item"><label>保交楼专户</label><input type="text" value="6222 **** **** 8842" readonly></div>
+      <div class="form-item"><label>保交楼项目</label><input type="text" value="荣和公园大道二期保交楼项目" readonly></div>
+      <div class="form-item"><label>关联楼栋</label><input type="text" value="8 号楼、9 号楼（248 间）" readonly></div>
+      <div class="form-item"><label>专户余额</label><input type="text" value="3,486.20 万元" readonly>
+        <div class="hint">须提交余额结转说明与银行对账单。</div></div>
+      <div class="form-item col-full"><label>保交楼账户注销申请表与注销说明 <span class="req">*</span></label><input type="text" data-upload="1"></div>
+      <div class="form-item col-full"><label>专户余额结转说明与银行对账单 <span class="req">*</span></label><input type="text" data-upload="1"></div>
+      <div class="form-item col-full"><label>注销原因 <span class="req">*</span></label>
+        <textarea id="zxReason" rows="2" placeholder="必填，不少于 10 字"></textarea></div>
+    </div>
+    <p class="hint">
+      <i class="fa-solid fa-triangle-exclamation" style="color:var(--lv-orange)"></i>
+      受理后专户即<b>锁定</b>：不可再新增关联房间，不可再发起资金使用。在办的资金使用与核退办件须先办结或终止。
+    </p>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="submitZx()"><i class="fa-solid fa-paper-plane"></i> 提交注销申报</button>
+  </div>
+</div>
+
+<script src="../../../assets/js/app.js"></script>
+<script src="../../../assets/js/spec.js"></script>
+<script>
+/* ===== 房间棋盘 ===== */
+var SIGNED = ['0302', '0401', '0502', '0601', '0702', '0801', '0902', '1001', '1102', '1201'];
+var ROOMS = [];
+(function build() {
+  for (var f = 18; f >= 3; f--) {
+    var row = { f: f, r: [] };
+    for (var u = 1; u <= 2; u++) {
+      for (var d = 1; d <= 4; d++) {
+        var no = (f < 10 ? '0' + f : '' + f) + '0' + d;
+        var signed = u === 1 && SIGNED.indexOf(no) >= 0;
+        row.r.push({ id: '8-' + u + '-' + no, no: u + '-' + no,
+          price: (118 + ((f * 7 + d * 3) % 42)), signed: signed, bjl: !signed && !(f === 18 && d === 2) });
+      }
+    }
+    ROOMS.push(row);
+  }
+})();
+
+function renderRooms() {
+  document.getElementById('rmGrid').innerHTML = ROOMS.map(function (row) {
+    return '<div class="rm-row"><span class="fl">' + row.f + 'F</span>'
+      + row.r.map(function (r) {
+        var cls = r.signed ? 'signed' : (r.bjl ? 'bjl' : 'keep');
+        return '<div class="rm ' + cls + '" data-id="' + r.id + '" data-p="' + r.price + '" onclick="toggleRm(this)" title="'
+          + r.id + ' · 预售 ' + r.price.toFixed(1) + ' 万元 · '
+          + (r.signed ? '已签约，不可勾选' : (r.bjl ? '纳入保交楼专户' : '已取消，仍归原监管账户')) + '">'
+          + '<span class="rn">' + r.no + '</span><span class="rv">' + r.price.toFixed(0) + '</span></div>';
+      }).join('') + '</div>';
+  }).join('');
+  sumRooms();
+}
+
+function toggleRm(el) {
+  if (el.classList.contains('signed')) {
+    SP.denied('房间 ' + el.getAttribute('data-id') + ' 已签订合同，不可勾选为保交楼房间（R-L2）。其销售资金仍按原监管账户归集');
+    return;
+  }
+  el.classList.toggle('bjl');
+  el.classList.toggle('keep');
+  sumRooms();
+}
+
+function allBjl(on) {
+  document.querySelectorAll('#rmGrid .rm').forEach(function (el) {
+    if (el.classList.contains('signed')) return;
+    el.classList.toggle('bjl', on);
+    el.classList.toggle('keep', !on);
+  });
+  sumRooms();
+  PMS.toast(on ? '已按默认规则全选未签约房间' : '已取消全部勾选，房间仍归原监管账户');
+}
+
+function sumRooms() {
+  var b = document.querySelectorAll('#rmGrid .rm.bjl');
+  var k = document.querySelectorAll('#rmGrid .rm.keep').length;
+  var sum = 0;
+  b.forEach(function (el) { sum += parseFloat(el.getAttribute('data-p')); });
+  document.getElementById('sumB').textContent = b.length + ' 间';
+  document.getElementById('sumK').textContent = k + ' 间';
+  document.getElementById('sumE').textContent = sum.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' 万元';
+}
+
+function pickLd(el, k) { SP.pick(el, '.sp-ti'); PMS.toast('已切换至 ' + k + ' 号楼'); }
+
+/* ===== 资金业务类型联动 ===== */
+function pickZj() {
+  var v = document.getElementById('zjType').value, use = v === '5605';
+  document.getElementById('zjPayBox').style.display = use ? '' : 'none';
+  document.getElementById('zjRoomBox').style.display = use ? 'none' : '';
+  document.getElementById('zjMat').textContent = use
+    ? '资金使用申请表与情况说明。'
+    : '核退申请表、情况说明与购房人收款账号。';
+  document.getElementById('zjFlow').innerHTML = use
+    ? '<i class="fa-solid fa-circle-info"></i> 办理环节：<span class="sp-step"><span class="sp">申请</span><i class="fa-solid fa-angle-right ar"></i><span class="sp">房管科初审</span><i class="fa-solid fa-angle-right ar"></i><span class="sp">房管科审核</span></span> 审核无误后进行资金划拨。'
+    : '<i class="fa-solid fa-circle-info"></i> 办理环节：<span class="sp-step"><span class="sp">申请</span><i class="fa-solid fa-angle-right ar"></i><span class="sp key">监管科初审</span><i class="fa-solid fa-angle-right ar"></i><span class="sp key">资金监管科审核</span></span> 与其余五项事项的审核方不同，审核无误后划拨退还购房人。';
+}
+
+/* ===== 专户流水 ===== */
+var LS = {
+  in: {
+    h: ['流水号', '楼栋 / 房间', '资金类型', '流水金额（元）', '到账日期', '匹配状态'],
+    r: [
+      ['LS20260827-00186', '8 号楼 / 8-1-1502', '首付款', '426,960', '2026-08-27', '<span class="badge green">已匹配</span>'],
+      ['LS20260826-00174', '8 号楼 / 8-1-1601', '商业贷款放款', '970,200', '2026-08-26', '<span class="badge green">已匹配</span>'],
+      ['LS20260826-00171', '9 号楼 / 9-2-0803', '公积金贷款放款', '620,000', '2026-08-26', '<span class="badge green">已匹配</span>'],
+      ['LS20260825-00162', '8 号楼 / 8-2-1902', '定金', '50,000', '2026-08-25', '<span class="badge green">已匹配</span>'],
+      ['LS20260824-00148', '8 号楼 / —', '待认领', '318,400', '2026-08-24', '<span class="badge orange">待认领</span>']
+    ]
+  },
+  out: {
+    h: ['流水号', '楼栋', '收款账号', '资金用途', '流水金额（元）', '出账日期'],
+    r: [
+      ['CZ20260826-00092', '8 号楼', 'XXXX建工 工程款 …4402', '主体结构工程款', '8,600,000', '2026-08-26'],
+      ['CZ20260820-00086', '8 号楼', 'XXXX建工 农民工工资专户 …7718', '农民工工资', '1,240,000', '2026-08-20'],
+      ['CZ20260815-00078', '9 号楼', 'XXXX建工 工程款 …4402', '外墙装饰工程款', '3,180,000', '2026-08-15'],
+      ['CZ20260812-00071', '8 号楼', '购房人 …6688', '退房核退（5606）', '426,960', '2026-08-12']
+    ]
+  }
+};
+
+function renderLs() {
+  var k = document.getElementById('lsType').value, d = LS[k];
+  var numIdx = k === 'in' ? 3 : 4;
+  document.getElementById('lsHead').innerHTML = d.h.map(function (h, i) {
+    return '<th' + (i === numIdx ? ' class="num"' : '') + '>' + h + '</th>';
+  }).join('');
+  document.getElementById('lsBody').innerHTML = d.r.map(function (r) {
+    return '<tr>' + r.map(function (c, i) {
+      return '<td' + (i === numIdx ? ' class="num"' : (i === 1 || i === 2 ? ' class="cell-lg"' : '')) + '>' + c + '</td>';
+    }).join('') + '</tr>';
+  }).join('');
+}
+
+/* ===== 提交 ===== */
+function submitZh() {
+  var zh = document.getElementById('zhZh');
+  if (!(zh.value || '').trim()) { SP.denied('专户账号为必填'); zh.focus(); return; }
+  PMS.toast('已提交 5601 保交楼账户备案申请，办件号 5601-2026-0112，状态「待签收」。办结后系统将推送该账号到清算账户白名单', 'success');
+}
+
+function submitFj(chg) {
+  var n = document.querySelectorAll('#rmGrid .rm.bjl').length;
+  if (!n) { SP.denied('请至少勾选一间未签约房间作为保交楼房间'); return; }
+  PMS.confirm({
+    title: chg ? '提交房间变更确认' : '提交房间备案确认',
+    message: '确认提交本次申报？共 ' + n + ' 间保交楼房间。',
+    detail: chg
+      ? '变更前为保交楼监管、变更后不需保交楼监管的房间，其房间监管信息将恢复至原监管账号监管（R-L8），并同步回写抵押合同监管账户信息。'
+      : '办结后系统将按选定房间生成房间监管信息、生成保交楼监管协议（房屋信息与监管额度按保交楼房间提取），并同步变更抵押合同中的监管账户信息（R-L5、R-L10）。办结节点为上传签订协议完成。',
+    type: 'warning', okText: '提交申报',
+    onOk: function () {
+      PMS.toast(chg
+        ? '已提交 5604 保交楼楼栋房间变更申请，办件号 5604-2026-0058，状态「待签收」'
+        : '已提交 5603 保交楼楼栋房间备案申请，办件号 5603-2026-0118，状态「待签收」', 'success');
+    }
+  });
+}
+
+function submitZj() {
+  var amt = document.getElementById('zjAmt'), note = document.getElementById('zjNote');
+  var v = parseFloat(amt.value || '0');
+  if (!v) { SP.denied('申请金额为必填'); amt.focus(); return; }
+  if (document.getElementById('zjType').value === '5605' && v > 1842.60) {
+    SP.denied('申请金额 ' + v.toFixed(2) + ' 万元超过可申请额度 1,842.60 万元。可申请额度按额度内节点额度同步计算，须待下一形象进度节点核验通过后再申请');
+    amt.focus(); return;
+  }
+  if ((note.value || '').trim().length < 10) { SP.denied('情况说明为必填且不少于 10 字'); note.focus(); return; }
+  var t = document.getElementById('zjType').value;
+  PMS.toast(t === '5605'
+    ? '已提交 5605 保交楼资金使用申请，使用记录将计入额度内'
+    : '已提交 5606 保交楼资金核退申请，由监管科初审、资金监管科审核', 'success');
+}
+
+function submitZx() {
+  var r = document.getElementById('zxReason');
+  if ((r.value || '').trim().length < 10) { SP.denied('注销原因为必填且不少于 10 字'); r.focus(); return; }
+  PMS.closeDrawer();
+  PMS.toast('已提交 5602 保交楼账户注销申请。办结后关联楼栋房间将自动恢复原监管账号监管，无需重新办理房间备案', 'success');
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  renderRooms();
+  renderLs();
+  pickZj();
+  var t = SP.param('tab');
+  if (t) SP.tab(t);
+});
+</script>
+</body>
+</html>

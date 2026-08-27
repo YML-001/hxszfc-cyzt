@@ -44,6 +44,16 @@
       直至差异消除。约定回执时限为出账后 30 分钟内。</div>
   </div>
 
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div><b>划转失败不再是流程节点，而是办件状态</b>（10.8 改造项）。旧系统在 12 个资金类流程末尾各串接「划转失败初审 → 划转失败审核」两个节点，
+      全系统冗余 24 个节点配置，且<b>正常办结的办件只能靠代码硬编码跳过</b>。
+      改造后：<b>执行失败与回执超时统一转入「划转失败待处理」状态</b>，由经办人在
+      <b>更正后重新下发、退回申请人、终止办件</b>三个动作中选择；指令执行结果由<b>独立的出账指令对象</b>承载，
+      一个办件可对应多条指令并形成<b>指令链</b>，办件只感知最终结果。
+      <a class="link" href="role-closure.html?tab=cz">看完整改造口径与 R-M1 至 R-M10</a></div>
+  </div>
+
   <div class="stat-grid">
     <div class="stat-card">
       <div class="s-icon blue"><i class="fa-solid fa-paper-plane"></i></div>
@@ -61,9 +71,105 @@
       <div class="s-icon orange"><i class="fa-solid fa-code-compare"></i></div>
       <div><div class="s-label">金额不一致</div><div class="s-value">0</div><div class="s-trend">本月无差异</div></div>
     </div>
+    <div class="stat-card dc-alarm">
+      <div class="s-icon red"><i class="fa-solid fa-rotate"></i></div>
+      <div><div class="s-label">划转失败待处理</div><div class="s-value">6</div><div class="s-trend">执行失败 4 · 回执超时 2</div></div>
+    </div>
     <div class="stat-card">
       <div class="s-icon cyan"><i class="fa-solid fa-stopwatch"></i></div>
       <div><div class="s-label">平均回执耗时</div><div class="s-value" style="font-size:16px">4 分 12 秒</div><div class="s-trend text-success">远优于 30 分钟</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-rotate"></i> 划转失败待处理</h3>
+      <span class="sub">办件状态 ＋ 三个重办动作 · 停留期间不计入承诺时限（R-M6）</span>
+    </div>
+    <div class="card-body">
+      <div class="sp-block">
+        <div class="sp-h"><i class="fa-solid fa-triangle-exclamation"></i> 执行失败与回执超时须以不同标识区分
+          <span class="sub">R-M8 · 防重复付款</span></div>
+        <div class="sp-b">
+          <div class="sp-check">
+            <div class="ck block"><i class="fa-solid fa-circle-xmark"></i><div class="cb">
+              <div class="ct">执行失败 · 4 笔</div>
+              <div class="cd">银行明确返回失败，已确认未划转，可<b>直接更正后重新下发</b>。
+                失败原因结构化存储：银行返回码、失败描述与失败时间（R-M5）。</div></div></div>
+            <div class="ck wait"><i class="fa-solid fa-clock"></i><div class="cb">
+              <div class="ct">回执超时 · 2 笔</div>
+              <div class="cd"><b>须先与银行核实实际到账情况，确认未到账后方可重新下发</b>，防止重复付款。</div></div></div>
+            <div class="ck wait"><i class="fa-solid fa-hourglass-half"></i><div class="cb">
+              <div class="ct">停留时长单独统计 · 1 笔超阈值</div>
+              <div class="cd">停留期间<b>不计入承诺时限</b>，但超过配置阈值的<b>触发督办</b>。</div></div>
+              <div class="co"><span class="link" onclick="PMS.toast('已转督办：CZZL-2026-00812 停留 6 天已超阈值，督办单已推送预警督办中心','error')">转督办</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr><th>办件编号</th><th>当前指令</th><th>所属项目</th><th class="num">指令金额(元)</th>
+              <th>失败标识</th><th>银行返回码 / 失败描述</th><th class="num">重办次数</th><th>停留时长</th><th>额度状态</th><th>操作</th></tr>
+          </thead>
+          <tbody>
+            <tr class="row-bad">
+              <td class="nowrap">YK20260700124</td><td class="nowrap">CZZL-2026-00851-1</td><td class="nowrap">恒祥·江湾一号</td>
+              <td class="num">1,480,000.00</td>
+              <td><span class="badge red">执行失败</span></td>
+              <td class="cell-lg"><code>A0312</code> 收款账户名称与账号不符</td>
+              <td class="num">0</td><td class="nowrap text-danger">7h26m</td>
+              <td><span class="badge green">已解冻</span></td>
+              <td>
+                <span class="link" onclick="openFail('YK20260700124','CZZL-2026-00851','A0312 收款账户名称与账号不符',0)">重办</span>
+              </td>
+            </tr>
+            <tr class="row-bad">
+              <td class="nowrap">YK20260700139</td><td class="nowrap">CZZL-2026-00849-1</td><td class="nowrap">华润·置地中心</td>
+              <td class="num">2,642,000.00</td>
+              <td><span class="badge orange">回执超时</span></td>
+              <td class="cell-lg"><span class="muted">银行未返回结果，须先核实实际到账情况</span></td>
+              <td class="num">0</td><td class="nowrap text-danger">6h38m</td>
+              <td><span class="badge green">已解冻</span></td>
+              <td>
+                <span class="link" onclick="PMS.toast('已向中国银行柳州分行发起到账情况核实。回执超时须确认未到账后方可重新下发，防止重复付款（R-M8）','error')">核实到账</span>
+                <span class="link is-off" onclick="SP.denied('本笔为回执超时，须先与银行核实实际到账情况、确认未到账后方可重新下发（R-M8）')">重新下发</span>
+              </td>
+            </tr>
+            <tr class="row-bad">
+              <td class="nowrap">YK20260700118</td><td class="nowrap">CZZL-2026-00826-2</td><td class="nowrap">柳南·锦绣华府</td>
+              <td class="num">860,000.00</td>
+              <td><span class="badge red">执行失败</span></td>
+              <td class="cell-lg"><code>B0208</code> 收款账户已销户</td>
+              <td class="num">1</td><td class="nowrap">2h14m</td>
+              <td><span class="badge green">已解冻</span></td>
+              <td>
+                <span class="link" onclick="openFail('YK20260700118','CZZL-2026-00826','B0208 收款账户已销户',1)">重办</span>
+              </td>
+            </tr>
+            <tr class="row-bad">
+              <td class="nowrap">CFZL-2026-0011</td><td class="nowrap">CZZL-2026-00812-3</td><td class="nowrap">中南·春溪集 二期</td>
+              <td class="num">12,080,000.00</td>
+              <td><span class="badge orange">回执超时</span></td>
+              <td class="cell-lg"><span class="muted">冻结指令未回执，已超阈值</span></td>
+              <td class="num">2</td><td class="nowrap text-danger">6 天</td>
+              <td><span class="badge green">已解冻</span></td>
+              <td>
+                <span class="link" onclick="openFail('CFZL-2026-0011','CZZL-2026-00812','冻结指令未回执',2)">重办</span>
+                <span class="link danger" onclick="PMS.toast('本笔已重办 2 次，再失败 1 次即达建议上限 3 次，届时强制转终止办件或退回申请人（R-M7）','error')">上限提示</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="hint">
+        <i class="fa-solid fa-circle-info"></i>
+        <b>进入划转失败待处理时必须立即解冻本次冻结的额度</b>，避免额度被失败指令长期占用；重新下发时再次冻结（R-M4）。
+        <b>任一时点一个办件下只允许存在一条处于「已下发」状态的指令</b>（R-M3）。
+        <b>重新下发指令属高敏操作，须双人授权</b>并留痕原指令编号、新指令编号与更正内容（R-M9）。
+      </p>
     </div>
   </div>
 
@@ -185,6 +291,155 @@
   </div>
 
 </main>
+
+<!-- ========== 抽屉 · 划转失败重办（10.8 三个动作） ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="failDrawer">
+  <div class="drawer-head">
+    <h3>划转失败重办 · <span data-fill="bj">YK20260700124</span></h3>
+    <span class="sp-st bad">划转失败待处理</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div>
+  </div>
+  <div class="drawer-body">
+    <div class="alert alert-warning">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div><b>划转失败待处理是办件状态，不是流程节点</b>（R-M1）。三个动作择一执行；
+        <b>更正后重新下发</b>与<b>终止办件</b>须双人授权（R-M9）。
+        本状态停留期间<b>不计入承诺时限</b>，但单独统计停留时长（R-M6）。</div>
+    </div>
+
+    <dl class="desc-list">
+      <div class="desc-item"><dt>办件编号</dt><dd data-fill="bj2">YK20260700124</dd></div>
+      <div class="desc-item"><dt>原指令编号</dt><dd data-fill="zl">CZZL-2026-00851</dd></div>
+      <div class="desc-item"><dt>失败原因</dt><dd data-fill="yy" class="text-danger">A0312 收款账户名称与账号不符</dd></div>
+      <div class="desc-item"><dt>已重办次数</dt><dd><b data-fill="cs">0</b> 次 <span class="muted">建议上限 3 次（R-M7，待业务确认）</span></dd></div>
+      <div class="desc-item"><dt>额度状态</dt><dd><span class="badge green">已解冻</span> <span class="muted">进入本状态时立即解冻（R-M4）</span></dd></div>
+      <div class="desc-item"><dt>在办指令</dt><dd><span class="muted">无</span> <span class="muted">同一时点仅允许一条已下发指令（R-M3）</span></dd></div>
+    </dl>
+
+    <div class="sp-block" style="margin-top:12px">
+      <div class="sp-h"><i class="fa-solid fa-code-branch"></i> 选择重办动作</div>
+      <div class="sp-b">
+        <div class="radio-line" style="flex-direction:column;align-items:flex-start;gap:8px">
+          <label><input type="radio" name="failAct" value="redo" checked onchange="pickAct()">
+            <b>更正后重新下发</b> — 收款账户信息有误、金额需微调等可由监管端直接修正的情形</label>
+          <label><input type="radio" name="failAct" value="back" onchange="pickAct()">
+            <b>退回申请人</b> — 需企业更换收款账户、补充材料或重新核对金额的情形</label>
+          <label><input type="radio" name="failAct" value="stop" onchange="pickAct()">
+            <b>终止办件</b> — 企业撤回申请、项目状态变化导致本次拨付不再必要等情形</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="sp-block" id="actBox">
+      <div class="sp-h"><i class="fa-solid fa-list-check"></i> <span id="actTitle">系统必须完成的动作</span></div>
+      <div class="sp-b"><div class="sp-check" id="actList"></div></div>
+    </div>
+
+    <div class="form-grid form-align" style="margin-top:12px">
+      <div class="form-item col-full" id="fixBox"><label>更正内容 <span class="req">*</span></label>
+        <textarea id="failFix" rows="2" placeholder="必填。写明修正的指令要素，如收款账户名称、账号或金额"></textarea>
+        <div class="hint">新指令编号由<b>原指令编号加序号后缀</b>构成，与原指令在同一办件下形成<b>指令链</b>（R-M2）。</div></div>
+      <div class="form-item col-full"><label>处理说明 <span class="req">*</span></label>
+        <textarea id="failNote" rows="2" placeholder="必填，不少于 10 字"></textarea></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" id="failOk" onclick="submitFail()"><i class="fa-solid fa-paper-plane"></i> 更正后重新下发</button>
+  </div>
+</div>
+
 <script src="../../../assets/js/app.js"></script>
+<script src="../../../assets/js/spec.js"></script>
+<script>
+var ACTS = {
+  redo: {
+    t: '更正后重新下发 · 系统必须完成的动作',
+    btn: '<i class="fa-solid fa-paper-plane"></i> 更正后重新下发',
+    dual: true, fix: true,
+    r: [
+      ['pass', 'fa-pen', '修正指令要素', '按更正内容修正收款账户或金额。'],
+      ['wait', 'fa-lock', '重新冻结额度', '进入本状态时已解冻，重新下发时<b>再次冻结</b>（R-M4）。'],
+      ['pass', 'fa-hashtag', '生成新指令（原编号 ＋ 序号递增）', '原指令与新指令<b>在同一办件下形成指令链</b>，全部指令与回执<b>永久留痕</b>（R-M2）。'],
+      ['pass', 'fa-paper-plane', '推送银行', '推送后办件转「指令已下发」，等待终态回执。'],
+      ['block', 'fa-user-shield', '双人授权', '属高敏操作，须留痕操作人、时间、原指令编号、新指令编号与更正内容（R-M9）。']
+    ]
+  },
+  back: {
+    t: '退回申请人 · 系统必须完成的动作',
+    btn: '<i class="fa-solid fa-rotate-left"></i> 退回申请人',
+    dual: false, fix: false,
+    r: [
+      ['pass', 'fa-rotate-left', '办件转「补正中」', '补正期间不计承诺时限。'],
+      ['pass', 'fa-file-lines', '一次性写明失败原因与需修正内容', '不得分多次告知。'],
+      ['wait', 'fa-forward', '企业重新提交后回到「待受理」', '<b>已完成的审核环节不重复办理</b>。'],
+      ['pass', 'fa-bell', '通知企业与经办人', '企业端可见失败原因与需修正内容。']
+    ]
+  },
+  stop: {
+    t: '终止办件 · 系统必须完成的动作',
+    btn: '<i class="fa-solid fa-ban"></i> 终止办件',
+    dual: true, fix: false,
+    r: [
+      ['pass', 'fa-unlock', '解冻额度', '本次冻结额度全部释放。'],
+      ['block', 'fa-ban', '关闭办件，转「已终止」', '<b>不可再重新发起</b>。'],
+      ['pass', 'fa-file-lines', '写明终止理由并通知企业', '理由对企业完整可见。'],
+      ['block', 'fa-user-shield', '双人授权', '属高敏操作，须留痕（R-M9）。']
+    ]
+  }
+};
+
+function curAct() {
+  var el = document.querySelector('input[name="failAct"]:checked');
+  return el ? el.value : 'redo';
+}
+
+function pickAct() {
+  var k = curAct(), A = ACTS[k];
+  document.getElementById('actTitle').textContent = A.t;
+  document.getElementById('actList').innerHTML = A.r.map(function (a) {
+    return '<div class="ck ' + a[0] + '"><i class="fa-solid ' + a[1] + '"></i><div class="cb">'
+      + '<div class="ct">' + a[2] + '</div><div class="cd">' + a[3] + '</div></div></div>';
+  }).join('');
+  document.getElementById('fixBox').style.display = A.fix ? '' : 'none';
+  document.getElementById('failOk').innerHTML = A.btn;
+  document.getElementById('failOk').className = k === 'stop' ? 'btn btn-danger-solid' : 'btn btn-primary';
+}
+
+function openFail(bj, zl, yy, cs) {
+  PMS.fill('failDrawer', { bj: bj, bj2: bj, zl: zl, yy: yy, cs: cs });
+  document.querySelector('input[name="failAct"][value="redo"]').checked = true;
+  document.getElementById('failFix').value = '';
+  document.getElementById('failNote').value = '';
+  pickAct();
+  PMS.openDrawer('failDrawer');
+}
+
+function submitFail() {
+  var k = curAct(), A = ACTS[k];
+  if (A.fix && !(document.getElementById('failFix').value || '').trim()) {
+    SP.denied('更正内容为必填，须写明修正的指令要素'); document.getElementById('failFix').focus(); return;
+  }
+  var note = document.getElementById('failNote');
+  if ((note.value || '').trim().length < 10) { SP.denied('处理说明为必填且不少于 10 字'); note.focus(); return; }
+
+  var done = {
+    redo: '已重新冻结额度并生成新指令（原编号 ＋ 序号递增），已推送银行；原指令与新指令在同一办件下形成指令链',
+    back: '已退回申请人，办件转「补正中」并一次性写明失败原因与需修正内容；企业重新提交后回到「待受理」，已完成的审核环节不重复办理',
+    stop: '已终止办件并解冻额度，终止理由已写明并通知企业；办件转「已终止」，不可再重新发起'
+  }[k];
+
+  if (A.dual) {
+    SP.dual(k === 'stop' ? '终止办件' : '更正后重新下发指令', '韦国强', function () {
+      PMS.closeDrawer(); PMS.toast(done, 'success');
+    });
+  } else {
+    PMS.closeDrawer(); PMS.toast(done, 'success');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', pickAct);
+</script>
 </body>
 </html>

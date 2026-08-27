@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>重点监管额度模型 · 新建商品房预售资金监管系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../../assets/css/app.css">
+<link rel="stylesheet" href="../../../assets/css/spec.css">
+<style>
+  /* 三层额度体系的堆叠示意：应监管总额 ＝ 重点监管额度 ＋ 一般额度 */
+  .q3 { display: flex; flex-direction: column; gap: 8px; }
+  .q3 .lyr { border-radius: var(--radius); padding: 10px 12px; border: 1px solid var(--border); }
+  .q3 .lyr .lh { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .q3 .lyr .ln { font-size: 13px; font-weight: 700; color: var(--text-1); }
+  .q3 .lyr .lv { margin-left: auto; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .q3 .lyr .ld { font-size: 12px; color: var(--text-3); line-height: 1.6; margin-top: 3px; }
+  .q3 .lyr.tot { background: var(--primary-light-2); border-color: var(--primary-soft); }
+  .q3 .lyr.tot .lv { color: var(--primary); }
+  .q3 .lyr.key { background: var(--danger-light); border-color: #f0c7c7; margin-left: 22px; }
+  .q3 .lyr.key .lv { color: var(--lv-red); }
+  .q3 .lyr.gen { background: var(--success-light); border-color: #cfe9bd; margin-left: 22px; }
+  .q3 .lyr.gen .lv { color: var(--success); }
+
+  /* 形象进度节点释放条 */
+  .nd { display: flex; flex-direction: column; gap: 0; }
+  .nd .n { display: grid; grid-template-columns: 26px 1fr 150px 84px; gap: 10px; align-items: center; padding: 7px 0; }
+  .nd .n + .n { border-top: 1px dashed var(--border); }
+  .nd .dot {
+    width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; background: var(--bg-soft); color: var(--text-3); border: 2px solid var(--border-strong);
+  }
+  .nd .n.done .dot { background: var(--success); color: #fff; border-color: var(--success); }
+  .nd .n.cur .dot { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .nd .nt { font-size: 13px; font-weight: 600; color: var(--text-1); }
+  .nd .n.todo .nt { color: var(--text-3); font-weight: 400; }
+  .nd .ns { font-size: 11.5px; color: var(--text-3); }
+  .nd .bar { height: 14px; border-radius: 8px; background: var(--bg-soft); overflow: hidden; }
+  .nd .bar > span { display: block; height: 100%; border-radius: 8px; background: var(--primary-soft); }
+  .nd .n.done .bar > span { background: var(--success); }
+  .nd .n.cur .bar > span { background: var(--primary); }
+  .nd .pv { text-align: right; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body data-role="manager" data-active="wsszjjg-26">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房预售资金监管系统
+        <span class="sep">/</span> 监管设置
+        <span class="sep">/</span> <span class="cur">重点监管额度模型</span>
+      </div>
+      <div class="page-title">重点监管额度模型 <span class="badge blue">唯一口径</span></div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="SP.todo('已重算：按当前参数版本 CS-2026-02 对 128 个在监项目逐栋重算可用额度，与企业端、统计报表三处取数完全一致（验-10）')"><i class="fa-solid fa-calculator"></i> 全量重算校验</button>
+      <button class="btn" onclick="SP.exportAsync('重点监管额度核定台账')"><i class="fa-solid fa-download"></i> 导出台账</button>
+      <button class="btn btn-primary" onclick="SP.dual('监管额度核定与调整','李慧',function(){PMS.toast('已提交额度调整，须走 5002 监管项目变更事项由 city 双人授权核定','success')})"><i class="fa-solid fa-sliders"></i> 额度调整</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div><b>全平台只有一套监管额度模型</b>。额度的核定与可用额度的计算<b>只在本子系统内完成</b>，统一服务门户、市场监测分析、AI 应用服务等其他板块
+      <b>只展示本子系统的计算结果，不得在本端重新推导或另行加权</b>（R-K1）。
+      额度<b>按楼栋核定、按项目汇总</b>，资金使用按楼栋扣减，<b>不得跨楼栋串用</b>（R-K2）。
+      可用额度为<b>实时计算值，不落库为固定值</b>（R-K4）。</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-building"></i></div><div>
+      <div class="s-label">在监项目 / 楼栋</div><div class="s-value">128</div><div class="s-trend text-2">386 栋分别核定</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-coins"></i></div><div>
+      <div class="s-label">应监管总额</div><div class="s-value">386.4</div><div class="s-trend text-2">亿元</div></div></div>
+    <div class="stat-card"><div class="s-icon red"><i class="fa-solid fa-shield"></i></div><div>
+      <div class="s-label">重点监管额度</div><div class="s-value">142.8</div><div class="s-trend text-2">亿元 · 占 36.9%</div></div></div>
+    <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-arrow-down"></i></div><div>
+      <div class="s-label">累计已缴存</div><div class="s-value">248.6</div><div class="s-trend text-success">亿元 · 到位率 64.3%</div></div></div>
+    <div class="stat-card dc-alarm"><div class="s-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div><div>
+      <div class="s-label">监管缺口超阈值</div><div class="s-value">18</div><div class="s-trend">栋 · 已触发预警</div></div></div>
+    <div class="stat-card"><div class="s-icon purple"><i class="fa-solid fa-file-shield"></i></div><div>
+      <div class="s-label">保函替代额度</div><div class="s-value">6.24</div><div class="s-trend text-2">亿元 · 4 笔临近到期</div></div></div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="zz">模型总则与额度构成</div>
+      <div class="tab" data-tab="jd">进度节点与可拨付比例</div>
+      <div class="tab" data-tab="ss">可用额度实时计算</div>
+      <div class="tab" data-tab="bh">保函替代</div>
+      <div class="tab" data-tab="tz">额度调整与高危加严</div>
+      <div class="tab" data-tab="td">核定台账</div>
+    </div>
+
+    <!-- ===================== 页签一 · 模型总则与额度构成 ===================== -->
+    <div class="tab-panel active" data-panel="zz">
+      <div class="card-body">
+        <div class="grid-2">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-layer-group"></i> 三层额度体系
+              <span class="sub">R-K3 · 三者定义与计算不得混用口径</span></div>
+            <div class="sp-b">
+              <div class="q3">
+                <div class="lyr tot">
+                  <div class="lh"><span class="ln">应监管总额</span><span class="badge blue">资金归集目标值</span>
+                    <span class="lv">11,386.00 万元</span></div>
+                  <div class="ld">该楼栋全部可售房源按<b>申报价格</b>计算的购房款总额。
+                    ＝ Σ（该楼栋各可售房源申报总价），以<b>预售方案备案的一房一价</b>为准，一房一价调整后同步重算。</div>
+                </div>
+                <div class="lyr key">
+                  <div class="lh"><span class="ln">重点监管额度</span><span class="badge red">只能用于本项目工程建设</span>
+                    <span class="lv">4,268.00 万元</span></div>
+                  <div class="ld">保证该楼栋<b>竣工交付所必需</b>的资金，<b>必须留存在监管账户</b>。
+                    两种口径择一，由市县在参数中指定；两种口径均可再乘监管比例系数。当前采用<b>面积单价法</b>。</div>
+                </div>
+                <div class="lyr gen">
+                  <div class="lh"><span class="ln">一般（非重点）额度</span><span class="badge green">使用规则相对简化</span>
+                    <span class="lv">1,206.20 万元</span></div>
+                  <div class="ld">＝ 累计已缴存 − 累计已核退 − <b>重点监管额度中尚未使用的部分</b>。
+                    计算结果为负的<b>按 0 处理</b>。</div>
+                </div>
+              </div>
+              <div class="sp-fx" style="margin-top:10px">
+                <span class="lb">成本法 ＝</span> 建安工程造价 ＋ 政府规费与税金 ＋ 预备费
+                <span class="muted">（以造价咨询机构出具的报告为准）</span><br>
+                <span class="lb">面积单价法 ＝</span> 该楼栋可售面积 × 监管单价标准 <span class="muted">（元/㎡，分级配置）</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-calculator"></i> 荣和公园大道二期 · 8 号楼 额度构成
+              <span class="sub">参数版本 CS-2026-02 · 纳管时绑定</span></div>
+            <div class="sp-b">
+              <div class="sp-kv">
+                <div class="kv"><span class="k">可售面积</span><span class="v">21,340.00 ㎡</span></div>
+                <div class="kv"><span class="k">监管单价标准</span><span class="v">1,800 元/㎡</span>
+                  <span class="muted">分级配置</span></div>
+                <div class="kv"><span class="k">监管比例系数</span><span class="v">1.11</span></div>
+                <div class="kv"><span class="k">重点监管额度</span><span class="v bad">4,268.00 万元</span></div>
+              </div>
+              <div class="sp-fx" style="margin:10px 0">
+                21,340.00 ㎡ × 1,800 元/㎡ × 1.11 ＝ <b>4,268.00 万元</b>
+              </div>
+              <div class="sp-bars">
+                <div class="b"><span class="n">应监管总额</span><span class="t"><span style="width:100%"></span></span><span class="v">11,386.00</span></div>
+                <div class="b"><span class="n">累计已缴存</span><span class="t g"><span style="width:30.6%"></span></span><span class="v">3,486.20</span></div>
+                <div class="b"><span class="n">累计已使用</span><span class="t o"><span style="width:26.9%"></span></span><span class="v">3,062.30</span></div>
+                <div class="b"><span class="n">累计已核退</span><span class="t"><span style="width:0.5%"></span></span><span class="v">62.40</span></div>
+                <div class="b"><span class="n">账户余额</span><span class="t g"><span style="width:3.2%"></span></span><span class="v">361.50</span></div>
+                <div class="b"><span class="n">监管缺口</span><span class="t r"><span style="width:12.4%"></span></span><span class="v">1,412.80</span></div>
+              </div>
+              <p class="hint">
+                <i class="fa-solid fa-triangle-exclamation" style="color:var(--lv-orange)"></i>
+                <b>监管缺口 ＝ 已网签备案合同应缴金额 − 已缴存金额</b>。缺口占比超阈值的触发<b>逾期未缴与额度异常预警</b>。
+                本栋缺口 1,412.80 万元，占应缴 28.8%，<b>已触发预警</b>。
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-scale-balanced"></i> 模型总则
+            <span class="sub">11.1 · R-K1 至 R-K7</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>编号</th><th>规则</th><th>原型落点</th></tr></thead>
+                <tbody>
+                  <tr><td><b>R-K1</b></td><td class="cell-lg">全平台<b>只有一套</b>监管额度模型。核定与可用额度计算<b>只在本子系统内完成</b>，其他板块只展示、不得重新推导或另行加权</td>
+                    <td><span class="muted">验-10</span></td></tr>
+                  <tr><td><b>R-K2</b></td><td class="cell-lg">监管额度<b>按楼栋核定、按项目汇总</b>。资金使用按楼栋扣减额度，<b>不得跨楼栋串用</b>，另有政策规定的除外</td>
+                    <td><span class="link" onclick="SP.drill('楼栋监管信息','按楼栋维护额度与监管状态','project-building.html')">楼栋监管</span></td></tr>
+                  <tr><td><b>R-K3</b></td><td class="cell-lg">额度体系由<b>三层</b>构成：应监管总额、重点监管额度、一般（非重点）额度，<b>不得混用口径</b></td>
+                    <td><span class="muted">本页签</span></td></tr>
+                  <tr class="row-warn"><td><b>R-K4</b></td><td class="cell-lg">可用额度为<b>实时计算值，不落库为固定值</b>。每次资金使用申请、拨付回执、核退到账、进度节点核验、解除监管都<b>必须触发重算</b></td>
+                    <td><span class="link" onclick="SP.tab('ss')">实时计算</span></td></tr>
+                  <tr><td><b>R-K5</b></td><td class="cell-lg">监管比例、节点比例、单价标准等参数统一在 <b>PC-32 一城一策政策参数配置</b>维护，<b>本子系统只读取不写死</b>，参数带生效日期与版本</td>
+                    <td><span class="link" onclick="location.href='rule.html'">规则配置</span></td></tr>
+                  <tr class="row-warn"><td><b>R-K6</b></td><td class="cell-lg">已纳管项目按<b>纳管时绑定的参数版本</b>执行，参数后续调整<b>不自动影响</b>已纳管项目，除非另行办理监管项目变更并留痕</td>
+                    <td><span class="muted">验-15</span></td></tr>
+                  <tr><td><b>R-K7</b></td><td class="cell-lg">每一次额度变化都必须<b>可追溯</b>到具体的业务单据（备案单、进度核验单、拨付回执、核退回执、解除监管批复）与参数版本</td>
+                    <td><span class="link" onclick="SP.tab('td')">核定台账</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-list"></i> 额度构成与计算口径
+            <span class="sub">11.2 · 八项定义</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>额度项</th><th>定义</th><th>计算口径</th></tr></thead>
+                <tbody>
+                  <tr><td><b>应监管总额</b></td><td class="cell-lg">该楼栋全部可售房源按申报价格计算的购房款总额，是资金归集的目标值</td>
+                    <td class="cell-lg">＝ Σ（该楼栋各可售房源申报总价）。以<b>预售方案备案的一房一价</b>为准，一房一价调整后同步重算</td></tr>
+                  <tr class="row-warn"><td><b>重点监管额度</b></td><td class="cell-lg">保证该楼栋竣工交付所必需的资金，是必须留存在监管账户、只能用于本项目工程建设的部分</td>
+                    <td class="cell-lg"><b>两种口径择一，由市县在参数中指定</b>：<br>成本法 ＝ 建安工程造价 ＋ 政府规费与税金 ＋ 预备费（以造价咨询机构出具的报告为准）<br>面积单价法 ＝ 该楼栋可售面积 × 监管单价标准（元/㎡，分级配置）<br>两种口径均可再乘监管比例系数</td></tr>
+                  <tr><td><b>一般（非重点）额度</b></td><td class="cell-lg">超出重点监管额度部分的资金，使用规则相对简化</td>
+                    <td class="cell-lg">＝ 累计已缴存 − 累计已核退 − 重点监管额度中<b>尚未使用</b>的部分。计算结果为负的按 <b>0</b> 处理</td></tr>
+                  <tr><td>累计已缴存金额</td><td class="cell-lg">该楼栋所有<b>入账成功且已匹配合同</b>的资金合计</td>
+                    <td class="cell-lg">＝ Σ（入账成功流水金额），含定金、首付、商业贷款、公积金贷款与其他购房款</td></tr>
+                  <tr><td>累计已使用金额</td><td class="cell-lg">该楼栋经审批并已由银行<b>执行成功</b>的出账合计</td>
+                    <td class="cell-lg">＝ Σ（执行成功的出账指令金额），按<b>重点、一般、高危、保交楼</b>四类分别统计</td></tr>
+                  <tr class="row-warn"><td>账户余额</td><td class="cell-lg">监管账户的实际资金余额</td>
+                    <td class="cell-lg">以<b>银行接口返回的实时余额</b>为准；平台侧系统余额 ＝ 累计已缴存 − 累计已使用 − 累计已核退，
+                      <b>两者不一致的进入对账差异处理</b></td></tr>
+                  <tr class="row-bad"><td>监管缺口</td><td class="cell-lg">衡量资金归集到位程度的监测指标</td>
+                    <td class="cell-lg">＝ 已网签备案合同应缴金额 − 已缴存金额。缺口占比超阈值的触发<b>逾期未缴与额度异常预警</b></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 页签二 · 进度节点 ===================== -->
+    <div class="tab-panel" data-panel="jd">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>下表比例为<b>建议值</b>，需由市住建部门在需求确认阶段最终核定；核定前按下表实现。
+            比例作为<b>可配置参数</b>存放，支持按市本级与六个县区<b>分级配置</b>并保留版本与生效日期。
+            <b>节点比例为累计值而非单节点值</b>；节点<b>只能顺序推进，不得跳节点申报</b>，确需跳节点的须单独审批并说明理由。</div>
+        </div>
+
+        <div class="grid-2">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-timeline"></i> 荣和公园大道二期 · 8 号楼 节点释放进度
+              <span class="sub">重点监管额度 4,268.00 万元</span></div>
+            <div class="sp-b">
+              <div class="nd" id="ndBox"></div>
+              <div class="sp-sum" style="margin-top:10px">
+                <span class="sv">2,347.40</span><span class="su">万元 · 当前节点累计可拨付额度（55%）</span>
+              </div>
+              <p class="hint">
+                <i class="fa-solid fa-circle-info"></i>
+                项目处于<b>主体结构封顶</b>节点、比例 55% 时，该楼栋自纳管以来<b>累计可拨付</b>的重点资金上限为重点监管额度的 55%，
+                <b>已拨付部分计入其中</b>。
+              </p>
+            </div>
+          </div>
+
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-list-ol"></i> 六个形象进度节点
+              <span class="sub">11.3 · 核验依据</span></div>
+            <div class="sp-b pad0">
+              <div class="sp-tw">
+                <table class="data-table compact">
+                  <thead><tr><th class="num">序</th><th>进度节点</th><th>形象进度标志</th><th class="num">累计可拨付比例</th><th>核验依据</th></tr></thead>
+                  <tbody>
+                    <tr><td class="num">1</td><td>基础完成</td><td class="cell-lg">±0.00 完成并经监理确认</td>
+                      <td class="num"><span class="badge yellow">待定</span> 建议 <b>25%</b></td>
+                      <td class="cell-lg">形象进度照片、监理进度确认书、基础分部工程验收记录</td></tr>
+                    <tr><td class="num">2</td><td>主体结构过半</td><td class="cell-lg">主体施工至设计层数一半</td>
+                      <td class="num"><span class="badge yellow">待定</span> 建议 <b>40%</b></td>
+                      <td class="cell-lg">形象进度照片、监理进度确认书</td></tr>
+                    <tr class="row-warn"><td class="num">3</td><td><b>主体结构封顶</b></td><td class="cell-lg">主体结构封顶并通过验收</td>
+                      <td class="num"><span class="badge yellow">待定</span> 建议 <b>55%</b></td>
+                      <td class="cell-lg">形象进度照片、主体分部工程验收记录</td></tr>
+                    <tr><td class="num">4</td><td>竣工验收</td><td class="cell-lg">取得竣工验收备案证明</td>
+                      <td class="num"><span class="badge yellow">待定</span> 建议 <b>75%</b></td>
+                      <td class="cell-lg">竣工验收备案证明</td></tr>
+                    <tr><td class="num">5</td><td>不动产初始登记</td><td class="cell-lg">完成首次登记</td>
+                      <td class="num"><span class="badge yellow">待定</span> 建议 <b>90%</b></td>
+                      <td class="cell-lg">不动产初始登记证明</td></tr>
+                    <tr><td class="num">6</td><td>交付使用</td><td class="cell-lg">完成交付并办理解除监管</td>
+                      <td class="num"><b>100%</b></td>
+                      <td class="cell-lg">交付情况说明、解除监管批复</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="hint" style="padding:9px 12px">
+                <i class="fa-solid fa-circle-info"></i>
+                节点比例支持按<b>市本级与六个县区分级配置</b>并保留版本与生效日期，配置入口在
+                <span class="link" onclick="location.href='rule.html'">监管规则配置 · 进度节点配置</span>。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 页签三 · 可用额度实时计算 ===================== -->
+    <div class="tab-panel" data-panel="ss">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>以下六项<b>均为实时计算，不落库为固定值</b>。系统须在<b>企业端申报页面显示计算结果与各项组成部分</b>，使企业可自行核对；
+            审核端在办件详情页显示<b>提交时的额度试算快照</b>，与审核时的<b>实时值</b>一并展示，<b>两者不一致的提示重新试算</b>（11.4）。</div>
+        </div>
+
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-square-root-variable"></i> 六项计算公式
+            <span class="sub">11.4 · 计算结果为负的一律按 0 处理</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table">
+                <thead><tr><th>计算项</th><th>公式</th><th>说明</th><th class="num">本栋当前值（万元）</th></tr></thead>
+                <tbody>
+                  <tr><td><b>当前节点累计可拨付额度</b></td>
+                    <td class="cell-lg">重点监管额度 × 当前已核验节点的累计可拨付比例</td>
+                    <td class="cell-lg">当前已核验节点指<b>最近一次核验通过</b>的节点，未核验任何节点的按 0 处理</td>
+                    <td class="num">2,347.40</td></tr>
+                  <tr class="row-warn"><td><b>重点资金可申请额度</b></td>
+                    <td class="cell-lg">当前节点累计可拨付额度 − 重点资金累计已使用金额 − 重点资金<b>在途冻结金额</b></td>
+                    <td class="cell-lg">在途冻结金额指<b>已提交尚未办结</b>或<b>指令已下发尚未回执</b>的申请金额</td>
+                    <td class="num">1,285.10</td></tr>
+                  <tr><td><b>一般资金可申请额度</b></td>
+                    <td class="cell-lg">账户余额 −（重点监管额度 − 重点资金累计已使用金额）− 一般资金在途冻结金额</td>
+                    <td class="cell-lg">体现<b>「非重点资金必须先保证重点监管额度留存」</b>的规则</td>
+                    <td class="num">0.00</td></tr>
+                  <tr class="row-bad"><td><b>高危项目可申请额度</b></td>
+                    <td class="cell-lg">由监管部门<b>单独设定</b>，或按当前节点累计可拨付额度乘<b>加严系数</b>计算</td>
+                    <td class="cell-lg">加严系数与单次申请比例上限<b>按项目逐个设定</b>，须<b>双人授权</b></td>
+                    <td class="num"><span class="muted">本栋非高危</span></td></tr>
+                  <tr><td><b>可核退额度</b></td>
+                    <td class="cell-lg">该房间累计已缴存金额 − 该房间累计已核退金额</td>
+                    <td class="cell-lg"><b>按房间而非楼栋计算</b>，核退<b>不占用也不释放</b>重点监管额度</td>
+                    <td class="num"><span class="muted">按房间</span></td></tr>
+                  <tr><td><b>解除监管可释放额度</b></td>
+                    <td class="cell-lg">该楼栋重点监管额度 − 重点资金累计已使用金额</td>
+                    <td class="cell-lg">审批通过后该部分<b>自动转为非重点额度</b>；<b>高危项目不自动转换</b>，须另设额度</td>
+                    <td class="num">1,205.70</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-1"></i> 重点资金可申请额度 · 逐项拆解
+              <span class="sub">企业端申报页须显示各项组成部分</span></div>
+            <div class="sp-b">
+              <div class="sp-fx">
+                <span class="lb">当前节点累计可拨付 ＝</span> 4,268.00 × 55% ＝ <b>2,347.40</b><br>
+                <span class="lb">减 · 重点资金已使用 ＝</span> <em>− 1,062.30</em><br>
+                <span class="lb">减 · 重点资金在途冻结 ＝</span> <em>− 0.00</em><br>
+                <span class="lb">重点资金可申请额度 ＝</span> <b>1,285.10 万元</b>
+              </div>
+              <div class="sp-kv" style="margin-top:10px">
+                <div class="kv"><span class="k">触发重算的事件</span><span class="v">资金使用申请、拨付回执、核退到账、进度节点核验、解除监管</span></div>
+                <div class="kv"><span class="k">试算快照</span><span class="v">提交时锁定，与审核时实时值并列展示</span></div>
+                <div class="kv"><span class="k">不一致处置</span><span class="v warn">提示重新试算，不自动放行</span></div>
+              </div>
+              <div class="btn-row" style="margin-top:8px">
+                <button class="btn btn-sm" onclick="SP.todo('提交超额申请被拦截：本次申请 1,500.00 万元 ＞ 可申请额度 1,285.10 万元，差额 214.90 万元。须待下一形象进度节点核验通过后再申请（验-3）')"><i class="fa-solid fa-ban"></i> 演示超额拦截</button>
+                <button class="btn btn-sm" onclick="SP.todo('试算快照与实时值不一致：提交时可申请额度 1,412.80 万元，审核时实时值 1,285.10 万元（期间有一笔 127.70 万元拨付回执成功）。已提示重新试算')"><i class="fa-solid fa-triangle-exclamation"></i> 演示快照不一致</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-2"></i> 一般资金可申请额度 · 为何是 0
+              <span class="sub">非重点资金必须先保证重点监管额度留存</span></div>
+            <div class="sp-b">
+              <div class="sp-fx">
+                <span class="lb">账户余额 ＝</span> <b>361.50</b><br>
+                <span class="lb">减 · 重点监管额度未使用部分 ＝</span> <em>− (4,268.00 − 1,062.30) ＝ − 3,205.70</em><br>
+                <span class="lb">减 · 一般资金在途冻结 ＝</span> <em>− 0.00</em><br>
+                <span class="lb">计算结果 ＝</span> − 2,844.20 → <b>按 0 处理</b>
+              </div>
+              <p class="hint">
+                <i class="fa-solid fa-circle-info"></i>
+                账户余额 361.50 万元<b>远低于</b>须留存的重点监管额度 3,205.70 万元，
+                因此一般资金可申请额度为 <b>0</b>——余额必须优先保证重点监管额度留存。
+                这正是本栋<b>监管缺口 1,412.80 万元已触发预警</b>的直接后果。
+              </p>
+              <div class="btn-row">
+                <button class="btn btn-sm" onclick="SP.drill('应缴未缴监控','查看本栋缺口构成与逾期未缴清单','collect-unpaid.html')">看缺口构成</button>
+                <button class="btn btn-sm" onclick="SP.drill('资金风险预警','查看额度异常预警处置','warning.html')">看预警</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 页签四 · 保函替代 ===================== -->
+    <div class="tab-panel" data-panel="bh">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>经批准，开发企业可用<b>银行保函替代等额的重点监管资金</b>，替代后该部分额度<b>视同已留存，可作为一般资金申请使用</b>（R-K8）。
+            <b>出具保函的银行须在合作银行名录内且状态正常，名录外银行出具的保函不予受理</b>（R-K12）。</div>
+        </div>
+
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-scale-balanced"></i> 保函替代规则
+            <span class="sub">11.5 · R-K8 至 R-K12</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>编号</th><th>规则</th></tr></thead>
+                <tbody>
+                  <tr><td><b>R-K8</b></td><td class="cell-lg">经批准可用银行保函替代<b>等额</b>的重点监管资金，替代后该部分额度<b>视同已留存，可作为一般资金申请使用</b></td></tr>
+                  <tr><td><b>R-K9</b></td><td class="cell-lg">须登记<b>保函编号、出具银行、担保金额、替代额度、生效日期与到期日期</b>，并上传保函正本影像</td></tr>
+                  <tr class="row-warn"><td><b>R-K10</b></td><td class="cell-lg">单个项目保函替代的<b>额度上限须业务确认</b>，建议不超过重点监管额度的一定比例，具体比例作为可配置参数<b>分级设置</b></td></tr>
+                  <tr class="row-bad"><td><b>R-K11</b></td><td class="cell-lg">保函到期前须按配置的提前量预警。<b>到期未续保的，系统自动恢复原监管额度要求，相应额度即时收回，已超额使用的进入追缴流程</b></td></tr>
+                  <tr><td><b>R-K12</b></td><td class="cell-lg">出具保函的银行须在<b>合作银行名录</b>内且状态正常，<b>名录外银行出具的保函不予受理</b></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-bar">
+          <div class="filter-item"><label>项目名称</label><input type="text" placeholder="项目名称"></div>
+          <div class="filter-item"><label>出具银行</label><input type="text" placeholder="银行名称"></div>
+          <div class="filter-item"><label>保函状态</label>
+            <select><option>全部</option><option>生效中</option><option>临近到期</option><option>已到期</option><option>已续保</option></select>
+          </div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按所选条件检索保函替代记录','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="SP.dual('保函替代额度释放','韦国强',function(){PMS.toast('已释放替代额度，该部分视同已留存，可作为一般资金申请使用','success')})"><i class="fa-solid fa-unlock"></i> 释放替代额度</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>保函编号</th><th>项目 / 楼栋</th><th>出具银行</th><th class="num">担保金额（万元）</th>
+              <th class="num">替代额度（万元）</th><th class="num">占重点额度</th><th>生效 / 到期</th><th>剩余</th><th>状态</th><th>操作</th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td>BH2026-0086</td><td class="cell-lg">荣和公园大道二期 / 9 号楼</td><td>建设银行XXXX分行</td>
+                <td class="num">1,800.00</td><td class="num">1,800.00</td><td class="num">42.2%</td>
+                <td>2026-03-01 / 2027-03-01</td>
+                <td><span class="sp-days"><span class="dv">186 天</span><span class="db"><span style="width:51%"></span></span></span></td>
+                <td><span class="sp-st done">生效中</span></td>
+                <td><span class="link" onclick="PMS.openDrawer('bhDrawer')">详情</span></td>
+              </tr>
+              <tr class="row-warn">
+                <td>BH2025-0212</td><td class="cell-lg">彰泰滨江学府 / 6 号楼</td><td>工商银行XXXX分行</td>
+                <td class="num">2,400.00</td><td class="num">2,400.00</td><td class="num">38.6%</td>
+                <td>2025-10-15 / 2026-10-15</td>
+                <td><span class="sp-days d60"><span class="dv">49 天</span><span class="db"><span style="width:13%"></span></span></span></td>
+                <td><span class="sp-st wait">临近到期</span></td>
+                <td>
+                  <span class="link" onclick="PMS.openDrawer('bhDrawer')">详情</span>
+                  <span class="link" onclick="SP.todo('已按配置提前量推送到期预警：距到期 49 天，已通知开发企业与出具银行。到期未续保的系统自动恢复原监管额度要求，相应额度即时收回（R-K11）')">催续保</span>
+                </td>
+              </tr>
+              <tr class="row-bad">
+                <td>BH2025-0148</td><td class="cell-lg">恒达阳光里 / 3 号楼</td><td>中国银行XXXX分行</td>
+                <td class="num">1,200.00</td><td class="num">1,200.00</td><td class="num">45.8%</td>
+                <td>2024-08-20 / 2026-08-20</td>
+                <td><span class="sp-days dx"><span class="dv">已过期</span><span class="db"><span style="width:0%"></span></span></span></td>
+                <td><span class="sp-st bad">已到期未续保</span></td>
+                <td>
+                  <span class="link" onclick="PMS.openDrawer('bhDrawer')">详情</span>
+                  <span class="link" onclick="SP.todo('保函已到期未续保：系统已自动恢复原监管额度要求，1,200.00 万元替代额度即时收回。经核已超额使用 386.40 万元，已进入追缴流程（R-K11）')">看追缴</span>
+                </td>
+              </tr>
+              <tr class="row-off">
+                <td>BH2026-0032</td><td class="cell-lg">万科城三期 / 12 号楼</td><td><span class="text-danger">XX 村镇银行</span></td>
+                <td class="num">840.00</td><td class="num">0.00</td><td class="num">—</td>
+                <td><span class="muted">—</span></td><td><span class="muted">—</span></td>
+                <td><span class="sp-st dead">不予受理</span></td>
+                <td><span class="link" onclick="SP.denied('出具保函的银行须在合作银行名录内且状态正常。XX 村镇银行不在名录内，本保函不予受理（R-K12）')">不予受理原因</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="sp-src">
+          <span><b>额度上限</b> 单个项目保函替代额度上限<b>待业务确认</b>，作为可配置参数分级设置（R-K10）</span>
+          <span><b>到期处置</b> 未续保的额度即时收回，已超额使用的进入追缴（R-K11）</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 页签五 · 额度调整与高危加严 ===================== -->
+    <div class="tab-panel" data-panel="tz">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>额度调整须走 <b>5002 监管项目变更</b>事项，由 city <b>双人授权</b>核定，调整前后值、调整依据与参数版本一并留痕（R-K14）。
+            <b>额度调高的，调高部分自核定之日起生效；额度调低的，已按原额度拨付的部分不追溯</b>，但后续可用额度按新额度计算（R-K15）。</div>
+        </div>
+
+        <div class="grid-2">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-rotate"></i> 五种触发重算的情形
+              <span class="sub">R-K13</span></div>
+            <div class="sp-b">
+              <div class="sp-check">
+                <div class="ck wait"><i class="fa-solid fa-tag"></i><div class="cb">
+                  <div class="ct">一房一价调整导致申报总价变化</div>
+                  <div class="cd">应监管总额同步重算。</div></div>
+                  <div class="co"><span class="badge orange">本月 4 栋</span></div></div>
+                <div class="ck wait"><i class="fa-solid fa-ruler-combined"></i><div class="cb">
+                  <div class="ct">可售面积经实测调整</div>
+                  <div class="cd">面积单价法下重点监管额度随可售面积重算。</div></div>
+                  <div class="co"><span class="link" onclick="SP.todo('可售面积由房屋交易面积信息管理系统的实测成果核验后同步，本子系统只读取不自行计算')">来源</span></div></div>
+                <div class="ck wait"><i class="fa-solid fa-file-invoice-dollar"></i><div class="cb">
+                  <div class="ct">造价咨询报告更新</div>
+                  <div class="cd">成本法下重点监管额度随造价重算。</div></div></div>
+                <div class="ck wait"><i class="fa-solid fa-sliders"></i><div class="cb">
+                  <div class="ct">监管比例参数按变更程序调整</div>
+                  <div class="cd">已纳管项目<b>不自动</b>适用新参数，须另办监管项目变更（R-K6）。</div></div></div>
+                <div class="ck wait"><i class="fa-solid fa-scissors"></i><div class="cb">
+                  <div class="ct">楼栋分割或合并</div>
+                  <div class="cd">额度按楼栋核定，分割合并后须重新核定。</div></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-triangle-exclamation"></i> 高危项目加严
+              <span class="sub">R-K16 至 R-K18</span></div>
+            <div class="sp-b">
+              <div class="sp-check">
+                <div class="ck block"><i class="fa-solid fa-shield-halved"></i><div class="cb">
+                  <div class="ct">R-K16 · 认定为高危的加严方式</div>
+                  <div class="cd">重点监管额度按<b>加严系数上调</b>或<b>直接按应监管总额全额监管</b>，
+                    <b>进账全监管、出账全监控</b>，可申请额度由监管部门<b>逐笔设定</b>。</div></div>
+                  <div class="co"><span class="link" onclick="location.href='project-highrisk.html'">高危项目</span></div></div>
+                <div class="ck wait"><i class="fa-solid fa-rotate-left"></i><div class="cb">
+                  <div class="ct">R-K17 · 解除认定后恢复</div>
+                  <div class="cd">额度恢复常规计算规则，<b>恢复过程须留痕并说明依据</b>。</div></div></div>
+                <div class="ck block"><i class="fa-solid fa-ban"></i><div class="cb">
+                  <div class="ct">R-K18 · 解除监管后的额度归属</div>
+                  <div class="cd">释放的额度转为<b>非重点额度</b>，<b>不得再计入重点监管额度</b>；
+                    <b>高危项目解除监管须另设额度，不适用自动转换</b>。</div></div></div>
+              </div>
+              <div class="sp-kv" style="margin-top:10px">
+                <div class="kv"><span class="k">当前高危项目</span><span class="v bad">6 个 · 涉 14 栋</span></div>
+                <div class="kv"><span class="k">加严方式</span><span class="v">4 个按系数上调、2 个全额监管</span></div>
+                <div class="kv"><span class="k">授权要求</span><span class="v">认定与解除均须 city 双人授权</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-scale-balanced"></i> 额度调整规则
+            <span class="sub">11.6 · R-K13 至 R-K18</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>编号</th><th>规则</th></tr></thead>
+                <tbody id="rkBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 页签六 · 核定台账 ===================== -->
+    <div class="tab-panel" data-panel="td">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>每一次额度变化都<b>可下钻到产生该变化的业务单据与当时生效的参数版本</b>（R-K7、验-11）。
+            已纳管项目按<b>纳管时绑定的参数版本</b>执行（R-K6、验-15）。</div>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-item"><label>数据范围</label><select data-dict="said" data-selected="450200" data-ph=""></select></div>
+          <div class="filter-item"><label>项目名称</label><input type="text" placeholder="项目名称"></div>
+          <div class="filter-item"><label>核定口径</label><select><option>全部</option><option>面积单价法</option><option>成本法</option></select></div>
+          <div class="filter-item"><label>参数版本</label><select><option>全部</option><option>CS-2026-02</option><option>CS-2026-01</option><option>CS-2025-02</option></select></div>
+          <div class="filter-item"><label>是否高危</label><select><option>全部</option><option>是</option><option>否</option></select></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按所选条件检索额度核定台账','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="SP.exportAsync('额度核定台账')"><i class="fa-solid fa-download"></i> 导出</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>项目 / 楼栋</th><th>核定口径</th><th class="num">应监管总额</th><th class="num">重点监管额度</th>
+              <th>当前节点</th><th class="num">累计可拨付</th><th class="num">已使用</th><th class="num">可申请</th>
+              <th>参数版本</th><th>操作</th>
+            </tr></thead>
+            <tbody>
+              <tr class="clickable" onclick="PMS.openDrawer('tzDrawer')">
+                <td class="cell-lg">荣和公园大道二期 / 8 号楼</td><td>面积单价法</td>
+                <td class="num">11,386.00</td><td class="num">4,268.00</td>
+                <td>主体结构封顶 <span class="muted">55%</span></td>
+                <td class="num">2,347.40</td><td class="num">1,062.30</td><td class="num"><b>1,285.10</b></td>
+                <td><span class="sp-vt cur">CS-2026-02</span></td>
+                <td><span class="link" onclick="event.stopPropagation();PMS.openDrawer('tzDrawer')">变更轨迹</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('tzDrawer')">
+                <td class="cell-lg">荣和公园大道二期 / 9 号楼</td><td>面积单价法</td>
+                <td class="num">10,842.00</td><td class="num">4,264.00</td>
+                <td>竣工验收 <span class="muted">75%</span></td>
+                <td class="num">3,198.00</td><td class="num">1,842.60</td><td class="num"><b>1,355.40</b></td>
+                <td><span class="sp-vt cur">CS-2026-02</span></td>
+                <td><span class="link" onclick="event.stopPropagation();SP.todo('本栋有保函替代 1,800.00 万元（BH2026-0086），该部分额度视同已留存，可作为一般资金申请使用（R-K8）')">保函替代</span></td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('tzDrawer')">
+                <td class="cell-lg">彰泰滨江学府 / 6 号楼</td><td>成本法</td>
+                <td class="num">16,284.00</td><td class="num">6,218.40</td>
+                <td>主体结构过半 <span class="muted">40%</span></td>
+                <td class="num">2,487.36</td><td class="num">2,206.00</td><td class="num"><b>281.36</b></td>
+                <td><span class="sp-vt cur">CS-2026-02</span></td>
+                <td><span class="link" onclick="event.stopPropagation();SP.todo('成本法核定：建安工程造价 5,206.00 ＋ 政府规费与税金 742.40 ＋ 预备费 270.00 ＝ 6,218.40 万元，依据广西××造价咨询有限公司报告 ZJ2025-0286')">核定依据</span></td>
+              </tr>
+              <tr class="clickable row-bad" onclick="PMS.openDrawer('tzDrawer')">
+                <td class="cell-lg">恒达阳光里 / 3 号楼 <span class="badge red">高危</span></td><td>全额监管</td>
+                <td class="num">8,642.00</td><td class="num">8,642.00</td>
+                <td>基础完成 <span class="muted">25%</span></td>
+                <td class="num">2,160.50</td><td class="num">1,986.40</td><td class="num"><b>逐笔设定</b></td>
+                <td><span class="sp-vt old">CS-2026-01</span></td>
+                <td>
+                  <span class="link" onclick="event.stopPropagation();SP.todo('高危项目：重点监管额度直接按应监管总额全额监管，进账全监管、出账全监控，可申请额度由监管部门逐笔设定（R-K16）。解除监管须另设额度，不适用自动转换（R-K18）')">加严规则</span>
+                </td>
+              </tr>
+              <tr class="clickable row-warn" onclick="PMS.openDrawer('tzDrawer')">
+                <td class="cell-lg">万科城三期 / 12 号楼</td><td>面积单价法</td>
+                <td class="num">14,286.00</td><td class="num">5,142.00</td>
+                <td>主体结构封顶 <span class="muted">55%</span></td>
+                <td class="num">2,828.10</td><td class="num">2,828.10</td><td class="num"><b>0.00</b></td>
+                <td><span class="sp-vt old">CS-2025-02</span></td>
+                <td>
+                  <span class="link" onclick="event.stopPropagation();SP.todo('本栋按纳管时绑定的参数版本 CS-2025-02 执行，参数后续调整不自动影响已纳管项目，除非另行办理监管项目变更并留痕（R-K6、验-15）')">参数版本</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="sp-src">
+          <span><b>额度口径一致</b> 内部办理端、企业端与统计报表三处数值须完全一致（验-10）</span>
+          <span><b>企业端不自算</b> 企业端页面不存在自行计算额度的逻辑</span>
+          <span><b>金额单位</b> 万元</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ========== 抽屉一 · 额度变更轨迹 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="tzDrawer">
+  <div class="drawer-head"><h3>额度变更轨迹 · 荣和公园大道二期 8 号楼</h3>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div>
+  </div>
+  <div class="drawer-body">
+    <div class="alert alert-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div>每一次额度变化<b>可追溯到具体的业务单据与参数版本</b>（R-K7）。下表每条均可下钻到对应单据。</div>
+    </div>
+    <div class="sp-chain">
+      <div class="cn cur">
+        <div class="ch"><span class="ct">拨付回执成功 · 扣减重点资金已使用</span><span class="cx">2026-08-26</span></div>
+        <div class="cm"><span><b>业务单据</b> 拨付指令 CZ20260826-00092</span><span><b>金额</b> −860.00 万元</span>
+          <span><b>参数版本</b> CS-2026-02</span></div>
+        <div class="cm" style="margin-top:4px"><span><b>额度变化</b> 重点资金可申请 2,145.10 → <b>1,285.10</b> 万元</span>
+          <span><a href="javascript:SP.drill('拨付指令与银行回执','查看指令链与回执','usage-order.html')">看单据</a></span></div>
+      </div>
+      <div class="cn ok">
+        <div class="ch"><span class="ct">形象进度节点核验通过 · 主体结构封顶</span><span class="cx">2026-08-12</span></div>
+        <div class="cm"><span><b>业务单据</b> 进度核验单 JD2026-0186</span><span><b>比例</b> 40% → 55%</span>
+          <span><b>参数版本</b> CS-2026-02</span></div>
+        <div class="cm" style="margin-top:4px"><span><b>额度变化</b> 累计可拨付 1,707.20 → <b>2,347.40</b> 万元</span>
+          <span><a href="javascript:SP.drill('形象进度核验','查看核验依据与照片','project-progress-detail.html')">看单据</a></span></div>
+      </div>
+      <div class="cn ok">
+        <div class="ch"><span class="ct">核退到账 · 不占用也不释放重点监管额度</span><span class="cx">2026-08-12</span></div>
+        <div class="cm"><span><b>业务单据</b> 核退回执 HT2026-0071</span><span><b>金额</b> 62.40 万元</span>
+          <span><b>额度影响</b> 无</span></div>
+        <div class="cm" style="margin-top:4px"><span class="muted">核退按房间计算可核退额度，不占用也不释放楼栋重点监管额度。</span></div>
+      </div>
+      <div class="cn ok">
+        <div class="ch"><span class="ct">额度核定 · 纳管备案</span><span class="cx">2025-06-18</span></div>
+        <div class="cm"><span><b>业务单据</b> 纳管备案单 5001-2025-0142</span><span><b>核定口径</b> 面积单价法</span>
+          <span><b>参数版本</b> CS-2026-02（纳管时绑定）</span></div>
+        <div class="cm" style="margin-top:4px"><span><b>核定结果</b> 应监管总额 11,386.00、重点监管额度 <b>4,268.00</b> 万元</span>
+          <span><b>核定人</b> 李慧（双人授权）</span></div>
+      </div>
+    </div>
+
+    <div class="sp-block" style="margin-top:12px">
+      <div class="sp-h"><i class="fa-solid fa-sliders"></i> 当前生效参数
+        <span class="sub">来源 PC-32 一城一策政策参数配置 · 本子系统只读取</span></div>
+      <div class="sp-b">
+        <div class="sp-kv">
+          <div class="kv"><span class="k">参数版本</span><span class="v">CS-2026-02</span></div>
+          <div class="kv"><span class="k">核定口径</span><span class="v">面积单价法</span></div>
+          <div class="kv"><span class="k">监管单价标准</span><span class="v">1,800 元/㎡（市本级）</span></div>
+          <div class="kv"><span class="k">监管比例系数</span><span class="v">1.11</span></div>
+          <div class="kv"><span class="k">节点比例</span><span class="v">25 / 40 / 55 / 75 / 90 / 100 %</span></div>
+          <div class="kv"><span class="k">生效日期</span><span class="v">2026-01-01</span></div>
+          <div class="kv"><span class="k">适用层级</span><span class="v">市本级 <span class="muted">（六个县区可分级配置）</span></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn" onclick="SP.exportAsync('额度变更轨迹')">导出轨迹</button>
+    <button class="btn btn-primary" onclick="SP.dual('监管额度核定与调整','李慧',function(){PMS.closeDrawer();PMS.toast('已提交额度调整，须走 5002 监管项目变更事项，调整前后值与参数版本已留痕','success')})"><i class="fa-solid fa-sliders"></i> 发起额度调整</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉二 · 保函详情 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="bhDrawer">
+  <div class="drawer-head"><h3>保函替代详情 · BH2025-0212</h3>
+    <span class="badge orange">临近到期 49 天</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div>
+  </div>
+  <div class="drawer-body">
+    <dl class="desc-list">
+      <div class="desc-item"><dt>保函编号</dt><dd>BH2025-0212</dd></div>
+      <div class="desc-item"><dt>项目 / 楼栋</dt><dd>彰泰滨江学府 / 6 号楼</dd></div>
+      <div class="desc-item"><dt>出具银行</dt><dd>工商银行XXXX分行 <span class="badge green">在合作银行名录内</span></dd></div>
+      <div class="desc-item"><dt>担保金额</dt><dd>2,400.00 万元</dd></div>
+      <div class="desc-item"><dt>替代额度</dt><dd><b>2,400.00</b> 万元 <span class="muted">等额替代</span></dd></div>
+      <div class="desc-item"><dt>占重点监管额度</dt><dd>38.6% <span class="muted">上限待业务确认（R-K10）</span></dd></div>
+      <div class="desc-item"><dt>生效日期</dt><dd>2025-10-15</dd></div>
+      <div class="desc-item"><dt>到期日期</dt><dd class="text-warning">2026-10-15</dd></div>
+      <div class="desc-item"><dt>保函正本影像</dt><dd><span class="link" onclick="SP.todo('已调取保函正本影像，共 3 页')">查看（3 页）</span></dd></div>
+      <div class="desc-item"><dt>额度效果</dt><dd>该部分额度<b>视同已留存</b>，可作为一般资金申请使用</dd></div>
+    </dl>
+
+    <div class="sp-block" style="margin-top:12px">
+      <div class="sp-h"><i class="fa-solid fa-triangle-exclamation"></i> 到期未续保的后果
+        <span class="sub">R-K11</span></div>
+      <div class="sp-b">
+        <div class="sp-check">
+          <div class="ck wait"><i class="fa-solid fa-bell"></i><div class="cb">
+            <div class="ct">已按配置提前量推送预警</div>
+            <div class="cd">距到期 49 天，已通知开发企业与出具银行。</div></div></div>
+          <div class="ck block"><i class="fa-solid fa-rotate-left"></i><div class="cb">
+            <div class="ct">系统自动恢复原监管额度要求</div>
+            <div class="cd">到期未续保的，<b>相应额度即时收回</b>，一般资金可申请额度随之下降。</div></div></div>
+          <div class="ck block"><i class="fa-solid fa-hand-holding-dollar"></i><div class="cb">
+            <div class="ct">已超额使用的进入追缴流程</div>
+            <div class="cd">按额度收回后的口径重算，超额部分须追缴回监管账户。</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn" onclick="SP.todo('已向开发企业与出具银行推送续保催办，要求于到期前 15 个工作日提交续保保函')">催续保</button>
+    <button class="btn btn-primary" onclick="SP.dual('保函替代额度释放','韦国强',function(){PMS.closeDrawer();PMS.toast('已登记续保保函并释放替代额度，生效与到期日期已更新','success')})"><i class="fa-solid fa-check"></i> 登记续保</button>
+  </div>
+</div>
+
+<script src="../../../assets/js/app.js"></script>
+<script src="../../../assets/js/spec.js"></script>
+<script>
+/* ========== 11.3 形象进度节点 ========== */
+var NODES = [
+  ['基础完成', '±0.00 完成并经监理确认', 25, 'done', '2025-11-20 核验通过'],
+  ['主体结构过半', '主体施工至设计层数一半', 40, 'done', '2026-04-08 核验通过'],
+  ['主体结构封顶', '主体结构封顶并通过验收', 55, 'cur', '2026-08-12 核验通过 · 当前节点'],
+  ['竣工验收', '取得竣工验收备案证明', 75, 'todo', '未申报'],
+  ['不动产初始登记', '完成首次登记', 90, 'todo', '未申报'],
+  ['交付使用', '完成交付并办理解除监管', 100, 'todo', '未申报']
+];
+
+/* ========== 11.6 额度调整规则 ========== */
+var RK = [
+  ['R-K13', '重点监管额度在下列情形下重算：<b>一房一价调整</b>导致申报总价变化、<b>可售面积经实测调整</b>、<b>造价咨询报告更新</b>、<b>监管比例参数按变更程序调整</b>、<b>楼栋分割或合并</b>', 0],
+  ['R-K14', '额度调整须走 <b>5002 监管项目变更</b>事项，由 city <b>双人授权</b>核定，调整前后值、调整依据与参数版本一并留痕', 1],
+  ['R-K15', '额度<b>调高</b>的，调高部分自核定之日起生效；额度<b>调低</b>的，已按原额度拨付的部分<b>不追溯</b>，但后续可用额度按新额度计算', 0],
+  ['R-K16', '认定为高危项目的，重点监管额度按<b>加严系数上调</b>或<b>直接按应监管总额全额监管</b>，<b>进账全监管、出账全监控</b>，可申请额度由监管部门<b>逐笔设定</b>', 1],
+  ['R-K17', '高危项目<b>解除认定</b>后，额度恢复常规计算规则，<b>恢复过程须留痕并说明依据</b>', 0],
+  ['R-K18', '解除监管后释放的额度转为<b>非重点额度</b>，<b>不得再计入重点监管额度</b>；<b>高危项目解除监管须另设额度，不适用自动转换</b>', 1]
+];
+
+var KEY_QUOTA = 4268.00;
+
+function renderNd() {
+  document.getElementById('ndBox').innerHTML = NODES.map(function (n, i) {
+    return '<div class="n ' + n[3] + '">'
+      + '<span class="dot">' + (n[3] === 'todo' ? (i + 1) : '<i class="fa-solid fa-check"></i>') + '</span>'
+      + '<div><div class="nt">' + n[0] + '</div><div class="ns">' + n[1] + ' · ' + n[4] + '</div></div>'
+      + '<div class="bar"><span style="width:' + n[2] + '%"></span></div>'
+      + '<div class="pv">' + n[2] + '%<div class="ns">' + (KEY_QUOTA * n[2] / 100).toFixed(2) + '</div></div>'
+      + '</div>';
+  }).join('');
+
+  document.getElementById('rkBody').innerHTML = RK.map(function (r) {
+    return '<tr' + (r[2] ? ' class="row-warn"' : '') + '><td><b>' + r[0] + '</b></td><td class="cell-lg">' + r[1] + '</td></tr>';
+  }).join('');
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  renderNd();
+  var t = SP.param('tab');
+  if (t) SP.tab(t);
+});
+</script>
+</body>
+</html>

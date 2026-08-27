@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>批次与模板版本管理 · 房屋交易面积信息管理系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<link rel="stylesheet" href="../../assets/css/spec.css">
+</head>
+<body data-role="reviewer" data-active="wschcg-24">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 房屋交易面积信息管理系统
+        <span class="sep">/</span> 测绘成果接入
+        <span class="sep">/</span> <span class="cur">批次与模板版本管理</span>
+      </div>
+      <div class="page-title">批次与模板版本管理</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="SP.todo('已按当前生效模板 V3 重跑待受理批次的校验：42 个批次、8,462 条明细，通过 8,308 条、失败 154 条，失败明细已刷新')"><i class="fa-solid fa-rotate"></i> 重跑批次校验</button>
+      <button class="btn" onclick="SP.todo('已生成超期提醒：3 个批次停留在「校验失败」超过 10 个工作日，既未重试也未补报，已推送报送主体与承办人')"><i class="fa-solid fa-bell"></i> 推送超期提醒</button>
+      <button class="btn btn-primary" onclick="SP.exportAsync('面积成果批次台账')"><i class="fa-solid fa-download"></i> 导出台账</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>批次是面积成果报送的<b>最小单位</b>：一次报送归集为一个批次，校验、受理、回退与补报都以批次为单位。
+      <b>批次内不允许部分入库</b>，同步楼盘表以批次为单位一次完成（R-M5）；<b>已入库批次不允许回退</b>，面积调整一律另立变更或更正办件（R-M6）。
+      批次一经提交即<b>锁定模板版本</b>，模板后续升级不影响已提交批次的校验口径（R-M2）。
+      存量系统中「excel 导入」「批量导入」「模板报送」三种叫法本次统一为<b>面积成果导入模板</b>，一次报送统一称为<b>面积成果批次</b>。</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-box"></i></div><div>
+      <div class="s-label">在办批次</div><div class="s-value">42</div><div class="s-trend text-2">明细 8,462 条</div></div></div>
+    <div class="stat-card dc-alarm"><div class="s-icon red"><i class="fa-solid fa-circle-xmark"></i></div><div>
+      <div class="s-label">校验失败</div><div class="s-value">6</div><div class="s-trend">其中 3 个超期未处置</div></div></div>
+    <div class="stat-card"><div class="s-icon orange"><i class="fa-solid fa-inbox"></i></div><div>
+      <div class="s-label">待受理</div><div class="s-value">14</div><div class="s-trend text-warning">承诺 7 个工作日</div></div></div>
+    <div class="stat-card"><div class="s-icon purple"><i class="fa-solid fa-arrows-rotate"></i></div><div>
+      <div class="s-label">本月整批回退</div><div class="s-value">4</div><div class="s-trend text-2">均未同步楼盘表</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-layer-group"></i></div><div>
+      <div class="s-label">按幢补报批次</div><div class="s-value">9</div><div class="s-trend text-2">均关联原批次</div></div></div>
+    <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-database"></i></div><div>
+      <div class="s-label">本月已入库</div><div class="s-value">126</div><div class="s-trend text-success">版本已置生效</div></div></div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="pc">批次台账</div>
+      <div class="tab" data-tab="sb">校验失败与补报 <span class="badge red">6</span></div>
+      <div class="tab" data-tab="bb">成果版本管理</div>
+      <div class="tab" data-tab="mb" data-roles="manager leader admin ops all">导入模板版本</div>
+      <div class="tab" data-tab="zt">状态机与数据承接</div>
+    </div>
+
+    <!-- ===================== 页签一 · 批次台账 ===================== -->
+    <div class="tab-panel active" data-panel="pc">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>数据范围</label><select data-dict="said" data-selected="450200" data-ph=""></select></div>
+          <div class="filter-item"><label>批次编号</label><input type="text" placeholder="批次编号"></div>
+          <div class="filter-item"><label>项目名称</label><input type="text" placeholder="项目名称或备案号"></div>
+          <div class="filter-item"><label>成果类型</label>
+            <select><option>全部</option><option>预测面积</option><option>实测面积</option><option>预测面积变更</option><option>实测面积变更</option><option>预测转实测</option></select>
+          </div>
+          <div class="filter-item"><label>批次状态</label>
+            <select><option>全部</option><option>暂存</option><option>校验中</option><option>校验失败</option><option>待受理</option><option>在办</option><option>已入库</option><option>已回退</option></select>
+          </div>
+          <div class="filter-item"><label>报送主体</label><input type="text" placeholder="测绘机构或开发企业"></div>
+          <div class="filter-item"><label>模板版本</label><select><option>全部</option><option>V3（当前生效）</option><option>V2</option><option>V1</option></select></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按所选条件检索批次台账','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="PMS.toast('已重置为默认条件')">重置</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>批次编号</th><th>项目 / 幢</th><th>成果类型</th><th>报送主体</th><th>模板版本</th>
+              <th class="num">条数</th><th class="num">成功</th><th class="num">失败</th><th>批次状态</th><th>关联办件</th><th>操作</th>
+            </tr></thead>
+            <tbody>
+              <tr class="clickable" onclick="openPc('PC2026-0824-0186','荣和公园大道二期 8 号楼','实测面积')">
+                <td>PC2026-0824-0186</td>
+                <td class="cell-lg">荣和公园大道二期 · 8 号楼</td>
+                <td>实测面积</td><td>XXXX市测绘院</td>
+                <td><span class="sp-vt cur">V3</span></td>
+                <td class="num">186</td><td class="num">186</td><td class="num">0</td>
+                <td><span class="sp-st doing">待受理</span></td>
+                <td>—</td>
+                <td>
+                  <span class="link" onclick="event.stopPropagation();openPc('PC2026-0824-0186','荣和公园大道二期 8 号楼','实测面积')">查看</span>
+                  <span class="link" data-roles-not="developer" onclick="event.stopPropagation();SP.todo('已受理该批次，关联办件号 FW15-2026-004186，写入受理人与受理时间，明细置为可受理')">受理</span>
+                  <span class="link" data-roles-not="developer" onclick="event.stopPropagation();SP.todo('已撤回未受理批次，状态转「已回退」，全部 186 条明细保留可查')">撤回</span>
+                </td>
+              </tr>
+              <tr class="clickable" onclick="openPc('PC2026-0823-0174','彰泰滨江学府 6 号楼','预测面积')">
+                <td>PC2026-0823-0174</td>
+                <td class="cell-lg">彰泰滨江学府 · 6 号楼</td>
+                <td>预测面积</td><td>广西华测</td>
+                <td><span class="sp-vt cur">V3</span></td>
+                <td class="num">142</td><td class="num">142</td><td class="num">0</td>
+                <td><span class="sp-st doing">在办</span></td>
+                <td>FW14-2026-004174</td>
+                <td>
+                  <span class="link" onclick="event.stopPropagation();openPc('PC2026-0823-0174','彰泰滨江学府 6 号楼','预测面积')">查看</span>
+                  <span class="link" data-roles-not="developer" onclick="event.stopPropagation();SP.todo('已经状态服务写入面积，批次转「已入库」，成果版本置生效、原版本自动转历史')">关联楼盘表入库</span>
+                  <span class="link" data-roles-not="developer" onclick="event.stopPropagation();openHt(this)">整批回退</span>
+                </td>
+              </tr>
+              <tr class="clickable row-bad" onclick="openPc('PC2026-0822-0161','万科城 12 号楼','实测面积')">
+                <td>PC2026-0822-0161</td>
+                <td class="cell-lg">万科城 · 12 号楼</td>
+                <td>实测面积</td><td>XXXX市测绘院</td>
+                <td><span class="sp-vt cur">V3</span></td>
+                <td class="num">168</td><td class="num">165</td><td class="num">3</td>
+                <td><span class="sp-st bad">校验失败</span></td>
+                <td>—</td>
+                <td>
+                  <span class="link" onclick="event.stopPropagation();SP.tab('sb')">看失败明细</span>
+                  <span class="link" onclick="event.stopPropagation();SP.todo('已发起导入校验重试，同一批次的重试不生成新批次，重试次数已累加为第 2 次并留痕')">校验重试</span>
+                  <span class="link" onclick="event.stopPropagation();openBb(this)">按幢补报</span>
+                </td>
+              </tr>
+              <tr class="clickable row-warn" onclick="openPc('PC2026-0812-0132','荣和公园大道二期 3 号楼','预测面积变更')">
+                <td>PC2026-0812-0132</td>
+                <td class="cell-lg">荣和公园大道二期 · 3 号楼</td>
+                <td>预测面积变更</td><td>广西华测</td>
+                <td><span class="sp-vt old">V2</span><span class="sp-meta" title="批次提交时锁定的是 V2，模板已升级至 V3，但本批次仍按 V2 口径校验（R-M2）">?</span></td>
+                <td class="num">96</td><td class="num">88</td><td class="num">8</td>
+                <td><span class="sp-st bad">校验失败</span></td>
+                <td>—</td>
+                <td>
+                  <span class="link" onclick="event.stopPropagation();SP.tab('sb')">看失败明细</span>
+                  <span class="link" onclick="event.stopPropagation();SP.todo('本批次停留「校验失败」已 12 个工作日，既未重试也未补报。已推送超期提醒，逾期不处置的由承办人撤回')">超期说明</span>
+                </td>
+              </tr>
+              <tr class="clickable" onclick="openPc('PC2026-0822-0161-B','万科城 12 号楼（补报）','实测面积')">
+                <td>PC2026-0822-0161-B</td>
+                <td class="cell-lg">万科城 · 12 号楼<span class="muted">（补报）</span></td>
+                <td>实测面积</td><td>XXXX市测绘院</td>
+                <td><span class="sp-vt cur">V3</span></td>
+                <td class="num">3</td><td class="num">3</td><td class="num">0</td>
+                <td><span class="sp-st doing">待受理</span></td>
+                <td>—</td>
+                <td>
+                  <span class="link" onclick="event.stopPropagation();openPc('PC2026-0822-0161-B','万科城 12 号楼（补报）','实测面积')">查看</span>
+                  <span class="link" onclick="event.stopPropagation();SP.todo('本批次为 PC2026-0822-0161 的按幢补报批次，补报范围限定在原批次校验失败的 12 号楼，不得借补报追加新幢（R-M7）')">原批次关联</span>
+                </td>
+              </tr>
+              <tr class="clickable row-off" onclick="openPc('PC2026-0731-0088','荣和公园大道一期 2 号楼','实测面积')">
+                <td>PC2026-0731-0088</td>
+                <td class="cell-lg">荣和公园大道一期 · 2 号楼</td>
+                <td>实测面积</td><td>XXXX市测绘院</td>
+                <td><span class="sp-vt old">V2</span></td>
+                <td class="num">204</td><td class="num">204</td><td class="num">0</td>
+                <td><span class="sp-st done">已入库</span></td>
+                <td>FW15-2026-003088</td>
+                <td>
+                  <span class="link" onclick="event.stopPropagation();openPc('PC2026-0731-0088','荣和公园大道一期 2 号楼','实测面积')">查看</span>
+                  <span class="link is-off" onclick="event.stopPropagation();SP.denied('已入库批次不允许回退（R-M6）。面积调整须另立「面积成果变更」或「面积成果更正」办件')">整批回退</span>
+                  <span class="link" onclick="event.stopPropagation();SP.tab('bb')">看版本链</span>
+                </td>
+              </tr>
+              <tr class="clickable row-off" onclick="openPc('PC2026-0806-0102','彰泰滨江学府 4 号楼','实测面积')">
+                <td>PC2026-0806-0102</td>
+                <td class="cell-lg">彰泰滨江学府 · 4 号楼</td>
+                <td>实测面积</td><td>广西华测</td>
+                <td><span class="sp-vt old">V2</span></td>
+                <td class="num">118</td><td class="num">118</td><td class="num">0</td>
+                <td><span class="sp-st init">已回退</span></td>
+                <td><span class="muted">已同步作废</span></td>
+                <td>
+                  <span class="link" onclick="event.stopPropagation();openPc('PC2026-0806-0102','彰泰滨江学府 4 号楼','实测面积')">查看</span>
+                  <span class="link" onclick="event.stopPropagation();SP.todo('回退原因：4 号楼分摊系数与规划验收口径不一致，须重新出成果。影响 118 条明细，办件已同步作废，明细保留可查')">回退原因</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="sp-src">
+          <span><b>批次编号</b> 提交时生成，一个批次只对应一个项目与一个成果类型（R-M4）</span>
+          <span><b>模板锁定</b> 提交即锁定模板版本，后续升级不改已提交批次的校验口径（R-M2）</span>
+          <span><b>数据截止</b> 2026-08-27 08:00</span>
+        </div>
+        <p class="hint">
+          <i class="fa-solid fa-circle-info"></i>
+          跨项目或混合成果类型的批次<b>不予受理</b>（R-M4）。批次的每一次状态变化写入操作流水，含操作人、操作时间、原状态与目标状态（R-M10）。
+        </p>
+      </div>
+    </div>
+
+    <!-- ===================== 页签二 · 校验失败与补报 ===================== -->
+    <div class="tab-panel" data-panel="sb">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>关键校验点四项：<b>模板版本一致性、幢号房号唯一性、面积必填与量纲、套内与分摊合计关系</b>（流程甲）。
+            校验失败后有两条出路：<b>校验重试</b>（不生成新批次，重试次数留痕）或<b>按幢补报</b>（只允许补报原批次内校验失败的幢，生成关联原批次的补报批次）。
+            容易出现的断点是失败后既不重试也不补报、批次长期停留，须由<b>超期提醒</b>推动出账或撤回。</div>
+        </div>
+
+        <div class="sp-split">
+          <aside class="sp-tree">
+            <div class="sp-ti on" onclick="pickFail(this,'all')"><i class="fa-solid fa-list"></i> 全部失败批次 <span class="tc">6</span></div>
+            <div class="sp-ti veto" onclick="pickFail(this,'over')"><i class="fa-solid fa-clock"></i> 超期未处置 <span class="tc">3</span></div>
+            <div class="sp-ti lv2" style="font-weight:700;color:var(--text-2);margin-top:6px">按失败原因</div>
+            <div class="sp-ti lv2" onclick="pickFail(this,'r1')">模板版本不符 <span class="tc">1</span></div>
+            <div class="sp-ti lv2" onclick="pickFail(this,'r2')">房号重复或缺失 <span class="tc">4</span></div>
+            <div class="sp-ti lv2" onclick="pickFail(this,'r3')">面积必填或量纲错 <span class="tc">3</span></div>
+            <div class="sp-ti lv2" onclick="pickFail(this,'r4')">套内与分摊合计不符 <span class="tc">3</span></div>
+            <p class="hint" style="padding:10px 2px 0">
+              <i class="fa-solid fa-circle-info"></i>
+              模板版本不符的批次按 <b>M-5</b> 直接拒收，不进入逐条校验。
+            </p>
+          </aside>
+
+          <div class="sp-pane">
+            <div class="filter-bar">
+              <div class="filter-item"><label>当前筛选</label><input type="text" id="failScope" value="全部失败批次" readonly></div>
+              <div class="filter-item"><label>批次编号</label><input type="text" placeholder="批次编号"></div>
+              <div class="filter-item"><label>幢号</label><input type="text" placeholder="幢号"></div>
+              <div class="filter-actions">
+                <button class="btn btn-primary" onclick="PMS.toast('已按所选条件检索失败明细','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+                <button class="btn" onclick="SP.exportAsync('校验失败明细清单')"><i class="fa-solid fa-download"></i> 导出失败清单</button>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead><tr>
+                  <th>批次编号</th><th>幢号 / 房号</th><th>失败校验点</th><th>失败原因</th><th class="num">重试次数</th><th>可否补报</th><th>操作</th>
+                </tr></thead>
+                <tbody>
+                  <tr class="row-bad">
+                    <td>PC2026-0822-0161</td><td>12 号楼 / 1-1201</td>
+                    <td><span class="badge red">套内与分摊合计</span></td>
+                    <td class="cell-lg">套内 88.42 ＋ 分摊 14.06 ＝ 102.48，与报送建筑面积 103.16 不符，差 0.68 ㎡</td>
+                    <td class="num">1</td><td><span class="badge green">可补报</span></td>
+                    <td><span class="link" onclick="openBb(this)">按幢补报</span></td>
+                  </tr>
+                  <tr class="row-bad">
+                    <td>PC2026-0822-0161</td><td>12 号楼 / 1-1502</td>
+                    <td><span class="badge red">面积必填</span></td>
+                    <td class="cell-lg">套内面积为空，实测成果的套内面积为必填项</td>
+                    <td class="num">1</td><td><span class="badge green">可补报</span></td>
+                    <td><span class="link" onclick="openBb(this)">按幢补报</span></td>
+                  </tr>
+                  <tr class="row-bad">
+                    <td>PC2026-0822-0161</td><td>12 号楼 / 2-0803</td>
+                    <td><span class="badge red">房号唯一性</span></td>
+                    <td class="cell-lg">同一批次内房号 2-0803 出现两次</td>
+                    <td class="num">1</td><td><span class="badge green">可补报</span></td>
+                    <td><span class="link" onclick="openBb(this)">按幢补报</span></td>
+                  </tr>
+                  <tr class="row-warn">
+                    <td>PC2026-0812-0132</td><td>3 号楼 / 1-0602 等 8 户</td>
+                    <td><span class="badge orange">量纲错误</span></td>
+                    <td class="cell-lg">面积列单位为「平方厘米」，模板要求「平方米」，保留两位小数</td>
+                    <td class="num">0</td><td><span class="badge green">可补报</span></td>
+                    <td>
+                      <span class="link" onclick="SP.todo('已发起校验重试，本批次仍按锁定的模板 V2 口径校验')">校验重试</span>
+                      <span class="link" onclick="openBb(this)">按幢补报</span>
+                    </td>
+                  </tr>
+                  <tr class="row-bad">
+                    <td>PC2026-0805-0096</td><td>—</td>
+                    <td><span class="badge red">模板版本不符</span></td>
+                    <td class="cell-lg">报送使用模板 V1，当前生效模板为 V3 且 V1 兼容期已于 2026-06-30 结束，整批拒收</td>
+                    <td class="num">0</td><td><span class="badge gray">不可补报</span></td>
+                    <td>
+                      <span class="link is-off" onclick="SP.denied('模板版本不符按 M-5 整批拒收，不进入逐条校验，也不允许按幢补报。请下载当前生效模板 V3 重新报送')">按幢补报</span>
+                      <span class="link" onclick="SP.tab('mb')">看模板版本</span>
+                    </td>
+                  </tr>
+                  <tr class="row-bad">
+                    <td>PC2026-0728-0071</td><td>5 号楼 / 3-0901</td>
+                    <td><span class="badge red">房号缺失</span></td>
+                    <td class="cell-lg">楼盘表存在房号 3-0901，本批次未报送该户，属幢内户数不全</td>
+                    <td class="num">2</td><td><span class="badge green">可补报</span></td>
+                    <td><span class="link" onclick="openBb(this)">按幢补报</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <p class="hint">
+              <i class="fa-solid fa-circle-info"></i>
+              <b>按幢补报只允许补报原批次内校验失败的幢，借补报追加新幢的一律拒收</b>（R-M7）。补报批次自动关联原批次编号，便于回溯。
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 页签三 · 成果版本管理 ===================== -->
+    <div class="tab-panel" data-panel="bb">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>成果版本决定<b>楼盘表当前取用的是哪一个成果版本</b>。版本置生效时原版本自动转历史，
+            <b>同一项目同一幢同一成果类型不允许两个生效版本</b>（R-M8）；版本替换原因与依据材料为必填，未填的不允许提交置生效（R-M9）。</div>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-item"><label>项目名称</label><input type="text" value="荣和公园大道二期" ></div>
+          <div class="filter-item"><label>幢号</label><select><option>8 号楼</option><option>3 号楼</option><option>全部</option></select></div>
+          <div class="filter-item"><label>成果类型</label>
+            <select><option>全部</option><option>预测面积</option><option>实测面积</option></select>
+          </div>
+          <div class="filter-item"><label>版本状态</label><select><option>全部</option><option>生效</option><option>历史</option></select></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按所选条件检索成果版本','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          </div>
+        </div>
+
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-code-branch"></i> 荣和公园大道二期 · 8 号楼 · 实测面积
+            <span class="sub">版本链 · 同一时点仅一个生效版本</span></div>
+          <div class="sp-b">
+            <div class="sp-chain">
+              <div class="cn cur">
+                <div class="ch"><span class="sp-vt cur">V3</span><span class="ct">当前生效版本</span>
+                  <span class="cx">置生效 2026-08-27 · 来源批次 PC2026-0824-0186</span></div>
+                <div class="cm"><span><b>成果类型</b> 实测面积</span><span><b>条数</b> 186</span>
+                  <span><b>替换原因</b> 竣工实测成果替换预测成果</span><span><b>依据材料</b> 竣工验收备案证明</span>
+                  <span><b>经办</b> 韦国强</span></div>
+                <div class="cm" style="margin-top:4px">
+                  <span><b>楼盘表取值</b> 本版本 · 已同步 186 户</span>
+                  <span><a href="javascript:SP.drill('面积同步楼盘表','查看本版本的同步结果与影响户数','area-sync.html')">看同步结果</a></span>
+                </div>
+              </div>
+              <div class="cn">
+                <div class="ch"><span class="sp-vt old">V2</span><span class="ct">已转历史</span>
+                  <span class="cx">2026-06-18 至 2026-08-26</span></div>
+                <div class="cm"><span><b>成果类型</b> 预测面积变更</span><span><b>条数</b> 186</span>
+                  <span><b>替换原因</b> 规划调整导致阳台计算规则变化</span><span><b>经办</b> 韦国强</span></div>
+              </div>
+              <div class="cn">
+                <div class="ch"><span class="sp-vt old">V1</span><span class="ct">已转历史</span>
+                  <span class="cx">2025-04-16 至 2026-06-17</span></div>
+                <div class="cm"><span><b>成果类型</b> 预测面积</span><span><b>条数</b> 186</span>
+                  <span><b>替换原因</b> 首次报送</span><span><b>经办</b> 覃永明</span></div>
+              </div>
+            </div>
+            <div class="btn-row" style="margin-top:10px">
+              <button class="btn btn-sm btn-primary" data-roles-not="developer" onclick="PMS.openDrawer('sxDrawer')"><i class="fa-solid fa-check"></i> 新版本置生效</button>
+              <button class="btn btn-sm" onclick="SP.drill('成果版本比对','V2 与 V3 逐户面积对照，186 户中 42 户面积发生变化','result-version.html')">版本比对</button>
+              <button class="btn btn-sm" onclick="SP.todo('历史版本永久保留可查，不得删除；楼盘表只取当前生效版本，其他板块通过面积成果对外服务接口获取同一取值')">留存口径</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>项目 / 幢</th><th>成果类型</th><th>版本号</th><th>生效标志</th><th>生效日期</th>
+              <th>来源批次</th><th>替换原因</th><th class="num">条数</th><th>操作</th>
+            </tr></thead>
+            <tbody>
+              <tr><td class="cell-lg">荣和公园大道二期 · 8 号楼</td><td>实测面积</td>
+                <td><span class="sp-vt cur">V3</span></td><td><span class="badge green">生效</span></td><td>2026-08-27</td>
+                <td>PC2026-0824-0186</td><td class="cell-lg">竣工实测成果替换预测成果</td><td class="num">186</td>
+                <td><span class="link" onclick="SP.drill('成果详情','查看本版本逐户面积明细','result-detail.html')">查看</span></td></tr>
+              <tr class="row-off"><td class="cell-lg">荣和公园大道二期 · 8 号楼</td><td>预测面积变更</td>
+                <td><span class="sp-vt old">V2</span></td><td><span class="badge gray">历史</span></td><td>2026-06-18</td>
+                <td>PC2026-0618-0142</td><td class="cell-lg">规划调整导致阳台计算规则变化</td><td class="num">186</td>
+                <td><span class="link" onclick="SP.drill('成果详情','查看历史版本明细')">查看</span></td></tr>
+              <tr><td class="cell-lg">荣和公园大道二期 · 3 号楼</td><td>预测面积</td>
+                <td><span class="sp-vt cur">V1</span></td><td><span class="badge green">生效</span></td><td>2025-04-16</td>
+                <td>PC2025-0416-0032</td><td class="cell-lg">首次报送</td><td class="num">142</td>
+                <td><span class="link" onclick="SP.drill('成果详情','查看本版本明细')">查看</span></td></tr>
+              <tr><td class="cell-lg">彰泰滨江学府 · 6 号楼</td><td>预测面积</td>
+                <td><span class="sp-vt cur">V2</span></td><td><span class="badge green">生效</span></td><td>2026-08-23</td>
+                <td>PC2026-0823-0174</td><td class="cell-lg">户型微调，套内面积重算</td><td class="num">142</td>
+                <td><span class="link" onclick="SP.drill('成果详情','查看本版本明细')">查看</span></td></tr>
+              <tr><td class="cell-lg">万科城 · 12 号楼</td><td>预测面积</td>
+                <td><span class="sp-vt cur">V1</span></td><td><span class="badge green">生效</span></td><td>2025-11-20</td>
+                <td>PC2025-1120-0208</td><td class="cell-lg">首次报送</td><td class="num">168</td>
+                <td>
+                  <span class="link" onclick="SP.drill('成果详情','查看本版本明细')">查看</span>
+                  <span class="link" onclick="SP.todo('该幢实测成果批次 PC2026-0822-0161 尚在「校验失败」，实测版本未生成，楼盘表仍取预测面积 V1')">实测进度</span>
+                </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 页签四 · 导入模板版本 ===================== -->
+    <div class="tab-panel" data-panel="mb">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div><b>导入模板同一时刻只有一个生效版本，历史版本不对外提供下载</b>（R-M1）。
+            模板版本升级须列出<b>字段变更清单</b>，删除字段与修改量纲的升级须保留<b>旧版本兼容期</b>（R-M3）。
+            模板版本、批次回退权限、补报期限按市县分级配置，附生效日期与版本留痕（R-M11）。
+            模板版本发布属高敏操作，已在 12.3 高敏操作清单登记。</div>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-item"><label>启用范围</label><select data-dict="said" data-selected="450200" data-ph=""></select></div>
+          <div class="filter-item"><label>成果类型</label>
+            <select><option>全部</option><option>预测面积</option><option>实测面积</option><option>变更</option><option>更正</option></select>
+          </div>
+          <div class="filter-item"><label>版本状态</label><select><option>全部</option><option>生效</option><option>兼容期</option><option>已停用</option></select></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按所选条件检索模板版本','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" data-roles-not="developer reviewer" onclick="PMS.openDrawer('mbDrawer')"><i class="fa-solid fa-plus"></i> 发布新版本</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>模板版本</th><th>适用成果类型</th><th class="num">字段数</th><th>字段变更清单</th>
+              <th>启用范围</th><th>生效日期</th><th>兼容期止</th><th>版本状态</th><th class="num">已用批次</th><th>操作</th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td><span class="sp-vt cur">V3</span></td>
+                <td class="cell-lg">预测 / 实测 / 变更 / 更正</td><td class="num">28</td>
+                <td class="cell-lg">新增「阳台计算方式」「规划验收依据」两列；「分摊系数」量纲由百分数改为小数</td>
+                <td>市本级</td><td>2026-07-01</td><td>—</td>
+                <td><span class="badge green">生效</span></td><td class="num">126</td>
+                <td>
+                  <span class="link" onclick="SP.todo('已下载当前生效模板 V3。企业端只允许下载当前生效版本，历史版本不对外提供（R-M1）')">下载模板</span>
+                  <span class="link" onclick="PMS.openDrawer('mbDrawer')">查看字段</span>
+                </td>
+              </tr>
+              <tr class="row-warn">
+                <td><span class="sp-vt old">V2</span></td>
+                <td class="cell-lg">预测 / 实测 / 变更</td><td class="num">26</td>
+                <td class="cell-lg">相对 V1 新增「套内墙体面积」列</td>
+                <td>市本级</td><td>2025-01-01</td><td><b>2026-09-30</b></td>
+                <td><span class="badge orange">兼容期</span></td><td class="num">42</td>
+                <td>
+                  <span class="link is-off" onclick="SP.denied('历史版本不对外提供下载（R-M1）。兼容期内已提交的批次仍按 V2 口径校验，但新报送须使用 V3')">下载模板</span>
+                  <span class="link" onclick="SP.todo('V3 修改了「分摊系数」量纲，属须保留兼容期的升级（R-M3）。兼容期至 2026-09-30，期满后 V2 批次不再受理')">兼容期说明</span>
+                </td>
+              </tr>
+              <tr class="row-off">
+                <td><span class="sp-vt old">V1</span></td>
+                <td class="cell-lg">预测 / 实测</td><td class="num">25</td>
+                <td class="cell-lg">首版</td>
+                <td>市本级</td><td>2023-06-01</td><td>2026-06-30</td>
+                <td><span class="badge gray">已停用</span></td><td class="num">386</td>
+                <td><span class="link" onclick="SP.todo('V1 兼容期已于 2026-06-30 结束，使用 V1 报送的批次一律整批拒收（M-5）')">停用说明</span></td>
+              </tr>
+              <tr>
+                <td><span class="sp-vt">V3-RS</span></td>
+                <td class="cell-lg">预测 / 实测 / 变更 / 更正</td><td class="num">28</td>
+                <td class="cell-lg">与市本级 V3 字段一致，「报送主体」列增加县区测绘机构取值</td>
+                <td>融水苗族自治县</td><td>2026-09-01</td><td>—</td>
+                <td><span class="badge blue">待生效</span></td><td class="num">0</td>
+                <td>
+                  <span class="link" onclick="PMS.openDrawer('mbDrawer')">查看字段</span>
+                  <span class="link" onclick="SP.todo('县区差异说明：融水本地测绘机构编码体系与市本级不同，仅「报送主体」列取值范围有差异，字段结构完全一致（R-M11）')">差异说明</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="sp-src">
+          <span><b>下载口径</b> 企业端只能下载当前生效版本（R-M1）</span>
+          <span><b>升级约束</b> 删除字段与改量纲须留兼容期（R-M3）</span>
+          <span><b>分级配置</b> 模板版本、回退权限、补报期限按市县分级（R-M11）</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 页签五 · 状态机与数据承接 ===================== -->
+    <div class="tab-panel" data-panel="zt">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>批次状态是本专项的<b>核心控制项</b>：导入、受理、回退、补报与同步的可执行能力一律以批次状态为准，<b>不另设开关</b>（13.3）。
+            下表定义合法流转，未列出的流转一律不允许。</div>
+        </div>
+
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-diagram-project"></i> 批次状态机
+            <span class="sub">9 个状态 · 10 条合法流转</span></div>
+          <div class="sp-b"><div class="sp-map" id="smMap"></div></div>
+        </div>
+
+        <div class="sp-tw">
+          <table class="data-table">
+            <thead><tr><th>当前状态</th><th>动作</th><th>目标状态</th><th>必须同时发生的事</th></tr></thead>
+            <tbody id="smBody"></tbody>
+          </table>
+        </div>
+
+        <div class="grid-2" style="margin-top:12px">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-database"></i> 数据对象与承接关系
+              <span class="sub">13.7 · 存量表名待确认</span></div>
+            <div class="sp-b pad0">
+              <div class="sp-tw">
+                <table class="data-table compact">
+                  <thead><tr><th>数据对象</th><th>存量表</th><th>升级要求</th></tr></thead>
+                  <tbody>
+                    <tr><td>面积成果批次</td><td><span class="badge yellow">待确认</span></td>
+                      <td class="cell-lg">承接现网 excel 导入的报送记录，扩展<b>模板版本、批次状态、回退原因、影响条数、关联原批次编号</b>五个字段</td></tr>
+                    <tr><td>面积成果明细</td><td><span class="badge yellow">待确认</span></td>
+                      <td class="cell-lg">承接现网面积申报明细，扩展<b>校验结果、失败原因、房源主键、匹配状态</b>四个字段</td></tr>
+                    <tr class="row-warn"><td>成果版本</td><td><span class="muted">无对应存量表</span></td>
+                      <td class="cell-lg"><b>须新建</b>：版本号、生效标志、生效日期、替换原因、上一版本编号</td></tr>
+                    <tr class="row-warn"><td>导入模板配置</td><td><span class="muted">无对应存量表</span></td>
+                      <td class="cell-lg"><b>须新建</b>：模板版本、字段清单、量纲、必填标记、启用范围、生效日期</td></tr>
+                    <tr class="row-warn"><td>批次操作流水</td><td><span class="muted">无对应存量表</span></td>
+                      <td class="cell-lg"><b>须新建</b>：操作人、操作时间、原状态、目标状态、操作原因</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="hint" style="padding:9px 12px">
+                <i class="fa-solid fa-circle-info"></i>
+                存量表名以《智慧房产数据库》与现网导出物为准，本次未取得对应导出，<b>表名与字段扩展范围为待确认</b>（12.6 第 26、27 条）。
+              </p>
+            </div>
+          </div>
+
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-list-check"></i> 事项与办理环节
+              <span class="sub">13.2 · 与第二章事项的时限环节完全一致</span></div>
+            <div class="sp-b pad0">
+              <div class="sp-tw">
+                <table class="data-table compact">
+                  <thead><tr><th>事项编码</th><th>事项名称</th><th>时限</th><th>办理环节</th></tr></thead>
+                  <tbody>
+                    <tr><td><b>FW14</b></td><td class="cell-lg">预测面积申报（excel 导入）</td><td>7 个工作日</td>
+                      <td class="cell-lg"><span class="sp-step"><span class="sp">待受理</span><i class="fa-solid fa-angle-right ar"></i><span class="sp">受理中</span><i class="fa-solid fa-angle-right ar"></i><span class="sp">分派中</span><i class="fa-solid fa-angle-right ar"></i><span class="sp">审核中</span><i class="fa-solid fa-angle-right ar"></i><span class="sp">已归档</span></span></td></tr>
+                    <tr><td><b>FW15</b></td><td class="cell-lg">实测面积申报（excel 导入）</td><td>7 个工作日</td>
+                      <td class="cell-lg"><span class="sp-step"><span class="sp">待受理</span><i class="fa-solid fa-angle-right ar"></i><span class="sp">受理中</span><i class="fa-solid fa-angle-right ar"></i><span class="sp">分派中</span><i class="fa-solid fa-angle-right ar"></i><span class="sp">审核中</span><i class="fa-solid fa-angle-right ar"></i><span class="sp">已归档</span></span></td></tr>
+                    <tr><td><b>FW17</b></td><td class="cell-lg">预测面积变更申报（excel 导入）</td><td>7 个工作日</td>
+                      <td class="cell-lg"><span class="muted">同 FW14</span></td></tr>
+                    <tr><td><b>FW18</b></td><td class="cell-lg">实测面积变更申报（excel 导入）</td><td>7 个工作日</td>
+                      <td class="cell-lg"><span class="muted">同 FW15</span></td></tr>
+                    <tr class="row-warn"><td><b>FW16</b></td><td class="cell-lg">预测转实测申请（excel 导入）</td><td>7 个工作日</td>
+                      <td class="cell-lg"><span class="sp-step"><span class="sp">待受理</span><i class="fa-solid fa-angle-right ar"></i><span class="sp">分派中</span><i class="fa-solid fa-angle-right ar"></i><span class="sp key">上传楼盘表</span><i class="fa-solid fa-angle-right ar"></i><span class="sp">审核中</span></span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="hint" style="padding:9px 12px">
+                <i class="fa-solid fa-circle-info"></i>
+                <b>独立事项</b>走完整办件流程并计时限，判定依据是报送内容进入受理并<b>产生面积写入</b>；
+                <b>派生操作</b>（模板下载、校验重试、整批回退、按幢补报、版本置生效、模板版本发布）不单独立项，只改变批次自身状态、<b>不产生面积写入</b>。
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-shield-halved"></i> 作用边界
+            <span class="sub">13.1 · 缺了这一层会怎样</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>作用维度</th><th>含义</th><th>缺失后果</th></tr></thead>
+                <tbody>
+                  <tr><td>报送格式约束</td><td class="cell-lg">规定面积成果的字段、顺序、量纲与必填项</td><td class="cell-lg">报送内容五花八门，导入校验无判定依据</td></tr>
+                  <tr><td>批次归集</td><td class="cell-lg">一次报送归集为一个批次，作为校验、受理、回退与补报的最小单位</td><td class="cell-lg">部分入库导致同一幢面积新旧混杂</td></tr>
+                  <tr><td>版本指向</td><td class="cell-lg">确定楼盘表当前取用的是哪一个成果版本</td><td class="cell-lg">楼盘表面积来源不唯一，多板块取到不同面积</td></tr>
+                  <tr><td>变更留痕</td><td class="cell-lg">记录版本替换的原因、依据与前后关系</td><td class="cell-lg">面积变化无法追溯到具体报送与办件</td></tr>
+                  <tr><td>配置分级</td><td class="cell-lg">模板版本与回退权限按市县分级配置</td><td class="cell-lg">县区无法按本地报送习惯启用模板</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ========== 抽屉一 · 批次详情 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="pcDrawer">
+  <div class="drawer-head">
+    <h3>批次详情 · <span data-fill="bh">PC2026-0824-0186</span></h3>
+    <span class="muted" data-fill="xm">荣和公园大道二期 · 8 号楼</span>
+    <span class="badge blue" data-fill="lx">实测面积</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div>
+  </div>
+  <div class="drawer-body">
+    <dl class="desc-list">
+      <div class="desc-item"><dt>批次编号</dt><dd data-fill="bh2">PC2026-0824-0186</dd></div>
+      <div class="desc-item"><dt>项目 / 幢</dt><dd data-fill="xm2">荣和公园大道二期 · 8 号楼</dd></div>
+      <div class="desc-item"><dt>成果类型</dt><dd data-fill="lx2">实测面积</dd></div>
+      <div class="desc-item"><dt>报送主体</dt><dd>XXXX市测绘院</dd></div>
+      <div class="desc-item"><dt>报送时间</dt><dd>2026-08-24 09:12</dd></div>
+      <div class="desc-item"><dt>锁定模板版本</dt><dd><span class="sp-vt cur">V3</span> <span class="muted">提交时锁定</span></dd></div>
+      <div class="desc-item"><dt>批次状态</dt><dd><span class="sp-st doing">待受理</span></dd></div>
+      <div class="desc-item"><dt>条数 / 成功 / 失败</dt><dd>186 / 186 / 0</dd></div>
+      <div class="desc-item"><dt>校验重试次数</dt><dd>0</dd></div>
+      <div class="desc-item"><dt>关联原批次</dt><dd><span class="muted">—（非补报批次）</span></dd></div>
+      <div class="desc-item"><dt>关联办件</dt><dd><span class="muted">受理后生成</span></dd></div>
+      <div class="desc-item"><dt>所属区划</dt><dd>柳南区 <code>450204</code></dd></div>
+    </dl>
+
+    <div class="sp-block" style="margin-top:12px">
+      <div class="sp-h"><i class="fa-solid fa-list-check"></i> 四项关键校验点</div>
+      <div class="sp-b">
+        <div class="sp-check">
+          <div class="ck pass"><i class="fa-solid fa-circle-check"></i><div class="cb">
+            <div class="ct">模板版本一致性</div>
+            <div class="cd">报送使用模板 V3，与当前生效版本一致。</div></div></div>
+          <div class="ck pass"><i class="fa-solid fa-circle-check"></i><div class="cb">
+            <div class="ct">幢号房号唯一性</div>
+            <div class="cd">186 个房号在批次内唯一，且与楼盘表 186 户一一匹配，无新增、缺失或一对多。</div></div>
+            <div class="co"><span class="link" onclick="SP.drill('楼盘表房号匹配','查看匹配结果','room-match.html')">看匹配</span></div></div>
+          <div class="ck pass"><i class="fa-solid fa-circle-check"></i><div class="cb">
+            <div class="ct">面积必填与量纲</div>
+            <div class="cd">建筑面积、套内面积、分摊面积三列均已填写，单位为平方米、保留两位小数。</div></div></div>
+          <div class="ck pass"><i class="fa-solid fa-circle-check"></i><div class="cb">
+            <div class="ct">套内与分摊合计关系</div>
+            <div class="cd">186 户的「套内 ＋ 分摊 ＝ 建筑面积」全部成立，误差均在 ±0.01 ㎡ 内。</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sp-block">
+      <div class="sp-h"><i class="fa-solid fa-timeline"></i> 批次操作流水
+        <span class="sub">每一次状态变化均留痕（R-M10）</span></div>
+      <div class="sp-b pad0">
+        <div class="sp-tw">
+          <table class="data-table compact">
+            <thead><tr><th>时间</th><th>操作</th><th>原状态</th><th>目标状态</th><th>操作原因</th><th>操作人</th></tr></thead>
+            <tbody>
+              <tr><td>2026-08-24 09:14</td><td>校验通过</td><td><span class="sp-st doing">校验中</span></td><td><span class="sp-st doing">待受理</span></td><td class="cell-lg">186 条全部通过，明细置为可受理</td><td>系统</td></tr>
+              <tr><td>2026-08-24 09:12</td><td>提交</td><td><span class="sp-st init">暂存</span></td><td><span class="sp-st doing">校验中</span></td><td class="cell-lg">锁定模板 V3，生成批次编号</td><td>XXXX市测绘院（报送）</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn" onclick="SP.drill('成果详情','查看本批次 186 条逐户面积明细','result-detail.html')">看明细</button>
+    <button class="btn btn-primary" data-roles-not="developer" onclick="PMS.closeDrawer();PMS.toast('已受理该批次，关联办件号 FW15-2026-004186','success')"><i class="fa-solid fa-check"></i> 受理</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉二 · 整批回退 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="htDrawer">
+  <div class="drawer-head"><h3>整批回退</h3>
+    <span class="badge red">高敏操作</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div>
+  </div>
+  <div class="drawer-body">
+    <div class="alert alert-warning">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div><b>只允许回退未同步楼盘表的批次</b>。已入库批次不允许回退，面积调整一律另立变更或更正办件（R-M6）。
+        整批回退属高敏操作，已在 12.3 高敏操作清单登记。</div>
+    </div>
+    <div class="sp-block">
+      <div class="sp-h"><i class="fa-solid fa-shield-halved"></i> 回退前置校验</div>
+      <div class="sp-b">
+        <div class="sp-check">
+          <div class="ck pass"><i class="fa-solid fa-circle-check"></i><div class="cb">
+            <div class="ct">批次未同步楼盘表</div>
+            <div class="cd">当前状态「在办」，成果版本未置生效，楼盘表面积仍取上一版本，可回退。</div></div></div>
+          <div class="ck wait"><i class="fa-solid fa-triangle-exclamation"></i><div class="cb">
+            <div class="ct">关联办件将同步作废 · FW14-2026-004174</div>
+            <div class="cd">回退后办件同步作废，报送主体须重新提交批次。</div></div></div>
+          <div class="ck wait"><i class="fa-solid fa-file-lines"></i><div class="cb">
+            <div class="ct">影响明细 142 条</div>
+            <div class="cd">明细<b>保留可查</b>，不做物理删除。</div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="form-grid form-align" style="margin-top:12px">
+      <div class="form-item"><label>批次编号</label><input type="text" value="PC2026-0823-0174" readonly></div>
+      <div class="form-item"><label>当前状态</label><input type="text" value="在办（已受理待核验）" readonly></div>
+      <div class="form-item"><label>回退原因分类 <span class="req">*</span></label>
+        <select><option>成果与规划验收口径不一致</option><option>分摊系数错误</option><option>房号与楼盘表大面积不符</option><option>报送主体主动申请撤回</option><option>其他（须在说明中写明）</option></select></div>
+      <div class="form-item"><label>是否允许按幢补报</label><select data-dict="yesNo" data-selected="1"></select></div>
+      <div class="form-item col-full"><label>回退说明 <span class="req">*</span></label>
+        <textarea id="htReason" rows="3" placeholder="必填，不少于 10 字。说明回退依据，说明对报送主体完整可见"></textarea></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-danger-solid" onclick="submitHt()"><i class="fa-solid fa-rotate-left"></i> 提交整批回退</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉三 · 按幢补报 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="bbDrawer">
+  <div class="drawer-head"><h3>按幢补报</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-danger">
+      <i class="fa-solid fa-circle-exclamation"></i>
+      <div><b>只允许补报原批次内校验失败的幢，借补报追加新幢的一律拒收</b>（R-M7）。
+        补报批次自动关联原批次编号，便于回溯；补报期限按市县分级配置（R-M11）。</div>
+    </div>
+    <div class="form-grid form-align">
+      <div class="form-item"><label>原批次编号</label><input type="text" value="PC2026-0822-0161" readonly></div>
+      <div class="form-item"><label>原批次状态</label><input type="text" value="校验失败（3 条）" readonly></div>
+      <div class="form-item"><label>补报批次编号</label><input type="text" value="PC2026-0822-0161-B" readonly>
+        <div class="hint">补报批次编号由原批次编号加后缀构成，自动关联原批次。</div></div>
+      <div class="form-item"><label>模板版本</label><input type="text" value="V3（沿用原批次锁定版本）" readonly></div>
+      <div class="form-item col-full"><label>可补报范围 <span class="req">*</span></label>
+        <div class="radio-line">
+          <label><input type="checkbox" checked> 12 号楼（原批次校验失败 3 户）</label>
+          <label><input type="checkbox" disabled> 13 号楼 <span class="muted">（原批次未失败，不可补报）</span></label>
+          <label><input type="checkbox" disabled> 15 号楼 <span class="muted">（不在原批次内，不可追加）</span></label>
+        </div>
+        <div class="hint">灰化项为原批次未失败或不在原批次内的幢，系统<b>不允许勾选</b>。</div></div>
+      <div class="form-item col-full"><label>补报文件 <span class="req">*</span></label><input type="text" data-upload="1">
+        <div class="hint">须使用与原批次相同的模板版本 V3；量纲与必填项要求同原批次。</div></div>
+      <div class="form-item col-full"><label>补报说明 <span class="req">*</span></label>
+        <textarea id="bbReason" rows="2" placeholder="必填。说明本次补报修正了哪些校验失败项"></textarea></div>
+    </div>
+    <div class="sp-src">
+      <span><b>补报后</b> 生成关联原批次的暂存批次，提交后重新逐条校验</span>
+      <span><b>原批次</b> 保持「校验失败」，不因补报自动变更状态</span>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="submitBb()"><i class="fa-solid fa-layer-group"></i> 生成补报批次</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉四 · 版本置生效 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="sxDrawer">
+  <div class="drawer-head"><h3>成果版本置生效</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div>新版本置生效时原版本<b>自动转历史</b>，同一项目同一幢同一成果类型<b>不允许两个生效版本</b>（R-M8）。
+        <b>版本替换原因与依据材料为必填</b>，未填的不允许提交（R-M9）。</div>
+    </div>
+    <div class="form-grid form-align">
+      <div class="form-item"><label>项目 / 幢</label><input type="text" value="荣和公园大道二期 · 8 号楼" readonly></div>
+      <div class="form-item"><label>成果类型</label><input type="text" value="实测面积" readonly></div>
+      <div class="form-item"><label>拟生效版本</label><input type="text" value="V3（来源批次 PC2026-0824-0186）" readonly></div>
+      <div class="form-item"><label>原生效版本</label><input type="text" value="V2（置生效后自动转历史）" readonly></div>
+      <div class="form-item"><label>生效日期 <span class="req">*</span></label><input type="date" value="2026-08-27"></div>
+      <div class="form-item"><label>替换原因 <span class="req">*</span></label>
+        <select><option>竣工实测成果替换预测成果</option><option>规划调整导致面积重算</option><option>成果更正</option><option>成果变更</option><option>其他（须在说明中写明）</option></select></div>
+      <div class="form-item col-full"><label>依据材料 <span class="req">*</span></label><input type="text" data-upload="1"></div>
+      <div class="form-item col-full"><label>替换说明 <span class="req">*</span></label>
+        <textarea id="sxReason" rows="2" placeholder="必填，不少于 10 字"></textarea></div>
+    </div>
+    <div class="sp-block" style="margin-top:12px">
+      <div class="sp-h"><i class="fa-solid fa-bolt"></i> 置生效后的联动</div>
+      <div class="sp-b">
+        <div class="sp-check">
+          <div class="ck pass"><i class="fa-solid fa-circle-check"></i><div class="cb">
+            <div class="ct">楼盘表面积按本版本同步 · 186 户</div>
+            <div class="cd">已签约房屋的面积变更须关联合同处理意见后更新。</div></div>
+            <div class="co"><span class="link" onclick="SP.drill('面积同步楼盘表','查看同步范围与已签约户处理','area-sync.html')">看同步</span></div></div>
+          <div class="ck wait"><i class="fa-solid fa-triangle-exclamation"></i><div class="cb">
+            <div class="ct">触发预实测差异判定</div>
+            <div class="cd">实测版本生效后自动计算差异比例，落入三档或四档的入面积差异台账。</div></div>
+            <div class="co"><span class="link" onclick="location.href='area-model.html?tab=tz'">看差异模型</span></div></div>
+          <div class="ck pass"><i class="fa-solid fa-circle-check"></i><div class="cb">
+            <div class="ct">原版本 V2 自动转历史</div>
+            <div class="cd">历史版本永久保留可查，不得删除。</div></div></div>
+          <div class="ck wait"><i class="fa-solid fa-share-nodes"></i><div class="cb">
+            <div class="ct">对外服务接口取值同步刷新</div>
+            <div class="cd">不动产登记、税务等调用方通过面积成果对外服务获取同一取值。</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="submitSx()"><i class="fa-solid fa-check"></i> 提交置生效</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉五 · 模板版本 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="mbDrawer">
+  <div class="drawer-head"><h3>导入模板版本 · 字段清单</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="form-grid form-align">
+      <div class="form-item"><label>模板版本 <span class="req">*</span></label><input type="text" value="V3" readonly></div>
+      <div class="form-item"><label>适用成果类型 <span class="req">*</span></label>
+        <select><option>预测 / 实测 / 变更 / 更正</option><option>仅预测</option><option>仅实测</option></select></div>
+      <div class="form-item"><label>启用范围 <span class="req">*</span></label><select data-dict="said" data-selected="450200"></select></div>
+      <div class="form-item"><label>生效日期 <span class="req">*</span></label><input type="date" value="2026-07-01"></div>
+      <div class="form-item"><label>旧版本兼容期止</label><input type="date" value="2026-09-30">
+        <div class="hint">删除字段与修改量纲的升级<b>须保留兼容期</b>（R-M3）。</div></div>
+      <div class="form-item"><label>版本状态</label><select><option>生效</option><option>待生效</option><option>兼容期</option><option>已停用</option></select></div>
+    </div>
+
+    <div class="sp-block" style="margin-top:12px">
+      <div class="sp-h"><i class="fa-solid fa-table-columns"></i> 字段清单
+        <span class="sub">28 列 · 相对 V2 新增 2 列、改量纲 1 列</span></div>
+      <div class="sp-b pad0">
+        <div class="sp-tw">
+          <table class="data-table compact">
+            <thead><tr><th class="num">序</th><th>字段名</th><th>类型</th><th>量纲</th><th>必填</th><th>校验规则</th><th>相对 V2</th></tr></thead>
+            <tbody>
+              <tr><td class="num">1</td><td>项目备案号</td><td>文本</td><td>—</td><td><span class="badge red">是</span></td><td class="cell-lg">须在项目库存在且状态正常</td><td>—</td></tr>
+              <tr><td class="num">2</td><td>幢号</td><td>文本</td><td>—</td><td><span class="badge red">是</span></td><td class="cell-lg">须与楼盘表幢号一致</td><td>—</td></tr>
+              <tr><td class="num">3</td><td>房号</td><td>文本</td><td>—</td><td><span class="badge red">是</span></td><td class="cell-lg">批次内唯一，且与楼盘表匹配</td><td>—</td></tr>
+              <tr><td class="num">4</td><td>建筑面积</td><td>数值</td><td>㎡（2 位小数）</td><td><span class="badge red">是</span></td><td class="cell-lg">＞ 0，且等于套内 ＋ 分摊</td><td>—</td></tr>
+              <tr><td class="num">5</td><td>套内面积</td><td>数值</td><td>㎡（2 位小数）</td><td><span class="badge red">是</span></td><td class="cell-lg">＞ 0，且小于建筑面积</td><td>—</td></tr>
+              <tr><td class="num">6</td><td>分摊面积</td><td>数值</td><td>㎡（2 位小数）</td><td><span class="badge red">是</span></td><td class="cell-lg">≥ 0</td><td>—</td></tr>
+              <tr class="row-warn"><td class="num">7</td><td>分摊系数</td><td>数值</td><td><b>小数（4 位）</b></td><td><span class="badge red">是</span></td><td class="cell-lg">在合理区间内，超区间转异常核查</td><td><span class="badge orange">量纲改</span></td></tr>
+              <tr><td class="num">8</td><td>套内墙体面积</td><td>数值</td><td>㎡（2 位小数）</td><td><span class="badge gray">否</span></td><td class="cell-lg">占套内面积比例在合理区间</td><td>V2 新增</td></tr>
+              <tr class="row-warn"><td class="num">9</td><td>阳台计算方式</td><td>字典</td><td>—</td><td><span class="badge red">是</span></td><td class="cell-lg">取值：全计 / 半计 / 不计</td><td><span class="badge green">新增</span></td></tr>
+              <tr class="row-warn"><td class="num">10</td><td>规划验收依据</td><td>文本</td><td>—</td><td><span class="badge gray">否</span></td><td class="cell-lg">实测成果建议填写</td><td><span class="badge green">新增</span></td></tr>
+              <tr class="row-off"><td class="num">…</td><td class="cell-lg" colspan="6">其余 18 列（户型、朝向、层号、用途、测绘机构、成果日期等）字段结构与 V2 一致</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="sp-src">
+      <span><b>发布后</b> 企业端即刻可下载，历史版本停止对外提供（R-M1）</span>
+      <span><b>已提交批次</b> 按各自锁定的模板版本校验，不受本次升级影响（R-M2）</span>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn" onclick="SP.todo('已试算：按 V3 口径回溯近 30 日批次，42 个批次中 3 个会因新增必填列「阳台计算方式」校验失败，已列出清单')"><i class="fa-solid fa-calculator"></i> 试算影响</button>
+    <button class="btn btn-primary" data-roles-not="developer reviewer" onclick="PMS.closeDrawer();PMS.toast('已发布模板新版本，企业端即刻可下载；旧版本进入兼容期','success')"><i class="fa-solid fa-upload"></i> 发布版本</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/spec.js"></script>
+<script>
+/* ========== 13.3 批次状态机 ========== */
+var SM = [
+  ['暂存', 'init', '提交', '校验中', 'doing', '锁定模板版本，生成批次编号'],
+  ['校验中', 'doing', '校验通过', '待受理', 'doing', '写入成功条数，明细置为可受理'],
+  ['校验中', 'doing', '校验不通过', '校验失败', 'bad', '写入失败条数与逐条失败原因'],
+  ['校验失败', 'bad', '导入校验重试', '校验中', 'doing', '记录重试次数与重试时间，<b>不生成新批次</b>'],
+  ['校验失败', 'bad', '按幢补报', '暂存', 'init', '生成补报批次并<b>关联原批次编号</b>'],
+  ['待受理', 'doing', '受理', '在办', 'doing', '关联办件编号，写入受理人与受理时间'],
+  ['待受理', 'doing', '作废', '已回退', 'init', '撤回未受理批次，<b>保留全部明细</b>'],
+  ['在办', 'doing', '关联楼盘表', '已入库', 'done', '经状态服务写入面积，<b>成果版本置生效</b>'],
+  ['在办', 'doing', '整批回退', '已回退', 'init', '写入回退原因与影响条数，<b>办件同步作废</b>'],
+  ['已入库', 'done', '（无）', '（终态）', 'dead', '<b>已入库批次不允许回退</b>，面积调整须另立变更或更正办件'],
+  ['已回退', 'init', '（无）', '（终态）', 'dead', '终态，明细保留可查']
+];
+
+function renderSm() {
+  document.getElementById('smBody').innerHTML = SM.map(function (s) {
+    var term = s[3] === '（终态）';
+    return '<tr' + (term ? ' class="row-off"' : '') + '>'
+      + '<td><span class="sp-st ' + s[1] + '">' + s[0] + '</span></td>'
+      + '<td>' + s[2] + '</td>'
+      + '<td>' + (term ? '<span class="sp-st dead">终态</span>' : '<span class="sp-st ' + s[4] + '">' + s[3] + '</span>') + '</td>'
+      + '<td class="cell-lg">' + s[5] + '</td></tr>';
+  }).join('');
+
+  var by = {};
+  SM.forEach(function (s) {
+    if (s[3] === '（终态）') { (by[s[0]] = by[s[0]] || { cls: s[1], to: [], term: true }); return; }
+    (by[s[0]] = by[s[0]] || { cls: s[1], to: [] }).to.push([s[2], s[3], s[4]]);
+  });
+  document.getElementById('smMap').innerHTML = Object.keys(by).map(function (k) {
+    var g = by[k];
+    return '<div class="mr' + (g.term ? ' term' : '') + '">'
+      + '<div><span class="sp-st ' + g.cls + '">' + k + '</span></div>'
+      + '<div class="to">' + (g.to.length
+        ? g.to.map(function (t) {
+          return '<div class="sp-tr"><span class="op">' + t[0] + '</span>'
+            + '<i class="fa-solid fa-arrow-right ar"></i>'
+            + '<span class="sp-st ' + t[2] + '">' + t[1] + '</span></div>';
+        }).join('')
+        : '<div class="sp-tr"><span class="op muted">终态，无后续流转</span></div>') + '</div></div>';
+  }).join('');
+}
+
+/* ========== 交互 ========== */
+function openPc(bh, xm, lx) {
+  PMS.fill('pcDrawer', { bh: bh, bh2: bh, xm: xm, xm2: xm, lx: lx, lx2: lx });
+  PMS.openDrawer('pcDrawer');
+}
+function pickFail(el, k) {
+  SP.pick(el, '.sp-ti');
+  document.getElementById('failScope').value = el.textContent.trim().replace(/\s+\d+$/, '');
+  PMS.toast('已按「' + document.getElementById('failScope').value + '」筛选失败明细');
+}
+function openHt(el) { PMS.openDrawer('htDrawer'); }
+function openBb(el) { PMS.openDrawer('bbDrawer'); }
+
+function submitHt() {
+  var r = document.getElementById('htReason');
+  if ((r.value || '').trim().length < 10) { SP.denied('回退说明为必填且不少于 10 字，说明对报送主体完整可见'); r.focus(); return; }
+  PMS.confirm({
+    title: '整批回退确认',
+    message: '确认对该批次执行整批回退？',
+    detail: '回退后批次转「已回退」，写入回退原因与影响条数 142，关联办件 FW14-2026-004174 同步作废，明细保留可查。已同步楼盘表的批次不允许回退（R-M6）。',
+    type: 'warning', okText: '提交回退',
+    onOk: function () { PMS.closeDrawer(); PMS.toast('已整批回退，办件同步作废，142 条明细保留可查', 'success'); }
+  });
+}
+function submitBb() {
+  var r = document.getElementById('bbReason');
+  if ((r.value || '').trim().length < 10) { SP.denied('补报说明为必填且不少于 10 字'); r.focus(); return; }
+  PMS.closeDrawer();
+  PMS.toast('已生成补报批次 PC2026-0822-0161-B，关联原批次，提交后重新逐条校验', 'success');
+}
+function submitSx() {
+  var r = document.getElementById('sxReason');
+  if ((r.value || '').trim().length < 10) { SP.denied('替换说明为必填且不少于 10 字（R-M9）'); r.focus(); return; }
+  PMS.confirm({
+    title: '版本置生效确认',
+    message: '确认将 V3 置为当前生效版本？',
+    detail: '原版本 V2 自动转历史，楼盘表按 V3 同步 186 户面积，并触发预实测差异判定。同一项目同一幢同一成果类型不允许两个生效版本（R-M8）。',
+    type: 'warning', okText: '提交置生效',
+    onOk: function () { PMS.closeDrawer(); PMS.toast('已置 V3 为生效版本，V2 转历史，楼盘表同步已发起', 'success'); }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  renderSm();
+  var t = SP.param('tab');
+  if (t) SP.tab(t);
+});
+</script>
+</body>
+</html>
