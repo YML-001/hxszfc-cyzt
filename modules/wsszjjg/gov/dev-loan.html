@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>开发贷资金监管 · 新建商品房预售资金监管系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../../assets/css/app.css">
+<link rel="stylesheet" href="../../../assets/css/spec.css">
+<style>
+  /* 六段链条：本子系统承担的段落高亮，归口其他板块的置灰 */
+  .seg { display: flex; flex-direction: column; gap: 8px; }
+  .seg .sg {
+    display: grid; grid-template-columns: 30px minmax(0, 1fr) 176px; gap: 12px; align-items: start;
+    padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: #fff;
+  }
+  .seg .sg.own { border-color: var(--primary-soft); background: var(--primary-light-2); }
+  .seg .sg.auto { background: var(--success-light); border-color: #cfe9bd; }
+  .seg .sg.other { background: var(--bg-soft); }
+  .seg .no {
+    width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; background: var(--border-strong); color: #fff;
+  }
+  .seg .sg.own .no { background: var(--primary); }
+  .seg .sg.auto .no { background: var(--success); }
+  .seg .st { font-size: 13px; font-weight: 700; color: var(--text-1); margin-bottom: 3px; }
+  .seg .sd { font-size: 12px; color: var(--text-3); line-height: 1.65; }
+  .seg .sw { font-size: 11.5px; text-align: right; }
+</style>
+</head>
+<body data-role="manager" data-active="wsszjjg-30">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 新建商品房预售资金监管系统
+        <span class="sep">/</span> 资金监管
+        <span class="sep">/</span> <span class="cur">开发贷资金监管</span>
+      </div>
+      <div class="page-title">开发贷资金监管 <span class="badge orange">旧系统在用 · v1.9 未列出</span></div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="SP.todo('已校验开发贷流程角色配置：5702 的 5 个节点在旧系统全部未配角色，新系统按操作流程补全为六环节并分别指派 dev_loan 与 bank_loan；5703 配置完整可作为合并基线')"><i class="fa-solid fa-list-check"></i> 校验角色配置</button>
+      <button class="btn" onclick="SP.exportAsync('开发贷资金监管台账')"><i class="fa-solid fa-download"></i> 导出台账</button>
+      <button class="btn btn-primary" onclick="PMS.openDrawer('pjDrawer')"><i class="fa-solid fa-share"></i> 派件至放贷银行</button>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div><b>开发贷资金使用与普通预售资金使用的根本区别在审批主体</b>：普通预售资金由<b>监管部门审批</b>，
+      开发贷资金由<b>放贷银行一审、二审、三审</b>，<b>监管部门只负责派件与办结</b>。
+      因此新系统须新设两类外部角色：<b>dev_loan 开发贷企业</b>（企业侧申报）与 <b>bank_loan 开发贷银行</b>（银行侧三级审核）。
+      <a class="link" href="role-closure.html?tab=jg">看旧系统角色并轨表</a></div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-building-columns"></i></div><div>
+      <div class="s-label">在监开发贷项目</div><div class="s-value">14</div><div class="s-trend text-2">涉 6 家放贷银行</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-coins"></i></div><div>
+      <div class="s-label">开发贷监管额度</div><div class="s-value">18.6</div><div class="s-trend text-2">亿元</div></div></div>
+    <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-arrow-down"></i></div><div>
+      <div class="s-label">累计收存</div><div class="s-value">12.4</div><div class="s-trend text-success">亿元 · 经监控账户分配</div></div></div>
+    <div class="stat-card"><div class="s-icon orange"><i class="fa-solid fa-arrow-up"></i></div><div>
+      <div class="s-label">累计使用</div><div class="s-value">8.62</div><div class="s-trend text-2">亿元 · 银行三审通过</div></div></div>
+    <div class="stat-card dc-alarm"><div class="s-icon red"><i class="fa-solid fa-user-slash"></i></div><div>
+      <div class="s-label">旧系统缺角色节点</div><div class="s-value">5</div><div class="s-trend">5702 全部节点未配角色</div></div></div>
+    <div class="stat-card"><div class="s-icon purple"><i class="fa-solid fa-circle-check"></i></div><div>
+      <div class="s-label">已自动解除监管</div><div class="s-value">3</div><div class="s-trend text-2">全额进账且支付完毕</div></div></div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="ld">开发贷项目台账</div>
+      <div class="tab" data-tab="lj">六段业务链条</div>
+      <div class="tab" data-tab="sx">四个事项与角色</div>
+      <div class="tab" data-tab="sy">资金使用派件 <span class="badge orange">4</span></div>
+      <div class="tab" data-tab="js">收存与协议解除</div>
+    </div>
+
+    <!-- ===================== 台账 ===================== -->
+    <div class="tab-panel active" data-panel="ld">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>数据范围</label><select data-dict="said" data-selected="450200" data-ph=""></select></div>
+          <div class="filter-item"><label>项目名称</label><input type="text" placeholder="项目名称"></div>
+          <div class="filter-item"><label>放贷银行</label><select><option>全部</option><option>建设银行XXXX分行</option><option>工商银行XXXX分行</option><option>农业银行XXXX分行</option></select></div>
+          <div class="filter-item"><label>监管状态</label><select><option>全部</option><option>监管中</option><option>已自动解除</option><option>申请中</option></select></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按所选条件检索开发贷项目','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>项目 / 开发企业</th><th>放贷银行</th><th>虚拟楼栋</th><th class="num">监管额度（万元）</th>
+              <th class="num">已收存</th><th class="num">已使用</th><th class="num">余额</th><th>监管状态</th><th>操作</th>
+            </tr></thead>
+            <tbody>
+              <tr class="clickable" onclick="PMS.openDrawer('xmDrawer')">
+                <td class="cell-lg">荣和公园大道二期<div class="muted">荣和地产（XXXX）有限公司</div></td>
+                <td>建设银行XXXX分行</td><td>KFD-8号楼</td>
+                <td class="num">18,600.00</td><td class="num">12,400.00</td><td class="num">8,620.00</td><td class="num">3,780.00</td>
+                <td><span class="sp-st done">监管中</span></td>
+                <td>
+                  <span class="link" onclick="event.stopPropagation();PMS.openDrawer('xmDrawer')">详情</span>
+                  <span class="link" onclick="event.stopPropagation();SP.tab('sy')">用款派件</span>
+                </td>
+              </tr>
+              <tr class="clickable" onclick="PMS.openDrawer('xmDrawer')">
+                <td class="cell-lg">彰泰滨江学府<div class="muted">彰泰置业（XXXX）有限公司</div></td>
+                <td>工商银行XXXX分行</td><td>KFD-6号楼</td>
+                <td class="num">14,200.00</td><td class="num">14,200.00</td><td class="num">11,860.00</td><td class="num">2,340.00</td>
+                <td><span class="sp-st done">监管中</span></td>
+                <td><span class="link" onclick="event.stopPropagation();PMS.openDrawer('xmDrawer')">详情</span></td>
+              </tr>
+              <tr class="clickable row-warn" onclick="PMS.openDrawer('xmDrawer')">
+                <td class="cell-lg">万科城三期<div class="muted">万科房地产（XXXX）有限公司</div></td>
+                <td>农业银行XXXX分行</td><td><span class="muted">待 PC-08 虚拟</span></td>
+                <td class="num"><span class="muted">待核定</span></td><td class="num">0.00</td><td class="num">0.00</td><td class="num">0.00</td>
+                <td><span class="sp-st doing">申请中（5704）</span></td>
+                <td>
+                  <span class="link" onclick="event.stopPropagation();PMS.openDrawer('sqDrawer')">审核</span>
+                  <span class="link" onclick="event.stopPropagation();SP.todo('本项目 5704 审核通过后须填写虚拟楼栋意见并推送 PC-08，由楼盘表管理科虚拟开发贷资金楼盘表并设置项目关联楼栋，本子系统只承担资金侧的申请受理与审核')">推送说明</span>
+                </td>
+              </tr>
+              <tr class="clickable row-off" onclick="PMS.openDrawer('xmDrawer')">
+                <td class="cell-lg">荣和公园大道一期<div class="muted">荣和地产（XXXX）有限公司</div></td>
+                <td>建设银行XXXX分行</td><td>KFD-2号楼</td>
+                <td class="num">9,800.00</td><td class="num">9,800.00</td><td class="num">9,800.00</td><td class="num">0.00</td>
+                <td><span class="sp-st dead">已自动解除</span></td>
+                <td><span class="link" onclick="event.stopPropagation();SP.todo('协议约定监管资金已全额进账且全部支付完毕，系统于 2026-06-18 自动解除该笔开发贷的监管并留痕。本段为系统自动执行，不产生办件')">解除记录</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="sp-src">
+          <span><b>依据</b>《开发贷资金纳入资金监管范围操作流程》</span>
+          <span><b>虚拟楼栋</b> 由楼盘表管理科在 PC-08 中建立，本子系统只承担资金侧</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 六段链条 ===================== -->
+    <div class="tab-panel" data-panel="lj">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>开发贷资金纳入监管的完整链条为<b>六段</b>。其中<b>第 2 段销售方案申请归口 PC-08</b>、第 1 段的<b>虚拟楼盘表建立由楼盘表管理科在 PC-08 中操作</b>，
+            本子系统<b>只承担资金侧的申请受理与审核</b>；<b>第 4 段与第 6 段由系统自动执行，不产生办件</b>。</div>
+        </div>
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-list-ol"></i> 六段业务链条
+            <span class="sub">2.9 · 蓝底为本子系统承担、绿底为系统自动、灰底归口其他板块</span></div>
+          <div class="sp-b"><div class="seg" id="segBox"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 四个事项 ===================== -->
+    <div class="tab-panel" data-panel="sx">
+      <div class="card-body">
+        <div class="alert alert-danger">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <div><b>5702 在旧系统的 5 个节点全部未配角色</b>，是本次迁移必须处理的空档；
+            <b>5702 与 5703 描述的是同一段业务</b>（第 5 段开发贷资金使用），属历史上的两套并存配置。
+            建议新系统<b>合并为一个事项，以 5703 的配置为基线、5702 停用</b>，<b>是否合并待业务确认</b>。</div>
+        </div>
+        <div class="sp-tw">
+          <table class="data-table">
+            <thead><tr><th>事项编码</th><th>事项名称</th><th>办理环节</th><th>承办角色</th><th>与旧系统的差异</th></tr></thead>
+            <tbody id="sxBody"></tbody>
+          </table>
+        </div>
+
+        <div class="grid-2" style="margin-top:12px">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-user-plus"></i> 须新设的两类外部角色
+              <span class="sub">9.2 · 旧系统有角色但新系统未定义</span></div>
+            <div class="sp-b pad0">
+              <div class="sp-tw">
+                <table class="data-table compact">
+                  <thead><tr><th>角色</th><th>所属端</th><th>职责</th><th>承担节点</th></tr></thead>
+                  <tbody>
+                    <tr class="row-warn"><td><b>dev_loan</b><div class="muted">开发贷企业</div></td><td>PC 企业端</td>
+                      <td class="cell-lg">开发贷额度申报、资金使用申请；<b>与普通开发企业分开授权</b></td>
+                      <td>5701、5702、5703 的申请环节</td></tr>
+                    <tr class="row-warn"><td><b>bank_loan</b><div class="muted">开发贷银行</div></td><td>银行端</td>
+                      <td class="cell-lg">开发贷资金使用的<b>一审、二审、三审</b>；<b>审批权在银行而非监管部门</b></td>
+                      <td>5702、5703 的三级审核，5704 的申请</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="hint" style="padding:9px 12px">
+                <i class="fa-solid fa-circle-info"></i>
+                两个角色的入口：企业端
+                <span class="link" onclick="location.href='../dev/loan-apply.html'">开发贷申报</span>、银行端
+                <span class="link" onclick="location.href='../bank/loan-approve.html'">开发贷三级审核</span>。
+              </p>
+            </div>
+          </div>
+
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-code-compare"></i> 与普通预售资金使用的区别
+              <span class="sub">审批主体不同是根本差异</span></div>
+            <div class="sp-b pad0">
+              <div class="sp-tw">
+                <table class="data-table compact">
+                  <thead><tr><th>维度</th><th>普通预售资金使用</th><th>开发贷资金使用</th></tr></thead>
+                  <tbody>
+                    <tr><td>审批主体</td><td>监管部门（reviewer 初审复核审核）</td>
+                      <td class="cell-lg"><b>放贷银行</b>（bank_loan 一审二审三审）</td></tr>
+                    <tr><td>监管部门角色</td><td>全程审批</td>
+                      <td class="cell-lg"><b>只负责派件与办结</b></td></tr>
+                    <tr><td>额度依据</td><td>重点监管额度 × 节点比例</td>
+                      <td class="cell-lg">开发贷资金三方监管协议约定额度</td></tr>
+                    <tr><td>资金来源</td><td>购房款</td><td class="cell-lg">放贷银行发放的开发贷款</td></tr>
+                    <tr><td>解除方式</td><td>进度达标核验后审批解除</td>
+                      <td class="cell-lg"><b>全额进账且支付完毕后系统自动解除</b></td></tr>
+                    <tr><td>楼栋形态</td><td>实际预售楼栋</td>
+                      <td class="cell-lg"><b>虚拟开发贷资金楼栋</b>（由 PC-08 建立）</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 资金使用派件 ===================== -->
+    <div class="tab-panel" data-panel="sy">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>开发贷资金使用的办理路径：<span class="sp-step"><span class="sp">企业申请</span><i class="fa-solid fa-angle-right ar"></i><span class="sp key">资金监管科接收并派件</span><i class="fa-solid fa-angle-right ar"></i><span class="sp">银行一审</span><i class="fa-solid fa-angle-right ar"></i><span class="sp">银行二审</span><i class="fa-solid fa-angle-right ar"></i><span class="sp">银行三审</span><i class="fa-solid fa-angle-right ar"></i><span class="sp key">审核通过拨款</span><i class="fa-solid fa-angle-right ar"></i><span class="sp">业务办结（流程返回资金监管科）</span></span>
+            <br><b>监管科只做派件与办结，审批实质在放贷银行</b>。</div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>办件编号</th><th>项目 / 虚拟楼栋</th><th>放贷银行</th><th class="num">申请金额（万元）</th>
+              <th>资金用途</th><th>当前环节</th><th>停留</th><th>操作</th>
+            </tr></thead>
+            <tbody>
+              <tr class="row-warn">
+                <td>5702-2026-0086</td><td class="cell-lg">荣和公园大道二期 / KFD-8号楼</td><td>建设银行XXXX分行</td>
+                <td class="num">1,860.00</td><td>主体结构工程款</td>
+                <td><span class="sp-st doing">待派件</span></td><td class="text-warning">1 天</td>
+                <td><span class="link" onclick="PMS.openDrawer('pjDrawer')">派件</span></td>
+              </tr>
+              <tr>
+                <td>5702-2026-0082</td><td class="cell-lg">彰泰滨江学府 / KFD-6号楼</td><td>工商银行XXXX分行</td>
+                <td class="num">2,400.00</td><td>建安工程款</td>
+                <td><span class="sp-st doing">银行二审</span></td><td>2 天</td>
+                <td>
+                  <span class="link" onclick="SP.todo('本件已派至工商银行XXXX分行，银行一审已通过（2026-08-25），当前在银行二审。监管部门在此期间只可查看进度，不干预审批')">看进度</span>
+                  <span class="link is-off" onclick="SP.denied('开发贷资金使用的审批权在放贷银行，监管部门不参与一至三审，只负责派件与办结')">代为审核</span>
+                </td>
+              </tr>
+              <tr>
+                <td>5703-2026-0074</td><td class="cell-lg">荣和公园大道二期 / KFD-8号楼</td><td>建设银行XXXX分行</td>
+                <td class="num">3,200.00</td><td>农民工工资</td>
+                <td><span class="sp-st doing">银行三审</span></td><td>1 天</td>
+                <td><span class="link" onclick="SP.todo('银行一审、二审已通过，当前在三审。三审通过后银行直接拨款，流程返回资金监管科办结')">看进度</span></td>
+              </tr>
+              <tr>
+                <td>5703-2026-0068</td><td class="cell-lg">彰泰滨江学府 / KFD-6号楼</td><td>工商银行XXXX分行</td>
+                <td class="num">1,240.00</td><td>材料款</td>
+                <td><span class="sp-st wait">待办结</span></td><td>—</td>
+                <td><span class="link" onclick="SP.dual('开发贷资金使用办结','李慧',function(){PMS.toast('已办结，拨款记录已回写台账并扣减开发贷监管额度','success')})">办结</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 收存与协议解除 ===================== -->
+    <div class="tab-panel" data-panel="js">
+      <div class="card-body">
+        <div class="grid-2">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-arrow-down"></i> 第 4 段 · 开发贷资金收存
+              <span class="sub">系统自动，不产生办件</span></div>
+            <div class="sp-b">
+              <p class="hint" style="padding:0 0 8px">
+                <i class="fa-solid fa-circle-info"></i>
+                放贷银行按<b>缴款编码</b>将开发贷资金转入<b>监控账户</b>，由监控账户<b>自动分配至对应监管账户</b>。
+                收款账号须在<span class="link" onclick="location.href='clearing-whitelist.html'">清算白名单</span>内。
+              </p>
+              <div class="sp-tw">
+                <table class="data-table compact">
+                  <thead><tr><th>流水号</th><th>项目</th><th>放贷银行</th><th class="num">金额（万元）</th><th>到账日</th><th>分配状态</th></tr></thead>
+                  <tbody>
+                    <tr><td>KFD20260826-0042</td><td class="cell-lg">荣和公园大道二期</td><td>建设银行</td><td class="num">3,200.00</td><td>2026-08-26</td><td><span class="badge green">已分配</span></td></tr>
+                    <tr><td>KFD20260818-0038</td><td class="cell-lg">彰泰滨江学府</td><td>工商银行</td><td class="num">4,200.00</td><td>2026-08-18</td><td><span class="badge green">已分配</span></td></tr>
+                    <tr><td>KFD20260812-0034</td><td class="cell-lg">荣和公园大道二期</td><td>建设银行</td><td class="num">2,800.00</td><td>2026-08-12</td><td><span class="badge green">已分配</span></td></tr>
+                    <tr class="row-warn"><td>KFD20260808-0031</td><td class="cell-lg">万科城三期</td><td>农业银行</td><td class="num">1,600.00</td><td>2026-08-08</td><td><span class="badge orange">待分配</span><div class="muted">虚拟楼栋未建立</div></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-circle-check"></i> 第 6 段 · 协议解除
+              <span class="sub">系统自动，不产生办件</span></div>
+            <div class="sp-b">
+              <p class="hint" style="padding:0 0 8px">
+                <i class="fa-solid fa-circle-info"></i>
+                协议约定监管资金<b>全额进账且全部支付完毕后，系统自动解除该笔开发贷的监管并留痕</b>。
+              </p>
+              <div class="sp-check">
+                <div class="ck pass"><i class="fa-solid fa-circle-check"></i><div class="cb">
+                  <div class="ct">荣和公园大道一期 · 已于 2026-06-18 自动解除</div>
+                  <div class="cd">协议额度 9,800.00 万元，累计进账 9,800.00 万元、累计支付 9,800.00 万元，两项均达成，系统自动解除并留痕。</div></div></div>
+                <div class="ck wait"><i class="fa-solid fa-hourglass-half"></i><div class="cb">
+                  <div class="ct">荣和公园大道二期 · 条件未达成</div>
+                  <div class="cd">进账 12,400.00 / 18,600.00 万元（66.7%），支付 8,620.00 / 12,400.00 万元。<b>两项须同时达成</b>方自动解除。</div></div></div>
+                <div class="ck wait"><i class="fa-solid fa-hourglass-half"></i><div class="cb">
+                  <div class="ct">彰泰滨江学府 · 进账已达成、支付未完毕</div>
+                  <div class="cd">进账 14,200.00 万元已全额到位，支付 11,860.00 / 14,200.00 万元，余 2,340.00 万元未支付。</div></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ========== 抽屉 · 项目详情 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="xmDrawer">
+  <div class="drawer-head"><h3>开发贷监管详情 · 荣和公园大道二期</h3>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div>
+  </div>
+  <div class="drawer-body">
+    <dl class="desc-list">
+      <div class="desc-item"><dt>开发企业</dt><dd>荣和地产（XXXX）有限公司</dd></div>
+      <div class="desc-item"><dt>放贷银行</dt><dd>建设银行XXXX分行</dd></div>
+      <div class="desc-item"><dt>虚拟楼栋</dt><dd>KFD-8号楼 <span class="muted">由 PC-08 楼盘表管理科建立</span></dd></div>
+      <div class="desc-item"><dt>关联监管账户</dt><dd>6222 **** **** 1024</dd></div>
+      <div class="desc-item"><dt>收款账户</dt><dd>XXXX建工集团 工程款 …4402</dd></div>
+      <div class="desc-item"><dt>监管额度</dt><dd><b>18,600.00</b> 万元 <span class="muted">三方监管协议约定</span></dd></div>
+      <div class="desc-item"><dt>协议名称</dt><dd>开发贷资金监管三方监管协议</dd></div>
+      <div class="desc-item"><dt>累计收存 / 使用</dt><dd>12,400.00 / 8,620.00 万元</dd></div>
+      <div class="desc-item"><dt>监管状态</dt><dd><span class="sp-st done">监管中</span></dd></div>
+      <div class="desc-item"><dt>解除条件</dt><dd>全额进账 <b>且</b> 全部支付完毕 <span class="muted">（系统自动判定）</span></dd></div>
+    </dl>
+    <div class="sp-block" style="margin-top:12px">
+      <div class="sp-h"><i class="fa-solid fa-timeline"></i> 六段进度</div>
+      <div class="sp-b">
+        <div class="sp-check">
+          <div class="ck pass"><i class="fa-solid fa-1"></i><div class="cb"><div class="ct">监管申请及审核 · 已办结</div>
+            <div class="cd">5704 于 2026-03-12 办结，虚拟楼栋意见已推送 PC-08。</div></div></div>
+          <div class="ck pass"><i class="fa-solid fa-2"></i><div class="cb"><div class="ct">销售方案申请 · 已办结</div>
+            <div class="cd">归口 PC-08 商品房交易管理，楼盘表管理科审核通过。</div></div></div>
+          <div class="ck pass"><i class="fa-solid fa-3"></i><div class="cb"><div class="ct">额度申报 · 已办结</div>
+            <div class="cd">5701 于 2026-04-08 办结，已签订开发贷资金三方监管协议。</div></div></div>
+          <div class="ck wait"><i class="fa-solid fa-4"></i><div class="cb"><div class="ct">资金收存 · 进行中</div>
+            <div class="cd">已收存 12,400.00 / 18,600.00 万元，经监控账户自动分配。</div></div></div>
+          <div class="ck wait"><i class="fa-solid fa-5"></i><div class="cb"><div class="ct">资金使用 · 进行中</div>
+            <div class="cd">已使用 8,620.00 万元，当前有 1 笔在银行审批中。</div></div></div>
+          <div class="ck wait"><i class="fa-solid fa-6"></i><div class="cb"><div class="ct">协议解除 · 条件未达成</div>
+            <div class="cd">须全额进账且全部支付完毕，系统自动判定。</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-foot"><button class="btn" data-close-drawer>关闭</button></div>
+</div>
+
+<!-- ========== 抽屉 · 派件 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="pjDrawer">
+  <div class="drawer-head"><h3>派件至放贷银行 · 5702-2026-0086</h3>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div>
+  </div>
+  <div class="drawer-body">
+    <div class="alert alert-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div>资金监管科<b>只负责派件与办结</b>，审批实质在放贷银行的一至三审。派件后本件流转至银行端，
+        监管部门在审批期间<b>只可查看进度，不干预审批</b>。</div>
+    </div>
+    <div class="form-grid form-align">
+      <div class="form-item"><label>办件编号</label><input type="text" value="5702-2026-0086" readonly></div>
+      <div class="form-item"><label>项目 / 虚拟楼栋</label><input type="text" value="荣和公园大道二期 / KFD-8号楼" readonly></div>
+      <div class="form-item"><label>申请金额</label><input type="text" value="1,860.00 万元" readonly></div>
+      <div class="form-item"><label>资金用途</label><input type="text" value="主体结构工程款" readonly></div>
+      <div class="form-item"><label>派件至放贷银行 <span class="req">*</span></label>
+        <select><option>建设银行XXXX分行（本项目放贷行）</option></select>
+        <div class="hint">只能派至<b>本项目的放贷银行</b>，不可跨行派件。</div></div>
+      <div class="form-item"><label>银行经办角色</label><input type="text" value="bank_loan 开发贷银行" readonly></div>
+      <div class="form-item col-full"><label>派件说明</label>
+        <textarea rows="2" placeholder="选填。可写明需银行重点核对的事项"></textarea></div>
+    </div>
+    <p class="hint">
+      <i class="fa-solid fa-circle-info"></i>
+      派件后银行侧办理路径：<b>一审 → 二审 → 三审 → 审核通过拨款</b>，拨款后流程返回资金监管科办结。
+      <span class="link" onclick="location.href='../bank/loan-approve.html'">看银行端审核页</span>
+    </p>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('已派件至建设银行XXXX分行，本件流转至银行端一审','success')"><i class="fa-solid fa-share"></i> 确认派件</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉 · 5704 审核 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="sqDrawer">
+  <div class="drawer-head"><h3>开发贷资金监管申请审核 · 5704</h3>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div>
+  </div>
+  <div class="drawer-body">
+    <div class="alert alert-warning">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div>本事项<b>旧名「开发贷银行申请监控」，本次更名</b>。审核通过后须<b>填写虚拟楼栋意见并推送 PC-08</b>，
+        由楼盘表管理科虚拟开发贷资金楼盘表并设置项目关联楼栋。</div>
+    </div>
+    <div class="form-grid form-align">
+      <div class="form-item"><label>申请方</label><input type="text" value="农业银行XXXX分行（bank_loan）" readonly></div>
+      <div class="form-item"><label>项目</label><input type="text" value="万科城三期" readonly></div>
+      <div class="form-item"><label>开发企业</label><input type="text" value="万科房地产（XXXX）有限公司" readonly></div>
+      <div class="form-item"><label>办理环节</label><input type="text" value="申请 → 一审 → 二审" readonly></div>
+      <div class="form-item col-full"><label>银行填写并盖章的申请表 <span class="req">*</span></label><input type="text" data-upload="1"></div>
+      <div class="form-item col-full"><label>开发贷贷款协议 <span class="req">*</span></label><input type="text" data-upload="1"></div>
+      <div class="form-item col-full"><label>虚拟楼栋意见 <span class="req">*</span></label>
+        <textarea id="xnReason" rows="3" placeholder="必填。审核通过后随件推送 PC-08，由楼盘表管理科据此虚拟开发贷资金楼盘表"></textarea></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="submitSq()"><i class="fa-solid fa-check"></i> 审核通过并推送 PC-08</button>
+  </div>
+</div>
+
+<script src="../../../assets/js/app.js"></script>
+<script src="../../../assets/js/spec.js"></script>
+<script>
+/* ========== 2.9 六段业务链条 ========== */
+var SEG = [
+  ['监管申请及审核',
+   '开发企业提交开发贷资金监管申请（附<b>银行填写并盖章的申请表、开发贷贷款协议</b>）→ 资金监管科审核并<b>填写虚拟楼栋意见</b> → 楼盘表管理科<b>虚拟开发贷资金楼盘表</b> → 楼盘表管理科设置项目关联楼栋',
+   '本子系统（5704）<br>＋ PC-08（虚拟楼盘表）', 'own'],
+  ['销售方案申请',
+   '开发企业申请开发贷资金楼栋销售方案 → 楼盘表管理科审核',
+   'PC-08 商品房交易管理', 'other'],
+  ['开发贷资金监管额度申报',
+   '开发企业选中开发贷资金楼、关联监管账户、填写收款账户与监管额度 → 资金监管科审核 → 市住房城乡建设局审批 → <b>签订开发贷资金三方监管协议</b>',
+   '本子系统（5701）', 'own'],
+  ['开发贷资金收存',
+   '放贷银行按<b>缴款编码</b>将开发贷资金转入<b>监控账户</b>，由监控账户<b>自动分配</b>至监管账户',
+   '本子系统<br>资金归集，<b>不走办件</b>', 'auto'],
+  ['开发贷资金使用',
+   '开发企业申请 → 资金监管科<b>接收并派件至相应放贷银行</b> → 放贷银行<b>一审、二审、三审</b> → 审核通过拨款 → 业务办结（流程返回资金监管科）',
+   '本子系统（5702、5703）', 'own'],
+  ['协议解除',
+   '协议约定监管资金<b>全额进账且全部支付完毕后，系统自动解除监管</b>',
+   '本子系统<br><b>自动，不走办件</b>', 'auto']
+];
+
+/* ========== 2.9 四个事项 ========== */
+var SX = [
+  ['5701', '开发贷额度申报', '申请 → 初审 → 复审 → 业务办结',
+   'dev_loan 开发贷企业、业务一审、业务二审',
+   '参照 5002 监管额度申报设置，<b>镶嵌协议更换为「开发贷资金监管三方监管协议」</b>', 0],
+  ['5702', '开发贷资金使用', '申请 → 受理派件 → 银行一审 → 银行二审 → 银行三审 → 业务办结',
+   'dev_loan、资金监管科、bank_loan 一审 / 二审 / 三审、资金监管科',
+   '旧配置为「业务受理 → 一审 → 二审 → 划转失败初审 → 划转失败审核」且<b>五个节点全部未配角色</b>；本次按操作流程<b>补全为六环节，去除划转失败两节点</b>', 2],
+  ['5703', '开发贷监管资金使用', '申请 → 一审 → 二审 → 三审 → 业务办结',
+   'dev_loan、bank_loan 一审 / 二审 / 三审、业务二审',
+   '<b>去除划转失败初审、划转失败复审两节点</b>；旧系统本事项<b>节点与角色配置完整</b>，建议作为合并基线', 1],
+  ['5704', '开发贷资金监管申请', '申请 → 一审 → 二审',
+   'bank_loan 开发贷银行、业务一审、业务二审',
+   '<b>事项更名，旧名「开发贷银行申请监控」</b>；对应六段链条第 1 段，<b>审核通过后须填写虚拟楼栋意见并推送 PC-08</b>', 1]
+];
+
+function render() {
+  document.getElementById('segBox').innerHTML = SEG.map(function (s, i) {
+    return '<div class="sg ' + s[3] + '"><span class="no">' + (i + 1) + '</span>'
+      + '<div><div class="st">' + s[0] + '</div><div class="sd">' + s[1] + '</div></div>'
+      + '<div class="sw">' + s[2] + '</div></div>';
+  }).join('');
+
+  document.getElementById('sxBody').innerHTML = SX.map(function (r) {
+    var cls = r[5] === 2 ? ' class="row-bad"' : (r[5] === 1 ? ' class="row-warn"' : '');
+    return '<tr' + cls + '><td><b>' + r[0] + '</b></td><td>' + r[1] + '</td>'
+      + '<td class="cell-lg"><span class="sp-step">' + r[2].split(' → ').map(function (x) {
+          return '<span class="sp' + (/银行/.test(x) ? ' key' : '') + '">' + x + '</span>';
+        }).join('<i class="fa-solid fa-angle-right ar"></i>') + '</span></td>'
+      + '<td class="cell-lg">' + r[3] + '</td><td class="cell-lg">' + r[4] + '</td></tr>';
+  }).join('');
+}
+
+function submitSq() {
+  var r = document.getElementById('xnReason');
+  if ((r.value || '').trim().length < 10) { SP.denied('虚拟楼栋意见为必填且不少于 10 字，审核通过后随件推送 PC-08'); r.focus(); return; }
+  PMS.closeDrawer();
+  PMS.toast('已审核通过，虚拟楼栋意见已推送 PC-08，待楼盘表管理科虚拟开发贷资金楼盘表', 'success');
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  render();
+  var t = SP.param('tab'); if (t) SP.tab(t);
+});
+</script>
+</body>
+</html>

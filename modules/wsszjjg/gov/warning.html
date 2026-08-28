@@ -6,6 +6,7 @@
 <title>资金风险预警 · 新建商品房预售资金监管系统</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <link rel="stylesheet" href="../../../assets/css/app.css">
+<link rel="stylesheet" href="../../../assets/css/spec.css">
 <style>
   .tbl-static { overflow: auto; }
 </style>
@@ -97,6 +98,7 @@
       <div class="tab active" data-tab="warn">待处置预警</div>
       <div class="tab" data-tab="bjl">保交楼专项监测</div>
       <div class="tab" data-tab="check">监督检查</div>
+      <div class="tab" data-tab="rule">十六类预警项 <span class="badge blue">16</span></div>
     </div>
 
     <div class="tab-panel active" data-panel="warn">
@@ -279,6 +281,36 @@
     </div>
   </div>
 
+    <div class="tab-panel" data-panel="rule">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>资金类预警的<b>规则计算在本子系统完成</b>，预警的<b>分级推送、督办派单与处置反馈统一在 PC-25 综合预警与督办闭环中心闭环</b>，
+            <b>本子系统不另建预警处置模块</b>（5.9、R-I12）。下表为十六类预警项的完整清单与当前配置状态；
+            阈值与通知方式在<span class="link" onclick="location.href='rule.html'">监管规则配置 · 预警消息配置</span>中按市县差异化设置。</div>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-item"><label>配置状态</label>
+            <select id="wq" onchange="filterWarn()"><option value="">全部</option><option value="on">已配置并在用</option><option value="cfg">已配置未触发</option><option value="wait">阈值待确认</option></select>
+          </div>
+          <div class="filter-item"><label>推送对象</label>
+            <select id="wr" onchange="filterWarn()"><option value="">全部</option><option>city</option><option>reviewer</option><option>dev</option><option>bank</option><option>mortgage</option><option>public</option></select>
+          </div>
+          <div class="filter-actions"><span class="muted" id="wcnt" style="align-self:center"></span></div>
+        </div>
+        <div class="sp-tw">
+          <table class="data-table">
+            <thead><tr><th class="num">序</th><th>预警项</th><th>触发条件</th><th>推送对象</th><th class="num">本月触发</th><th>配置状态</th><th>操作</th></tr></thead>
+            <tbody id="wBody"></tbody>
+          </table>
+        </div>
+        <div class="sp-src">
+          <span><b>规则计算</b> 在本子系统完成</span>
+          <span><b>推送与督办</b> 统一在 PC-25 闭环，本子系统只输出预警信号</span>
+        </div>
+      </div>
+    </div>
+
 </main>
 
 <div class="drawer-mask"></div>
@@ -317,5 +349,58 @@
 </div>
 
 <script src="../../../assets/js/app.js"></script>
+<script src="../../../assets/js/spec.js"></script>
+<script>
+/* 5.9 十六类资金类预警项 */
+var WARN = [
+  ['不明出账预警', '监管账户发生<b>未经审批或无法匹配用途</b>的出账', 'city / reviewer / bank', 2, 'on'],
+  ['不明入账预警', '到账资金<b>无法匹配合同房号且超期未认领</b>', 'reviewer / dev', 4, 'on'],
+  ['对账异常预警', '日终对账或多方对账<b>出现差异且超期未处理</b>', 'reviewer / bank', 3, 'on'],
+  ['逾期未缴预警', '合同约定应缴款项<b>超期未存入监管账户</b>', 'dev / reviewer', 18, 'on'],
+  ['首付未监管预警', '网签合同<b>首付款未进入监管账户</b>', 'dev / reviewer', 6, 'on'],
+  ['按揭入账预警', '按揭放款<b>未按要求进入监管账户或放款信息缺失</b>', 'mortgage / reviewer', 5, 'on'],
+  ['贷款未监管预警', '贷款资金<b>已发放但未纳入监管账户</b>', 'mortgage / fund / reviewer', 2, 'on'],
+  ['额度异常预警', '已缴存金额与重点监管额度<b>偏离超阈值</b>，或<b>使用超额度</b>、<b>额度低于最低水位线</b>', 'dev / city', 9, 'on'],
+  ['余额异常预警', '账户余额<b>低于应留存额度</b>，或<b>系统余额与银行余额不一致</b>', 'city / bank', 7, 'on'],
+  ['冻结解冻预警', '账户被<b>非计划冻结或解冻</b>', 'city / bank', 1, 'on'],
+  ['购房款存满预警', '首付或按揭款项<b>达到应缴总额</b>，提示可办理后续环节', 'dev / public', 42, 'on'],
+  ['合同入账预警', '合同状态与入账情况不匹配（<b>已备案未入账、已注销仍入账</b>）', 'reviewer', 3, 'on'],
+  ['专用 POS 机异常预警', '专用 POS 机<b>异地使用、非监管刷卡、长期未使用</b>', 'city', 0, 'cfg'],
+  ['监管异常楼栋预警', '楼栋级监管数据异常，<b>销售情况与缴存情况不匹配</b>', 'city', 2, 'on'],
+  ['监管账户实时监控预警', '账户实时余额<b>异常波动或发生大额交易</b>', 'city / leader', 4, 'on'],
+  ['清算异常预警', '<b>清算失败、超时、金额不符</b>', 'city / clearing', 0, 'wait']
+];
+
+var WST = {
+  on:   ['<span class="badge green">已配置并在用</span>', ''],
+  cfg:  ['<span class="badge blue">已配置未触发</span>', ''],
+  wait: ['<span class="badge yellow">阈值待确认</span>', '文档标注「待确认」，阈值核定后启用']
+};
+
+function renderWarnRules() {
+  var st = document.getElementById('wq').value;
+  var ro = document.getElementById('wr').value;
+  var rows = WARN.filter(function (r) {
+    if (st && r[4] !== st) return false;
+    if (ro && r[2].indexOf(ro) < 0) return false;
+    return true;
+  });
+  document.getElementById('wcnt').innerHTML = '共 <b>' + rows.length + '</b> 项';
+  document.getElementById('wBody').innerHTML = rows.map(function (r, i) {
+    var v = WST[r[4]];
+    return '<tr' + (r[4] === 'wait' ? ' class="row-warn"' : '') + '>'
+      + '<td class="num">' + (i + 1) + '</td>'
+      + '<td><b>' + r[0] + '</b></td>'
+      + '<td class="cell-lg">' + r[1] + '</td>'
+      + '<td>' + r[2] + '</td>'
+      + '<td class="num">' + (r[3] || '—') + '</td>'
+      + '<td>' + v[0] + (v[1] ? '<div class="muted">' + v[1] + '</div>' : '') + '</td>'
+      + '<td><span class="link" onclick="location.href=\'rule.html\'">配阈值</span></td></tr>';
+  }).join('');
+}
+function filterWarn() { renderWarnRules(); }
+document.addEventListener('DOMContentLoaded', renderWarnRules);
+</script>
+
 </body>
 </html>

@@ -375,6 +375,7 @@
               children: [
                 { key: "wschcg-27", label: "业务事项清单", href: "../modules/wschcg/matters.html" },
                 { key: "wschcg-24", label: "批次与模板版本管理", href: "../modules/wschcg/batch-manage.html" },
+                { key: "wschcg-28", label: "数据与材料规范", href: "../modules/wschcg/data-spec.html" },
                 { key: "wschcg-26", label: "角色权限与业务闭环", href: "../modules/wschcg/role-closure.html" }
               ]
             }
@@ -518,7 +519,9 @@
             { key: "wsszjjg-29", label: "业务事项清单", href: "../modules/wsszjjg/gov/matters.html" },
             { key: "wsszjjg-02", label: "监管职责界定", href: "../modules/wsszjjg/gov/duty.html" },
             { key: "wsszjjg-03", label: "监管关系维护", href: "../modules/wsszjjg/gov/relation.html" },
-            { key: "wsszjjg-04", label: "监管规则配置", href: "../modules/wsszjjg/gov/rule.html" }
+            { key: "wsszjjg-04", label: "监管规则配置", href: "../modules/wsszjjg/gov/rule.html" },
+            { key: "wsszjjg-33", label: "数据与材料规范", href: "../modules/wsszjjg/gov/data-spec.html" },
+            { key: "wsszjjg-34", label: "特殊项目设置与迁移", href: "../modules/wsszjjg/gov/special.html" }
           ]},
           { label: "项目与账户", icon: "fa-building", children: [
             { key: "wsszjjg-05", label: "监管项目管理", href: "../modules/wsszjjg/gov/project.html" },
@@ -529,7 +532,8 @@
             { key: "wsszjjg-08", label: "资金归集管理", href: "../modules/wsszjjg/gov/collect.html" },
             { key: "wsszjjg-09", label: "资金使用管理", href: "../modules/wsszjjg/gov/usage.html" },
             { key: "wsszjjg-10", label: "资金核退管理", href: "../modules/wsszjjg/gov/refund.html" },
-            { key: "wsszjjg-11", label: "账户清算管理", href: "../modules/wsszjjg/gov/clearing.html" }
+            { key: "wsszjjg-11", label: "账户清算管理", href: "../modules/wsszjjg/gov/clearing.html" },
+            { key: "wsszjjg-30", label: "开发贷资金监管", href: "../modules/wsszjjg/gov/dev-loan.html" }
           ]},
           { label: "对账与解监", icon: "fa-scale-balanced", children: [
             { key: "wsszjjg-12", label: "资金对账管理", href: "../modules/wsszjjg/gov/reconcile.html" },
@@ -548,14 +552,19 @@
             { key: "wsszjjg-18", label: "我的用款申请", href: "../modules/wsszjjg/dev/usage.html" },
             { key: "wsszjjg-19", label: "保函替代申请", href: "../modules/wsszjjg/dev/guarantee-apply.html" },
             { key: "wsszjjg-20", label: "解除监管申请", href: "../modules/wsszjjg/dev/release-apply.html" },
-            { key: "wsszjjg-28", label: "保交楼业务申报", href: "../modules/wsszjjg/dev/bjl-apply.html" }
+            { key: "wsszjjg-28", label: "保交楼业务申报", href: "../modules/wsszjjg/dev/bjl-apply.html" },
+            { key: "wsszjjg-31", label: "开发贷资金申报", href: "../modules/wsszjjg/dev/loan-apply.html" }
           ]},
           { label: "监管银行办理", icon: "fa-building-columns", children: [
             { key: "wsszjjg-14", label: "银行服务工作台", href: "../modules/wsszjjg/bank/workbench.html" },
             { key: "wsszjjg-21", label: "缴存流水报送", href: "../modules/wsszjjg/bank/collect-push.html" },
             { key: "wsszjjg-22", label: "拨付指令与回执", href: "../modules/wsszjjg/bank/order.html" },
             { key: "wsszjjg-23", label: "账户余额报送", href: "../modules/wsszjjg/bank/balance.html" },
-            { key: "wsszjjg-24", label: "日终对账", href: "../modules/wsszjjg/bank/reconcile.html" }
+            { key: "wsszjjg-24", label: "日终对账", href: "../modules/wsszjjg/bank/reconcile.html" },
+            { key: "wsszjjg-32", label: "开发贷三级审核", href: "../modules/wsszjjg/bank/loan-approve.html" }
+          ]},
+          { label: "施工企业办理", icon: "fa-helmet-safety", children: [
+            { key: "wsszjjg-35", label: "施工企业工作台", href: "../modules/wsszjjg/builder/workbench.html" }
           ]},
           { label: "群众服务", icon: "fa-users", children: [
             { key: "wsszjjg-31", label: "监管公示专区", href: "../modules/wsszjjg/portal/index.html" },
@@ -1009,7 +1018,7 @@
           "wswxzj-13", "wswxzj-14", "wswxzj-21", "wswxzj-22", "wswxzj-31", "wswxzj-32", "wswxzj-33",
           "wszjjg-02", "wszjjg-03", "wszjjg-04", "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14",
           "wszjjg-15", "wszjjg-31", "wszjjg-32"
-        , "wschcg-02", "wschcg-06", "wschcg-10", "wschcg-24", "wsszjjg-28", "wschcg-27", "wsszjjg-29"],
+        , "wschcg-02", "wschcg-06", "wschcg-10", "wschcg-24", "wsszjjg-28", "wschcg-27", "wsszjjg-29", "wschcg-28", "wsszjjg-30", "wsszjjg-35"],
         reviewer: [
           "wsbiz-01", "wsbiz-02", "wsbiz-03", "wsbiz-04", "wsbiz-16", "wsbiz-19", "wsbiz-20", "wsswb-01",
           "wsswb-02", "wsswb-03", "wsswb-04", "wsswb-05", "wsswb-06", "wsswb-07", "wsswb-08", "wsswb-09",
@@ -1043,7 +1052,7 @@
           "wswxzj-12", "wswxzj-13", "wswxzj-14", "wswxzj-21", "wswxzj-22", "wswxzj-31", "wswxzj-32",
           "wswxzj-33", "wszjjg-02", "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14", "wszjjg-15",
           "wszjjg-31", "wszjjg-32"
-        , "wschcg-24", "wschcg-25", "wsszjjg-25", "wsszjjg-26", "wsszjjg-28", "wschcg-27", "wsszjjg-29"],
+        , "wschcg-24", "wschcg-25", "wsszjjg-25", "wsszjjg-26", "wsszjjg-28", "wschcg-27", "wsszjjg-29", "wschcg-28", "wsszjjg-30", "wsszjjg-35"],
         manager: [
           "wsbiz-10", "wsbiz-11", "wsbiz-15", "wsbiz-16", "wsbiz-17", "wsbiz-18", "wsbiz-19", "wsbiz-20",
           "wsswb-01", "wsswb-02", "wsswb-03", "wsswb-04", "wsswb-05", "wsswb-06", "wsswb-09", "wsswb-11",
@@ -1066,7 +1075,7 @@
           "wswxzj-14", "wswxzj-21", "wswxzj-22", "wswxzj-31", "wswxzj-32", "wswxzj-33", "wszjjg-03",
           "wszjjg-04", "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14", "wszjjg-15", "wszjjg-31",
           "wszjjg-32"
-        , "wschcg-24", "wschcg-25", "wschcg-26", "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-05", "wschcg-09", "wschcg-12", "wschcg-17", "wschcg-18", "wschcg-19", "wschcg-20", "wschcg-23", "wschcg-27", "wsszjjg-29"],
+        , "wschcg-24", "wschcg-25", "wschcg-26", "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-05", "wschcg-09", "wschcg-12", "wschcg-17", "wschcg-18", "wschcg-19", "wschcg-20", "wschcg-23", "wschcg-27", "wsszjjg-29", "wschcg-28", "wsszjjg-30", "wsszjjg-35"],
         leader: [
           "wsbiz-17", "wsbiz-18", "wsswb-01", "wscwb-01", "wszwb-01", "wsdwb-01", "wschcg-01", "wsdagl-01",
           "wsztxy-01", "wsztxy-15", "wsztxy-17", "wsztxy-27", "wsztxy-20", "wsszjjg-01", "wszjjg-01", "wswxzj-01",
@@ -1083,7 +1092,7 @@
           "wswxzj-21", "wswxzj-22", "wswxzj-31", "wswxzj-32", "wswxzj-33", "wszjjg-02", "wszjjg-03",
           "wszjjg-04", "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14", "wszjjg-15", "wszjjg-31",
           "wszjjg-32"
-        , "wschcg-26", "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-27", "wsszjjg-29"],
+        , "wschcg-26", "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-27", "wsszjjg-29", "wschcg-28", "wsszjjg-30", "wsszjjg-35"],
         admin: [
           "wsbiz-05", "wsbiz-10", "wsbiz-11", "wsbiz-13", "wsbiz-20", "wsswb-01", "wscwb-01", "wszwb-01",
           "wsdwb-01", "wschcg-01", "wschcg-02", "wschcg-05", "wsdagl-01", "wsztxy-01", "wsztxy-25", "wsztxy-26", "wsztxy-27", "wsztxy-20",
@@ -1107,7 +1116,7 @@
           "wswxzj-08", "wswxzj-09", "wswxzj-11", "wswxzj-12", "wswxzj-13", "wswxzj-14", "wswxzj-21",
           "wswxzj-22", "wswxzj-31", "wswxzj-32", "wswxzj-33", "wszjjg-02", "wszjjg-03", "wszjjg-04",
           "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14", "wszjjg-15", "wszjjg-31", "wszjjg-32"
-        , "wschcg-24", "wschcg-25", "wschcg-26", "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-27", "wsszjjg-29"],
+        , "wschcg-24", "wschcg-25", "wschcg-26", "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-27", "wsszjjg-29", "wschcg-28", "wsszjjg-30", "wsszjjg-35"],
         ops: [
           "wsswb-01", "wscwb-01", "wszwb-01", "wsdwb-01", "wschcg-01", "wsdagl-01", "wsdagl-02", "wsztxy-01",
           "wsszjjg-01", "wszjjg-01", "wswxzj-01", "wsjcfx-02", "wsjcfx-03", "wsjcfx-04", "wsjcfx-05",
@@ -1123,7 +1132,7 @@
           "wswxzj-13", "wswxzj-14", "wswxzj-21", "wswxzj-22", "wswxzj-31", "wswxzj-32", "wswxzj-33",
           "wszjjg-02", "wszjjg-03", "wszjjg-04", "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14",
           "wszjjg-15", "wszjjg-31", "wszjjg-32"
-        , "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-27", "wsszjjg-29"]
+        , "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-27", "wsszjjg-29", "wschcg-28", "wsszjjg-30", "wsszjjg-35"]
       },
       dict: {
         said: [
@@ -1673,7 +1682,8 @@
               children: [
                 { key: "wsszjjg-08", label: "资金归集管理", href: "../modules/wsszjjg/dev/collect.html" },
                 { key: "wsszjjg-09", label: "资金使用管理", href: "../modules/wsszjjg/dev/usage.html" },
-                { key: "wsszjjg-28", label: "保交楼业务申报", href: "../modules/wsszjjg/dev/bjl-apply.html" }
+                { key: "wsszjjg-28", label: "保交楼业务申报", href: "../modules/wsszjjg/dev/bjl-apply.html" },
+            { key: "wsszjjg-31", label: "开发贷资金申报", href: "../modules/wsszjjg/dev/loan-apply.html" }
               ]
             }
           ]
@@ -3036,7 +3046,9 @@
             { key: "wsszjjg-29", label: "业务事项清单", href: "../modules/wsszjjg/gov/matters.html" },
             { key: "wsszjjg-02", label: "监管职责界定", href: "../modules/wsszjjg/gov/duty.html" },
             { key: "wsszjjg-03", label: "监管关系维护", href: "../modules/wsszjjg/gov/relation.html" },
-            { key: "wsszjjg-04", label: "监管规则配置", href: "../modules/wsszjjg/gov/rule.html" }
+            { key: "wsszjjg-04", label: "监管规则配置", href: "../modules/wsszjjg/gov/rule.html" },
+            { key: "wsszjjg-33", label: "数据与材料规范", href: "../modules/wsszjjg/gov/data-spec.html" },
+            { key: "wsszjjg-34", label: "特殊项目设置与迁移", href: "../modules/wsszjjg/gov/special.html" }
           ]},
           { label: "项目与账户", icon: "fa-building", children: [
             { key: "wsszjjg-05", label: "监管项目管理", href: "../modules/wsszjjg/gov/project.html" },
@@ -3047,7 +3059,8 @@
             { key: "wsszjjg-08", label: "资金归集管理", href: "../modules/wsszjjg/gov/collect.html" },
             { key: "wsszjjg-09", label: "资金使用管理", href: "../modules/wsszjjg/gov/usage.html" },
             { key: "wsszjjg-10", label: "资金核退管理", href: "../modules/wsszjjg/gov/refund.html" },
-            { key: "wsszjjg-11", label: "账户清算管理", href: "../modules/wsszjjg/gov/clearing.html" }
+            { key: "wsszjjg-11", label: "账户清算管理", href: "../modules/wsszjjg/gov/clearing.html" },
+            { key: "wsszjjg-30", label: "开发贷资金监管", href: "../modules/wsszjjg/gov/dev-loan.html" }
           ]},
           { label: "对账与解监", icon: "fa-scale-balanced", children: [
             { key: "wsszjjg-12", label: "资金对账管理", href: "../modules/wsszjjg/gov/reconcile.html" },
@@ -3066,14 +3079,19 @@
             { key: "wsszjjg-18", label: "我的用款申请", href: "../modules/wsszjjg/dev/usage.html" },
             { key: "wsszjjg-19", label: "保函替代申请", href: "../modules/wsszjjg/dev/guarantee-apply.html" },
             { key: "wsszjjg-20", label: "解除监管申请", href: "../modules/wsszjjg/dev/release-apply.html" },
-            { key: "wsszjjg-28", label: "保交楼业务申报", href: "../modules/wsszjjg/dev/bjl-apply.html" }
+            { key: "wsszjjg-28", label: "保交楼业务申报", href: "../modules/wsszjjg/dev/bjl-apply.html" },
+            { key: "wsszjjg-31", label: "开发贷资金申报", href: "../modules/wsszjjg/dev/loan-apply.html" }
           ]},
           { label: "监管银行办理", icon: "fa-building-columns", children: [
             { key: "wsszjjg-14", label: "银行服务工作台", href: "../modules/wsszjjg/bank/workbench.html" },
             { key: "wsszjjg-21", label: "缴存流水报送", href: "../modules/wsszjjg/bank/collect-push.html" },
             { key: "wsszjjg-22", label: "拨付指令与回执", href: "../modules/wsszjjg/bank/order.html" },
             { key: "wsszjjg-23", label: "账户余额报送", href: "../modules/wsszjjg/bank/balance.html" },
-            { key: "wsszjjg-24", label: "日终对账", href: "../modules/wsszjjg/bank/reconcile.html" }
+            { key: "wsszjjg-24", label: "日终对账", href: "../modules/wsszjjg/bank/reconcile.html" },
+            { key: "wsszjjg-32", label: "开发贷三级审核", href: "../modules/wsszjjg/bank/loan-approve.html" }
+          ]},
+          { label: "施工企业办理", icon: "fa-helmet-safety", children: [
+            { key: "wsszjjg-35", label: "施工企业工作台", href: "../modules/wsszjjg/builder/workbench.html" }
           ]},
           { label: "群众服务", icon: "fa-users", children: [
             { key: "wsszjjg-31", label: "监管公示专区", href: "../modules/wsszjjg/portal/index.html" },
