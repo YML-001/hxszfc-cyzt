@@ -373,6 +373,7 @@
               label: "配置与口径",
               icon: "fa-sliders",
               children: [
+                { key: "wschcg-27", label: "业务事项清单", href: "../modules/wschcg/matters.html" },
                 { key: "wschcg-24", label: "批次与模板版本管理", href: "../modules/wschcg/batch-manage.html" },
                 { key: "wschcg-26", label: "角色权限与业务闭环", href: "../modules/wschcg/role-closure.html" }
               ]
@@ -514,6 +515,7 @@
           menu: [
           { key: "wsszjjg-01", label: "我的工作台", icon: "fa-table-columns", href: "../modules/wsszjjg/gov/workbench.html" },
           { label: "监管设置", icon: "fa-sliders", children: [
+            { key: "wsszjjg-29", label: "业务事项清单", href: "../modules/wsszjjg/gov/matters.html" },
             { key: "wsszjjg-02", label: "监管职责界定", href: "../modules/wsszjjg/gov/duty.html" },
             { key: "wsszjjg-03", label: "监管关系维护", href: "../modules/wsszjjg/gov/relation.html" },
             { key: "wsszjjg-04", label: "监管规则配置", href: "../modules/wsszjjg/gov/rule.html" }
@@ -1007,7 +1009,7 @@
           "wswxzj-13", "wswxzj-14", "wswxzj-21", "wswxzj-22", "wswxzj-31", "wswxzj-32", "wswxzj-33",
           "wszjjg-02", "wszjjg-03", "wszjjg-04", "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14",
           "wszjjg-15", "wszjjg-31", "wszjjg-32"
-        , "wschcg-02", "wschcg-06", "wschcg-10", "wschcg-24", "wsszjjg-28"],
+        , "wschcg-02", "wschcg-06", "wschcg-10", "wschcg-24", "wsszjjg-28", "wschcg-27", "wsszjjg-29"],
         reviewer: [
           "wsbiz-01", "wsbiz-02", "wsbiz-03", "wsbiz-04", "wsbiz-16", "wsbiz-19", "wsbiz-20", "wsswb-01",
           "wsswb-02", "wsswb-03", "wsswb-04", "wsswb-05", "wsswb-06", "wsswb-07", "wsswb-08", "wsswb-09",
@@ -1041,7 +1043,7 @@
           "wswxzj-12", "wswxzj-13", "wswxzj-14", "wswxzj-21", "wswxzj-22", "wswxzj-31", "wswxzj-32",
           "wswxzj-33", "wszjjg-02", "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14", "wszjjg-15",
           "wszjjg-31", "wszjjg-32"
-        , "wschcg-24", "wschcg-25", "wsszjjg-25", "wsszjjg-26", "wsszjjg-28"],
+        , "wschcg-24", "wschcg-25", "wsszjjg-25", "wsszjjg-26", "wsszjjg-28", "wschcg-27", "wsszjjg-29"],
         manager: [
           "wsbiz-10", "wsbiz-11", "wsbiz-15", "wsbiz-16", "wsbiz-17", "wsbiz-18", "wsbiz-19", "wsbiz-20",
           "wsswb-01", "wsswb-02", "wsswb-03", "wsswb-04", "wsswb-05", "wsswb-06", "wsswb-09", "wsswb-11",
@@ -1064,7 +1066,7 @@
           "wswxzj-14", "wswxzj-21", "wswxzj-22", "wswxzj-31", "wswxzj-32", "wswxzj-33", "wszjjg-03",
           "wszjjg-04", "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14", "wszjjg-15", "wszjjg-31",
           "wszjjg-32"
-        , "wschcg-24", "wschcg-25", "wschcg-26", "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-05", "wschcg-09", "wschcg-12", "wschcg-17", "wschcg-18", "wschcg-19", "wschcg-20", "wschcg-23"],
+        , "wschcg-24", "wschcg-25", "wschcg-26", "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-05", "wschcg-09", "wschcg-12", "wschcg-17", "wschcg-18", "wschcg-19", "wschcg-20", "wschcg-23", "wschcg-27", "wsszjjg-29"],
         leader: [
           "wsbiz-17", "wsbiz-18", "wsswb-01", "wscwb-01", "wszwb-01", "wsdwb-01", "wschcg-01", "wsdagl-01",
           "wsztxy-01", "wsztxy-15", "wsztxy-17", "wsztxy-27", "wsztxy-20", "wsszjjg-01", "wszjjg-01", "wswxzj-01",
@@ -1081,7 +1083,7 @@
           "wswxzj-21", "wswxzj-22", "wswxzj-31", "wswxzj-32", "wswxzj-33", "wszjjg-02", "wszjjg-03",
           "wszjjg-04", "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14", "wszjjg-15", "wszjjg-31",
           "wszjjg-32"
-        , "wschcg-26", "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28"],
+        , "wschcg-26", "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-27", "wsszjjg-29"],
         admin: [
           "wsbiz-05", "wsbiz-10", "wsbiz-11", "wsbiz-13", "wsbiz-20", "wsswb-01", "wscwb-01", "wszwb-01",
           "wsdwb-01", "wschcg-01", "wschcg-02", "wschcg-05", "wsdagl-01", "wsztxy-01", "wsztxy-25", "wsztxy-26", "wsztxy-27", "wsztxy-20",
@@ -1105,7 +1107,7 @@
           "wswxzj-08", "wswxzj-09", "wswxzj-11", "wswxzj-12", "wswxzj-13", "wswxzj-14", "wswxzj-21",
           "wswxzj-22", "wswxzj-31", "wswxzj-32", "wswxzj-33", "wszjjg-02", "wszjjg-03", "wszjjg-04",
           "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14", "wszjjg-15", "wszjjg-31", "wszjjg-32"
-        , "wschcg-24", "wschcg-25", "wschcg-26", "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28"],
+        , "wschcg-24", "wschcg-25", "wschcg-26", "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-27", "wsszjjg-29"],
         ops: [
           "wsswb-01", "wscwb-01", "wszwb-01", "wsdwb-01", "wschcg-01", "wsdagl-01", "wsdagl-02", "wsztxy-01",
           "wsszjjg-01", "wszjjg-01", "wswxzj-01", "wsjcfx-02", "wsjcfx-03", "wsjcfx-04", "wsjcfx-05",
@@ -1121,7 +1123,7 @@
           "wswxzj-13", "wswxzj-14", "wswxzj-21", "wswxzj-22", "wswxzj-31", "wswxzj-32", "wswxzj-33",
           "wszjjg-02", "wszjjg-03", "wszjjg-04", "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14",
           "wszjjg-15", "wszjjg-31", "wszjjg-32"
-        , "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28"]
+        , "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-27", "wsszjjg-29"]
       },
       dict: {
         said: [
@@ -3031,6 +3033,7 @@
         menu: [
           { key: "wsszjjg-01", label: "我的工作台", icon: "fa-table-columns", href: "../modules/wsszjjg/gov/workbench.html" },
           { label: "监管设置", icon: "fa-sliders", children: [
+            { key: "wsszjjg-29", label: "业务事项清单", href: "../modules/wsszjjg/gov/matters.html" },
             { key: "wsszjjg-02", label: "监管职责界定", href: "../modules/wsszjjg/gov/duty.html" },
             { key: "wsszjjg-03", label: "监管关系维护", href: "../modules/wsszjjg/gov/relation.html" },
             { key: "wsszjjg-04", label: "监管规则配置", href: "../modules/wsszjjg/gov/rule.html" }
