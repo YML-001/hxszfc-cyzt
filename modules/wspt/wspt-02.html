@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>应用与组织 · 应用支撑平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<link rel="stylesheet" href="../../assets/css/spec.css">
+<style>
+  /* 组织树：ancestors 祖级路径是数据范围「本部门及以下」的判定基础，须可视化 */
+  .anc { font-family: Consolas, Monaco, monospace; font-size: 11.5px; color: var(--text-3); }
+  .app-ico {
+    width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 13px;
+    background: var(--primary-light); color: var(--primary);
+  }
+  .app-cell { display: flex; align-items: center; gap: 9px; }
+</style>
+</head>
+<body data-role="admin" data-active="wspt-02">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 应用支撑平台
+        <span class="sep">/</span> 应用与用户
+        <span class="sep">/</span> <span class="cur">应用与组织</span>
+      </div>
+      <div class="page-title">应用与组织 <span class="badge blue">模块一 · 4 个功能点</span></div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="SP.todo('已导出组织树：20 个应用、4 级部门共 186 个节点、42 个岗位，含 ancestors 祖级路径，可用于跨环境迁移')"><i class="fa-solid fa-download"></i> 导出组织</button>
+      <button class="btn" onclick="PMS.openModal('impModal')"><i class="fa-solid fa-upload"></i> 导入组织</button>
+      <button class="btn btn-primary" onclick="PMS.openDrawer('appDrawer')"><i class="fa-solid fa-plus"></i> 新增应用</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>本模块是<b>配置类</b>功能：保存后<b>即时生效</b>，不产生办件号、不设审核环节。
+      部门树的 <b>ancestors 祖级路径</b>是数据范围「本部门及以下」的判定基础——子树查询用
+      <b>ancestors 路径 LIKE 匹配</b>，<b>禁止递归查询</b>；<b>部门层级变动时必须同步维护 ancestors</b>。
+      <a class="link" href="wspt-14.html?tab=fw">看数据范围五档口径</a></div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-layer-group"></i></div><div>
+      <div class="s-label">接入应用</div><div class="s-value">20</div><div class="s-trend text-2">在用 18 · 停用 2</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-sitemap"></i></div><div>
+      <div class="s-label">部门节点</div><div class="s-value">186</div><div class="s-trend text-2">市—城区—街道—社区 4 级</div></div></div>
+    <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-id-badge"></i></div><div>
+      <div class="s-label">岗位</div><div class="s-value">42</div><div class="s-trend text-2">在用 39</div></div></div>
+    <div class="stat-card dc-alarm"><div class="s-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div><div>
+      <div class="s-label">ancestors 待修复</div><div class="s-value">2</div><div class="s-trend">层级变动后未同步</div></div></div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="app">应用管理</div>
+      <div class="tab" data-tab="org">部门组织树</div>
+      <div class="tab" data-tab="pos">岗位管理</div>
+      <div class="tab" data-tab="imp">组织导入导出</div>
+    </div>
+
+    <!-- ===================== 应用管理 ===================== -->
+    <div class="tab-panel active" data-panel="app">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>应用名称</label><input type="text" placeholder="名称或编码"></div>
+          <div class="filter-item"><label>状态</label><select><option>全部</option><option>启用</option><option>停用</option></select></div>
+          <div class="filter-item"><label>业务条线</label>
+            <select><option>全部</option><option>交易网签</option><option>资金监管</option><option>市场监管</option><option>平台支撑</option></select>
+          </div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按所选条件检索应用','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>应用名称</th><th>应用编码</th><th>业务条线</th><th>访问地址</th>
+              <th class="num">授权角色</th><th class="num">在用账号</th><th>状态</th><th>操作</th>
+            </tr></thead>
+            <tbody id="appBody"></tbody>
+          </table>
+        </div>
+        <p class="hint">
+          <i class="fa-solid fa-circle-info"></i>
+          应用是<b>权限链路的终点</b>：用户 → 角色 → 菜单/按钮 → 权限资源 → <b>应用</b>。
+          停用应用后，该应用下所有菜单<b>即时从各角色菜单树收回</b>，但历史操作日志保留可查。
+        </p>
+      </div>
+    </div>
+
+    <!-- ===================== 部门组织树 ===================== -->
+    <div class="tab-panel" data-panel="org">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div><b>ancestors 祖级路径</b>是「本部门及以下」数据范围的判定基础。
+            落地要求：子树查询使用 <b>ancestors 路径 LIKE 匹配</b>（当前部门 ancestors ＋ 当前部门 id 前缀）或 id 等于当前部门，
+            <b>禁止递归查询</b>。<b>部门层级变动时必须同步维护 ancestors</b>，否则该部门子树的数据范围会算错。</div>
+        </div>
+        <div class="sp-split">
+          <aside class="sp-tree">
+            <div class="sp-ti on" onclick="pickDept(this,0)"><i class="fa-solid fa-city"></i> XXXX市住房和城乡建设局 <span class="tc">186</span></div>
+            <div class="sp-ti lv2" onclick="pickDept(this,1)"><i class="fa-solid fa-building"></i> 市房产交易所 <span class="tc">28</span></div>
+            <div class="sp-ti lv3" onclick="pickDept(this,2)">交易科</div>
+            <div class="sp-ti lv3" onclick="pickDept(this,3)">资金监管科</div>
+            <div class="sp-ti lv3" onclick="pickDept(this,4)">档案科</div>
+            <div class="sp-ti lv2" onclick="pickDept(this,5)"><i class="fa-solid fa-building"></i> 柳南区房管所 <span class="tc">42</span></div>
+            <div class="sp-ti lv3" onclick="pickDept(this,6)">柳南区交易大厅</div>
+            <div class="sp-ti lv3" onclick="pickDept(this,7)">南站街道</div>
+            <div class="sp-ti lv2" onclick="pickDept(this,8)"><i class="fa-solid fa-building"></i> 柳北区房管所 <span class="tc">38</span></div>
+            <div class="sp-ti lv2" onclick="pickDept(this,9)"><i class="fa-solid fa-building"></i> 城中区房管所 <span class="tc">34</span></div>
+            <div class="sp-ti lv2 veto" onclick="pickDept(this,10)"><i class="fa-solid fa-triangle-exclamation"></i> 融水县房管所 <span class="tc">24</span></div>
+            <p class="hint" style="padding:10px 2px 0">
+              <i class="fa-solid fa-circle-info"></i>
+              红色节点表示<b>其下级的 ancestors 未同步</b>：子节点仍挂着上上级的路径，
+              该部门子树的「本部门及以下」判定会漏掉这些节点，须重算修复。
+            </p>
+          </aside>
+          <div class="sp-pane">
+            <div class="sp-block">
+              <div class="sp-h"><i class="fa-solid fa-circle-info"></i> <span id="dName">XXXX市住房和城乡建设局</span>
+                <span class="sub" id="dSub">根节点 · 第 1 级</span></div>
+              <div class="sp-b">
+                <div class="grid-2">
+                  <div class="sp-kv">
+                    <div class="kv"><span class="k">部门 id</span><span class="v" id="dId">100</span></div>
+                    <div class="kv"><span class="k">上级部门</span><span class="v" id="dParent">—</span></div>
+                    <div class="kv"><span class="k">ancestors</span><span class="v anc" id="dAnc">0</span></div>
+                    <div class="kv"><span class="k">部门类型</span><span class="v" id="dType">市级主管部门</span></div>
+                  </div>
+                  <div class="sp-kv">
+                    <div class="kv"><span class="k">负责人</span><span class="v" id="dOwner">张伟</span></div>
+                    <div class="kv"><span class="k">联系电话</span><span class="v sp-mask" id="dTel">0772-****8800</span></div>
+                    <div class="kv"><span class="k">在用账号</span><span class="v" id="dUser">186</span></div>
+                    <div class="kv"><span class="k">状态</span><span class="v" id="dSt">启用</span></div>
+                  </div>
+                </div>
+                <div class="sp-fx" style="margin-top:10px">
+                  <span class="lb">本部门及以下判定 ＝</span>
+                  <code>owner_dept_id IN (SELECT id FROM sys_dept WHERE ancestors LIKE '<span id="fxAnc">0</span>,<span id="fxId">100</span>%' OR id = <span id="fxId2">100</span>)</code>
+                </div>
+              </div>
+            </div>
+            <div class="sp-block">
+              <div class="sp-h"><i class="fa-solid fa-list"></i> 直属下级</div>
+              <div class="sp-b pad0">
+                <div class="sp-tw">
+                  <table class="data-table compact">
+                    <thead><tr><th>部门名称</th><th>id</th><th>ancestors</th><th>负责人</th><th class="num">账号</th><th>状态</th><th>操作</th></tr></thead>
+                    <tbody id="subBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-sm btn-primary" onclick="PMS.openDrawer('deptDrawer')"><i class="fa-solid fa-plus"></i> 新增下级部门</button>
+              <button class="btn btn-sm" onclick="SP.todo('已重算所选部门子树的 ancestors 祖级路径，共修复 2 个节点；重算后「本部门及以下」数据范围恢复正常')"><i class="fa-solid fa-wrench"></i> 重算 ancestors</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 岗位管理 ===================== -->
+    <div class="tab-panel" data-panel="pos">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>岗位名称</label><input type="text" placeholder="名称或编码"></div>
+          <div class="filter-item"><label>状态</label><select><option>全部</option><option>启用</option><option>停用</option></select></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按所选条件检索岗位','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="PMS.openDrawer('posDrawer')"><i class="fa-solid fa-plus"></i> 新增岗位</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>岗位编码</th><th>岗位名称</th><th class="num">排序</th><th class="num">关联用户</th><th>状态</th><th>说明</th><th>操作</th></tr></thead>
+            <tbody id="posBody"></tbody>
+          </table>
+        </div>
+        <p class="hint">
+          <i class="fa-solid fa-circle-info"></i>
+          岗位与角色是两条独立的线：<b>角色决定能看什么、能点什么</b>（权限），<b>岗位决定在流程中被谁指派</b>（审批人配置可按岗位取人）。
+          停用岗位后，已按该岗位配置的流程节点须改配审批人，否则实例会找不到办理人。
+        </p>
+      </div>
+    </div>
+
+    <!-- ===================== 组织导入导出 ===================== -->
+    <div class="tab-panel" data-panel="imp">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>组织导入导出用于<b>跨环境迁移</b>（开发 → 测试 → 生产）。
+            导出内容含应用、部门树（<b>含 ancestors</b>）、岗位三类；<b>不含用户与角色授权</b>，避免把生产账号带到测试环境。</div>
+        </div>
+        <div class="grid-2">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-download"></i> 导出</div>
+            <div class="sp-b">
+              <div class="form-grid form-align">
+                <div class="form-item col-full"><label>导出范围 <span class="req">*</span></label>
+                  <div class="radio-line">
+                    <label><input type="checkbox" checked> 应用清单</label>
+                    <label><input type="checkbox" checked> 部门树（含 ancestors）</label>
+                    <label><input type="checkbox" checked> 岗位</label>
+                    <label><input type="checkbox" disabled> 用户与角色 <span class="muted">（不支持导出）</span></label>
+                  </div></div>
+                <div class="form-item col-full"><label>起始部门</label>
+                  <select><option>全部（根节点起）</option><option>市房产交易所及以下</option><option>柳南区房管所及以下</option></select></div>
+              </div>
+              <div class="btn-row" style="margin-top:8px">
+                <button class="btn btn-primary" onclick="SP.exportAsync('组织结构（应用 20 · 部门 186 · 岗位 42）')"><i class="fa-solid fa-download"></i> 生成导出包</button>
+              </div>
+            </div>
+          </div>
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-upload"></i> 导入</div>
+            <div class="sp-b">
+              <div class="sp-doc" onclick="PMS.openModal('impModal')">
+                <i class="fa-solid fa-file-arrow-up"></i>
+                <div>点击选择组织导出包</div>
+                <div class="muted">支持 .zip / .xlsx，导入前自动校验</div>
+              </div>
+              <p class="hint">
+                <i class="fa-solid fa-circle-info"></i>
+                导入前逐条校验<b>编码唯一性、上级部门存在性、ancestors 一致性</b>，
+                <b>任一条不通过则整包不导入</b>，避免出现半截组织树。
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-clock-rotate-left"></i> 导入导出记录
+            <span class="sub">配置类操作一律写操作日志</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>时间</th><th>类型</th><th>范围</th><th class="num">条数</th><th>结果</th><th>操作人</th></tr></thead>
+                <tbody>
+                  <tr><td>2026-08-30 15:22</td><td><span class="badge blue">导出</span></td><td class="cell-lg">应用 ＋ 部门树 ＋ 岗位（全量）</td><td class="num">248</td><td><span class="badge green">成功</span></td><td>蒙丽华</td></tr>
+                  <tr class="row-bad"><td>2026-08-28 10:06</td><td><span class="badge orange">导入</span></td><td class="cell-lg">部门树（融水县房管所及以下）</td><td class="num">24</td>
+                    <td><span class="badge red">整包未导入</span><div class="muted">3 个节点 ancestors 与上级不一致</div></td><td>蒙丽华</td></tr>
+                  <tr><td>2026-08-20 09:14</td><td><span class="badge orange">导入</span></td><td class="cell-lg">岗位</td><td class="num">42</td><td><span class="badge green">成功</span></td><td>蒙丽华</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ========== 抽屉 · 应用 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="appDrawer">
+  <div class="drawer-head"><h3>应用配置</h3><span class="badge blue">保存即生效</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="form-grid form-align">
+      <div class="form-item"><label>应用名称 <span class="req">*</span></label><input type="text" placeholder="如 商品房网签备案管理系统"></div>
+      <div class="form-item"><label>应用编码 <span class="req">*</span></label><input type="text" placeholder="如 wsxfb">
+        <div class="hint">全平台唯一，一经保存<b>不可修改</b>。</div></div>
+      <div class="form-item"><label>业务条线 <span class="req">*</span></label>
+        <select><option>交易网签</option><option>资金监管</option><option>市场监管</option><option>综合办理</option><option>平台支撑</option></select></div>
+      <div class="form-item"><label>图标</label><input type="text" value="fa-file-signature" placeholder="Font Awesome 类名"></div>
+      <div class="form-item col-full"><label>访问地址 <span class="req">*</span></label><input type="text" placeholder="/government/shell.html?sys=wsxfb"></div>
+      <div class="form-item"><label>状态</label><select><option>启用</option><option>停用</option></select>
+        <div class="hint">停用后该应用下所有菜单<b>即时从各角色菜单树收回</b>。</div></div>
+      <div class="form-item"><label>排序</label><input type="text" value="10"></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('已保存并即时生效，已写入操作日志','success')"><i class="fa-solid fa-check"></i> 保存</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉 · 部门 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="deptDrawer">
+  <div class="drawer-head"><h3>新增下级部门</h3><span class="badge blue">保存即生效</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="form-grid form-align">
+      <div class="form-item"><label>上级部门</label><input type="text" value="XXXX市住房和城乡建设局（id 100）" readonly></div>
+      <div class="form-item"><label>部门名称 <span class="req">*</span></label><input type="text" placeholder="部门名称"></div>
+      <div class="form-item"><label>部门类型 <span class="req">*</span></label>
+        <select><option>市级主管部门</option><option>市级直属单位</option><option>县区房管所</option><option>街道</option><option>社区</option></select>
+        <div class="hint">部门类型影响数据范围的<b>对外表述</b>：市级 → 全市，县区及以下 → 辖区。</div></div>
+      <div class="form-item"><label>负责人</label><input type="text" placeholder="姓名"></div>
+      <div class="form-item"><label>联系电话</label><input type="text" placeholder="联系电话"></div>
+      <div class="form-item"><label>排序</label><input type="text" value="10"></div>
+      <div class="form-item col-full"><label>ancestors 祖级路径</label><input type="text" value="0,100" readonly>
+        <div class="hint">由上级部门自动推导，<b>不可手工填写</b>；层级变动时系统同步重算本节点及其全部子树。</div></div>
+    </div>
+    <p class="hint">
+      <i class="fa-solid fa-triangle-exclamation" style="color:var(--lv-orange)"></i>
+      保存后<b>即时生效</b>：新部门立即可被选为用户归属部门与角色自定义数据部门。
+    </p>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('已保存并即时生效，ancestors 已自动推导为 0,100','success')"><i class="fa-solid fa-check"></i> 保存</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉 · 岗位 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="posDrawer">
+  <div class="drawer-head"><h3>岗位配置</h3><span class="badge blue">保存即生效</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="form-grid form-align">
+      <div class="form-item"><label>岗位编码 <span class="req">*</span></label><input type="text" placeholder="如 GW-SLY"></div>
+      <div class="form-item"><label>岗位名称 <span class="req">*</span></label><input type="text" placeholder="如 窗口受理员"></div>
+      <div class="form-item"><label>排序</label><input type="text" value="10"></div>
+      <div class="form-item"><label>状态</label><select><option>启用</option><option>停用</option></select></div>
+      <div class="form-item col-full"><label>说明</label><textarea rows="2" placeholder="岗位职责说明"></textarea></div>
+    </div>
+    <p class="hint">
+      <i class="fa-solid fa-circle-info"></i>
+      岗位用于<b>流程审批人配置</b>按岗位取人。停用前请先检查是否有流程节点按本岗位配置了审批人。
+    </p>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('已保存并即时生效','success')"><i class="fa-solid fa-check"></i> 保存</button>
+  </div>
+</div>
+
+<!-- ========== 弹窗 · 导入校验 ========== -->
+<div class="modal-mask"></div>
+<div class="modal" id="impModal">
+  <div class="modal-head"><h3>组织导入校验</h3><div class="close" data-close-modal><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="modal-body">
+    <div class="alert alert-danger">
+      <i class="fa-solid fa-circle-exclamation"></i>
+      <div><b>校验未通过，整包未导入</b>。导入前逐条校验编码唯一性、上级部门存在性与 ancestors 一致性，
+        <b>任一条不通过则整包不导入</b>，避免出现半截组织树。</div>
+    </div>
+    <div class="sp-check">
+      <div class="ck pass"><i class="fa-solid fa-circle-check"></i><div class="cb">
+        <div class="ct">编码唯一性 · 通过</div><div class="cd">24 个部门编码在目标环境均不冲突。</div></div></div>
+      <div class="ck pass"><i class="fa-solid fa-circle-check"></i><div class="cb">
+        <div class="ct">上级部门存在性 · 通过</div><div class="cd">全部上级部门在目标环境已存在。</div></div></div>
+      <div class="ck block"><i class="fa-solid fa-circle-xmark"></i><div class="cb">
+        <div class="ct">ancestors 一致性 · 未通过（3 个节点）</div>
+        <div class="cd">融水镇（id 4102）ancestors 为 <code>0,100</code>，与其上级融水县房管所（id 410）不符，应为 <code>0,100,410</code>；另有 2 个同类问题。</div></div>
+        <div class="co"><span class="link" onclick="SP.exportAsync('导入校验失败明细')">导出明细</span></div></div>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn" data-close-modal>关闭</button>
+    <button class="btn btn-primary" onclick="PMS.closeModal();PMS.toast('已按上级部门自动修正 3 个节点的 ancestors，可重新导入','success')"><i class="fa-solid fa-wrench"></i> 自动修正后重试</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/spec.js"></script>
+<script>
+var APPS = [
+  ['统一工作门户', 'wsbiz', '综合办理', '/government/shell.html?sys=wsbiz', 6, 486, 1],
+  ['新建商品房网签备案管理系统', 'wsxfb', '交易网签', '/government/shell.html?sys=wsxfb', 5, 218, 1],
+  ['存量房交易网签备案管理系统', 'wscwb', '交易网签', '/government/shell.html?sys=wscwb', 5, 186, 1],
+  ['房屋交易面积信息管理系统', 'wschcg', '交易网签', '/government/shell.html?sys=wschcg', 5, 64, 1],
+  ['新建商品房预售资金监管系统', 'wsszjjg', '资金监管', '/government/shell.html?sys=wsszjjg', 8, 142, 1],
+  ['从业主体与信用监管系统', 'wsztxy', '市场监管', '/government/shell.html?sys=wsztxy', 6, 96, 1],
+  ['应用支撑平台', 'wspt', '平台支撑', '/government/shell.html?sys=wspt', 4, 32, 1],
+  ['房产交易数据中心', 'wsdata', '平台支撑', '/government/shell.html?sys=wsdata', 3, 28, 1],
+  ['统一服务门户', 'wsmh', '对外服务', '/portal/index.html', 4, 174, 1],
+  ['历史归档查询系统', 'wsold', '平台支撑', '/government/shell.html?sys=wsold', 2, 0, 0]
+];
+
+var DEPTS = [
+  { n: 'XXXX市住房和城乡建设局', id: 100, p: '—', anc: '0', t: '市级主管部门', o: '张伟', tel: '0772-****8800', u: 186, st: 1,
+    sub: [['市房产交易所', 101, '0,100', '李慧', 28, 1], ['柳南区房管所', 200, '0,100', '覃永明', 42, 1],
+          ['柳北区房管所', 210, '0,100', '陈××', 38, 1], ['城中区房管所', 220, '0,100', '黄××', 34, 1],
+          ['融水县房管所', 410, '0,100', '莫××', 24, 1]] },
+  { n: '市房产交易所', id: 101, p: 'XXXX市住房和城乡建设局', anc: '0,100', t: '市级直属单位', o: '李慧', tel: '0772-****8812', u: 28, st: 1,
+    sub: [['交易科', 1011, '0,100,101', '韦国强', 12, 1], ['资金监管科', 1012, '0,100,101', '李慧', 9, 1],
+          ['档案科', 1013, '0,100,101', 'archive', 7, 1]] },
+  { n: '交易科', id: 1011, p: '市房产交易所', anc: '0,100,101', t: '市级科室', o: '韦国强', tel: '0772-****8821', u: 12, st: 1, sub: [] },
+  { n: '资金监管科', id: 1012, p: '市房产交易所', anc: '0,100,101', t: '市级科室', o: '李慧', tel: '0772-****8822', u: 9, st: 1, sub: [] },
+  { n: '档案科', id: 1013, p: '市房产交易所', anc: '0,100,101', t: '市级科室', o: '周××', tel: '0772-****8823', u: 7, st: 1, sub: [] },
+  { n: '柳南区房管所', id: 200, p: 'XXXX市住房和城乡建设局', anc: '0,100', t: '县区房管所', o: '覃永明', tel: '0772-****8830', u: 42, st: 1,
+    sub: [['柳南区交易大厅', 2001, '0,100,200', '覃永明', 18, 1], ['南站街道', 2002, '0,100,200', '吴××', 8, 1]] },
+  { n: '柳南区交易大厅', id: 2001, p: '柳南区房管所', anc: '0,100,200', t: '县区窗口', o: '覃永明', tel: '0772-****8831', u: 18, st: 1, sub: [] },
+  { n: '南站街道', id: 2002, p: '柳南区房管所', anc: '0,100,200', t: '街道', o: '吴××', tel: '0772-****8832', u: 8, st: 1, sub: [] },
+  { n: '柳北区房管所', id: 210, p: 'XXXX市住房和城乡建设局', anc: '0,100', t: '县区房管所', o: '陈××', tel: '0772-****8840', u: 38, st: 1, sub: [] },
+  { n: '城中区房管所', id: 220, p: 'XXXX市住房和城乡建设局', anc: '0,100', t: '县区房管所', o: '黄××', tel: '0772-****8850', u: 34, st: 1, sub: [] },
+  { n: '融水县房管所', id: 410, p: 'XXXX市住房和城乡建设局', anc: '0,100', t: '县区房管所', o: '莫××', tel: '0772-****8860', u: 24, st: 1,
+    sub: [['融水镇', 4102, '0,100', '韦××', 6, 2], ['和睦镇', 4103, '0,100', '石××', 5, 2]] }
+];
+
+var POS = [
+  ['GW-SLY', '窗口受理员', 10, 86, 1, '各区县交易大厅收件岗，按岗位被指派受理类流程节点'],
+  ['GW-SHY', '业务审核员', 20, 42, 1, '审核类流程节点按本岗位取人'],
+  ['GW-FHY', '复核员', 30, 18, 1, '资金类办件的复核环节，须与初审岗分人'],
+  ['GW-DAY', '档案管理员', 40, 7, 1, '归档与查档岗'],
+  ['GW-YWGL', '业务管理员', 50, 12, 1, '市局处室业务管理岗'],
+  ['GW-XTGL', '系统管理员', 60, 4, 1, '平台配置岗，可维护应用、组织、字典、流程与国密配置'],
+  ['GW-YWZG', '运维支撑', 70, 6, 1, '运维服务商岗位，只可查看运行监控与日志'],
+  ['GW-JJ-OLD', '旧稽核岗', 99, 0, 2, '机构调整后已停用，停用前须确认无流程节点按本岗位配置审批人']
+];
+
+function stTag(s) {
+  return s === 1 ? '<span class="badge green">启用</span>' : '<span class="badge gray">停用</span>';
+}
+
+function renderApps() {
+  document.getElementById('appBody').innerHTML = APPS.map(function (a) {
+    return '<tr' + (a[6] ? '' : ' class="row-off"') + '>'
+      + '<td class="cell-lg"><span class="app-cell"><span class="app-ico"><i class="fa-solid fa-cube"></i></span>' + a[0] + '</span></td>'
+      + '<td><code>' + a[1] + '</code></td><td>' + a[2] + '</td>'
+      + '<td class="cell-lg"><code>' + a[3] + '</code></td>'
+      + '<td class="num">' + a[4] + '</td><td class="num">' + a[5] + '</td>'
+      + '<td>' + stTag(a[6] ? 1 : 2) + '</td>'
+      + '<td><span class="link" onclick="PMS.openDrawer(\'appDrawer\')">编辑</span>'
+      + '<span class="link" onclick="toggleApp(\'' + a[0] + '\',' + a[6] + ')">' + (a[6] ? '停用' : '启用') + '</span></td></tr>';
+  }).join('');
+}
+
+function toggleApp(name, on) {
+  if (on) {
+    PMS.confirm({
+      title: '停用应用确认', message: '确认停用「' + name + '」？',
+      detail: '停用后该应用下所有菜单即时从各角色菜单树收回，运行中的流程实例不受影响，历史操作日志保留可查。',
+      type: 'warning', okText: '确认停用',
+      onOk: function () { PMS.toast('已停用并即时生效，菜单已从各角色收回', 'success'); }
+    });
+  } else {
+    PMS.toast('已启用并即时生效，菜单已按角色授权重新下发', 'success');
+  }
+}
+
+function pickDept(el, i) {
+  SP.pick(el, '.sp-ti');
+  var d = DEPTS[i];
+  ['dName:n', 'dId:id', 'dParent:p', 'dAnc:anc', 'dType:t', 'dOwner:o', 'dTel:tel'].forEach(function (x) {
+    var p = x.split(':');
+    document.getElementById(p[0]).textContent = d[p[1]];
+  });
+  document.getElementById('dUser').textContent = d.u;
+  document.getElementById('dSub').textContent = d.anc === '0' ? '根节点 · 第 1 级' : ('第 ' + (d.anc.split(',').length) + ' 级 · 上级 ' + d.p);
+  document.getElementById('dSt').innerHTML = d.st === 1 ? '启用' : '<span class="text-danger">ancestors 未同步</span>';
+  document.getElementById('fxAnc').textContent = d.anc;
+  document.getElementById('fxId').textContent = d.id;
+  document.getElementById('fxId2').textContent = d.id;
+  document.getElementById('subBody').innerHTML = d.sub.length
+    ? d.sub.map(function (s) {
+        var bad = s[5] === 2;
+        var expect = d.anc === '0' ? '0,' + d.id : d.anc + ',' + d.id;
+        return '<tr' + (bad ? ' class="row-bad"' : '') + '><td>' + s[0] + '</td><td>' + s[1] + '</td>'
+          + '<td class="anc">' + s[2] + (bad ? ' <span class="text-danger">应为 ' + expect + '</span>' : '') + '</td>'
+          + '<td>' + s[3] + '</td><td class="num">' + s[4] + '</td>'
+          + '<td>' + (bad ? '<span class="badge red">ancestors 未同步</span>' : '<span class="badge green">正常</span>') + '</td>'
+          + '<td><span class="link" onclick="PMS.openDrawer(\'deptDrawer\')">编辑</span></td></tr>';
+      }).join('')
+    : '<tr><td colspan="7" class="muted" style="text-align:center;padding:18px">本部门无直属下级</td></tr>';
+}
+
+function renderPos() {
+  document.getElementById('posBody').innerHTML = POS.map(function (p) {
+    return '<tr' + (p[4] === 1 ? '' : ' class="row-off"') + '>'
+      + '<td><code>' + p[0] + '</code></td><td>' + p[1] + '</td>'
+      + '<td class="num">' + p[2] + '</td><td class="num">' + p[3] + '</td>'
+      + '<td>' + stTag(p[4]) + '</td><td class="cell-lg">' + p[5] + '</td>'
+      + '<td><span class="link" onclick="PMS.openDrawer(\'posDrawer\')">编辑</span></td></tr>';
+  }).join('');
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  renderApps(); renderPos(); pickDept(document.querySelector('.sp-ti'), 0);
+  var t = SP.param('tab'); if (t) SP.tab(t);
+});
+</script>
+</body>
+</html>

@@ -33,6 +33,9 @@
   function fixDepth(scope) {
     var box = document.querySelector(scope);
     if (!box) return;
+    /* app.js 补丁 J 已统一处理，重复补会多出 ../ */
+    if (box.getAttribute('data-depth-fixed')) return;
+    box.setAttribute('data-depth-fixed', '1');
     var up = new Array(extraUp() + 1).join('../');
     if (!up) return;
     box.querySelectorAll('a[href]').forEach(function (a) {

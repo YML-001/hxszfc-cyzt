@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日志与安全审计 · 应用支撑平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<link rel="stylesheet" href="../../assets/css/spec.css">
+<style>
+  .ipx { font-family: Consolas, Monaco, monospace; font-size: 11.5px; }
+  .risk { display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; border-radius: 20px;
+          font-size: 11.5px; font-weight: 600; line-height: 20px; }
+  .risk.hi { background: var(--danger-light); color: var(--lv-red); }
+  .risk.mid { background: var(--warning-light); color: #8a6100; }
+  .risk.low { background: var(--success-light); color: var(--success); }
+</style>
+</head>
+<body data-role="admin" data-active="wspt-12">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 应用支撑平台
+        <span class="sep">/</span> 安全与审计
+        <span class="sep">/</span> <span class="cur">日志与安全审计</span>
+      </div>
+      <div class="page-title">日志与安全审计 <span class="badge blue">模块十 · 5 个功能点</span></div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="SP.todo('已核查高敏留痕完整性：12 类高敏操作近 30 日共 486 条，全部含操作人、时间、IP 与前后值，无留痕字段缺失（验-17 口径）')"><i class="fa-solid fa-list-check"></i> 核查留痕完整性</button>
+      <button class="btn" onclick="PMS.openDrawer('expDrawer')"><i class="fa-solid fa-download"></i> 日志导出</button>
+      <button class="btn btn-primary" onclick="location.href='wspt-13.html'"><i class="fa-solid fa-key"></i> 国密与信创配置</button>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div><b>R-I6</b>：高敏操作日志<b>必须写入本平台，业务子系统不另建审计</b>——全平台只有这一套审计。
+      <b>R-H3</b>：操作日志须记录<b>操作人、模块、类型、请求参数、耗时、结果</b>；
+      <b>敏感参数按脱敏规则落库</b>，不得把身份证号、账号等明文写进日志。
+      <b>日志导出纳入高敏留痕</b>，导出本身也会被记一条。</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-right-to-bracket"></i></div><div>
+      <div class="s-label">今日登录</div><div class="s-value">386</div><div class="s-trend text-2">成功率 98.6%</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-list"></i></div><div>
+      <div class="s-label">今日操作日志</div><div class="s-value">12,486</div><div class="s-trend text-2">涉 20 个应用</div></div></div>
+    <div class="stat-card dc-alarm"><div class="s-icon red"><i class="fa-solid fa-user-lock"></i></div><div>
+      <div class="s-label">异常登录</div><div class="s-value">4</div><div class="s-trend">异地 2 · 多次失败 2</div></div></div>
+    <div class="stat-card"><div class="s-icon orange"><i class="fa-solid fa-shield-halved"></i></div><div>
+      <div class="s-label">近 30 日高敏操作</div><div class="s-value">486</div><div class="s-trend text-2">留痕完整</div></div></div>
+    <div class="stat-card"><div class="s-icon purple"><i class="fa-solid fa-file-export"></i></div><div>
+      <div class="s-label">本月日志导出</div><div class="s-value">12</div><div class="s-trend text-2">均带水印编号</div></div></div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="login">登录日志</div>
+      <div class="tab" data-tab="op">操作日志</div>
+      <div class="tab" data-tab="yc">异常登录预警 <span class="badge red">4</span></div>
+      <div class="tab" data-tab="gm">高敏操作留痕</div>
+      <div class="tab" data-tab="exp">日志导出</div>
+    </div>
+
+    <!-- ===================== 登录日志 ===================== -->
+    <div class="tab-panel active" data-panel="login">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>登录人</label><input type="text" id="gUser" oninput="renderLogin()" placeholder="登录名或姓名"></div>
+          <div class="filter-item"><label>结果</label>
+            <select id="gRes" onchange="renderLogin()"><option value="">全部</option><option>成功</option><option>失败</option></select></div>
+          <div class="filter-item"><label>设备类型</label>
+            <select id="gDev" onchange="renderLogin()"><option value="">全部</option><option>PC 浏览器</option><option>移动端</option></select></div>
+          <div class="filter-item"><label>日期</label><input type="date" value="2026-08-31"></div>
+          <div class="filter-actions"><span class="muted" id="gCnt" style="align-self:center"></span></div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>登录时间</th><th>登录人</th><th>来源 IP</th><th>登录地点</th><th>浏览器 / 设备</th><th>结果</th><th>失败原因</th>
+            </tr></thead>
+            <tbody id="loginBody"></tbody>
+          </table>
+        </div>
+        <p class="hint">
+          <i class="fa-solid fa-circle-info"></i>
+          登录口令按 <b>SM3 加盐哈希</b>校验，日志中<b>不记录口令任何形态</b>。
+          连续失败达到参数阈值（当前 5 次）即锁定账号，须管理员解锁。
+        </p>
+      </div>
+    </div>
+
+    <!-- ===================== 操作日志 ===================== -->
+    <div class="tab-panel" data-panel="op">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>所属应用</label>
+            <select id="oApp" onchange="renderOp()"><option value="">全部</option><option>应用支撑平台</option><option>新建商品房预售资金监管系统</option><option>新建商品房网签备案管理系统</option></select></div>
+          <div class="filter-item"><label>操作类型</label>
+            <select id="oType" onchange="renderOp()"><option value="">全部</option><option>新增</option><option>修改</option><option>删除</option><option>查询</option><option>导出</option><option>授权</option></select></div>
+          <div class="filter-item"><label>操作人</label><input type="text" id="oBy" oninput="renderOp()" placeholder="操作人"></div>
+          <div class="filter-item"><label>结果</label>
+            <select id="oRes" onchange="renderOp()"><option value="">全部</option><option>成功</option><option>失败</option></select></div>
+          <div class="filter-actions"><span class="muted" id="oCnt" style="align-self:center"></span></div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>时间</th><th>操作人</th><th>所属应用</th><th>模块</th><th>类型</th><th>请求参数（已脱敏）</th><th class="num">耗时</th><th>结果</th>
+            </tr></thead>
+            <tbody id="opBody"></tbody>
+          </table>
+        </div>
+        <p class="hint">
+          <i class="fa-solid fa-triangle-exclamation" style="color:var(--lv-orange)"></i>
+          <b>敏感参数按脱敏规则落库</b>：身份证号、手机号、银行账号在写入日志前即脱敏，
+          <b>不是查询时才脱敏</b>——日志库里存的就是脱敏后的值，避免日志成为泄露源。
+        </p>
+      </div>
+    </div>
+
+    <!-- ===================== 异常登录预警 ===================== -->
+    <div class="tab-panel" data-panel="yc">
+      <div class="card-body">
+        <div class="alert alert-danger">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <div>异常登录预警覆盖三类：<b>异地登录</b>（同一账号短时间内出现两地）、
+            <b>多次失败锁定</b>（连续失败达阈值）、<b>非常用设备</b>。
+            预警<b>只输出信号</b>，分级推送与督办处置统一在 <b>PC-25 综合预警与督办闭环中心</b>闭环（R-I12）。</div>
+        </div>
+        <div class="sp-tw">
+          <table class="data-table">
+            <thead><tr>
+              <th>预警时间</th><th>类型</th><th>账号</th><th>风险等级</th><th>详情</th><th>已推送</th><th>操作</th>
+            </tr></thead>
+            <tbody id="ycBody"></tbody>
+          </table>
+        </div>
+
+        <div class="grid-2" style="margin-top:12px">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-sliders"></i> 预警阈值
+              <span class="sub">取自参数键值配置</span></div>
+            <div class="sp-b">
+              <div class="sp-kv">
+                <div class="kv"><span class="k">连续失败锁定次数</span><span class="v">5 次</span>
+                  <a href="wspt-05.html?tab=kv">改参数</a></div>
+                <div class="kv"><span class="k">异地判定时间窗</span><span class="v">30 分钟内两地</span></div>
+                <div class="kv"><span class="k">锁定解除方式</span><span class="v">管理员手工解锁</span></div>
+                <div class="kv"><span class="k">推送对象</span><span class="v">账号本人 ＋ admin ＋ 所在部门负责人</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-shield-halved"></i> 应急处置手段</div>
+            <div class="sp-b">
+              <div class="sp-check">
+                <div class="ck block"><i class="fa-solid fa-user-lock"></i><div class="cb">
+                  <div class="ct">锁定账号</div>
+                  <div class="cd">即时生效，被锁账号无法登录，已登录会话不受影响。</div></div>
+                  <div class="co"><button class="btn btn-sm" onclick="SP.dual('紧急锁定账号','蒙丽华',function(){PMS.toast('已锁定账号并即时生效','success')})">演示</button></div></div>
+                <div class="ck block"><i class="fa-solid fa-power-off"></i><div class="cb">
+                  <div class="ct">强制下线（作废 Token）</div>
+                  <div class="cd">密钥泄露或账号风险时作废 Token，<b>已登录会话即时失效</b>，须重新登录。</div></div>
+                  <div class="co"><button class="btn btn-sm" onclick="location.href='wspt-13.html?tab=key'">去国密配置</button></div></div>
+                <div class="ck wait"><i class="fa-solid fa-key"></i><div class="cb">
+                  <div class="ct">重置口令</div>
+                  <div class="cd">新口令 SM3 加盐落库，下次登录强制改密。</div></div>
+                  <div class="co"><button class="btn btn-sm" onclick="location.href='wspt-03.html'">去用户管理</button></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 高敏操作留痕 ===================== -->
+    <div class="tab-panel" data-panel="gm">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>下列操作纳入<b>高敏留痕</b>，留痕字段含<b>操作人、时间、IP、前后值</b>。
+            <b>全平台只有这一套审计</b>，各业务子系统的高敏操作也写到这里（R-I6）。
+            完整的高敏操作清单与双人授权要求见
+            <span class="link" onclick="location.href='wspt-15.html?tab=gm'">角色权限与业务闭环</span>。</div>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-item"><label>操作类别</label>
+            <select id="hType" onchange="renderGm()">
+              <option value="">全部</option><option>权限授权</option><option>数据范围</option><option>配置发布</option>
+              <option>文件调阅</option><option>日志导出</option><option>密钥管理</option>
+            </select></div>
+          <div class="filter-item"><label>操作人</label><input type="text" id="hBy" oninput="renderGm()" placeholder="操作人"></div>
+          <div class="filter-actions"><span class="muted" id="hCnt" style="align-self:center"></span></div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>时间</th><th>操作类别</th><th>操作内容</th><th>前后值对照</th><th>操作人</th><th>来源 IP</th><th>双人授权</th>
+            </tr></thead>
+            <tbody id="gmBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 日志导出 ===================== -->
+    <div class="tab-panel" data-panel="exp">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div><b>日志导出本身纳入高敏留痕</b>：导出范围、记录条数、用途会被记一条操作日志。
+            导出件<b>带水印编号</b>，可按水印编号反查导出人与导出时间。
+            <b>admin 只可导出配置与调用记录，不可导出业务明细</b>；
+            <b>district 不得导出全市日志</b>。</div>
+        </div>
+        <div class="grid-2">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-file-export"></i> 发起导出</div>
+            <div class="sp-b">
+              <div class="form-grid form-align">
+                <div class="form-item col-full"><label>日志类型 <span class="req">*</span></label>
+                  <select><option>登录日志</option><option>操作日志</option><option>高敏操作留痕</option><option>文件调阅台账</option></select></div>
+                <div class="form-item"><label>起始日期 <span class="req">*</span></label><input type="date" value="2026-08-01"></div>
+                <div class="form-item"><label>截止日期 <span class="req">*</span></label><input type="date" value="2026-08-31"></div>
+                <div class="form-item col-full"><label>数据范围</label><input type="text" value="全市（按当前角色数据范围自动限定）" readonly>
+                  <div class="hint">导出范围<b>受角色数据范围约束</b>，不能导超出范围的数据。</div></div>
+                <div class="form-item col-full"><label>导出用途 <span class="req">*</span></label>
+                  <textarea id="expUse" rows="2" placeholder="必填，不少于 10 字。用途写入高敏留痕"></textarea></div>
+              </div>
+              <div class="btn-row" style="margin-top:8px">
+                <button class="btn btn-sm btn-primary" onclick="doExport()"><i class="fa-solid fa-download"></i> 提交导出</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-clock-rotate-left"></i> 导出记录
+              <span class="sub">可按水印编号反查</span></div>
+            <div class="sp-b pad0">
+              <div class="sp-tw">
+                <table class="data-table compact">
+                  <thead><tr><th>水印编号</th><th>日志类型</th><th>范围</th><th class="num">条数</th><th>用途</th><th>导出人</th><th>时间</th></tr></thead>
+                  <tbody>
+                    <tr><td><code>WM-20260831-012</code></td><td>操作日志</td><td>2026-08 全月</td><td class="num">386,248</td>
+                      <td class="cell-lg">月度安全审计报告数据支撑</td><td>蒙丽华</td><td>2026-08-31 09:14</td></tr>
+                    <tr><td><code>WM-20260828-011</code></td><td>高敏操作留痕</td><td>2026-07 至 08</td><td class="num">862</td>
+                      <td class="cell-lg">配合上级安全检查提供高敏操作台账</td><td>蒙丽华</td><td>2026-08-28 15:22</td></tr>
+                    <tr><td><code>WM-20260820-010</code></td><td>文件调阅台账</td><td>2026-08-01 至 08-20</td><td class="num">1,842</td>
+                      <td class="cell-lg">档案科季度调阅情况统计</td><td>周××</td><td>2026-08-20 11:06</td></tr>
+                    <tr class="row-warn"><td><code>WM-20260812-009</code></td><td>登录日志</td><td>2026-08-01 至 08-12</td><td class="num">4,286</td>
+                      <td class="cell-lg">异常登录专项排查</td><td>蒙丽华</td><td>2026-08-12 16:48</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="btn-row" style="padding:9px 12px">
+                <button class="btn btn-sm" onclick="SP.todo('按水印编号 WM-20260831-012 反查：导出人蒙丽华、导出时间 2026-08-31 09:14、来源 IP 10.16.32.12、用途「月度安全审计报告数据支撑」、导出条数 386,248')"><i class="fa-solid fa-magnifying-glass"></i> 按水印反查</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ========== 抽屉 · 导出 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="expDrawer">
+  <div class="drawer-head"><h3>日志导出</h3><span class="badge red">纳入高敏留痕</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-warning">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div>导出范围<b>受当前角色数据范围约束</b>；导出件带<b>水印编号</b>；
+        <b>导出行为本身写入高敏留痕</b>，含导出范围、记录条数与用途。</div>
+    </div>
+    <div class="form-grid form-align">
+      <div class="form-item col-full"><label>日志类型 <span class="req">*</span></label>
+        <select><option>登录日志</option><option>操作日志</option><option>高敏操作留痕</option><option>文件调阅台账</option></select></div>
+      <div class="form-item"><label>起始日期 <span class="req">*</span></label><input type="date" value="2026-08-01"></div>
+      <div class="form-item"><label>截止日期 <span class="req">*</span></label><input type="date" value="2026-08-31"></div>
+      <div class="form-item col-full"><label>导出用途 <span class="req">*</span></label>
+        <textarea id="expUse2" rows="2" placeholder="必填，不少于 10 字"></textarea></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="doExport2()"><i class="fa-solid fa-download"></i> 提交导出</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/spec.js"></script>
+<script>
+var LOGIN = [
+  ['2026-08-31 10:48:12', '蒙丽华 (mengliho)', '10.16.32.12', 'XXXX市 · 内网', 'Chrome 131 / Windows', 1, '', 'PC 浏览器'],
+  ['2026-08-31 09:22:06', '韦国强 (weiguoq)', '10.16.32.108', 'XXXX市 · 内网', 'Chrome 131 / Windows', 1, '', 'PC 浏览器'],
+  ['2026-08-31 09:04:38', '李慧 (lihui)', '10.16.32.48', 'XXXX市 · 内网', 'Edge 130 / Windows', 1, '', 'PC 浏览器'],
+  ['2026-08-31 08:46:20', '张伟 (zhangwei)', '117.62.48.126', 'XXXX市 · 移动网络', 'Safari / iOS 18', 1, '', '移动端'],
+  ['2026-08-31 08:12:44', '覃永明 (qinym)', '10.16.36.24', 'XXXX市 · 内网', 'Chrome 131 / Windows', 0, '口令错误（第 5 次，账号已锁定）', 'PC 浏览器'],
+  ['2026-08-31 08:11:52', '覃永明 (qinym)', '10.16.36.24', 'XXXX市 · 内网', 'Chrome 131 / Windows', 0, '口令错误（第 4 次）', 'PC 浏览器'],
+  ['2026-08-30 22:36:14', '周×× (zhouxx)', '203.86.142.66', '南宁市 · 公网', 'Chrome 131 / Windows', 1, '', 'PC 浏览器'],
+  ['2026-08-30 22:08:52', '周×× (zhouxx)', '10.16.34.66', 'XXXX市 · 内网', 'Chrome 131 / Windows', 1, '', 'PC 浏览器'],
+  ['2026-08-30 17:14:08', '荣和地产 陈×× (ronghe01)', '112.48.66.208', 'XXXX市 · 公网', 'Chrome 131 / macOS', 1, '', 'PC 浏览器']
+];
+
+var OPS = [
+  ['2026-08-31 10:48', '蒙丽华', '应用支撑平台', '用户与角色授权', '授权', '{"userId":"1024","roleIds":["reviewer","archive"]}', '86ms', 1],
+  ['2026-08-31 10:22', '蒙丽华', '应用支撑平台', '统一文件管理', '授权', '{"grantee":"qinym","fileId":"FILE-...8624","action":"preview"}', '124ms', 1],
+  ['2026-08-31 09:56', '周××', '应用支撑平台', '统一文件管理', '查询', '{"category":"监管协议影像","page":1}', '42ms', 1],
+  ['2026-08-31 09:48', '覃永明', '新建商品房预售资金监管系统', '资金使用管理', '修改', '{"id":"5301-2026-0086","status":"accepted"}', '168ms', 1],
+  ['2026-08-31 09:22', '荣和地产 陈××', '统一服务门户', '资金使用申报', '新增', '{"projectId":"5001-...0142","amount":18600000,"idCard":"4502**********0018"}', '286ms', 1],
+  ['2026-08-31 09:14', '蒙丽华', '应用支撑平台', '日志与安全审计', '导出', '{"type":"operLog","range":"2026-08","count":386248}', '4.2s', 1],
+  ['2026-08-31 08:52', '韦国强', '新建商品房网签备案管理系统', '合同网签备案', '修改', '{"contractNo":"WQ2026-004186","phone":"138****8800"}', '142ms', 1],
+  ['2026-08-31 08:12', '覃永明', '应用支撑平台', '统一身份认证', '查询', '{"username":"qinym"}', '38ms', 0],
+  ['2026-08-30 17:02', '蒙丽华', '应用支撑平台', '基础配置与数据字典', '修改', '{"key":"sys.session.timeout","old":"30","new":"20"}', '64ms', 1],
+  ['2026-08-30 16:22', '李慧', '应用支撑平台', '合同模板与拟制归档', '新增', '{"templateCode":"CT-ZJJG-SF","ver":"v2"}', '212ms', 1]
+];
+
+var YCS = [
+  ['2026-08-31 08:12:44', '多次失败锁定', '覃永明 (qinym)', 'hi', '连续 5 次口令错误，账号已自动锁定；来源 IP 10.16.36.24（本人常用内网 IP）', 1],
+  ['2026-08-30 22:36:14', '异地登录', '周×× (zhouxx)', 'hi', '28 分钟内先后从 XXXX市内网（10.16.34.66）与南宁市公网（203.86.142.66）登录', 1],
+  ['2026-08-30 14:08:22', '非常用设备', '张伟 (zhangwei)', 'mid', '首次从 iOS 18 / Safari 登录，此前均为 Windows / Chrome', 1],
+  ['2026-08-29 19:44:06', '多次失败锁定', '彰泰置业 黄×× (zhangtai02)', 'mid', '连续 5 次口令错误，账号已锁定；企业端账号，疑为忘记口令', 1]
+];
+
+var GMS = [
+  ['2026-08-31 10:48', '权限授权', '为用户「韦国强」新增角色 archive 档案管理',
+   '角色：[reviewer] → [reviewer, archive]', '蒙丽华', '10.16.32.12', 0],
+  ['2026-08-31 10:22', '文件调阅', '授权「覃永明」预览监管协议影像 · 彰泰滨江学府',
+   '未授权 → 已授权（仅预览，有效期至 2026-09-30）', '蒙丽华', '10.16.32.12', 0],
+  ['2026-08-31 09:14', '日志导出', '导出 2026-08 全月操作日志 386,248 条',
+   '水印编号 WM-20260831-012 · 用途：月度安全审计报告', '蒙丽华', '10.16.32.12', 0],
+  ['2026-08-30 17:02', '配置发布', '修改会话超时参数',
+   'sys.session.timeout：30 → 20（分钟）', '蒙丽华', '10.16.32.12', 0],
+  ['2026-08-30 16:22', '配置发布', '合同模板「商品房预售资金三方监管协议」升版本至 v2',
+   'v1 → v2 · 已生效合同仍按各自 template_ver', '李慧', '10.16.32.48', 1],
+  ['2026-08-30 11:26', '数据范围', '为角色「专项检查组」配置自定义数据部门',
+   '部门集合：[] → [柳南区房管所, 柳北区房管所, 城中区房管所]', '李慧', '10.16.32.48', 1],
+  ['2026-08-29 15:38', '密钥管理', '轮换 SM4 数据加密密钥',
+   '密钥版本 KEY-0006-v3 → KEY-0006-v4，轮换期间新旧并行解密', '蒙丽华', '10.16.32.12', 1],
+  ['2026-08-28 15:22', '日志导出', '导出 2026-07 至 08 高敏操作留痕 862 条',
+   '水印编号 WM-20260828-011 · 用途：配合上级安全检查', '蒙丽华', '10.16.32.12', 0],
+  ['2026-08-26 10:14', '权限授权', '重置用户「吴××」登录口令',
+   '口令已重置并短信下发，下次登录强制改密', '蒙丽华', '10.16.32.12', 0]
+];
+
+function renderLogin() {
+  var u = (document.getElementById('gUser').value || '').trim();
+  var r = document.getElementById('gRes').value;
+  var d = document.getElementById('gDev').value;
+  var rows = LOGIN.filter(function (x) {
+    if (u && x[1].indexOf(u) < 0) return false;
+    if (r === '成功' && !x[5]) return false;
+    if (r === '失败' && x[5]) return false;
+    if (d && x[7] !== d) return false;
+    return true;
+  });
+  document.getElementById('gCnt').innerHTML = '共 <b>' + rows.length + '</b> 条';
+  document.getElementById('loginBody').innerHTML = rows.map(function (x) {
+    return '<tr' + (x[5] ? '' : ' class="row-bad"') + '>'
+      + '<td>' + x[0] + '</td><td>' + x[1] + '</td>'
+      + '<td><span class="ipx">' + x[2] + '</span></td><td>' + x[3] + '</td><td class="cell-lg">' + x[4] + '</td>'
+      + '<td>' + (x[5] ? '<span class="badge green">成功</span>' : '<span class="badge red">失败</span>') + '</td>'
+      + '<td class="cell-lg">' + (x[6] || '—') + '</td></tr>';
+  }).join('') || '<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">没有符合条件的记录</td></tr>';
+}
+
+function renderOp() {
+  var a = document.getElementById('oApp').value;
+  var t = document.getElementById('oType').value;
+  var b = (document.getElementById('oBy').value || '').trim();
+  var r = document.getElementById('oRes').value;
+  var rows = OPS.filter(function (x) {
+    if (a && x[2] !== a) return false;
+    if (t && x[4] !== t) return false;
+    if (b && x[1].indexOf(b) < 0) return false;
+    if (r === '成功' && !x[7]) return false;
+    if (r === '失败' && x[7]) return false;
+    return true;
+  });
+  document.getElementById('oCnt').innerHTML = '共 <b>' + rows.length + '</b> 条';
+  var TT = { '新增': 'green', '修改': 'orange', '删除': 'red', '查询': 'gray', '导出': 'purple', '授权': 'blue' };
+  document.getElementById('opBody').innerHTML = rows.map(function (x) {
+    return '<tr' + (x[7] ? '' : ' class="row-bad"') + '>'
+      + '<td>' + x[0] + '</td><td>' + x[1] + '</td><td class="cell-lg">' + x[2] + '</td><td>' + x[3] + '</td>'
+      + '<td><span class="badge ' + TT[x[4]] + '">' + x[4] + '</span></td>'
+      + '<td class="cell-lg"><code style="font-size:11.5px">' + x[5].replace(/</g, '&lt;') + '</code></td>'
+      + '<td class="num">' + x[6] + '</td>'
+      + '<td>' + (x[7] ? '<span class="badge green">成功</span>' : '<span class="badge red">失败</span>') + '</td></tr>';
+  }).join('') || '<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">没有符合条件的记录</td></tr>';
+}
+
+function renderYc() {
+  var RK = { hi: '<span class="risk hi">高</span>', mid: '<span class="risk mid">中</span>', low: '<span class="risk low">低</span>' };
+  document.getElementById('ycBody').innerHTML = YCS.map(function (y) {
+    return '<tr class="' + (y[3] === 'hi' ? 'row-bad' : 'row-warn') + '">'
+      + '<td>' + y[0] + '</td><td>' + y[1] + '</td><td>' + y[2] + '</td>'
+      + '<td>' + RK[y[3]] + '</td><td class="cell-lg">' + y[4] + '</td>'
+      + '<td>' + (y[5] ? '<span class="badge green">已推 PC-25</span>' : '—') + '</td>'
+      + '<td><span class="link" onclick="SP.todo(\'本平台只输出预警信号；分级推送、督办派单与处置反馈统一在 PC-25 综合预警与督办闭环中心闭环（R-I12）\')">看处置</span>'
+      + (y[1] === '多次失败锁定' ? '<span class="link" onclick="location.href=\'wspt-03.html\'">去解锁</span>' : '') + '</td></tr>';
+  }).join('');
+}
+
+function renderGm() {
+  var t = document.getElementById('hType').value;
+  var b = (document.getElementById('hBy').value || '').trim();
+  var rows = GMS.filter(function (g) {
+    if (t && g[1] !== t) return false;
+    if (b && g[4].indexOf(b) < 0) return false;
+    return true;
+  });
+  document.getElementById('hCnt').innerHTML = '共 <b>' + rows.length + '</b> 条';
+  document.getElementById('gmBody').innerHTML = rows.map(function (g) {
+    return '<tr' + (g[6] ? ' class="row-warn"' : '') + '>'
+      + '<td>' + g[0] + '</td><td><span class="badge blue">' + g[1] + '</span></td>'
+      + '<td class="cell-lg">' + g[2] + '</td><td class="cell-lg">' + g[3] + '</td>'
+      + '<td>' + g[4] + '</td><td><span class="ipx">' + g[5] + '</span></td>'
+      + '<td>' + (g[6] ? '<span class="badge red">是</span>' : '<span class="badge gray">否</span>') + '</td></tr>';
+  }).join('') || '<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">没有符合条件的记录</td></tr>';
+}
+
+function doExport() {
+  var u = document.getElementById('expUse');
+  if ((u.value || '').trim().length < 10) { SP.denied('导出用途为必填且不少于 10 字，用途写入高敏留痕'); u.focus(); return; }
+  PMS.toast('已提交导出，水印编号 WM-20260831-013；本次导出已写入高敏留痕（含范围、条数与用途）', 'success');
+}
+function doExport2() {
+  var u = document.getElementById('expUse2');
+  if ((u.value || '').trim().length < 10) { SP.denied('导出用途为必填且不少于 10 字'); u.focus(); return; }
+  PMS.closeDrawer();
+  PMS.toast('已提交导出，水印编号 WM-20260831-013；导出件带水印可反查', 'success');
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  renderLogin(); renderOp(); renderYc(); renderGm();
+  var t = SP.param('tab'); if (t) SP.tab(t);
+});
+</script>
+</body>
+</html>

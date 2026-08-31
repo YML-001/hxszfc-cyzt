@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>待办与流程监控 · 应用支撑平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<link rel="stylesheet" href="../../assets/css/spec.css">
+<style>
+  /* 流程图高亮：已过节点绿、当前节点蓝闪、未到节点灰 */
+  .fmap { display: flex; align-items: center; flex-wrap: wrap; gap: 0; }
+  .fmap .fs {
+    padding: 7px 12px; font-size: 12.5px; border: 1px solid var(--border);
+    background: var(--bg-soft); color: var(--text-3); white-space: nowrap;
+  }
+  .fmap .fs:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+  .fmap .fs:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+  .fmap .fs + .fs { border-left: none; }
+  .fmap .fs.done { background: var(--success-light); border-color: #cfe9bd; color: var(--success); font-weight: 600; }
+  .fmap .fs.cur { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 700; }
+  .fmap .fs.rej { background: var(--danger-light); border-color: #f0c7c7; color: var(--lv-red); font-weight: 600; }
+  .ovd { color: var(--lv-red); font-weight: 700; }
+</style>
+</head>
+<body data-role="reviewer" data-active="wspt-09">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 应用支撑平台
+        <span class="sep">/</span> 表单与流程
+        <span class="sep">/</span> <span class="cur">待办与流程监控</span>
+      </div>
+      <div class="page-title">待办与流程监控 <span class="badge blue">模块八 · 6 个功能点</span></div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="SP.todo('已推送催办：12 个超时任务已按工作日历重算 due_time 并推送催办至当前办理人与其部门负责人')"><i class="fa-solid fa-bell"></i> 批量催办</button>
+      <button class="btn" onclick="SP.exportAsync('流程实例台账')"><i class="fa-solid fa-download"></i> 导出台账</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>本模块<b>承接已发布流程定义产生的实例</b>，<b>不构成本平台的事项办件</b>——
+      待办来自各业务板块经流程引擎发起的办件与本平台的合同拟制实例。
+      流程实例状态五档：<b>审批中、通过、拒绝、撤回、终止</b>，映射统一七态为
+      审批中→在办、通过→已办结、拒绝→已退回、撤回与终止→已作废。</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card dc-alarm"><div class="s-icon red"><i class="fa-solid fa-inbox"></i></div><div>
+      <div class="s-label">我的待办</div><div class="s-value">18</div><div class="s-trend">超时 3 件</div></div></div>
+    <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div><div>
+      <div class="s-label">我的已办</div><div class="s-value">246</div><div class="s-trend text-2">近 30 日</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-paper-plane"></i></div><div>
+      <div class="s-label">我发起的</div><div class="s-value">32</div><div class="s-trend text-2">在办 8 · 已办结 24</div></div></div>
+    <div class="stat-card"><div class="s-icon purple"><i class="fa-solid fa-share-nodes"></i></div><div>
+      <div class="s-label">抄送我的</div><div class="s-value">14</div><div class="s-trend text-2">未读 5</div></div></div>
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-diagram-project"></i></div><div>
+      <div class="s-label">全局运行中实例</div><div class="s-value">218</div><div class="s-trend text-2">涉 12 个业务板块</div></div></div>
+    <div class="stat-card dc-alarm"><div class="s-icon orange"><i class="fa-solid fa-clock"></i></div><div>
+      <div class="s-label">全局超时任务</div><div class="s-value">12</div><div class="s-trend">已推催办</div></div></div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="td">我的待办 <span class="badge red">18</span></div>
+      <div class="tab" data-tab="dn">我的已办</div>
+      <div class="tab" data-tab="mine">我发起的</div>
+      <div class="tab" data-tab="cc">抄送我的 <span class="badge purple">5</span></div>
+      <div class="tab" data-tab="jk">流程实例监控</div>
+      <div class="tab" data-tab="stop">强制终止</div>
+    </div>
+
+    <!-- ===================== 我的待办 ===================== -->
+    <div class="tab-panel active" data-panel="td">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>来源板块</label>
+            <select id="tSys" onchange="renderTd()">
+              <option value="">全部</option><option>新建商品房预售资金监管系统</option><option>新建商品房网签备案管理系统</option><option>应用支撑平台</option>
+            </select></div>
+          <div class="filter-item"><label>时限状态</label>
+            <select id="tOvd" onchange="renderTd()"><option value="">全部</option><option value="1">已超时</option><option value="0">正常</option></select></div>
+          <div class="filter-item"><label>关键字</label><input type="text" id="tKw" oninput="renderTd()" placeholder="办件号或标题"></div>
+          <div class="filter-actions"><span class="muted" id="tCnt" style="align-self:center"></span></div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>办件 / 实例标题</th><th>来源板块</th><th>当前节点</th><th>发起人</th><th>到达时间</th>
+              <th>due_time</th><th>剩余</th><th>操作</th>
+            </tr></thead>
+            <tbody id="tdBody"></tbody>
+          </table>
+        </div>
+        <p class="hint">
+          <i class="fa-solid fa-circle-info"></i>
+          <code>due_time</code> 由<span class="link" onclick="location.href='wspt-06.html?tab=sla'">工作日历</span>按
+          <code>sla_hours</code> 计算，<b>休息日与法定节假日不计入</b>（R-I4）。超时任务自动推送催办。
+        </p>
+      </div>
+    </div>
+
+    <!-- ===================== 我的已办 ===================== -->
+    <div class="tab-panel" data-panel="dn">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>审批动作</label>
+            <select><option>全部</option><option>agree 同意</option><option>reject 拒绝</option><option>return 退回</option><option>transfer 转办</option></select></div>
+          <div class="filter-item"><label>办理时间</label><input type="date" value="2026-08-01"></div>
+          <div class="filter-item"><label>关键字</label><input type="text" placeholder="办件号或标题"></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按所选条件检索已办任务','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>办件 / 实例标题</th><th>来源板块</th><th>我办理的节点</th><th>审批动作</th><th>我的意见</th><th>办理时间</th><th>实例当前状态</th><th>操作</th></tr></thead>
+            <tbody id="dnBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 我发起的 ===================== -->
+    <div class="tab-panel" data-panel="mine">
+      <div class="card-body">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>实例标题</th><th>流程</th><th>发起时间</th><th>当前节点</th><th>实例状态</th><th>进度</th><th>操作</th></tr></thead>
+            <tbody id="mineBody"></tbody>
+          </table>
+        </div>
+        <p class="hint">
+          <i class="fa-solid fa-circle-info"></i>
+          发起人可对<b>尚未被任何人办理</b>的实例执行撤回；已有人办理过的须走退回或终止。
+          撤回后实例状态置为 <b>撤回</b>，映射统一七态为<b>已作废</b>。
+        </p>
+      </div>
+    </div>
+
+    <!-- ===================== 抄送我的 ===================== -->
+    <div class="tab-panel" data-panel="cc">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>抄送节点<b>不阻塞流程</b>：抄送生成的是「已阅」类任务，未读不影响实例继续流转。
+            任务状态取自字典 <code>wf_task_status</code>：待办、已办、转办、<b>已阅</b>。</div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>实例标题</th><th>来源板块</th><th>抄送节点</th><th>抄送时间</th><th>发起人</th><th>阅读状态</th><th>操作</th></tr></thead>
+            <tbody id="ccBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 流程实例监控 ===================== -->
+    <div class="tab-panel" data-panel="jk">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>来源板块</label>
+            <select id="jSys" onchange="renderJk()"><option value="">全部</option><option>新建商品房预售资金监管系统</option><option>新建商品房网签备案管理系统</option><option>应用支撑平台</option></select></div>
+          <div class="filter-item"><label>实例状态</label>
+            <select id="jSt" onchange="renderJk()"><option value="">全部</option><option>审批中</option><option>通过</option><option>拒绝</option><option>撤回</option><option>终止</option></select></div>
+          <div class="filter-item"><label>时限状态</label>
+            <select id="jOvd" onchange="renderJk()"><option value="">全部</option><option value="1">已超时</option></select></div>
+          <div class="filter-actions"><span class="muted" id="jCnt" style="align-self:center"></span></div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>实例编号</th><th>标题</th><th>流程 / 版本</th><th>来源板块</th><th>当前节点</th>
+              <th>发起人</th><th>发起时间</th><th>状态</th><th>操作</th>
+            </tr></thead>
+            <tbody id="jkBody"></tbody>
+          </table>
+        </div>
+        <p class="hint">
+          <i class="fa-solid fa-circle-info"></i>
+          <b>验-10</b>：从已办结实例可下钻到全部 <code>wf_task_record</code>，含<b>动作、意见、时间</b>。
+          实例按<b>创建时固化的流程版本</b>流转，改流程定义不影响已运行实例（R-K5）。
+        </p>
+      </div>
+    </div>
+
+    <!-- ===================== 强制终止 ===================== -->
+    <div class="tab-panel" data-panel="stop">
+      <div class="card-body">
+        <div class="alert alert-danger">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <div><b>强制终止是管理员专有的异常处置手段</b>，只用于实例卡死、流程配置错误、业务已作废等无法正常走完的情形。
+            终止后实例状态置为 <b>终止</b>（映射统一七态为<b>已作废</b>），
+            <b>待办即时清除、不可恢复</b>；<b>终止理由必填并写入操作日志</b>。
+            正常的业务退回、拒绝、撤回<b>不应走强制终止</b>。</div>
+        </div>
+        <div class="sp-tw">
+          <table class="data-table">
+            <thead><tr>
+              <th>实例编号</th><th>标题</th><th>来源板块</th><th>卡住原因</th><th>停留时长</th><th>当前节点</th><th>操作</th>
+            </tr></thead>
+            <tbody>
+              <tr class="row-bad">
+                <td><code>WI20260612-03204</code></td><td class="cell-lg">监管资金使用申请 · 彰泰滨江学府 6 号楼</td>
+                <td>新建商品房预售资金监管系统</td>
+                <td class="cell-lg"><b>审批人已离职且未转办</b>，角色下无其他人满足分岗校验</td>
+                <td class="ovd">80 天</td><td>复核</td>
+                <td><span class="link danger" onclick="openStop('WI20260612-03204','监管资金使用申请 · 彰泰滨江学府 6 号楼')">强制终止</span></td>
+              </tr>
+              <tr class="row-bad">
+                <td><code>WI20260704-03412</code></td><td class="cell-lg">保交楼房间备案 · 恒达阳光里 5 号楼</td>
+                <td>新建商品房预售资金监管系统</td>
+                <td class="cell-lg"><b>条件网关无兜底出线</b>，表单金额为 0 时两条出线均不命中</td>
+                <td class="ovd">58 天</td><td>条件网关</td>
+                <td><span class="link danger" onclick="openStop('WI20260704-03412','保交楼房间备案 · 恒达阳光里 5 号楼')">强制终止</span></td>
+              </tr>
+              <tr class="row-warn">
+                <td><code>WI20260808-03886</code></td><td class="cell-lg">合同拟制 · 三方监管协议</td>
+                <td>应用支撑平台</td>
+                <td class="cell-lg">企业已撤回业务申请，但实例未同步终止</td>
+                <td>23 天</td><td>法务会签</td>
+                <td><span class="link danger" onclick="openStop('WI20260808-03886','合同拟制 · 三方监管协议')">强制终止</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-clock-rotate-left"></i> 终止记录
+            <span class="sub">高敏操作，全程留痕</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>实例编号</th><th>标题</th><th>终止时间</th><th>终止理由</th><th>操作人</th></tr></thead>
+                <tbody>
+                  <tr><td><code>WI20260518-02864</code></td><td class="cell-lg">监管资金使用申请 · 万科城 12 号楼</td>
+                    <td>2026-07-12 15:22</td>
+                    <td class="cell-lg">流程定义配置错误导致实例卡在并行网关，已修正定义并由企业重新发起</td><td>蒙丽华</td></tr>
+                  <tr><td><code>WI20260422-02418</code></td><td class="cell-lg">企业入网申请 · XX 置业</td>
+                    <td>2026-06-08 10:06</td>
+                    <td class="cell-lg">企业主体已注销，业务不再需要办理</td><td>蒙丽华</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ========== 抽屉 · 办理 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="doDrawer">
+  <div class="drawer-head"><h3>任务办理 · <span data-fill="t">监管资金使用申请</span></h3>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="fmap" style="margin-bottom:12px" id="doMap"></div>
+    <dl class="desc-list">
+      <div class="desc-item"><dt>实例编号</dt><dd data-fill="id">WI20260831-04862</dd></div>
+      <div class="desc-item"><dt>来源板块</dt><dd data-fill="sys">新建商品房预售资金监管系统</dd></div>
+      <div class="desc-item"><dt>流程 / 版本</dt><dd>重点资金使用审批 <span class="sp-vt cur">v1</span> <span class="muted">实例固化版本</span></dd></div>
+      <div class="desc-item"><dt>当前节点</dt><dd data-fill="node">初审</dd></div>
+      <div class="desc-item"><dt>发起人</dt><dd data-fill="by">荣和地产 · 陈××</dd></div>
+      <div class="desc-item"><dt>到达时间</dt><dd data-fill="at">2026-08-31 09:22</dd></div>
+      <div class="desc-item"><dt>due_time</dt><dd data-fill="due">2026-09-01 17:30</dd></div>
+      <div class="desc-item"><dt>绑定表单</dt><dd>监管资金使用申请表 <code>FM-ZJSY v1</code></dd></div>
+    </dl>
+
+    <div class="sp-block" style="margin-top:12px">
+      <div class="sp-h"><i class="fa-solid fa-table-list"></i> 表单内容
+        <span class="sub">按本节点的字段权限渲染</span></div>
+      <div class="sp-b">
+        <div class="sp-kv">
+          <div class="kv"><span class="k">监管项目</span><span class="v">荣和公园大道二期 <span class="muted">（只读）</span></span></div>
+          <div class="kv"><span class="k">监管楼栋</span><span class="v">8 号楼 <span class="muted">（只读）</span></span></div>
+          <div class="kv"><span class="k">资金类别</span><span class="v">重点资金 <span class="muted">（只读）</span></span></div>
+          <div class="kv"><span class="k">申请金额</span><span class="v">1,860.00 万元 <span class="muted">（只读）</span></span></div>
+          <div class="kv"><span class="k">收款账户</span><span class="v">XXXX建工 工程款 …4402 <span class="muted">（只读）</span></span></div>
+          <div class="kv"><span class="k">申请材料</span><span class="v">2 件 <span class="link">在线预览</span></span></div>
+        </div>
+        <p class="hint">
+          <i class="fa-solid fa-circle-info"></i>
+          「拨付指令编号」字段在本节点为<b>隐藏</b>——后端不下发，前端取不到。
+          <span class="link" onclick="location.href='wspt-08.html?tab=perm'">看节点字段权限</span>
+        </p>
+      </div>
+    </div>
+
+    <div class="form-grid form-align" style="margin-top:12px">
+      <div class="form-item col-full"><label>审批动作 <span class="req">*</span></label>
+        <select id="doAct">
+          <option value="">请选择</option>
+          <option value="agree">agree 同意，转下一节点</option>
+          <option value="return">return 退回上一节点</option>
+          <option value="reject">reject 拒绝，实例终结</option>
+          <option value="transfer">transfer 转办他人</option>
+          <option value="addsign">addsign 加签</option>
+        </select></div>
+      <div class="form-item col-full"><label>审批意见 <span class="req">*</span></label>
+        <textarea id="doNote" rows="3" placeholder="必填，不少于 10 字。意见写入 wf_task_record，可被下钻查阅"></textarea></div>
+    </div>
+    <p class="hint">
+      <i class="fa-solid fa-triangle-exclamation" style="color:var(--lv-orange)"></i>
+      <b>内部审核意见原文对企业端不可见</b>，企业端只见结论与需补正内容。
+    </p>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="submitDo()"><i class="fa-solid fa-check"></i> 提交办理</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉 · 实例详情 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="instDrawer">
+  <div class="drawer-head"><h3>实例详情 · <span data-fill="iid">WI20260831-04862</span></h3>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="fmap" style="margin-bottom:12px" id="instMap"></div>
+    <div class="sp-block">
+      <div class="sp-h"><i class="fa-solid fa-timeline"></i> 办理轨迹
+        <span class="sub">wf_task_record · 验-10 要求可下钻到全部记录</span></div>
+      <div class="sp-b pad0">
+        <div class="sp-tw">
+          <table class="data-table compact">
+            <thead><tr><th>时间</th><th>节点</th><th>办理人</th><th>动作</th><th>意见</th><th>耗时</th></tr></thead>
+            <tbody id="trkBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn" onclick="SP.todo('已推送催办至当前办理人与其部门负责人，催办记录写入实例轨迹')"><i class="fa-solid fa-bell"></i> 催办</button>
+  </div>
+</div>
+
+<!-- ========== 弹窗 · 强制终止 ========== -->
+<div class="modal-mask"></div>
+<div class="modal" id="stopModal">
+  <div class="modal-head"><h3>强制终止实例</h3><span class="badge red">高敏操作</span>
+    <div class="close" data-close-modal><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="modal-body">
+    <div class="alert alert-danger">
+      <i class="fa-solid fa-circle-exclamation"></i>
+      <div>终止后实例状态置为 <b>终止</b>（映射统一七态为<b>已作废</b>），
+        <b>待办即时清除、不可恢复</b>。终止理由必填并写入操作日志与实例轨迹。</div>
+    </div>
+    <dl class="desc-list">
+      <div class="desc-item"><dt>实例编号</dt><dd data-fill="sid">WI20260612-03204</dd></div>
+      <div class="desc-item"><dt>标题</dt><dd data-fill="stitle">监管资金使用申请</dd></div>
+    </dl>
+    <div class="form-grid form-align" style="margin-top:10px">
+      <div class="form-item col-full"><label>终止理由 <span class="req">*</span></label>
+        <textarea id="stopReason" rows="3" placeholder="必填，不少于 10 字。说明为何无法正常走完流程"></textarea></div>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn" data-close-modal>取消</button>
+    <button class="btn btn-danger-solid" onclick="submitStop()"><i class="fa-solid fa-ban"></i> 确认终止</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/spec.js"></script>
+<script>
+var TD = [
+  ['监管资金使用申请 · 荣和公园大道二期 8 号楼', '新建商品房预售资金监管系统', '初审', '荣和地产 · 陈××', '2026-08-31 09:22', '2026-09-01 17:30', '1 天 6 小时', 0],
+  ['网签合同备案 · 彰泰滨江学府 6-1-0902', '新建商品房网签备案管理系统', '审核', '彰泰置业 · 黄××', '2026-08-31 08:46', '2026-09-01 12:00', '1 天 1 小时', 0],
+  ['面积成果批次受理 · 万科城 12 号楼', '房屋交易面积信息管理系统', '核验', 'XXXX市测绘院', '2026-08-28 14:12', '2026-08-31 12:00', '已超时 4 小时', 1],
+  ['保交楼资金使用 · 荣和公园大道二期', '新建商品房预售资金监管系统', '房管科初审', '荣和地产 · 陈××', '2026-08-27 10:06', '2026-08-28 17:30', '已超时 2 天', 1],
+  ['合同拟制 · 三方监管协议', '应用支撑平台', '法务会签', '韦国强', '2026-08-30 16:22', '2026-09-02 17:30', '2 天 1 小时', 0],
+  ['企业入网申请 · 荣和地产', '从业主体与信用监管系统', '资格审核', '荣和地产 · 陈××', '2026-08-26 09:14', '2026-08-28 12:00', '已超时 3 天', 1],
+  ['档案借阅申请 · 2024 年度合同卷', '房屋交易档案管理系统', '档案科审批', '覃永明', '2026-08-31 10:02', '2026-09-02 12:00', '2 天', 0],
+  ['预售方案备案 · 万科城三期', '新建商品房网签备案管理系统', '专家评审', '万科房地产 · 吴××', '2026-08-29 15:38', '2026-09-03 17:30', '3 天 1 小时', 0]
+];
+
+var DN = [
+  ['监管资金使用申请 · 万科城 12 号楼', '新建商品房预售资金监管系统', '初审', 'agree', '材料齐全，金额未超可申请额度，同意', '2026-08-30 16:22', '通过'],
+  ['网签合同备案 · 荣和公园大道二期 8-1-1502', '新建商品房网签备案管理系统', '审核', 'agree', '合同要素与预售方案一致，同意备案', '2026-08-30 11:04', '通过'],
+  ['面积成果批次受理 · 彰泰滨江学府 6 号楼', '房屋交易面积信息管理系统', '核验', 'return', '分摊系数与规划验收口径不一致，退回重新报送', '2026-08-29 14:48', '审批中'],
+  ['保交楼房间备案 · 恒达阳光里 3 号楼', '新建商品房预售资金监管系统', '房管科审核', 'agree', '房间清单与协议一致，同意备案', '2026-08-28 09:36', '通过'],
+  ['合同拟制 · 委托测绘协议', '应用支撑平台', '部门审批', 'reject', '合同金额超出部门审批权限，请改走市局审批流程', '2026-08-27 15:12', '拒绝']
+];
+
+var MINE = [
+  ['合同拟制 · 三方监管协议', '合同拟制审批 v1', '2026-08-30 16:22', '法务会签', '审批中', 60, 0],
+  ['档案借阅申请 · 2023 年度网签卷', '档案借阅审批 v1', '2026-08-29 10:14', '档案科审批', '审批中', 50, 0],
+  ['合同拟制 · 委托测绘协议', '合同拟制审批 v1', '2026-08-27 09:02', '—', '拒绝', 100, 1],
+  ['档案借阅申请 · 2024 年度合同卷', '档案借阅审批 v1', '2026-08-31 10:02', '档案科审批', '审批中', 50, 0],
+  ['合同拟制 · 保交楼监管协议', '合同拟制审批 v1', '2026-08-20 14:26', '—', '通过', 100, 1],
+  ['合同拟制 · 施工合同备案协议', '合同拟制审批 v1', '2026-08-31 11:30', '拟制', '审批中', 20, 2]
+];
+
+var CC = [
+  ['监管资金使用申请 · 荣和公园大道二期 9 号楼', '新建商品房预售资金监管系统', '抄送分管领导', '2026-08-31 10:48', '荣和地产 · 陈××', 0],
+  ['保交楼账户备案 · 彰泰滨江学府', '新建商品房预售资金监管系统', '抄送分管领导', '2026-08-31 09:12', '彰泰置业 · 黄××', 0],
+  ['预售方案备案 · 万科城三期', '新建商品房网签备案管理系统', '抄送市局处室', '2026-08-30 17:02', '万科房地产 · 吴××', 0],
+  ['企业入网申请 · 恒达置业', '从业主体与信用监管系统', '抄送市局处室', '2026-08-30 15:38', '恒达置业 · 莫××', 0],
+  ['面积成果批次受理 · 荣和公园大道一期', '房屋交易面积信息管理系统', '抄送分管领导', '2026-08-30 11:22', 'XXXX市测绘院', 0],
+  ['合同拟制 · 保交楼监管协议', '应用支撑平台', '抄送档案科', '2026-08-20 16:44', '韦国强', 1],
+  ['网签合同备案 · 万科城 12-2-0603', '新建商品房网签备案管理系统', '抄送市局处室', '2026-08-19 14:08', '万科房地产 · 吴××', 1]
+];
+
+var JK = [
+  ['WI20260831-04862', '监管资金使用申请 · 荣和公园大道二期 8 号楼', '重点资金使用审批 v1', '新建商品房预售资金监管系统', '初审', '荣和地产 · 陈××', '2026-08-31 09:22', '审批中', 0],
+  ['WI20260831-04858', '网签合同备案 · 彰泰滨江学府 6-1-0902', '网签合同备案审批 v2', '新建商品房网签备案管理系统', '审核', '彰泰置业 · 黄××', '2026-08-31 08:46', '审批中', 0],
+  ['WI20260828-04702', '面积成果批次受理 · 万科城 12 号楼', '面积成果批次受理 v2', '房屋交易面积信息管理系统', '核验', 'XXXX市测绘院', '2026-08-28 14:12', '审批中', 1],
+  ['WI20260827-04664', '保交楼资金使用 · 荣和公园大道二期', '重点资金使用审批 v1', '新建商品房预售资金监管系统', '房管科初审', '荣和地产 · 陈××', '2026-08-27 10:06', '审批中', 1],
+  ['WI20260830-04788', '合同拟制 · 三方监管协议', '合同拟制审批 v1', '应用支撑平台', '法务会签', '韦国强', '2026-08-30 16:22', '审批中', 0],
+  ['WI20260830-04772', '监管资金使用申请 · 万科城 12 号楼', '重点资金使用审批 v1', '新建商品房预售资金监管系统', '—', '万科房地产 · 吴××', '2026-08-26 11:02', '通过', 0],
+  ['WI20260827-04658', '合同拟制 · 委托测绘协议', '合同拟制审批 v1', '应用支撑平台', '—', '韦国强', '2026-08-27 09:02', '拒绝', 0],
+  ['WI20260612-03204', '监管资金使用申请 · 彰泰滨江学府 6 号楼', '重点资金使用审批 v0', '新建商品房预售资金监管系统', '复核', '彰泰置业 · 黄××', '2026-06-12 14:32', '审批中', 1],
+  ['WI20260518-02864', '监管资金使用申请 · 万科城 12 号楼', '重点资金使用审批 v0', '新建商品房预售资金监管系统', '—', '万科房地产 · 吴××', '2026-05-18 09:14', '终止', 0]
+];
+
+var MAP_NODES = ['开始', '受理', '初审', '复核', '审核', '抄送领导', '结束'];
+
+function fmap(curIdx, rej) {
+  return MAP_NODES.map(function (n, i) {
+    var cls = i < curIdx ? 'done' : (i === curIdx ? (rej ? 'rej' : 'cur') : '');
+    return '<span class="fs ' + cls + '">' + n + '</span>';
+  }).join('');
+}
+
+function renderTd() {
+  var s = document.getElementById('tSys').value;
+  var o = document.getElementById('tOvd').value;
+  var k = (document.getElementById('tKw').value || '').trim();
+  var rows = TD.filter(function (r) {
+    if (s && r[1] !== s) return false;
+    if (o !== '' && String(r[7]) !== o) return false;
+    if (k && r[0].indexOf(k) < 0) return false;
+    return true;
+  });
+  document.getElementById('tCnt').innerHTML = '共 <b>' + rows.length + '</b> 件';
+  document.getElementById('tdBody').innerHTML = rows.map(function (r) {
+    return '<tr' + (r[7] ? ' class="row-bad"' : '') + '>'
+      + '<td class="cell-lg">' + r[0] + '</td><td class="cell-lg">' + r[1] + '</td>'
+      + '<td>' + r[2] + '</td><td>' + r[3] + '</td><td>' + r[4] + '</td><td>' + r[5] + '</td>'
+      + '<td' + (r[7] ? ' class="ovd"' : '') + '>' + r[6] + '</td>'
+      + '<td><span class="link" onclick="openDo(\'' + r[0] + '\',\'' + r[1] + '\',\'' + r[2] + '\',\'' + r[3] + '\',\'' + r[4] + '\',\'' + r[5] + '\')">办理</span></td></tr>';
+  }).join('') || '<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">没有符合条件的待办</td></tr>';
+}
+
+function renderDn() {
+  var ACT = { agree: '<span class="badge green">agree 同意</span>', reject: '<span class="badge red">reject 拒绝</span>',
+              'return': '<span class="badge orange">return 退回</span>', transfer: '<span class="badge blue">transfer 转办</span>' };
+  document.getElementById('dnBody').innerHTML = DN.map(function (r) {
+    return '<tr><td class="cell-lg">' + r[0] + '</td><td class="cell-lg">' + r[1] + '</td>'
+      + '<td>' + r[2] + '</td><td>' + ACT[r[3]] + '</td>'
+      + '<td class="cell-lg">' + r[4] + '</td><td>' + r[5] + '</td>'
+      + '<td>' + r[6] + '</td>'
+      + '<td><span class="link" onclick="openInst(\'' + r[0] + '\')">看轨迹</span></td></tr>';
+  }).join('');
+}
+
+function renderMine() {
+  document.getElementById('mineBody').innerHTML = MINE.map(function (r) {
+    var st = { '审批中': '<span class="sp-st doing">审批中</span>', '通过': '<span class="sp-st done">通过</span>',
+               '拒绝': '<span class="sp-st bad">拒绝</span>' }[r[4]];
+    return '<tr' + (r[6] === 1 ? ' class="row-off"' : '') + '>'
+      + '<td class="cell-lg">' + r[0] + '</td><td>' + r[1] + '</td><td>' + r[2] + '</td>'
+      + '<td>' + r[3] + '</td><td>' + st + '</td>'
+      + '<td style="min-width:120px"><span class="sp-days"><span class="db"><span style="width:' + r[5] + '%"></span></span><span class="dv">' + r[5] + '%</span></span></td>'
+      + '<td><span class="link" onclick="openInst(\'' + r[0] + '\')">看轨迹</span>'
+      + (r[6] === 2
+          ? '<span class="link danger" onclick="withdraw()">撤回</span>'
+          : (r[6] === 0 ? '<span class="link is-off" onclick="SP.denied(\'本实例已有人办理，不能撤回。可联系当前办理人退回，或由管理员强制终止\')">撤回</span>' : '')) + '</td></tr>';
+  }).join('');
+}
+
+function renderCc() {
+  document.getElementById('ccBody').innerHTML = CC.map(function (r) {
+    return '<tr' + (r[5] ? ' class="row-off"' : '') + '>'
+      + '<td class="cell-lg">' + r[0] + '</td><td class="cell-lg">' + r[1] + '</td>'
+      + '<td>' + r[2] + '</td><td>' + r[3] + '</td><td>' + r[4] + '</td>'
+      + '<td>' + (r[5] ? '<span class="badge gray">已阅</span>' : '<span class="badge purple">未读</span>') + '</td>'
+      + '<td><span class="link" onclick="openInst(\'' + r[0] + '\')">查阅</span></td></tr>';
+  }).join('');
+}
+
+function renderJk() {
+  var s = document.getElementById('jSys').value;
+  var st = document.getElementById('jSt').value;
+  var o = document.getElementById('jOvd').value;
+  var rows = JK.filter(function (r) {
+    if (s && r[3] !== s) return false;
+    if (st && r[7] !== st) return false;
+    if (o && !r[8]) return false;
+    return true;
+  });
+  document.getElementById('jCnt').innerHTML = '共 <b>' + rows.length + '</b> 个实例';
+  var ST = { '审批中': 'doing', '通过': 'done', '拒绝': 'bad', '撤回': 'dead', '终止': 'dead' };
+  document.getElementById('jkBody').innerHTML = rows.map(function (r) {
+    return '<tr' + (r[8] ? ' class="row-bad"' : (r[7] === '终止' ? ' class="row-off"' : '')) + '>'
+      + '<td><code>' + r[0] + '</code></td><td class="cell-lg">' + r[1] + '</td>'
+      + '<td>' + r[2] + '</td><td class="cell-lg">' + r[3] + '</td>'
+      + '<td>' + r[4] + '</td><td>' + r[5] + '</td><td>' + r[6] + '</td>'
+      + '<td><span class="sp-st ' + ST[r[7]] + '">' + r[7] + '</span></td>'
+      + '<td><span class="link" onclick="openInst(\'' + r[1] + '\')">流程图</span>'
+      + (r[7] === '审批中' ? '<span class="link" onclick="SP.todo(\'已推送催办至当前办理人与其部门负责人，催办记录写入实例轨迹\')">催办</span>' : '') + '</td></tr>';
+  }).join('') || '<tr><td colspan="9" class="muted" style="text-align:center;padding:24px">没有符合条件的实例</td></tr>';
+}
+
+function openDo(t, sys, node, by, at, due) {
+  PMS.fill('doDrawer', { t: t, id: 'WI20260831-04862', sys: sys, node: node, by: by, at: at, due: due });
+  var idx = MAP_NODES.indexOf(node);
+  document.getElementById('doMap').innerHTML = fmap(idx < 0 ? 2 : idx);
+  document.getElementById('doAct').value = '';
+  document.getElementById('doNote').value = '';
+  PMS.openDrawer('doDrawer');
+}
+
+function openInst(t) {
+  PMS.fill('instDrawer', { iid: 'WI20260831-04862' });
+  document.getElementById('instMap').innerHTML = fmap(2);
+  document.getElementById('trkBody').innerHTML = [
+    ['2026-08-31 09:22', '开始', '荣和地产 · 陈××', 'start', '发起监管资金使用申请，申请金额 1,860.00 万元', '—'],
+    ['2026-08-31 09:48', '受理', '覃永明', 'agree', '材料齐全，收款账户在施工名录库内，予以受理', '26 分钟'],
+    ['2026-08-31 10:12', '初审', '—', '—', '<span class="muted">待办理</span>', '<span class="muted">进行中</span>']
+  ].map(function (r) {
+    var ACT = { start: '<span class="badge blue">start</span>', agree: '<span class="badge green">agree</span>', '—': '—' };
+    return '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td><td>' + r[2] + '</td>'
+      + '<td>' + (ACT[r[3]] || r[3]) + '</td><td class="cell-lg">' + r[4] + '</td><td>' + r[5] + '</td></tr>';
+  }).join('');
+  PMS.openDrawer('instDrawer');
+}
+
+function submitDo() {
+  var a = document.getElementById('doAct'), n = document.getElementById('doNote');
+  if (!a.value) { SP.denied('请先选择审批动作'); a.focus(); return; }
+  if ((n.value || '').trim().length < 10) { SP.denied('审批意见为必填且不少于 10 字，意见写入 wf_task_record 可被下钻查阅'); n.focus(); return; }
+  PMS.closeDrawer();
+  var msg = { agree: '已同意，按条件表达式选出下一节点并生成新任务；本节点待办已清除',
+              'return': '已退回上一节点，待办回到指定节点，补正后重新流转',
+              reject: '已拒绝，实例状态置为拒绝（映射统一七态为已退回），待办清零',
+              transfer: '已转办，任务转至指定人，转办记录写入轨迹',
+              addsign: '已加签，新增会签人后本节点须全部同意方可通过' }[a.value];
+  PMS.toast(msg, 'success');
+}
+
+function withdraw() {
+  PMS.confirm({
+    title: '撤回实例', message: '确认撤回本实例？',
+    detail: '本实例尚未被任何人办理，可由发起人撤回。撤回后实例状态置为「撤回」，映射统一七态为已作废，待办清零。',
+    type: 'warning', okText: '确认撤回',
+    onOk: function () { PMS.toast('已撤回，实例状态置为撤回', 'success'); }
+  });
+}
+
+function openStop(id, t) {
+  PMS.fill('stopModal', { sid: id, stitle: t });
+  document.getElementById('stopReason').value = '';
+  PMS.openModal('stopModal');
+}
+
+function submitStop() {
+  var r = document.getElementById('stopReason');
+  if ((r.value || '').trim().length < 10) { SP.denied('终止理由为必填且不少于 10 字，理由写入操作日志与实例轨迹'); r.focus(); return; }
+  PMS.closeModal();
+  PMS.toast('已强制终止，实例状态置为终止（映射统一七态为已作废），待办已清除且不可恢复', 'success');
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  renderTd(); renderDn(); renderMine(); renderCc(); renderJk();
+  var t = SP.param('tab'); if (t) SP.tab(t);
+});
+</script>
+</body>
+</html>

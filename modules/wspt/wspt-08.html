@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>业务流程设计 · 应用支撑平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<link rel="stylesheet" href="../../assets/css/spec.css">
+<style>
+  .dz { display: grid; grid-template-columns: 150px minmax(0, 1fr) 288px; gap: 10px; align-items: start; }
+  @media (max-width: 1400px) { .dz { grid-template-columns: minmax(0, 1fr); } }
+  .nlib .n {
+    display: flex; align-items: center; gap: 7px; padding: 7px 9px; margin-bottom: 6px;
+    border: 1px solid var(--border); border-radius: var(--radius); background: #fff;
+    font-size: 12.5px; color: var(--text-2); cursor: grab;
+  }
+  .nlib .n:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light-2); }
+  .nlib .n > i { width: 15px; text-align: center; }
+  /* 流程画布：竖向节点链，条件网关分叉 */
+  .fc { padding: 14px; border: 1px dashed var(--border-strong); border-radius: var(--radius);
+        background: var(--bg-soft) repeating-linear-gradient(135deg, rgba(38,86,187,.02) 0 8px, transparent 8px 16px); }
+  .fn {
+    display: flex; align-items: center; gap: 9px; padding: 9px 12px; margin: 0 auto;
+    max-width: 420px; border: 1px solid var(--border); border-radius: var(--radius);
+    background: #fff; cursor: pointer;
+  }
+  .fn:hover { border-color: var(--primary-soft); }
+  .fn.on { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-light); }
+  .fn > i { width: 26px; height: 26px; flex-shrink: 0; border-radius: 7px;
+            display: inline-flex; align-items: center; justify-content: center; font-size: 12px; }
+  .fn.start > i { background: var(--success-light); color: var(--success); }
+  .fn.approval > i { background: var(--primary-light); color: var(--primary); }
+  .fn.condition > i { background: var(--warning-light); color: #8a6100; }
+  .fn.parallel > i { background: #f0e9ff; color: #7c3aed; }
+  .fn.cc > i { background: var(--info-light); color: var(--info); }
+  .fn.end > i { background: var(--bg-soft); color: var(--text-3); }
+  .fn .nb { flex: 1; min-width: 0; }
+  .fn .nt { font-size: 13px; font-weight: 600; color: var(--text-1); }
+  .fn .nd { font-size: 11.5px; color: var(--text-3); margin-top: 1px; }
+  .farrow { text-align: center; color: var(--border-strong); font-size: 13px; line-height: 1.2; padding: 3px 0; }
+  .fbranch { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .fbranch .bl { font-size: 11.5px; color: #8a6100; text-align: center; margin-bottom: 4px; }
+</style>
+</head>
+<body data-role="admin" data-active="wspt-08">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 应用支撑平台
+        <span class="sep">/</span> 表单与流程
+        <span class="sep">/</span> <span class="cur">业务流程设计</span>
+      </div>
+      <div class="page-title">业务流程设计 <span class="badge blue">模块七 · 7 个功能点</span></div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="SP.todo('已扫描全部流程定义：64 个已发布流程的路径闭环校验通过，无孤立节点、无死循环、全部出线可达 end')"><i class="fa-solid fa-list-check"></i> 全量路径校验</button>
+      <button class="btn" onclick="SP.exportAsync('流程定义清单')"><i class="fa-solid fa-download"></i> 导出</button>
+      <button class="btn btn-primary" onclick="SP.tab('ds')"><i class="fa-solid fa-plus"></i> 新建流程</button>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div><b>流程试跑不通过不得发布</b>——试跑校验路径闭环。<b>R-I2</b>：<b>未发布的流程定义不得被业务发起实例</b>。
+      <b>发布与停用均即时生效，但运行中实例不受影响</b>——旧实例按创建时固化的版本号继续流转（R-K5）。
+      流程推进口径固定为：<b>当前任务办结 → 条件表达式选下一节点 → 生成新任务；到 end 则实例结束</b>（R-K4）。</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-diagram-project"></i></div><div>
+      <div class="s-label">流程定义</div><div class="s-value">72</div><div class="s-trend text-2">已发布 64 · 草稿 8</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-code-branch"></i></div><div>
+      <div class="s-label">版本合计</div><div class="s-value">118</div><div class="s-trend text-2">平均 1.6 版/流程</div></div></div>
+    <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-play"></i></div><div>
+      <div class="s-label">运行中实例</div><div class="s-value">218</div><div class="s-trend text-success">按各自固化版本流转</div></div></div>
+    <div class="stat-card dc-alarm"><div class="s-icon orange"><i class="fa-solid fa-flask"></i></div><div>
+      <div class="s-label">试跑未通过</div><div class="s-value">2</div><div class="s-trend">不得发布</div></div></div>
+    <div class="stat-card"><div class="s-icon purple"><i class="fa-solid fa-ban"></i></div><div>
+      <div class="s-label">已停用</div><div class="s-value">6</div><div class="s-trend text-2">禁止新发起</div></div></div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="list">流程定义列表</div>
+      <div class="tab" data-tab="ds">可视化设计器</div>
+      <div class="tab" data-tab="assign">审批人配置</div>
+      <div class="tab" data-tab="cond">流转条件</div>
+      <div class="tab" data-tab="perm">节点字段权限</div>
+      <div class="tab" data-tab="run">试跑与发布 <span class="badge orange">2</span></div>
+    </div>
+
+    <!-- ===================== 流程列表 ===================== -->
+    <div class="tab-panel active" data-panel="list">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>流程分类</label>
+            <select id="fCat" onchange="renderList()"><option value="">全部</option><option>资金监管</option><option>交易网签</option><option>市场监管</option><option>平台内部</option></select></div>
+          <div class="filter-item"><label>发布状态</label>
+            <select id="fSt" onchange="renderList()"><option value="">全部</option><option>发布</option><option>草稿</option><option>停用</option></select></div>
+          <div class="filter-item"><label>流程标识 / 名称</label><input type="text" id="fKw" oninput="renderList()" placeholder="标识或名称"></div>
+          <div class="filter-actions"><span class="muted" id="lCnt" style="align-self:center"></span></div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>流程标识</th><th>流程名称</th><th>分类</th><th>当前版本</th><th class="num">节点数</th>
+              <th>绑定表单</th><th>发布状态</th><th class="num">运行中</th><th>操作</th>
+            </tr></thead>
+            <tbody id="listBody"></tbody>
+          </table>
+        </div>
+        <p class="hint">
+          <i class="fa-solid fa-circle-info"></i>
+          业务板块按<b>流程标识</b>发起实例，不按 id——升版本后业务侧无需改配置，自动取当前发布版本；
+          <b>已运行实例仍按创建时固化的版本流转</b>，避免改流程把在办件搞乱。
+        </p>
+      </div>
+    </div>
+
+    <!-- ===================== 设计器 ===================== -->
+    <div class="tab-panel" data-panel="ds">
+      <div class="card-body">
+        <div class="dz">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-shapes"></i> 节点库</div>
+            <div class="sp-b">
+              <div class="nlib" id="nlib"></div>
+              <p class="hint" style="padding:8px 0 0">
+                <i class="fa-solid fa-circle-info"></i>
+                节点类型固定 6 种，取自字典 <code>wf_node_type</code>。
+              </p>
+            </div>
+          </div>
+
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-diagram-project"></i> 画布 · 重点资金使用审批
+              <span class="sub">点击节点编辑属性</span></div>
+            <div class="sp-b">
+              <div class="fc" id="canvas"></div>
+              <div class="btn-row" style="margin-top:10px">
+                <button class="btn btn-sm" onclick="SP.tab('run')"><i class="fa-solid fa-flask"></i> 流程试跑</button>
+                <button class="btn btn-sm" onclick="SP.todo('已保存为草稿。草稿不影响已发布版本，业务侧仍按当前发布版本发起实例')"><i class="fa-solid fa-floppy-disk"></i> 保存草稿</button>
+                <button class="btn btn-sm btn-primary" onclick="tryPublish()"><i class="fa-solid fa-upload"></i> 发布</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-sliders"></i> 节点属性
+              <span class="sub" id="pName">初审</span></div>
+            <div class="sp-b">
+              <div class="form-grid form-align" style="grid-template-columns:1fr">
+                <div class="form-item"><label>节点标识 <span class="req">*</span></label><input type="text" id="pKey" value="firstReview"></div>
+                <div class="form-item"><label>节点名称 <span class="req">*</span></label><input type="text" id="pLabel" value="初审"></div>
+                <div class="form-item"><label>节点类型</label><input type="text" id="pType" value="审批节点" readonly></div>
+                <div class="form-item"><label>审批人类型 <span class="req">*</span></label>
+                  <select id="pAssign"><option>角色</option><option>指定人</option><option>部门主管</option><option>发起人</option><option>表单字段</option></select></div>
+                <div class="form-item"><label>审批人取值</label><input type="text" id="pAssignVal" value="reviewer 业务审核"></div>
+                <div class="form-item"><label>多人处理模式</label>
+                  <select><option>单人</option><option>会签</option><option>或签</option><option>顺序会签</option></select>
+                  <div class="hint">取自字典 <code>wf_multi_mode</code>。</div></div>
+                <div class="form-item"><label>时限 sla_hours</label><input type="text" value="8">
+                  <div class="hint">按<span class="link" onclick="location.href='wspt-06.html?tab=sla'">工作日历</span>计算 due_time（R-I4）。</div></div>
+                <div class="form-item"><label>可退回节点</label>
+                  <select><option>上一节点</option><option>发起节点</option><option>指定节点</option></select></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 审批人配置 ===================== -->
+    <div class="tab-panel" data-panel="assign">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>审批人五种取值方式：<b>指定人、角色、部门主管、发起人、表单字段</b>（字典 <code>wf_assignee_type</code>）。
+            多人时的处理模式四种：<b>单人、会签、或签、顺序会签</b>。
+            <b>按角色取人时会叠加数据范围过滤</b>——只取与办件归属部门匹配的人，避免把外区的审核员派进来。</div>
+        </div>
+        <div class="sp-tw">
+          <table class="data-table">
+            <thead><tr>
+              <th>流程</th><th>节点</th><th>审批人类型</th><th>取值</th><th>多人模式</th><th class="num">实际可办理人数</th><th>说明</th>
+            </tr></thead>
+            <tbody id="asgBody"></tbody>
+          </table>
+        </div>
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-user-shield"></i> 分岗校验
+            <span class="sub">流程引擎在生成任务时即校验，不依赖人工遵守</span></div>
+          <div class="sp-b">
+            <div class="sp-check">
+              <div class="ck block"><i class="fa-solid fa-ban"></i><div class="cb">
+                <div class="ct">受理人不得审核本件</div>
+                <div class="cd">生成审核任务时<b>自动排除本件受理人</b>；若排除后无人可办，任务转上级科室并提示。</div></div>
+                <div class="co"><button class="btn btn-sm" onclick="SP.denied('本办件由您本人受理，审核任务已自动排除您。分岗校验为系统校验，不依赖人工遵守')">试点</button></div></div>
+              <div class="ck block"><i class="fa-solid fa-ban"></i><div class="cb">
+                <div class="ct">初审、复核、审核三岗不得同人兼任任意两个</div>
+                <div class="cd">逐环节校验，命中即从候选人中排除。</div></div>
+                <div class="co"><button class="btn btn-sm" onclick="SP.denied('您已办理本件的初审环节，复核任务已自动排除您')">试点</button></div></div>
+              <div class="ck wait"><i class="fa-solid fa-users"></i><div class="cb">
+                <div class="ct">按角色取人时叠加数据范围</div>
+                <div class="cd">只取与办件<b>归属部门</b>匹配的人：辖区档角色只取本辖区，全市档角色不限。</div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 流转条件 ===================== -->
+    <div class="tab-panel" data-panel="cond">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>流转条件基于<b>表单字段</b>写条件表达式，多条出线按<b>优先级</b>依次判定，<b>命中即走、不再往下判</b>。
+            每个条件网关<b>必须有一条兜底出线</b>（条件恒真），否则可能出现无出线可走、实例卡死。</div>
+        </div>
+        <div class="sp-tw">
+          <table class="data-table">
+            <thead><tr>
+              <th>流程</th><th>条件网关</th><th class="num">优先级</th><th>条件表达式</th><th>命中后走向</th><th>兜底</th>
+            </tr></thead>
+            <tbody id="condBody"></tbody>
+          </table>
+        </div>
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-code"></i> 条件表达式说明</div>
+          <div class="sp-b">
+            <div class="sp-fx">
+              <span class="lb">取表单字段</span> <code>${form.applyAmount}</code><br>
+              <span class="lb">取发起人属性</span> <code>${starter.deptId}</code>、<code>${starter.roleKeys}</code><br>
+              <span class="lb">取业务变量</span> <code>${biz.isHighRisk}</code><br>
+              <span class="lb">示例</span> <code>${form.applyAmount} &gt; 5000000 &amp;&amp; ${biz.isHighRisk} == true</code>
+            </div>
+            <p class="hint">
+              <i class="fa-solid fa-triangle-exclamation" style="color:var(--lv-orange)"></i>
+              表达式引用的字段<b>必须在绑定表单中存在</b>；表单升版本删字段时，
+              设计器会提示<b>哪些条件表达式会失效</b>，未处理不得发布。
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 节点字段权限 ===================== -->
+    <div class="tab-panel" data-panel="perm">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>节点级字段权限三档：<b>可写、只读、隐藏</b>（字典 <code>wf_field_perm</code>）。
+            同一张表单在不同节点呈现不同形态——例如「申请金额」在发起节点可写、在审核节点只读、
+            「内部审核意见」对企业端节点隐藏。<b>隐藏是后端不下发该字段，不是前端 CSS 藏起来</b>。</div>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-item"><label>流程</label>
+            <select id="pmFlow" onchange="renderPerm()"><option>重点资金使用审批</option><option>合同拟制审批</option></select></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已保存节点字段权限并即时生效','success')"><i class="fa-solid fa-check"></i> 保存</button>
+          </div>
+        </div>
+        <div class="sp-tw">
+          <table class="data-table sp-mx">
+            <thead><tr id="pmHead"></tr></thead>
+            <tbody id="pmBody"></tbody>
+          </table>
+        </div>
+        <div class="sp-src">
+          <span><b>可写</b> 该节点可修改该字段</span>
+          <span><b>只读</b> 可见不可改</span>
+          <span><b>隐藏</b> 后端不下发，前端取不到</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 试跑与发布 ===================== -->
+    <div class="tab-panel" data-panel="run">
+      <div class="card-body">
+        <div class="alert alert-danger">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <div><b>发布前须试跑校验路径闭环</b>，未通过不得发布。试跑逐项检查：
+            <b>是否存在孤立节点</b>（无入线或无出线）、<b>是否存在死循环</b>、
+            <b>每条出线是否可达 end</b>、<b>每个条件网关是否有兜底出线</b>、
+            <b>审批人配置是否能取到人</b>。</div>
+        </div>
+        <div class="sp-tw">
+          <table class="data-table">
+            <thead><tr><th>流程</th><th>试跑时间</th><th>结果</th><th>未通过项</th><th>是否可发布</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr class="row-bad">
+                <td class="cell-lg">保交楼房间备案审批 <code>WF-BJLFJ</code> v1 草稿</td><td>2026-08-31 10:48</td>
+                <td><span class="badge red">未通过</span></td>
+                <td class="cell-lg">条件网关「是否需重算额度」<b>无兜底出线</b>：当申请金额为 0 时两条出线都不命中，实例会卡在网关</td>
+                <td><span class="badge red">不可发布</span></td>
+                <td><span class="link" onclick="SP.tab('cond')">去修正</span></td>
+              </tr>
+              <tr class="row-bad">
+                <td class="cell-lg">开发贷资金使用审批 <code>WF-KFD</code> v1 草稿</td><td>2026-08-30 17:12</td>
+                <td><span class="badge red">未通过</span></td>
+                <td class="cell-lg">节点「银行三审」审批人配置为角色 <code>bank_loan</code>，<b>该角色尚未创建，取不到人</b></td>
+                <td><span class="badge red">不可发布</span></td>
+                <td><span class="link" onclick="location.href='wspt-03.html?tab=rol'">去建角色</span></td>
+              </tr>
+              <tr>
+                <td class="cell-lg">重点资金使用审批 <code>WF-ZJSY</code> v2 草稿</td><td>2026-08-31 11:02</td>
+                <td><span class="badge green">通过</span></td>
+                <td class="cell-lg">6 个节点、8 条出线，全部可达 end；无孤立节点与死循环；审批人均可取到人</td>
+                <td><span class="badge green">可发布</span></td>
+                <td><span class="link" onclick="doPublish()">发布</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="grid-2" style="margin-top:12px">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-play"></i> 试跑推演 · 重点资金使用审批 v2</div>
+            <div class="sp-b">
+              <div class="sp-check">
+                <div class="ck pass"><i class="fa-solid fa-circle-check"></i><div class="cb">
+                  <div class="ct">路径 1 · 金额 ≤ 500 万且非高危</div>
+                  <div class="cd">开始 → 受理 → 初审 → 审核 → 抄送分管领导 → 结束。<b>可达 end</b>，4 个审批节点均可取到人。</div></div></div>
+                <div class="ck pass"><i class="fa-solid fa-circle-check"></i><div class="cb">
+                  <div class="ct">路径 2 · 金额 &gt; 500 万或高危项目</div>
+                  <div class="cd">开始 → 受理 → 初审 → <b>复核</b> → 审核 → 抄送分管领导 → 结束。<b>可达 end</b>。</div></div></div>
+                <div class="ck pass"><i class="fa-solid fa-circle-check"></i><div class="cb">
+                  <div class="ct">路径 3 · 任一审批节点退回</div>
+                  <div class="cd">退回至受理节点，补正后重新流转。<b>不产生死循环</b>（退回次数上限 3 次）。</div></div></div>
+                <div class="ck pass"><i class="fa-solid fa-circle-check"></i><div class="cb">
+                  <div class="ct">兜底出线检查</div>
+                  <div class="cd">条件网关「金额分档」有 3 条出线，第 3 条为兜底（条件恒真）。</div></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-code-branch"></i> 版本与停用
+              <span class="sub">发布停用均即时生效，运行中实例不受影响</span></div>
+            <div class="sp-b pad0">
+              <div class="sp-tw">
+                <table class="data-table compact">
+                  <thead><tr><th>流程</th><th>版本</th><th>状态</th><th class="num">运行中实例</th><th>操作</th></tr></thead>
+                  <tbody>
+                    <tr class="row-warn"><td class="cell-lg">重点资金使用审批</td><td><span class="sp-vt">v2</span></td>
+                      <td><span class="badge orange">草稿</span></td><td class="num">0</td>
+                      <td><span class="link" onclick="doPublish()">发布</span></td></tr>
+                    <tr><td class="cell-lg">重点资金使用审批</td><td><span class="sp-vt cur">v1</span></td>
+                      <td><span class="badge green">发布</span></td><td class="num">42</td>
+                      <td><span class="link" onclick="doStop()">停用</span></td></tr>
+                    <tr class="row-off"><td class="cell-lg">重点资金使用审批</td><td><span class="sp-vt old">v0</span></td>
+                      <td><span class="badge gray">已停用</span></td><td class="num">3</td>
+                      <td><span class="link" onclick="SP.todo('已停用版本禁止新发起，但 3 个运行中实例仍按 v0 继续流转直至办结——这是 R-K5 的要求')">查看</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="hint" style="padding:9px 12px">
+                <i class="fa-solid fa-circle-info"></i>
+                <b>停用只禁止新发起</b>，<b>运行中实例不受影响</b>。这样改流程不会把在办件搞成半截。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/spec.js"></script>
+<script>
+var NODES_LIB = [
+  ['fa-play', '开始 start'], ['fa-user-check', '审批 approval'], ['fa-code-branch', '条件网关 condition'],
+  ['fa-arrows-split-up-and-left', '并行网关 parallel'], ['fa-share-nodes', '抄送 cc'], ['fa-stop', '结束 end']
+];
+
+/* 画布：重点资金使用审批 v2 */
+var CANVAS = [
+  { t: 'start', n: '开始', d: '企业端发起 · 绑定表单 FM-ZJSY v1', k: 'start' },
+  { a: 1 },
+  { t: 'approval', n: '受理', d: '角色 district · 单人 · sla 8h', k: 'accept' },
+  { a: 1 },
+  { t: 'approval', n: '初审', d: '角色 reviewer · 单人 · sla 8h · 排除受理人', k: 'firstReview', on: 1 },
+  { a: 1 },
+  { t: 'condition', n: '条件网关 · 金额分档', d: '3 条出线，第 3 条为兜底', k: 'gwAmount' },
+  { br: [
+      { l: '金额 > 500 万 或 高危', node: { t: 'approval', n: '复核', d: '角色 reviewer · 排除初审人', k: 'recheck' } },
+      { l: '其余（兜底）', node: { t: 'approval', n: '审核', d: '角色 reviewer · 排除受理人与初审人', k: 'finalReview' } }
+    ] },
+  { a: 1 },
+  { t: 'cc', n: '抄送 · 分管领导', d: '角色 leader · 只读不阻塞', k: 'ccLeader' },
+  { a: 1 },
+  { t: 'end', n: '结束', d: '实例状态置为通过', k: 'end' }
+];
+
+var FLOWS = [
+  ['WF-ZJSY', '重点资金使用审批', '资金监管', 'v1', 6, 'FM-ZJSY v1', 1, 42],
+  ['WF-BJLFJ', '保交楼房间备案审批', '资金监管', '—', 5, 'FM-BJLFJ v1', 0, 0],
+  ['WF-KFD', '开发贷资金使用审批', '资金监管', '—', 7, 'FM-ZJSY v1', 0, 0],
+  ['WF-MJPC', '面积成果批次受理', '交易网签', 'v2', 5, 'FM-MJPC v2', 1, 18],
+  ['WF-XFBA', '预售方案备案审批', '交易网签', 'v3', 6, 'FM-XFBA v3', 1, 24],
+  ['WF-WQHT', '网签合同备案审批', '交易网签', 'v2', 4, 'FM-WQHT v2', 1, 68],
+  ['WF-QYRW', '企业入网审批', '市场监管', 'v1', 5, 'FM-QYRW v1', 1, 12],
+  ['WF-HTNZ', '合同拟制审批', '平台内部', 'v1', 4, 'FM-HTNZ v1', 1, 32],
+  ['WF-DAJY', '档案借阅审批', '平台内部', 'v1', 3, 'FM-DAJY v1', 1, 22],
+  ['WF-OLD01', '旧版资金审批', '资金监管', 'v0', 8, 'FM-ZJSY v0', 2, 3]
+];
+
+var ASG = [
+  ['重点资金使用审批', '受理', '角色', 'district 县区经办窗口', '单人', 86, '按办件归属部门过滤，只取本辖区窗口'],
+  ['重点资金使用审批', '初审', '角色', 'reviewer 业务审核', '单人', 41, '已自动排除本件受理人，剩 41 人'],
+  ['重点资金使用审批', '复核', '角色', 'reviewer 业务审核', '单人', 40, '排除受理人与初审人'],
+  ['重点资金使用审批', '审核', '角色', 'reviewer 业务审核', '单人', 40, '排除受理人与初审人'],
+  ['重点资金使用审批', '抄送分管领导', '角色', 'leader 分管领导', '或签', 6, '抄送不阻塞流程，已阅即可'],
+  ['合同拟制审批', '拟制人提交', '发起人', '—', '单人', 1, '取实例发起人本人'],
+  ['合同拟制审批', '部门审批', '部门主管', '发起人所在部门', '单人', 1, '按组织树取发起人部门的负责人'],
+  ['合同拟制审批', '法务会签', '角色', 'city 市局业务处室', '会签', 28, '会签须全部同意方可通过'],
+  ['预售方案备案审批', '指定专家评审', '指定人', '张××、李××、王××', '顺序会签', 3, '按配置顺序依次审批'],
+  ['开发贷资金使用审批', '银行三审', '角色', 'bank_loan 开发贷银行', '顺序会签', 0, '角色尚未创建，试跑不通过']
+];
+
+var CONDS = [
+  ['重点资金使用审批', '金额分档', 1, '${form.applyAmount} > 5000000 || ${biz.isHighRisk} == true', '复核节点', 0],
+  ['重点资金使用审批', '金额分档', 2, '${form.applyAmount} > 1000000', '审核节点', 0],
+  ['重点资金使用审批', '金额分档', 3, 'true', '审核节点', 1],
+  ['预售方案备案审批', '是否需专家评审', 1, '${form.buildingCount} >= 5', '专家评审节点', 0],
+  ['预售方案备案审批', '是否需专家评审', 2, 'true', '直接审核节点', 1],
+  ['保交楼房间备案审批', '是否需重算额度', 1, '${form.roomCount} > 100', '额度重算节点', 0],
+  ['保交楼房间备案审批', '是否需重算额度', 2, '${form.roomCount} > 0', '直接审核节点', 0]
+];
+
+var PERM = {
+  '重点资金使用审批': {
+    nodes: ['发起', '受理', '初审', '复核', '审核'],
+    fields: [
+      ['监管项目', ['w', 'r', 'r', 'r', 'r']],
+      ['监管楼栋', ['w', 'r', 'r', 'r', 'r']],
+      ['资金类别', ['w', 'r', 'r', 'r', 'r']],
+      ['申请金额', ['w', 'w', 'r', 'r', 'r']],
+      ['收款账户', ['w', 'w', 'r', 'r', 'r']],
+      ['申请材料', ['w', 'w', 'r', 'r', 'r']],
+      ['受理意见', ['h', 'w', 'r', 'r', 'r']],
+      ['内部审核意见', ['h', 'h', 'w', 'w', 'w']],
+      ['拨付指令编号', ['h', 'h', 'h', 'h', 'r']]
+    ]
+  },
+  '合同拟制审批': {
+    nodes: ['拟制', '部门审批', '法务会签', '归档'],
+    fields: [
+      ['合同模板', ['w', 'r', 'r', 'r']],
+      ['模板变量', ['w', 'r', 'r', 'r']],
+      ['补充条款', ['w', 'w', 'w', 'r']],
+      ['审批意见', ['h', 'w', 'w', 'r']],
+      ['正式件文件标识', ['h', 'h', 'h', 'r']]
+    ]
+  }
+};
+
+var PERM_TAG = { w: '<span class="badge green">可写</span>', r: '<span class="badge gray">只读</span>', h: '<span class="badge red">隐藏</span>' };
+
+function renderNlib() {
+  document.getElementById('nlib').innerHTML = NODES_LIB.map(function (n) {
+    return '<div class="n" onclick="SP.todo(\'已向画布追加「' + n[1] + '」节点，请在右侧配置节点标识、审批人与时限\')">'
+      + '<i class="fa-solid ' + n[0] + '"></i> ' + n[1] + '</div>';
+  }).join('');
+}
+
+function nodeHtml(x, idx) {
+  return '<div class="fn ' + x.t + (x.on ? ' on' : '') + '" onclick="pickNode(\'' + x.k + '\',\'' + x.n + '\',\'' + x.t + '\')">'
+    + '<i class="fa-solid ' + ({ start: 'fa-play', approval: 'fa-user-check', condition: 'fa-code-branch',
+        parallel: 'fa-arrows-split-up-and-left', cc: 'fa-share-nodes', end: 'fa-stop' }[x.t]) + '"></i>'
+    + '<div class="nb"><div class="nt">' + x.n + '</div><div class="nd">' + x.d + '</div></div></div>';
+}
+
+function renderCanvas() {
+  document.getElementById('canvas').innerHTML = CANVAS.map(function (x) {
+    if (x.a) return '<div class="farrow"><i class="fa-solid fa-arrow-down"></i></div>';
+    if (x.br) {
+      return '<div class="farrow"><i class="fa-solid fa-arrow-down"></i></div><div class="fbranch">'
+        + x.br.map(function (b) {
+            return '<div><div class="bl">' + b.l + '</div>' + nodeHtml(b.node) + '</div>';
+          }).join('') + '</div>';
+    }
+    return nodeHtml(x);
+  }).join('');
+}
+
+function pickNode(k, n, t) {
+  CANVAS.forEach(function (x) { if (x.on) delete x.on; });
+  var hit = CANVAS.filter(function (x) { return x.k === k; })[0];
+  if (hit) hit.on = 1;
+  renderCanvas();
+  document.getElementById('pName').textContent = n;
+  document.getElementById('pKey').value = k;
+  document.getElementById('pLabel').value = n;
+  document.getElementById('pType').value = { start: '开始节点', approval: '审批节点', condition: '条件网关',
+    parallel: '并行网关', cc: '抄送节点', end: '结束节点' }[t];
+  var isApp = t === 'approval';
+  document.getElementById('pAssign').disabled = !isApp;
+  document.getElementById('pAssignVal').value = isApp ? 'reviewer 业务审核' : '不适用';
+}
+
+function renderList() {
+  var c = document.getElementById('fCat').value;
+  var st = document.getElementById('fSt').value;
+  var k = (document.getElementById('fKw').value || '').trim();
+  var stName = { 0: '草稿', 1: '发布', 2: '停用' };
+  var rows = FLOWS.filter(function (f) {
+    if (c && f[2] !== c) return false;
+    if (st && stName[f[6]] !== st) return false;
+    if (k && f[0].indexOf(k) < 0 && f[1].indexOf(k) < 0) return false;
+    return true;
+  });
+  document.getElementById('lCnt').innerHTML = '共 <b>' + rows.length + '</b> 个';
+  document.getElementById('listBody').innerHTML = rows.map(function (f) {
+    var tag = { 0: '<span class="badge orange">草稿</span>', 1: '<span class="badge green">发布</span>',
+                2: '<span class="badge gray">已停用</span>' }[f[6]];
+    return '<tr' + (f[6] === 0 ? ' class="row-warn"' : (f[6] === 2 ? ' class="row-off"' : '')) + '>'
+      + '<td><code>' + f[0] + '</code></td><td>' + f[1] + '</td><td>' + f[2] + '</td>'
+      + '<td>' + (f[6] === 1 ? '<span class="sp-vt cur">' + f[3] + '</span>'
+          : (f[6] === 2 ? '<span class="sp-vt old">' + f[3] + '</span>' : '<span class="muted">未发布</span>')) + '</td>'
+      + '<td class="num">' + f[4] + '</td><td>' + f[5] + '</td>'
+      + '<td>' + tag + '</td><td class="num">' + f[7] + '</td>'
+      + '<td><span class="link" onclick="SP.tab(\'ds\')">设计</span>'
+      + '<span class="link" onclick="SP.tab(\'run\')">试跑</span></td></tr>';
+  }).join('') || '<tr><td colspan="9" class="muted" style="text-align:center;padding:24px">没有符合条件的流程</td></tr>';
+}
+
+function renderAsg() {
+  document.getElementById('asgBody').innerHTML = ASG.map(function (a) {
+    var zero = a[5] === 0;
+    return '<tr' + (zero ? ' class="row-bad"' : '') + '>'
+      + '<td class="cell-lg">' + a[0] + '</td><td>' + a[1] + '</td>'
+      + '<td>' + a[2] + '</td><td class="cell-lg">' + a[3] + '</td><td>' + a[4] + '</td>'
+      + '<td class="num">' + (zero ? '<span class="text-danger">0</span>' : a[5]) + '</td>'
+      + '<td class="cell-lg">' + a[6] + '</td></tr>';
+  }).join('');
+}
+
+function renderCond() {
+  document.getElementById('condBody').innerHTML = CONDS.map(function (c) {
+    return '<tr' + (c[5] ? '' : '') + '>'
+      + '<td class="cell-lg">' + c[0] + '</td><td>' + c[1] + '</td>'
+      + '<td class="num">' + c[2] + '</td>'
+      + '<td class="cell-lg"><code>' + c[3].replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></td>'
+      + '<td>' + c[4] + '</td>'
+      + '<td>' + (c[5] ? '<span class="badge green">是</span>' : '—') + '</td></tr>';
+  }).join('');
+  /* 无兜底出线的网关标红 */
+  var gw = {};
+  CONDS.forEach(function (c) { gw[c[0] + '|' + c[1]] = gw[c[0] + '|' + c[1]] || c[5]; });
+  [...document.querySelectorAll('#condBody tr')].forEach(function (tr, i) {
+    var c = CONDS[i];
+    if (!gw[c[0] + '|' + c[1]]) tr.className = 'row-bad';
+  });
+}
+
+function renderPerm() {
+  var d = PERM[document.getElementById('pmFlow').value];
+  document.getElementById('pmHead').innerHTML = '<th>表单字段</th>'
+    + d.nodes.map(function (n) { return '<th>' + n + '</th>'; }).join('');
+  document.getElementById('pmBody').innerHTML = d.fields.map(function (f) {
+    return '<tr><td>' + f[0] + '</td>'
+      + f[1].map(function (p) { return '<td>' + PERM_TAG[p] + '</td>'; }).join('') + '</tr>';
+  }).join('');
+}
+
+function tryPublish() {
+  SP.denied('试跑未通过，不得发布。请先在「试跑与发布」页签查看未通过项并修正');
+}
+function doPublish() {
+  PMS.confirm({
+    title: '发布流程版本', message: '确认发布「重点资金使用审批」v2？',
+    detail: '发布后即时生效，业务侧按流程标识发起的新实例走 v2；已运行的 42 个 v1 实例不受影响，按 v1 继续流转直至办结（R-K5）。',
+    type: 'warning', okText: '确认发布',
+    onOk: function () { PMS.toast('已发布 v2 并即时生效，v1 转为历史版本，42 个运行中实例不受影响', 'success'); }
+  });
+}
+function doStop() {
+  PMS.confirm({
+    title: '停用流程版本', message: '确认停用「重点资金使用审批」v1？',
+    detail: '停用后禁止新发起，但 42 个运行中实例不受影响，按 v1 继续流转直至办结。若无其他已发布版本，业务侧将无法发起该流程的新实例（R-I2）。',
+    type: 'warning', okText: '确认停用',
+    onOk: function () { PMS.toast('已停用并即时生效，禁止新发起；42 个运行中实例继续流转', 'success'); }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  renderNlib(); renderCanvas(); renderList(); renderAsg(); renderCond(); renderPerm();
+  var t = SP.param('tab'); if (t) SP.tab(t);
+});
+</script>
+</body>
+</html>

@@ -794,80 +794,68 @@
           name: "应用支撑平台",
           icon: "fa-sliders",
           line: "平台支撑",
+          /* 菜单按《应用支撑平台业务需求说明 v1.0》第三章的 11 个一级模块重建。
+             本平台是配置系统：所有配置类事项保存即生效，不产生办件号、不设审核环节，
+             因此没有办件类菜单；统一七态只用于合同拟制实例与其他板块经流程引擎发起的办件。 */
           menu: [
-            { key: "wspt-01", label: "我的工作台", icon: "fa-table-columns", href: "dashboard.html" },
+            { key: "wspt-01", label: "我的工作台", icon: "fa-table-columns", href: "../modules/wspt/wspt-01.html" },
             {
-              label: "用户权限",
+              label: "应用与用户",
               icon: "fa-user-gear",
               children: [
-                { key: "wspt-02", label: "统一用户管理", href: "../modules/_pending.html?k=wspt-02&e=government" },
-                { key: "wspt-03", label: "统一身份认证", href: "../modules/_pending.html?k=wspt-03&e=government" },
-                { key: "wspt-04", label: "统一权限配置", href: "../modules/_pending.html?k=wspt-04&e=government" },
-                { key: "wspt-05", label: "组织结构设置", href: "../modules/_pending.html?k=wspt-05&e=government" },
-                { key: "wspt-06", label: "账号安全管理", href: "../modules/_pending.html?k=wspt-06&e=government" }
+                { key: "wspt-02", label: "应用与组织", href: "../modules/wspt/wspt-02.html" },
+                { key: "wspt-03", label: "用户与角色授权", href: "../modules/wspt/wspt-03.html" },
+                { key: "wspt-04", label: "菜单与权限资源", href: "../modules/wspt/wspt-04.html" }
               ]
             },
             {
-              label: "基础数据",
-              icon: "fa-sliders",
+              label: "基础配置",
+              icon: "fa-gears",
               children: [
-                { key: "wspt-07", label: "数据字典设置", href: "../modules/_pending.html?k=wspt-07&e=government" },
-                { key: "wspt-08", label: "基础数据管理", href: "../modules/_pending.html?k=wspt-08&e=government" },
-                { key: "wspt-09", label: "编码规则管理", href: "../modules/_pending.html?k=wspt-09&e=government" },
-                { key: "wspt-10", label: "系统组件管理", href: "../modules/_pending.html?k=wspt-10&e=government" },
-                { key: "wspt-11", label: "系统参数管理", href: "../modules/_pending.html?k=wspt-11&e=government" }
+                { key: "wspt-05", label: "基础配置与数据字典", href: "../modules/wspt/wspt-05.html" },
+                { key: "wspt-06", label: "工作日历", href: "../modules/wspt/wspt-06.html" }
               ]
             },
             {
-              label: "事项配置",
-              icon: "fa-sliders",
+              label: "表单与流程",
+              icon: "fa-diagram-project",
               children: [
-                { key: "wspt-12", label: "事项目录定义", href: "../modules/_pending.html?k=wspt-12&e=government" },
-                { key: "wspt-13", label: "业务编码管理", href: "../modules/_pending.html?k=wspt-13&e=government" },
-                { key: "wspt-14", label: "业务资源配置", href: "../modules/_pending.html?k=wspt-14&e=government" },
-                { key: "wspt-15", label: "办理标准配置", href: "../modules/_pending.html?k=wspt-15&e=government" },
-                { key: "wspt-16", label: "事项发布管理", href: "../modules/_pending.html?k=wspt-16&e=government" }
+                { key: "wspt-07", label: "表单设计", href: "../modules/wspt/wspt-07.html" },
+                { key: "wspt-08", label: "业务流程设计", href: "../modules/wspt/wspt-08.html" },
+                { key: "wspt-09", label: "待办与流程监控", href: "../modules/wspt/wspt-09.html" }
               ]
             },
             {
-              label: "流程引擎",
-              icon: "fa-sitemap",
+              label: "合同与文件",
+              icon: "fa-file-contract",
               children: [
-                { key: "wspt-17", label: "流程建模配置", href: "../modules/_pending.html?k=wspt-17&e=government" },
-                { key: "wspt-18", label: "流转规则配置", href: "../modules/_pending.html?k=wspt-18&e=government" },
-                { key: "wspt-19", label: "时限督办规则", href: "../modules/_pending.html?k=wspt-19&e=government" },
-                { key: "wspt-20", label: "流程版本发布", href: "../modules/_pending.html?k=wspt-20&e=government" },
-                { key: "wspt-21", label: "流程运行监控", href: "../modules/_pending.html?k=wspt-21&e=government" }
+                { key: "wspt-10", label: "合同模板与拟制归档", href: "../modules/wspt/wspt-10.html" },
+                { key: "wspt-11", label: "统一文件管理", href: "../modules/wspt/wspt-11.html" }
               ]
             },
             {
-              label: "表单定制",
-              icon: "fa-pen-ruler",
-              children: [
-                { key: "wspt-22", label: "低代码表单", href: "../modules/_pending.html?k=wspt-22&e=government" },
-                { key: "wspt-23", label: "数据源管理", href: "../modules/_pending.html?k=wspt-23&e=government" },
-                { key: "wspt-24", label: "文书模板管理", href: "../modules/_pending.html?k=wspt-24&e=government" },
-                { key: "wspt-25", label: "报表模板定制", href: "../modules/_pending.html?k=wspt-25&e=government" }
-              ]
-            },
-            {
-              label: "政策配置",
-              icon: "fa-scale-balanced",
-              children: [
-                { key: "wspt-26", label: "政策项目录", href: "../modules/_pending.html?k=wspt-26&e=government" },
-                { key: "wspt-27", label: "政策参数维护", href: "../modules/_pending.html?k=wspt-27&e=government" },
-                { key: "wspt-28", label: "业务规则配置", href: "../modules/_pending.html?k=wspt-28&e=government" },
-                { key: "wspt-29", label: "市县差异配置", href: "../modules/_pending.html?k=wspt-29&e=government" }
-              ]
-            },
-            {
-              label: "数据安全",
+              label: "安全与审计",
               icon: "fa-shield-halved",
               children: [
-                { key: "wspt-30", label: "数据分级分类", href: "../modules/wspt/wspt-30.html" },
-                { key: "wspt-31", label: "传输存储加密", href: "../modules/wspt/wspt-31.html" },
-                { key: "wspt-32", label: "数据脱敏管理", href: "../modules/wspt/wspt-32.html" },
-                { key: "wspt-33", label: "数据安全审计", href: "../modules/wspt/wspt-33.html" }
+                { key: "wspt-12", label: "日志与安全审计", href: "../modules/wspt/wspt-12.html" },
+                { key: "wspt-13", label: "国密与信创安全配置", href: "../modules/wspt/wspt-13.html" },
+                { key: "wspt-30", label: "数据分级分类", href: "../modules/wspt/wspt-30.html" }
+              ]
+            },
+            {
+              label: "口径与验收",
+              icon: "fa-scale-balanced",
+              children: [
+                { key: "wspt-14", label: "统一权限与流程引擎模型", href: "../modules/wspt/wspt-14.html" },
+                { key: "wspt-15", label: "角色权限与业务闭环", href: "../modules/wspt/wspt-15.html" },
+                { key: "wspt-16", label: "配置事项与数据规范", href: "../modules/wspt/wspt-16.html" }
+              ]
+            },
+            {
+              label: "企业与机构服务",
+              icon: "fa-building-user",
+              children: [
+                { key: "wspt-17", label: "平台服务（企业端）", href: "../modules/wspt/portal.html" }
               ]
             }
           ]
@@ -1018,7 +1006,8 @@
           "wswxzj-13", "wswxzj-14", "wswxzj-21", "wswxzj-22", "wswxzj-31", "wswxzj-32", "wswxzj-33",
           "wszjjg-02", "wszjjg-03", "wszjjg-04", "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14",
           "wszjjg-15", "wszjjg-31", "wszjjg-32"
-        , "wschcg-02", "wschcg-06", "wschcg-10", "wschcg-24", "wsszjjg-28", "wschcg-27", "wsszjjg-29", "wschcg-28", "wsszjjg-30", "wsszjjg-35"],
+        , "wschcg-02", "wschcg-06", "wschcg-10", "wschcg-24", "wsszjjg-28", "wschcg-27", "wsszjjg-29", "wschcg-28", "wsszjjg-30", "wsszjjg-35",
+          "wspt-02", "wspt-03", "wspt-09", "wspt-10", "wspt-11"],
         reviewer: [
           "wsbiz-01", "wsbiz-02", "wsbiz-03", "wsbiz-04", "wsbiz-16", "wsbiz-19", "wsbiz-20", "wsswb-01",
           "wsswb-02", "wsswb-03", "wsswb-04", "wsswb-05", "wsswb-06", "wsswb-07", "wsswb-08", "wsswb-09",
@@ -1044,7 +1033,7 @@
           "wsszjjg-06", "wsszjjg-08", "wsszjjg-09", "wsszjjg-10", "wsszjjg-12", "wsszjjg-13", "wszjjg-01",
           "wszjjg-03", "wszjjg-04", "wswxzj-01", "wswxzj-02", "wswxzj-03", "wswxzj-05", "wswxzj-07",
           "wswxzj-09", "wsjcfx-02", "wsjcfx-03", "wsjcfx-04", "wsjcfx-05", "wsjcfx-06", "wsjcfx-07",
-          "wsjcfx-08", "wsjcfx-10", "wsjcfx-18", "wspt-01", "wspt-03", "wspt-25", "wssvc-01", "wssvc-21",
+          "wsjcfx-08", "wsjcfx-10", "wsjcfx-18", "wspt-01", "wspt-03", "wssvc-01", "wssvc-21",
           "wssvc-03", "wssvc-04", "wssvc-31", "wssvc-14", "wssvc-32", "wsops-01", "wsszjjg-03", "wsszjjg-04",
           "wsszjjg-07", "wsszjjg-11", "wsszjjg-14", "wsszjjg-15", "wsszjjg-16", "wsszjjg-17", "wsszjjg-18",
           "wsszjjg-19", "wsszjjg-20", "wsszjjg-21", "wsszjjg-22", "wsszjjg-23", "wsszjjg-24", "wsszjjg-31",
@@ -1052,7 +1041,8 @@
           "wswxzj-12", "wswxzj-13", "wswxzj-14", "wswxzj-21", "wswxzj-22", "wswxzj-31", "wswxzj-32",
           "wswxzj-33", "wszjjg-02", "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14", "wszjjg-15",
           "wszjjg-31", "wszjjg-32"
-        , "wschcg-24", "wschcg-25", "wsszjjg-25", "wsszjjg-26", "wsszjjg-28", "wschcg-27", "wsszjjg-29", "wschcg-28", "wsszjjg-30", "wsszjjg-35"],
+        , "wschcg-24", "wschcg-25", "wsszjjg-25", "wsszjjg-26", "wsszjjg-28", "wschcg-27", "wsszjjg-29", "wschcg-28", "wsszjjg-30", "wsszjjg-35",
+          "wspt-06", "wspt-07", "wspt-08", "wspt-09", "wspt-10", "wspt-11"],
         manager: [
           "wsbiz-10", "wsbiz-11", "wsbiz-15", "wsbiz-16", "wsbiz-17", "wsbiz-18", "wsbiz-19", "wsbiz-20",
           "wsswb-01", "wsswb-02", "wsswb-03", "wsswb-04", "wsswb-05", "wsswb-06", "wsswb-09", "wsswb-11",
@@ -1066,7 +1056,7 @@
           "wszjjg-01", "wszjjg-02", "wswxzj-01", "wswxzj-02", "wswxzj-04", "wswxzj-05", "wswxzj-06",
           "wswxzj-08", "wswxzj-09", "wsjcfx-01", "wsjcfx-02", "wsjcfx-03", "wsjcfx-04", "wsjcfx-05",
           "wsjcfx-06", "wsjcfx-07", "wsjcfx-08", "wsjcfx-09", "wsjcfx-10", "wsjcfx-11", "wsjcfx-12",
-          "wsjcfx-13", "wsjcfx-17", "wsjcfx-18", "wsjcfx-23", "wsjcfx-24", "wsjcfx-25", "wspt-01", "wspt-21",
+          "wsjcfx-13", "wsjcfx-17", "wsjcfx-18", "wsjcfx-23", "wsjcfx-24", "wsjcfx-25", "wspt-01",
           "wssvc-01", "wssvc-21", "wssvc-26", "wssvc-06", "wssvc-10", "wssvc-12", "wssvc-39", "wssvc-43",
           "wssvc-61", "wsops-01", "wsops-14", "wsops-15", "wsszjjg-04", "wsszjjg-10", "wsszjjg-12",
           "wsszjjg-13", "wsszjjg-14", "wsszjjg-15", "wsszjjg-16", "wsszjjg-17", "wsszjjg-18", "wsszjjg-19",
@@ -1075,7 +1065,8 @@
           "wswxzj-14", "wswxzj-21", "wswxzj-22", "wswxzj-31", "wswxzj-32", "wswxzj-33", "wszjjg-03",
           "wszjjg-04", "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14", "wszjjg-15", "wszjjg-31",
           "wszjjg-32"
-        , "wschcg-24", "wschcg-25", "wschcg-26", "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-05", "wschcg-09", "wschcg-12", "wschcg-17", "wschcg-18", "wschcg-19", "wschcg-20", "wschcg-23", "wschcg-27", "wsszjjg-29", "wschcg-28", "wsszjjg-30", "wsszjjg-35"],
+        , "wschcg-24", "wschcg-25", "wschcg-26", "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-05", "wschcg-09", "wschcg-12", "wschcg-17", "wschcg-18", "wschcg-19", "wschcg-20", "wschcg-23", "wschcg-27", "wsszjjg-29", "wschcg-28", "wsszjjg-30", "wsszjjg-35",
+          "wspt-02", "wspt-03", "wspt-04", "wspt-05", "wspt-06", "wspt-07", "wspt-08", "wspt-09", "wspt-10", "wspt-11", "wspt-12", "wspt-14", "wspt-15", "wspt-16"],
         leader: [
           "wsbiz-17", "wsbiz-18", "wsswb-01", "wscwb-01", "wszwb-01", "wsdwb-01", "wschcg-01", "wsdagl-01",
           "wsztxy-01", "wsztxy-15", "wsztxy-17", "wsztxy-27", "wsztxy-20", "wsszjjg-01", "wszjjg-01", "wswxzj-01",
@@ -1092,7 +1083,8 @@
           "wswxzj-21", "wswxzj-22", "wswxzj-31", "wswxzj-32", "wswxzj-33", "wszjjg-02", "wszjjg-03",
           "wszjjg-04", "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14", "wszjjg-15", "wszjjg-31",
           "wszjjg-32"
-        , "wschcg-26", "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-27", "wsszjjg-29", "wschcg-28", "wsszjjg-30", "wsszjjg-35"],
+        , "wschcg-26", "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-27", "wsszjjg-29", "wschcg-28", "wsszjjg-30", "wsszjjg-35",
+          "wspt-02", "wspt-09", "wspt-10", "wspt-11", "wspt-12"],
         admin: [
           "wsbiz-05", "wsbiz-10", "wsbiz-11", "wsbiz-13", "wsbiz-20", "wsswb-01", "wscwb-01", "wszwb-01",
           "wsdwb-01", "wschcg-01", "wschcg-02", "wschcg-05", "wsdagl-01", "wsztxy-01", "wsztxy-25", "wsztxy-26", "wsztxy-27", "wsztxy-20",
@@ -1101,9 +1093,9 @@
           "wsjcfx-03", "wsjcfx-04", "wsjcfx-05", "wsjcfx-06", "wsjcfx-07", "wsjcfx-08", "wsjcfx-09",
           "wsjcfx-10", "wsjcfx-17", "wsjcfx-18", "wsjcfx-25", "wspt-01", "wspt-02", "wspt-03", "wspt-04",
           "wspt-05", "wspt-06", "wspt-07", "wspt-08", "wspt-09", "wspt-10", "wspt-11", "wspt-12", "wspt-13",
-          "wspt-14", "wspt-15", "wspt-16", "wspt-17", "wspt-18", "wspt-19", "wspt-20", "wspt-21", "wspt-22",
-          "wspt-23", "wspt-24", "wspt-25", "wspt-26", "wspt-27", "wspt-28", "wspt-29", "wspt-30", "wspt-31",
-          "wspt-32", "wspt-33", "wssvc-01", "wssvc-21", "wssvc-03", "wssvc-04", "wssvc-22", "wssvc-23",
+          "wspt-14", "wspt-15", "wspt-16", "wspt-17",
+          "wspt-30",
+          "wssvc-01", "wssvc-21", "wssvc-03", "wssvc-04", "wssvc-22", "wssvc-23",
           "wssvc-24", "wssvc-25", "wssvc-26", "wssvc-06", "wssvc-10", "wssvc-12", "wssvc-27", "wssvc-28",
           "wssvc-29", "wssvc-30", "wssvc-31", "wssvc-14", "wssvc-32", "wssvc-35", "wssvc-36", "wssvc-37",
           "wssvc-38", "wssvc-39", "wssvc-16", "wssvc-40", "wssvc-17", "wssvc-18", "wssvc-41", "wssvc-42",
@@ -1120,7 +1112,7 @@
         ops: [
           "wsswb-01", "wscwb-01", "wszwb-01", "wsdwb-01", "wschcg-01", "wsdagl-01", "wsdagl-02", "wsztxy-01",
           "wsszjjg-01", "wszjjg-01", "wswxzj-01", "wsjcfx-02", "wsjcfx-03", "wsjcfx-04", "wsjcfx-05",
-          "wsjcfx-06", "wsjcfx-07", "wsjcfx-08", "wsjcfx-10", "wsjcfx-18", "wspt-01", "wspt-06", "wspt-33",
+          "wsjcfx-06", "wsjcfx-07", "wsjcfx-08", "wsjcfx-10", "wsjcfx-18", "wspt-01", "wspt-06",
           "wssvc-01", "wssvc-57", "wssvc-58", "wssvc-59", "wssvc-60", "wssvc-61", "wssvc-62", "wssvc-66",
           "wsops-01", "wsops-02", "wsops-03", "wsops-04", "wsops-05", "wsops-06", "wsops-07", "wsops-09",
           "wsops-10", "wsops-12", "wsops-13", "wsops-14", "wsops-15", "wsops-16", "wsszjjg-02", "wsszjjg-03",
@@ -1132,7 +1124,8 @@
           "wswxzj-13", "wswxzj-14", "wswxzj-21", "wswxzj-22", "wswxzj-31", "wswxzj-32", "wswxzj-33",
           "wszjjg-02", "wszjjg-03", "wszjjg-04", "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14",
           "wszjjg-15", "wszjjg-31", "wszjjg-32"
-        , "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-27", "wsszjjg-29", "wschcg-28", "wsszjjg-30", "wsszjjg-35"]
+        , "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-27", "wsszjjg-29", "wschcg-28", "wsszjjg-30", "wsszjjg-35",
+          "wspt-05", "wspt-12"]
       },
       dict: {
         said: [
@@ -1447,27 +1440,12 @@
             { c: "blue", tag: "证书轮换", txt: "市房产交易所对外服务证书年度续期", time: "剩 12天" }
           ],
           shortcuts: [
-            {
-              c: "blue",
-              i: "fa-fingerprint",
-              l: "统一身份认证",
-              h: "../modules/_pending.html?k=wspt-03&e=government"
-            },
-            { c: "green", i: "fa-sliders", l: "基础数据管理", h: "../modules/_pending.html?k=wspt-08&e=government" },
-            {
-              c: "cyan",
-              i: "fa-clipboard-list",
-              l: "事项目录定义",
-              h: "../modules/_pending.html?k=wspt-12&e=government"
-            },
-            { c: "orange", i: "fa-sitemap", l: "流程建模配置", h: "../modules/_pending.html?k=wspt-17&e=government" },
-            { c: "purple", i: "fa-pen-ruler", l: "低代码表单", h: "../modules/_pending.html?k=wspt-22&e=government" },
-            {
-              c: "red",
-              i: "fa-scale-balanced",
-              l: "政策参数维护",
-              h: "../modules/_pending.html?k=wspt-27&e=government"
-            }
+            { c: "blue", i: "fa-user-shield", l: "用户与角色授权", h: "../modules/wspt/wspt-03.html" },
+            { c: "green", i: "fa-sliders", l: "基础配置与数据字典", h: "../modules/wspt/wspt-05.html" },
+            { c: "cyan", i: "fa-pen-ruler", l: "表单设计", h: "../modules/wspt/wspt-07.html" },
+            { c: "orange", i: "fa-sitemap", l: "业务流程设计", h: "../modules/wspt/wspt-08.html" },
+            { c: "purple", i: "fa-file-signature", l: "合同模板与拟制归档", h: "../modules/wspt/wspt-10.html" },
+            { c: "red", i: "fa-key", l: "国密与信创安全配置", h: "../modules/wspt/wspt-13.html" }
           ]
         },
         ops: {
@@ -1522,8 +1500,8 @@
             {
               c: "purple",
               i: "fa-fingerprint",
-              l: "账号安全管理",
-              h: "../modules/_pending.html?k=wspt-06&e=government"
+              l: "日志与安全审计",
+              h: "../modules/wspt/wspt-12.html"
             }
           ]
         }
@@ -3777,6 +3755,31 @@
       '</div>';
   }
 
+  /* --- 补丁 J：菜单 href 是相对外壳目录（如 government/）写的，业务页面直接打开时
+         位于 modules/<子系统>[/<角色目录>]/ 下，层级更深，须按实际层数补 ../。
+         早期只在 spec.js 与 wsztxy.js 里补，未引这两个脚本的页面菜单会指向
+         /modules/modules/... 而 404，这里下沉到 app.js，让所有页面一致生效。 --- */
+  function sidebarDepthUp() {
+    var p = location.pathname;
+    var i = p.lastIndexOf('/modules/');
+    if (i < 0) return '';
+    var rest = p.slice(i + '/modules/'.length);
+    var n = rest.split('/').length - 1;   /* 去掉文件名后剩余的目录层数 */
+    return n > 0 ? new Array(n + 1).join('../') : '';
+  }
+
+  function fixDepthIn(box) {
+    var up = sidebarDepthUp();
+    if (!up || !box || box.getAttribute('data-depth-fixed')) return;
+    box.setAttribute('data-depth-fixed', '1');
+    box.querySelectorAll('a[href]').forEach(function (a) {
+      var h = a.getAttribute('href') || '';
+      if (/^(https?:|#|javascript:|mailto:|tel:|\/)/.test(h)) return;
+      if (h.indexOf('../') === 0) { a.setAttribute('href', up + h); return; }
+      if (/^dashboard\.html/.test(h)) a.setAttribute('href', up + '../' + END + '/' + h);
+    });
+  }
+
   function sidebarHTML(active, file, role) {
     return '<div class="menu-search">' +
         '<input type="text" class="menu-search-input" placeholder="菜单搜索" autocomplete="off">' +
@@ -3899,6 +3902,8 @@
         sidebar.classList.toggle('open');
       });
       initMenuSearch(sidebar);
+      fixDepthIn(sidebar);
+      fixDepthIn(topbar);
       ensureSingleActive(sidebar, file);
       /* 补丁 I：独立打开的页面，切换子系统直接跳到该子系统的第一个功能模块 */
       initSysSwitch(topbar, function (code) {

@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>基础配置与数据字典 · 应用支撑平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<link rel="stylesheet" href="../../assets/css/spec.css">
+<style>
+  .dv {
+    display: inline-block; padding: 0 7px; margin: 1px 3px 1px 0; border-radius: var(--radius-sm);
+    font-size: 11.5px; line-height: 19px; background: var(--bg-soft); color: var(--text-2);
+    border: 1px solid var(--border-strong);
+  }
+  .dv.def { background: var(--primary-light); color: var(--primary); border-color: var(--primary-soft); font-weight: 600; }
+</style>
+</head>
+<body data-role="admin" data-active="wspt-05">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 应用支撑平台
+        <span class="sep">/</span> 基础配置
+        <span class="sep">/</span> <span class="cur">基础配置与数据字典</span>
+      </div>
+      <div class="page-title">基础配置与数据字典 <span class="badge blue">模块四 · 8 个功能点</span></div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="refreshCache()"><i class="fa-solid fa-rotate"></i> 刷新字典缓存</button>
+      <button class="btn" onclick="SP.exportAsync('数据字典（21 类 · 取值 61 个）')"><i class="fa-solid fa-download"></i> 导出字典</button>
+      <button class="btn btn-primary" onclick="PMS.openDrawer('dictDrawer')"><i class="fa-solid fa-plus"></i> 新增字典类型</button>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div><b>R-I3</b>：页面下拉选项<b>必须从本平台字典取值，不得页面写死</b>——这是对全部业务板块的硬性约束。
+      <b>验-11</b> 要求：6.3 各类字典均已配置，页面下拉无写死取值，<b>内外端同一字典源</b>。
+      字典变更后须<b>刷新缓存</b>，否则多服务节点取到的取值不一致。</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-book"></i></div><div>
+      <div class="s-label">字典类别</div><div class="s-value">21</div><div class="s-trend text-2">系统内置 14 · 业务自定义 7</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-list"></i></div><div>
+      <div class="s-label">字典取值</div><div class="s-value">61</div><div class="s-trend text-2">默认项已标注</div></div></div>
+    <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-sliders"></i></div><div>
+      <div class="s-label">系统参数</div><div class="s-value">46</div><div class="s-trend text-2">4 个配置分组</div></div></div>
+    <div class="stat-card"><div class="s-icon purple"><i class="fa-solid fa-hard-drive"></i></div><div>
+      <div class="s-label">当前存储</div><div class="s-value" style="font-size:17px">MinIO</div><div class="s-trend text-2">可切本地 / OSS</div></div></div>
+    <div class="stat-card dc-alarm"><div class="s-icon orange"><i class="fa-solid fa-clock-rotate-left"></i></div><div>
+      <div class="s-label">缓存待刷新</div><div class="s-value">2</div><div class="s-trend">类别已改未刷新</div></div></div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="dt">字典类型与数据项</div>
+      <div class="tab" data-tab="sp">系统参数</div>
+      <div class="tab" data-tab="kv">参数键值配置</div>
+      <div class="tab" data-tab="st">存储与通知配置</div>
+      <div class="tab" data-tab="ie">缓存与导入导出</div>
+    </div>
+
+    <!-- ===================== 字典 ===================== -->
+    <div class="tab-panel active" data-panel="dt">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>字典类别</label><input type="text" id="dq" oninput="renderDict()" placeholder="类别名或取值"></div>
+          <div class="filter-item"><label>来源</label>
+            <select id="dSrc" onchange="renderDict()"><option value="">全部</option><option>系统内置</option><option>业务自定义</option></select></div>
+          <div class="filter-item"><label>缓存状态</label>
+            <select id="dCache" onchange="renderDict()"><option value="">全部</option><option value="1">已同步</option><option value="0">待刷新</option></select></div>
+          <div class="filter-actions"><span class="muted" id="dCnt" style="align-self:center"></span></div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>字典类别</th><th>字典编码</th><th>来源</th><th class="num">取值数</th><th>取值（蓝色为默认项）</th><th>缓存</th><th>操作</th>
+            </tr></thead>
+            <tbody id="dictBody"></tbody>
+          </table>
+        </div>
+        <p class="hint">
+          <i class="fa-solid fa-circle-info"></i>
+          <b>系统内置</b>字典与平台代码逻辑绑定（如流程实例状态、审批动作），<b>只可改显示文本与排序，不可增删取值</b>；
+          <b>业务自定义</b>字典可自由增删。取值的<b>存储值一经使用不可修改</b>，否则历史数据的字典翻译会错位。
+        </p>
+      </div>
+    </div>
+
+    <!-- ===================== 系统参数 ===================== -->
+    <div class="tab-panel" data-panel="sp">
+      <div class="card-body">
+        <div class="grid-2">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-image"></i> 平台标识</div>
+            <div class="sp-b">
+              <div class="form-grid form-align">
+                <div class="form-item col-full"><label>系统名称</label><input type="text" value="华信数智房产交易一体化平台"></div>
+                <div class="form-item col-full"><label>Logo</label><input type="text" value="assets/img/logo.png" data-upload="1"></div>
+                <div class="form-item col-full"><label>版权信息</label><input type="text" value="XXXX市住房和城乡建设局 · 华信数智"></div>
+                <div class="form-item"><label>主题色</label><input type="text" value="#2656BB"></div>
+                <div class="form-item"><label>默认语言</label><select><option>简体中文</option><option>English</option></select></div>
+              </div>
+              <div class="btn-row" style="margin-top:8px">
+                <button class="btn btn-sm btn-primary" onclick="PMS.toast('已保存并即时生效，各端下次加载即应用新标识','success')"><i class="fa-solid fa-check"></i> 保存</button>
+              </div>
+            </div>
+          </div>
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-circle-info"></i> 生效说明</div>
+            <div class="sp-b">
+              <div class="sp-check">
+                <div class="ck pass"><i class="fa-solid fa-circle-check"></i><div class="cb">
+                  <div class="ct">保存即生效，不设审核</div>
+                  <div class="cd">系统参数属配置类事项，<b>不产生办件号、不进入待受理与待审核</b>，保存后写操作日志。</div></div></div>
+                <div class="ck wait"><i class="fa-solid fa-rotate"></i><div class="cb">
+                  <div class="ct">多服务节点须刷新缓存</div>
+                  <div class="cd">参数与字典均有本地缓存，改后<b>须主动刷新</b>才能保证多服务一致。</div></div></div>
+                <div class="ck wait"><i class="fa-solid fa-shield-halved"></i><div class="cb">
+                  <div class="ct">高敏参数须二次确认</div>
+                  <div class="cd">密码策略、会话超时等安全类参数变更纳入<b>高敏留痕</b>。</div></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 参数键值 ===================== -->
+    <div class="tab-panel" data-panel="kv">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>配置分组</label>
+            <select id="gGrp" onchange="renderKv()">
+              <option value="">全部</option><option>security</option><option>storage</option><option>mail</option><option>sms</option><option>notify</option>
+            </select></div>
+          <div class="filter-item"><label>参数键</label><input type="text" id="gKw" oninput="renderKv()" placeholder="参数键关键字"></div>
+          <div class="filter-actions">
+            <button class="btn" onclick="PMS.openDrawer('kvDrawer')"><i class="fa-solid fa-plus"></i> 新增参数</button>
+            <span class="muted" id="kCnt" style="align-self:center"></span>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>参数键</th><th>参数名称</th><th>分组</th><th>当前值</th><th>类型</th><th>说明</th><th>操作</th></tr></thead>
+            <tbody id="kvBody"></tbody>
+          </table>
+        </div>
+        <p class="hint">
+          <i class="fa-solid fa-triangle-exclamation" style="color:var(--lv-orange)"></i>
+          <b>密码策略与会话超时</b>属安全类参数，变更后对<b>新会话</b>生效，已登录会话不强制下线；
+          若因密钥泄露需强制作废，走<span class="link" onclick="location.href='wspt-13.html'">国密配置的会话强制下线</span>。
+        </p>
+      </div>
+    </div>
+
+    <!-- ===================== 存储与通知 ===================== -->
+    <div class="tab-panel" data-panel="st">
+      <div class="card-body">
+        <div class="grid-2">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-hard-drive"></i> 存储配置
+              <span class="sub">本地 / OSS / MinIO 可切换</span></div>
+            <div class="sp-b">
+              <div class="form-grid form-align">
+                <div class="form-item col-full"><label>存储方式 <span class="req">*</span></label>
+                  <select id="stType" onchange="pickStore()">
+                    <option>MinIO</option><option>阿里云 OSS</option><option>本地磁盘</option>
+                  </select></div>
+                <div class="form-item col-full"><label>服务地址</label><input type="text" id="stUrl" value="http://minio.internal:9000"></div>
+                <div class="form-item"><label>Bucket</label><input type="text" value="fcjy-file"></div>
+                <div class="form-item"><label>访问密钥</label><input type="text" value="********" readonly></div>
+                <div class="form-item col-full"><label>单文件上限</label><input type="text" value="100 MB"></div>
+              </div>
+              <p class="hint">
+                <i class="fa-solid fa-triangle-exclamation" style="color:var(--lv-orange)"></i>
+                本平台<b>只维护文件目录、元数据、版本与调阅台账</b>；文件实体经存储适配层落
+                <b>PC-33 统一文件与影像服务平台</b>，<b>平台库不存文件字节流</b>。
+                切换存储方式<b>不迁移历史文件</b>，历史文件仍按原对象标识读取。
+              </p>
+              <div class="btn-row" style="margin-top:8px">
+                <button class="btn btn-sm" onclick="SP.todo('连通性测试通过：上传测试对象 1.2 KB、读取校验 SM3 摘要一致、删除测试对象成功，往返耗时 86 ms')"><i class="fa-solid fa-plug"></i> 测试连通</button>
+                <button class="btn btn-sm btn-primary" onclick="PMS.toast('已保存存储配置并即时生效，新上传文件走新存储，历史文件按原对象标识读取','success')"><i class="fa-solid fa-check"></i> 保存</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-bell"></i> 通知配置
+              <span class="sub">邮件 · 短信 · 站内信</span></div>
+            <div class="sp-b pad0">
+              <div class="sp-tw">
+                <table class="data-table compact">
+                  <thead><tr><th>通道</th><th>服务商</th><th>关键参数</th><th>状态</th><th>操作</th></tr></thead>
+                  <tbody>
+                    <tr><td>短信</td><td>中国移动云 MAS</td><td class="cell-lg">签名【XXXX住建】· 日限 5 万条</td>
+                      <td><span class="badge green">启用</span></td>
+                      <td><span class="link" onclick="SP.todo('已发送测试短信至 138****8800，回执成功，耗时 1.4 秒')">测试</span></td></tr>
+                    <tr><td>邮件</td><td>内网 SMTP</td><td class="cell-lg">smtp.internal:25 · 发件人 noreply@</td>
+                      <td><span class="badge green">启用</span></td>
+                      <td><span class="link" onclick="SP.todo('已发送测试邮件，回执成功')">测试</span></td></tr>
+                    <tr><td>站内信</td><td>平台内置</td><td class="cell-lg">保留 180 天 · 未读高亮</td>
+                      <td><span class="badge green">启用</span></td>
+                      <td><span class="link" onclick="SP.todo('站内信为平台内置通道，无需外部服务商')">说明</span></td></tr>
+                    <tr class="row-off"><td>企业微信</td><td>—</td><td class="cell-lg">—</td>
+                      <td><span class="badge gray">停用</span></td>
+                      <td><span class="link" onclick="PMS.openDrawer('kvDrawer')">配置</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="hint" style="padding:9px 12px">
+                <i class="fa-solid fa-circle-info"></i>
+                通知通道供流程催办、合同到期提醒、账号状态变更等场景调用。
+                <b>短信与邮件的开关在参数键值配置中控制</b>，此处只维护服务商参数。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 缓存与导入导出 ===================== -->
+    <div class="tab-panel" data-panel="ie">
+      <div class="card-body">
+        <div class="grid-2">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-rotate"></i> 字典缓存刷新
+              <span class="sub">保证多服务节点取值一致</span></div>
+            <div class="sp-b">
+              <div class="sp-check">
+                <div class="ck block"><i class="fa-solid fa-triangle-exclamation"></i><div class="cb">
+                  <div class="ct">2 个字典类别已修改但未刷新缓存</div>
+                  <div class="cd">「合同状态」新增取值、「配置分组」调整排序。<b>未刷新前各服务节点仍取旧值</b>，
+                    可能导致下拉选项在不同页面表现不一致。</div></div>
+                  <div class="co"><button class="btn btn-sm btn-primary" onclick="refreshCache()">立即刷新</button></div></div>
+                <div class="ck pass"><i class="fa-solid fa-circle-check"></i><div class="cb">
+                  <div class="ct">上次刷新 · 2026-08-30 15:22</div>
+                  <div class="cd">刷新范围：全部 21 类字典 ＋ 46 项参数，同步至 6 个服务节点，耗时 1.2 秒。</div></div></div>
+              </div>
+              <div class="sp-kv" style="margin-top:10px">
+                <div class="kv"><span class="k">服务节点</span><span class="v">6 个 · 全部在线</span></div>
+                <div class="kv"><span class="k">缓存策略</span><span class="v">本地缓存 ＋ 主动失效广播</span></div>
+                <div class="kv"><span class="k">兜底刷新</span><span class="v">每 30 分钟自动全量同步一次</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-right-left"></i> 字典导入导出
+              <span class="sub">跨环境迁移</span></div>
+            <div class="sp-b">
+              <div class="form-grid form-align">
+                <div class="form-item col-full"><label>导出范围</label>
+                  <div class="radio-line">
+                    <label><input type="checkbox" checked> 系统内置字典（14 类）</label>
+                    <label><input type="checkbox" checked> 业务自定义字典（7 类）</label>
+                    <label><input type="checkbox"> 系统参数（46 项）</label>
+                  </div></div>
+              </div>
+              <div class="sp-doc" style="height:130px;margin-top:8px" onclick="PMS.openModal('impModal')">
+                <i class="fa-solid fa-file-arrow-up"></i>
+                <div>点击选择字典导出包导入</div>
+                <div class="muted">导入前校验编码冲突与取值引用</div>
+              </div>
+              <div class="btn-row" style="margin-top:8px">
+                <button class="btn btn-sm btn-primary" onclick="SP.exportAsync('数据字典导出包')"><i class="fa-solid fa-download"></i> 生成导出包</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-clock-rotate-left"></i> 配置变更留痕
+            <span class="sub">配置类操作一律写操作日志与变更对照</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>时间</th><th>对象</th><th>动作</th><th>变更对照</th><th>操作人</th></tr></thead>
+                <tbody>
+                  <tr><td>2026-08-31 09:14</td><td>字典 · 合同状态</td><td><span class="badge green">新增取值</span></td>
+                    <td class="cell-lg">新增「已归档」（存储值 <code>archived</code>，排序 5）</td><td>蒙丽华</td></tr>
+                  <tr><td>2026-08-30 16:48</td><td>参数 · sys.session.timeout</td><td><span class="badge orange">修改</span></td>
+                    <td class="cell-lg"><span class="sp-diff"><span class="old">30 分钟</span> → <span class="new">20 分钟</span></span>，对新会话生效</td><td>蒙丽华</td></tr>
+                  <tr><td>2026-08-30 15:22</td><td>全部字典与参数</td><td><span class="badge blue">刷新缓存</span></td>
+                    <td class="cell-lg">同步至 6 个服务节点，耗时 1.2 秒</td><td>蒙丽华</td></tr>
+                  <tr><td>2026-08-28 11:02</td><td>存储配置</td><td><span class="badge orange">修改</span></td>
+                    <td class="cell-lg"><span class="sp-diff"><span class="old">本地磁盘</span> → <span class="new">MinIO</span></span>，历史文件按原对象标识读取</td><td>蒙丽华</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ========== 抽屉 · 字典类型 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="dictDrawer">
+  <div class="drawer-head"><h3>字典类型与数据项</h3><span class="badge blue">保存即生效</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="form-grid form-align">
+      <div class="form-item"><label>字典类别 <span class="req">*</span></label><input type="text" id="dName" value="合同状态"></div>
+      <div class="form-item"><label>字典编码 <span class="req">*</span></label><input type="text" value="contract_status" readonly>
+        <div class="hint">全平台唯一，一经使用<b>不可修改</b>。</div></div>
+      <div class="form-item"><label>来源</label><input type="text" value="系统内置" readonly>
+        <div class="hint">系统内置字典与代码逻辑绑定，<b>只可改显示文本与排序，不可增删取值</b>。</div></div>
+      <div class="form-item"><label>状态</label><select><option>启用</option><option>停用</option></select></div>
+    </div>
+    <div class="sp-block" style="margin-top:12px">
+      <div class="sp-h"><i class="fa-solid fa-list"></i> 数据项
+        <span class="sub">显示文本 · 存储值 · 排序 · 默认项 · 样式标签</span></div>
+      <div class="sp-b pad0">
+        <div class="sp-tw">
+          <table class="data-table compact">
+            <thead><tr><th>显示文本</th><th>存储值</th><th class="num">排序</th><th>默认项</th><th>样式标签</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td>草稿</td><td><code>draft</code></td><td class="num">1</td><td><span class="badge blue">是</span></td><td><span class="badge gray">灰</span></td>
+                <td><span class="link is-off" onclick="SP.denied('系统内置字典不可删除取值，删除会导致历史数据的字典翻译错位')">删除</span></td></tr>
+              <tr><td>审批中</td><td><code>approving</code></td><td class="num">2</td><td>—</td><td><span class="badge blue">蓝</span></td>
+                <td><span class="link is-off" onclick="SP.denied('系统内置字典不可删除取值')">删除</span></td></tr>
+              <tr><td>生效</td><td><code>effective</code></td><td class="num">3</td><td>—</td><td><span class="badge green">绿</span></td>
+                <td><span class="link is-off" onclick="SP.denied('系统内置字典不可删除取值')">删除</span></td></tr>
+              <tr><td>作废</td><td><code>void</code></td><td class="num">4</td><td>—</td><td><span class="badge red">红</span></td>
+                <td><span class="link is-off" onclick="SP.denied('系统内置字典不可删除取值')">删除</span></td></tr>
+              <tr class="row-warn"><td>已归档</td><td><code>archived</code></td><td class="num">5</td><td>—</td><td><span class="badge gray">灰</span></td>
+                <td><span class="link">编辑</span> <span class="muted">新增，待刷新缓存</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>关闭</button>
+    <button class="btn" onclick="PMS.toast('已新增数据项，须刷新缓存后各服务节点方可取到','info')"><i class="fa-solid fa-plus"></i> 新增数据项</button>
+    <button class="btn btn-primary" onclick="PMS.closeDrawer();refreshCache()"><i class="fa-solid fa-check"></i> 保存并刷新缓存</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉 · 参数 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="kvDrawer">
+  <div class="drawer-head"><h3>参数配置</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="form-grid form-align">
+      <div class="form-item"><label>参数键 <span class="req">*</span></label><input type="text" placeholder="如 sys.session.timeout"></div>
+      <div class="form-item"><label>参数名称 <span class="req">*</span></label><input type="text" placeholder="如 会话超时时间"></div>
+      <div class="form-item"><label>配置分组 <span class="req">*</span></label>
+        <select><option>security</option><option>storage</option><option>mail</option><option>sms</option><option>notify</option></select></div>
+      <div class="form-item"><label>参数类型</label><select><option>系统内置</option><option>自定义</option></select></div>
+      <div class="form-item col-full"><label>参数值 <span class="req">*</span></label><input type="text" placeholder="参数值"></div>
+      <div class="form-item col-full"><label>说明</label><textarea rows="2" placeholder="参数用途与取值范围"></textarea></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('已保存并即时生效，已写入操作日志与变更对照','success')"><i class="fa-solid fa-check"></i> 保存</button>
+  </div>
+</div>
+
+<!-- ========== 弹窗 · 导入校验 ========== -->
+<div class="modal-mask"></div>
+<div class="modal" id="impModal">
+  <div class="modal-head"><h3>字典导入校验</h3><div class="close" data-close-modal><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="modal-body">
+    <div class="sp-check">
+      <div class="ck pass"><i class="fa-solid fa-circle-check"></i><div class="cb">
+        <div class="ct">编码冲突检查 · 通过</div><div class="cd">7 个业务自定义字典编码在目标环境均不冲突。</div></div></div>
+      <div class="ck block"><i class="fa-solid fa-circle-xmark"></i><div class="cb">
+        <div class="ct">取值引用检查 · 未通过</div>
+        <div class="cd">导入包中「审批动作」字典缺少取值 <code>addsign</code>，而目标环境已有 <b>18 条流程实例</b>使用该取值。
+          <b>导入会导致历史数据字典翻译错位</b>。</div></div></div>
+    </div>
+    <p class="hint">
+      <i class="fa-solid fa-circle-info"></i>
+      <b>系统内置字典的取值只增不减</b>：即便导入包里没有，也不会删除目标环境已被引用的取值。
+    </p>
+  </div>
+  <div class="modal-foot">
+    <button class="btn" data-close-modal>取消导入</button>
+    <button class="btn btn-primary" onclick="PMS.closeModal();PMS.toast('已按「只增不减」策略导入：新增 3 个取值、更新 12 条显示文本，已被引用的取值全部保留','success')"><i class="fa-solid fa-check"></i> 按只增不减导入</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/spec.js"></script>
+<script>
+/* 6.3 数据字典 · 21 类 */
+var DICTS = [
+  ['启用状态', 'sys_normal_disable', '系统内置', ['启用', '停用'], 0, 1],
+  ['是否', 'sys_yes_no', '系统内置', ['是', '否'], 1, 1],
+  ['用户性别', 'sys_user_sex', '系统内置', ['未知', '男', '女'], 0, 1],
+  ['用户状态', 'sys_user_status', '系统内置', ['正常', '停用'], 0, 1],
+  ['锁定状态', 'sys_lock_status', '系统内置', ['未锁定', '锁定'], 0, 1],
+  ['菜单类型', 'sys_menu_type', '系统内置', ['目录', '菜单', '按钮'], 1, 1],
+  ['数据范围', 'sys_data_scope', '系统内置', ['全部', '本部门', '本部门及以下', '本人', '自定义'], 0, 1],
+  ['部门层级类型', 'sys_dept_level', '业务自定义', ['市级', '城区', '街道', '社区'], 0, 1],
+  ['参数类型', 'sys_config_type', '系统内置', ['系统内置', '自定义'], 0, 1],
+  ['配置分组', 'sys_config_group', '业务自定义', ['storage', 'mail', 'sms', 'notify'], 0, 0],
+  ['日历日类型', 'wf_calendar_day', '业务自定义', ['工作日', '休息日', '法定节假日'], 0, 1],
+  ['表单发布状态', 'wf_form_status', '系统内置', ['发布', '草稿'], 1, 1],
+  ['流程发布状态', 'wf_flow_status', '系统内置', ['发布', '草稿/停用'], 1, 1],
+  ['节点类型', 'wf_node_type', '系统内置', ['start', 'approval', 'condition', 'parallel', 'cc', 'end'], 1, 1],
+  ['审批人类型', 'wf_assignee_type', '系统内置', ['指定人', '角色', '部门主管', '发起人', '表单字段'], 0, 1],
+  ['多人处理模式', 'wf_multi_mode', '系统内置', ['单人', '会签', '或签', '顺序会签'], 0, 1],
+  ['节点字段权限', 'wf_field_perm', '系统内置', ['可写', '只读', '隐藏'], 0, 1],
+  ['流程实例状态', 'wf_inst_status', '系统内置', ['审批中', '通过', '拒绝', '撤回', '终止'], 0, 1],
+  ['任务状态', 'wf_task_status', '系统内置', ['待办', '已办', '转办', '已阅'], 0, 1],
+  ['审批动作', 'wf_task_action', '系统内置', ['start', 'agree', 'reject', 'return', 'transfer', 'addsign', 'cancel'], 1, 1],
+  ['合同状态', 'ct_status', '业务自定义', ['草稿', '审批中', '生效', '作废', '已归档'], 0, 0]
+];
+
+var KVS = [
+  ['sys.password.minLength', '口令最小长度', 'security', '10', '系统内置', '低于该长度不允许设置'],
+  ['sys.password.complexity', '口令复杂度', 'security', '大小写字母+数字+符号', '系统内置', '口令按 SM3 加盐哈希落库'],
+  ['sys.password.expireDays', '口令有效期（天）', 'security', '90', '系统内置', '到期强制改密'],
+  ['sys.login.maxFail', '连续失败锁定次数', 'security', '5', '系统内置', '达到次数即锁定，须管理员解锁'],
+  ['sys.session.timeout', '会话超时（分钟）', 'security', '20', '系统内置', '对新会话生效，已登录会话不强制下线'],
+  ['sys.upload.maxSize', '单文件上限（MB）', 'storage', '100', '系统内置', '超限在上传环节即拦截'],
+  ['sys.upload.allowExt', '允许上传扩展名', 'storage', 'pdf,ofd,jpg,png,docx,xlsx', '系统内置', '白名单以外一律拒收'],
+  ['sys.sms.enabled', '短信通道开关', 'sms', '开', '自定义', '关闭后催办与提醒改走站内信'],
+  ['sys.mail.enabled', '邮件通道开关', 'mail', '开', '自定义', ''],
+  ['sys.notify.retainDays', '站内信保留天数', 'notify', '180', '自定义', '超期自动清理'],
+  ['wf.task.remindHours', '待办催办提前量（小时）', 'notify', '8', '自定义', '按工作日历计算，不含休息日'],
+  ['ct.expire.remindDays', '合同到期提醒提前量（天）', 'notify', '30', '自定义', '台账按此提前量高亮']
+];
+
+function renderDict() {
+  var q = (document.getElementById('dq').value || '').trim();
+  var src = document.getElementById('dSrc').value;
+  var ca = document.getElementById('dCache').value;
+  var rows = DICTS.filter(function (d) {
+    if (src && d[2] !== src) return false;
+    if (ca !== '' && String(d[5]) !== ca) return false;
+    if (q && d[0].indexOf(q) < 0 && d[1].indexOf(q) < 0 && d[3].join(',').indexOf(q) < 0) return false;
+    return true;
+  });
+  document.getElementById('dCnt').innerHTML = '共 <b>' + rows.length + '</b> 类 · 取值 <b>'
+    + rows.reduce(function (a, d) { return a + d[3].length; }, 0) + '</b> 个';
+  document.getElementById('dictBody').innerHTML = rows.map(function (d) {
+    return '<tr' + (d[5] ? '' : ' class="row-warn"') + '>'
+      + '<td>' + d[0] + '</td><td><code>' + d[1] + '</code></td>'
+      + '<td>' + (d[2] === '系统内置' ? '<span class="badge blue">系统内置</span>' : '<span class="badge green">业务自定义</span>') + '</td>'
+      + '<td class="num">' + d[3].length + '</td>'
+      + '<td class="cell-lg">' + d[3].map(function (v, i) {
+          return '<span class="dv' + (i === d[4] ? ' def' : '') + '">' + v + '</span>';
+        }).join('') + '</td>'
+      + '<td>' + (d[5] ? '<span class="badge green">已同步</span>' : '<span class="badge orange">待刷新</span>') + '</td>'
+      + '<td><span class="link" onclick="PMS.openDrawer(\'dictDrawer\')">维护取值</span></td></tr>';
+  }).join('') || '<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">没有符合条件的字典</td></tr>';
+}
+
+function renderKv() {
+  var g = document.getElementById('gGrp').value;
+  var k = (document.getElementById('gKw').value || '').trim();
+  var rows = KVS.filter(function (r) {
+    if (g && r[2] !== g) return false;
+    if (k && r[0].indexOf(k) < 0 && r[1].indexOf(k) < 0) return false;
+    return true;
+  });
+  document.getElementById('kCnt').innerHTML = '共 <b>' + rows.length + '</b> 项';
+  document.getElementById('kvBody').innerHTML = rows.map(function (r) {
+    var sec = r[2] === 'security';
+    return '<tr' + (sec ? ' class="row-warn"' : '') + '>'
+      + '<td><code>' + r[0] + '</code></td><td>' + r[1] + '</td>'
+      + '<td><span class="badge ' + (sec ? 'red' : 'gray') + '">' + r[2] + '</span></td>'
+      + '<td><b>' + r[3] + '</b></td><td>' + r[4] + '</td>'
+      + '<td class="cell-lg">' + r[5] + '</td>'
+      + '<td><span class="link" onclick="PMS.openDrawer(\'kvDrawer\')">编辑</span></td></tr>';
+  }).join('') || '<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">没有符合条件的参数</td></tr>';
+}
+
+function pickStore() {
+  var t = document.getElementById('stType').value;
+  document.getElementById('stUrl').value = t === 'MinIO' ? 'http://minio.internal:9000'
+    : (t === '阿里云 OSS' ? 'https://oss-cn-nanning.aliyuncs.com' : '/data/upload');
+}
+
+function refreshCache() {
+  PMS.toast('正在刷新字典与参数缓存…');
+  setTimeout(function () {
+    DICTS.forEach(function (d) { d[5] = 1; });
+    renderDict();
+    PMS.toast('已刷新：21 类字典 ＋ 46 项参数同步至 6 个服务节点，耗时 1.2 秒', 'success');
+  }, 700);
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  renderDict(); renderKv();
+  var t = SP.param('tab'); if (t) SP.tab(t);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工作日历 · 应用支撑平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<link rel="stylesheet" href="../../assets/css/spec.css">
+<style>
+  /* 年历：一行一月，一格一天，三种日类型分色 */
+  .cal { display: flex; flex-direction: column; gap: 5px; }
+  .cal .mrow { display: flex; align-items: center; gap: 3px; }
+  .cal .mn { width: 36px; flex-shrink: 0; font-size: 12px; color: var(--text-3); text-align: right; padding-right: 5px; }
+  .cal .d {
+    width: 21px; height: 21px; flex-shrink: 0; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10.5px; cursor: pointer; border: 1px solid transparent;
+  }
+  .cal .d.w { background: #fff; border-color: var(--border); color: var(--text-2); }
+  .cal .d.r { background: var(--bg-soft); color: var(--text-3); }
+  .cal .d.h { background: var(--danger-light); color: var(--lv-red); font-weight: 700; border-color: #f0c7c7; }
+  .cal .d.t { outline: 2px solid var(--primary); outline-offset: 1px; }
+  .cal .d.pad { visibility: hidden; }
+  .cal .d:hover { transform: scale(1.18); }
+  .cal-lg { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; color: var(--text-3); }
+  .cal-lg .k { display: inline-flex; align-items: center; gap: 5px; }
+  .cal-lg .sw { width: 13px; height: 13px; border-radius: 3px; border: 1px solid var(--border); }
+  .cal-lg .sw.w { background: #fff; }
+  .cal-lg .sw.r { background: var(--bg-soft); }
+  .cal-lg .sw.h { background: var(--danger-light); border-color: #f0c7c7; }
+</style>
+</head>
+<body data-role="admin" data-active="wspt-06">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 应用支撑平台
+        <span class="sep">/</span> 基础配置
+        <span class="sep">/</span> <span class="cur">工作日历</span>
+      </div>
+      <div class="page-title">工作日历 <span class="badge blue">模块五 · 3 个功能点</span></div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="PMS.openModal('impModal')"><i class="fa-solid fa-upload"></i> 年度批量导入</button>
+      <button class="btn" onclick="SP.exportAsync('2026 年度工作日历')"><i class="fa-solid fa-download"></i> 导出日历</button>
+      <button class="btn btn-primary" onclick="PMS.openDrawer('calDrawer')"><i class="fa-solid fa-plus"></i> 新增日历</button>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div><b>R-I4</b>：办件承诺时限与 SLA <b>必须调用本平台工作日历计算</b>，业务板块不得自行按自然日推算——
+      这是对全部办件类板块的硬性约束。计算口径：<b>due_time ＝ 起算时间按日历顺延 sla_hours 个工作小时</b>，
+      <b>休息日与法定节假日不计入</b>。<b>补正期间与等待外部回执的时间同样不计入承诺时限</b>。</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-calendar-days"></i></div><div>
+      <div class="s-label">日历</div><div class="s-value">3</div><div class="s-trend text-2">默认 1 · 县区专用 2</div></div></div>
+    <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-briefcase"></i></div><div>
+      <div class="s-label">2026 年工作日</div><div class="s-value" id="kWork">—</div><div class="s-trend text-2">含调休上班 7 天</div></div></div>
+    <div class="stat-card dc-alarm"><div class="s-icon red"><i class="fa-solid fa-umbrella-beach"></i></div><div>
+      <div class="s-label">法定节假日</div><div class="s-value" id="kHol">—</div><div class="s-trend">不计入承诺时限</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-clock"></i></div><div>
+      <div class="s-label">日历调用</div><div class="s-value">4.2</div><div class="s-trend text-2">万次/月 · 12 个板块</div></div></div>
+    <div class="stat-card dc-alarm"><div class="s-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div><div>
+      <div class="s-label">2027 未维护</div><div class="s-value">1</div><div class="s-trend">年底前须导入</div></div></div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="cal">工作日历管理</div>
+      <div class="tab" data-tab="hol">节假日与调休维护</div>
+      <div class="tab" data-tab="sla">工作日时限计算</div>
+    </div>
+
+    <!-- ===================== 日历管理 ===================== -->
+    <div class="tab-panel active" data-panel="cal">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>支持<b>多套日历</b>：一套默认日历适用全市，县区可另设专用日历（例如民族地区的地方性节假日）。
+            时限计算时按<b>办件归属部门</b>匹配日历，匹配不到则回落默认日历。</div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>日历名称</th><th>编码</th><th>默认</th><th>适用地区 / 部门</th><th class="num">2026 工作日</th>
+              <th class="num">节假日</th><th class="num">调休上班</th><th>已维护年度</th><th>操作</th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td>全市标准日历</td><td><code>CAL-DEFAULT</code></td>
+                <td><span class="badge blue">默认</span></td>
+                <td class="cell-lg">全市 · 匹配不到专用日历时回落本日历</td>
+                <td class="num">252</td><td class="num">23</td><td class="num">7</td>
+                <td>2025、2026</td>
+                <td><span class="link" onclick="SP.tab('hol')">维护节假日</span><span class="link" onclick="PMS.openDrawer('calDrawer')">编辑</span></td>
+              </tr>
+              <tr>
+                <td>融水苗族自治县日历</td><td><code>CAL-RS</code></td>
+                <td>—</td>
+                <td class="cell-lg">融水县房管所及其子树</td>
+                <td class="num">249</td><td class="num">26</td><td class="num">7</td>
+                <td>2026</td>
+                <td><span class="link" onclick="SP.tab('hol')">维护节假日</span><span class="link" onclick="PMS.openDrawer('calDrawer')">编辑</span></td>
+              </tr>
+              <tr>
+                <td>三江侗族自治县日历</td><td><code>CAL-SJ</code></td>
+                <td>—</td>
+                <td class="cell-lg">三江县房管所及其子树</td>
+                <td class="num">250</td><td class="num">25</td><td class="num">7</td>
+                <td>2026</td>
+                <td><span class="link" onclick="SP.tab('hol')">维护节假日</span><span class="link" onclick="PMS.openDrawer('calDrawer')">编辑</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="hint">
+          <i class="fa-solid fa-triangle-exclamation" style="color:var(--lv-orange)"></i>
+          <b>2027 年度尚未维护</b>。跨年办件的 due_time 会算到下一年度，年度日历缺失将导致
+          <b>跨年时限计算回落为自然日</b>，须在年底前完成导入。
+        </p>
+      </div>
+    </div>
+
+    <!-- ===================== 节假日 ===================== -->
+    <div class="tab-panel" data-panel="hol">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>日历</label>
+            <select id="calSel" onchange="renderCal()">
+              <option>全市标准日历</option><option>融水苗族自治县日历</option><option>三江侗族自治县日历</option>
+            </select></div>
+          <div class="filter-item"><label>年度</label>
+            <select id="yrSel" onchange="renderCal()"><option>2026</option><option>2025</option></select></div>
+          <div class="filter-actions">
+            <button class="btn" onclick="PMS.openModal('impModal')"><i class="fa-solid fa-upload"></i> 批量导入年度</button>
+            <span class="muted" id="calSum" style="align-self:center"></span>
+          </div>
+        </div>
+
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-calendar"></i> <span id="calTitle">全市标准日历 · 2026 年</span>
+            <span class="sub">点击日期切换日类型</span></div>
+          <div class="sp-b">
+            <div class="cal-lg" style="margin-bottom:10px">
+              <span class="k"><span class="sw w"></span> 工作日</span>
+              <span class="k"><span class="sw r"></span> 休息日</span>
+              <span class="k"><span class="sw h"></span> 法定节假日</span>
+              <span class="k" style="margin-left:auto">蓝框为调休上班（原休息日改工作日）</span>
+            </div>
+            <div class="sp-scroll" style="max-height:330px"><div class="cal" id="calBox"></div></div>
+          </div>
+        </div>
+
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-umbrella-beach"></i> 法定节假日与调休明细
+            <span class="sub">2026 年度</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>节假日</th><th>放假日期</th><th class="num">天数</th><th>调休上班</th><th>说明</th></tr></thead>
+                <tbody id="holBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 时限计算 ===================== -->
+    <div class="tab-panel" data-panel="sla">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>时限计算由本平台统一提供，供<b>流程引擎与合同模块</b>调用，业务板块<b>不得自行推算</b>（R-I4）。
+            算法：从起算时间开始，按所属日历<b>逐个工作小时顺延</b>，跳过休息日与法定节假日，
+            得到 <code>due_time</code>。</div>
+        </div>
+
+        <div class="grid-2">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-calculator"></i> 时限试算器
+              <span class="sub">验证口径是否一致</span></div>
+            <div class="sp-b">
+              <div class="form-grid form-align">
+                <div class="form-item col-full"><label>适用日历</label>
+                  <select id="sCal"><option>全市标准日历</option><option>融水苗族自治县日历</option></select></div>
+                <div class="form-item"><label>起算时间</label><input type="text" id="sStart" value="2026-09-29 15:30"></div>
+                <div class="form-item"><label>sla_hours（工作小时）</label><input type="text" id="sHours" value="24"></div>
+                <div class="form-item col-full"><label>工作时段</label><input type="text" value="09:00–12:00、14:00–17:30（每日 6.5 小时）" readonly></div>
+              </div>
+              <div class="btn-row" style="margin-top:8px">
+                <button class="btn btn-sm btn-primary" onclick="calcSla()"><i class="fa-solid fa-play"></i> 试算 due_time</button>
+              </div>
+              <div class="sp-fx" id="slaOut" style="margin-top:10px">
+                <span class="lb">试算结果</span> 点击「试算 due_time」查看逐日推演
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-list-check"></i> 不计入承诺时限的时段
+              <span class="sub">口径统一，各板块一致</span></div>
+            <div class="sp-b">
+              <div class="sp-check">
+                <div class="ck block"><i class="fa-solid fa-ban"></i><div class="cb">
+                  <div class="ct">休息日与法定节假日</div>
+                  <div class="cd">按所属日历判定，<b>调休上班日按工作日计入</b>。</div></div></div>
+                <div class="ck block"><i class="fa-solid fa-ban"></i><div class="cb">
+                  <div class="ct">补正期间</div>
+                  <div class="cd">办件转补正中后<b>暂停计时</b>，企业提交补正材料后恢复计时。</div></div></div>
+                <div class="ck block"><i class="fa-solid fa-ban"></i><div class="cb">
+                  <div class="ct">企业自主准备材料的时间</div>
+                  <div class="cd">尚未提交的草稿期不计入。</div></div></div>
+                <div class="ck block"><i class="fa-solid fa-ban"></i><div class="cb">
+                  <div class="ct">等待外部回执的时间</div>
+                  <div class="cd">如等待银行划转回执、等待对端板块校验返回。</div></div></div>
+                <div class="ck wait"><i class="fa-solid fa-clock"></i><div class="cb">
+                  <div class="ct">挂起期间</div>
+                  <div class="cd">办件挂起期间不计时限，但<b>须单独统计停留时长</b>，超阈值触发督办。</div></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-plug"></i> 调用方与调用量
+            <span class="sub">近 30 日</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>调用板块</th><th>调用场景</th><th class="num">调用次数</th><th>使用日历</th><th>状态</th></tr></thead>
+                <tbody>
+                  <tr><td>新建商品房网签备案管理系统</td><td class="cell-lg">办件受理时计算承诺办结时间</td><td class="num">12,486</td><td>按办件归属部门匹配</td><td><span class="badge green">正常</span></td></tr>
+                  <tr><td>新建商品房预售资金监管系统</td><td class="cell-lg">资金使用办件时限、划转失败停留统计</td><td class="num">8,642</td><td>按办件归属部门匹配</td><td><span class="badge green">正常</span></td></tr>
+                  <tr><td>房屋交易面积信息管理系统</td><td class="cell-lg">面积成果批次受理时限</td><td class="num">4,208</td><td>按办件归属部门匹配</td><td><span class="badge green">正常</span></td></tr>
+                  <tr><td>从业主体与信用监管系统</td><td class="cell-lg">企业年审到期、证照有效期预警</td><td class="num">6,124</td><td>全市标准日历</td><td><span class="badge green">正常</span></td></tr>
+                  <tr><td>应用支撑平台（流程引擎）</td><td class="cell-lg">流程任务 due_time 与催办提前量</td><td class="num">10,862</td><td>按发起人部门匹配</td><td><span class="badge green">正常</span></td></tr>
+                  <tr><td>应用支撑平台（合同模块）</td><td class="cell-lg">合同到期提醒提前量</td><td class="num">386</td><td>全市标准日历</td><td><span class="badge green">正常</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ========== 抽屉 · 日历 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="calDrawer">
+  <div class="drawer-head"><h3>工作日历配置</h3><span class="badge blue">保存即生效</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="form-grid form-align">
+      <div class="form-item"><label>日历名称 <span class="req">*</span></label><input type="text" placeholder="如 融水苗族自治县日历"></div>
+      <div class="form-item"><label>日历编码 <span class="req">*</span></label><input type="text" placeholder="如 CAL-RS"></div>
+      <div class="form-item"><label>是否默认</label><select data-dict="yesNo" data-selected="0"></select>
+        <div class="hint">全平台<b>只能有一套默认日历</b>，设为默认会自动取消原默认。</div></div>
+      <div class="form-item"><label>年度</label><select><option>2026</option><option>2027</option></select></div>
+      <div class="form-item col-full"><label>适用地区 / 部门 <span class="req">*</span></label>
+        <select><option>融水县房管所及其子树</option><option>三江县房管所及其子树</option><option>全市</option></select>
+        <div class="hint">时限计算按<b>办件归属部门</b>匹配日历，匹配不到回落默认日历。</div></div>
+      <div class="form-item"><label>工作时段</label><input type="text" value="09:00-12:00,14:00-17:30"></div>
+      <div class="form-item"><label>每日工作小时</label><input type="text" value="6.5" readonly></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('已保存并即时生效，新办件按本日历计算 due_time','success')"><i class="fa-solid fa-check"></i> 保存</button>
+  </div>
+</div>
+
+<!-- ========== 弹窗 · 年度导入 ========== -->
+<div class="modal-mask"></div>
+<div class="modal" id="impModal">
+  <div class="modal-head"><h3>年度日历批量导入</h3><div class="close" data-close-modal><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="modal-body">
+    <div class="alert alert-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div>按年度批量导入工作日、休息日与法定节假日标记。导入前校验<b>全年日期完整性</b>与<b>调休配平</b>
+        （调休上班天数应与因节假日占用的工作日天数相抵）。</div>
+    </div>
+    <div class="form-grid form-align">
+      <div class="form-item"><label>目标日历 <span class="req">*</span></label>
+        <select><option>全市标准日历</option><option>融水苗族自治县日历</option><option>三江侗族自治县日历</option></select></div>
+      <div class="form-item"><label>年度 <span class="req">*</span></label><select><option>2027</option><option>2026</option></select></div>
+      <div class="form-item col-full"><label>日历文件 <span class="req">*</span></label><input type="text" data-upload="1">
+        <div class="hint">模板列：日期、日类型（工作日/休息日/法定节假日）、节假日名称、是否调休上班。</div></div>
+    </div>
+    <div class="sp-check" style="margin-top:10px">
+      <div class="ck pass"><i class="fa-solid fa-circle-check"></i><div class="cb">
+        <div class="ct">全年日期完整性 · 通过</div><div class="cd">365 天全部有日类型标记，无遗漏。</div></div></div>
+      <div class="ck wait"><i class="fa-solid fa-triangle-exclamation"></i><div class="cb">
+        <div class="ct">调休配平 · 提示</div>
+        <div class="cd">调休上班 7 天、法定节假日占用工作日 13 天，<b>净减少 6 个工作日</b>，与国务院办公厅安排一致，可继续导入。</div></div></div>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn" data-close-modal>取消</button>
+    <button class="btn btn-primary" onclick="PMS.closeModal();PMS.toast('已导入 2027 年度日历并即时生效，跨年办件的 due_time 已可正常计算','success')"><i class="fa-solid fa-check"></i> 确认导入</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/spec.js"></script>
+<script>
+/* 2026 年法定节假日（示例口径，实际以国务院办公厅通知为准） */
+var HOL = {
+  '01-01': '元旦', '01-02': '元旦', '01-03': '元旦',
+  '02-16': '春节', '02-17': '春节', '02-18': '春节', '02-19': '春节',
+  '02-20': '春节', '02-21': '春节', '02-22': '春节',
+  '04-04': '清明节', '05-01': '劳动节', '05-02': '劳动节', '05-03': '劳动节',
+  '06-19': '端午节', '09-25': '中秋节',
+  '10-01': '国庆节', '10-02': '国庆节', '10-03': '国庆节',
+  '10-04': '国庆节', '10-05': '国庆节', '10-06': '国庆节', '10-07': '国庆节'
+};
+/* 调休上班（原休息日改工作日） */
+var MAKEUP = ['02-14', '02-28', '04-06', '05-09', '09-27', '10-10', '10-11'];
+
+var HOL_ROWS = [
+  ['元旦', '2026-01-01 至 01-03', 3, '—', '与周末相连，共 3 天'],
+  ['春节', '2026-02-16 至 02-22', 7, '02-14（周六）、02-28（周六）', '调休 2 天'],
+  ['清明节', '2026-04-04', 1, '04-06（周一）', '调休 1 天'],
+  ['劳动节', '2026-05-01 至 05-03', 3, '05-09（周六）', '调休 1 天'],
+  ['端午节', '2026-06-19', 1, '—', '与周末相连'],
+  ['中秋节', '2026-09-25', 1, '09-27（周日）', '调休 1 天'],
+  ['国庆节', '2026-10-01 至 10-07', 7, '10-10（周六）、10-11（周日）', '调休 2 天']
+];
+
+function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+function renderCal() {
+  var cal = document.getElementById('calSel').value;
+  var yr = parseInt(document.getElementById('yrSel').value, 10);
+  document.getElementById('calTitle').textContent = cal + ' · ' + yr + ' 年';
+  var work = 0, rest = 0, hol = 0;
+  var html = '';
+  for (var m = 1; m <= 12; m++) {
+    var days = new Date(yr, m, 0).getDate();
+    var first = new Date(yr, m - 1, 1).getDay();
+    var row = '<div class="mrow"><span class="mn">' + m + '月</span>';
+    for (var p = 0; p < (first === 0 ? 6 : first - 1); p++) row += '<span class="d pad"></span>';
+    for (var d = 1; d <= days; d++) {
+      var key = pad(m) + '-' + pad(d);
+      var wd = new Date(yr, m - 1, d).getDay();
+      var isMk = MAKEUP.indexOf(key) >= 0;
+      var cls, tip;
+      if (HOL[key]) { cls = 'h'; hol++; tip = HOL[key] + ' · 法定节假日'; }
+      else if (isMk) { cls = 'w t'; work++; tip = '调休上班'; }
+      else if (wd === 0 || wd === 6) { cls = 'r'; rest++; tip = '休息日'; }
+      else { cls = 'w'; work++; tip = '工作日'; }
+      row += '<span class="d ' + cls + '" title="' + yr + '-' + key + ' ' + tip + '" onclick="toggleDay(\'' + key + '\')">' + d + '</span>';
+    }
+    html += row + '</div>';
+  }
+  document.getElementById('calBox').innerHTML = html;
+  document.getElementById('calSum').innerHTML =
+    '工作日 <b>' + work + '</b> · 休息日 <b>' + rest + '</b> · 法定节假日 <b>' + hol + '</b>';
+  /* 顶部 KPI 与年历取同一份数据，避免静态数字与实算值对不上 */
+  if (cal === '全市标准日历' && yr === 2026) {
+    document.getElementById('kWork').textContent = work;
+    document.getElementById('kHol').textContent = hol;
+  }
+
+  document.getElementById('holBody').innerHTML = HOL_ROWS.map(function (h) {
+    return '<tr><td>' + h[0] + '</td><td class="cell-lg">' + h[1] + '</td>'
+      + '<td class="num">' + h[2] + '</td><td class="cell-lg">' + h[3] + '</td>'
+      + '<td class="cell-lg">' + h[4] + '</td></tr>';
+  }).join('');
+}
+
+function toggleDay(k) {
+  SP.todo('日期 ' + k + '：可切换为工作日 / 休息日 / 法定节假日。保存后即时生效，'
+    + '已在办办件的 due_time 按新日历重算，已办结的不回改。');
+}
+
+function calcSla() {
+  var start = document.getElementById('sStart').value;
+  var hours = parseFloat(document.getElementById('sHours').value || '0');
+  var perDay = 6.5;
+  var days = Math.ceil(hours / perDay);
+  document.getElementById('slaOut').innerHTML =
+    '<span class="lb">起算时间</span> <b>' + start + '</b><br>'
+    + '<span class="lb">sla_hours</span> ' + hours + ' 个工作小时 ÷ 每日 ' + perDay + ' 小时 ≈ <b>' + days + ' 个工作日</b><br>'
+    + '<span class="lb">逐日推演</span> 09-29(周二 工作日) → 09-30(周三 工作日) → <em>10-01 至 10-07 国庆节，跳过 7 天</em> → 10-08(周四 工作日)<br>'
+    + '<span class="lb">due_time ＝</span> <b>2026-10-09 15:30</b> <span class="muted">（自然日跨度 10 天，工作日跨度 ' + days + ' 天）</span>';
+  PMS.toast('已按所选日历试算：跳过国庆 7 天法定节假日，due_time 为 2026-10-09 15:30', 'success');
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  renderCal();
+  var t = SP.param('tab'); if (t) SP.tab(t);
+});
+</script>
+</body>
+</html>

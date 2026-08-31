@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>角色权限与业务闭环 · 应用支撑平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<link rel="stylesheet" href="../../assets/css/spec.css">
+</head>
+<body data-role="admin" data-active="wspt-15">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 应用支撑平台
+        <span class="sep">/</span> 口径与验收
+        <span class="sep">/</span> <span class="cur">角色权限与业务闭环</span>
+      </div>
+      <div class="page-title">角色权限与业务闭环 <span class="badge blue">第九 / 十 / 十二章</span></div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="SP.todo('已比对原型菜单与本页矩阵：10 个角色的菜单树与 9.2~9.12 各表一致；外部角色菜单树未出现监管端配置页；district 无发布按钮（验-6）')"><i class="fa-solid fa-list-check"></i> 比对菜单一致性</button>
+      <button class="btn" onclick="SP.exportAsync('角色权限矩阵')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div><b>9.13 角色 × 功能点矩阵是权限配置的唯一依据</b>。
+      数据范围统一四档对外表述：<b>全市</b>（可按区划筛选，默认全量）、<b>辖区</b>（锁定本区县，界面不提供切换）、
+      <b>本主体</b>（仅本企业或本机构及其经办人）、<b>本人</b>（仅与本人相关的记录）。
+      本平台对外服务端<b>以企业工作台为主，群众端仅登录核验，不单独公示业务字段</b>。</div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="role">角色总表</div>
+      <div class="tab" data-tab="mx">权限矩阵</div>
+      <div class="tab" data-tab="scope">数据范围与导出限制</div>
+      <div class="tab" data-tab="mask">字段级脱敏矩阵</div>
+      <div class="tab" data-tab="gm">高敏操作清单</div>
+      <div class="tab" data-tab="loop">业务闭环主线</div>
+      <div class="tab" data-tab="acc">验收场景 <span class="badge green">16</span></div>
+      <div class="tab" data-tab="mob">移动端角色清单</div>
+    </div>
+
+    <!-- ===================== 角色总表 ===================== -->
+    <div class="tab-panel active" data-panel="role">
+      <div class="card-body">
+        <div class="sp-tw">
+          <table class="data-table">
+            <thead><tr>
+              <th>角色（原型 key）</th><th>所属端</th><th>一句话职责</th><th>数据范围</th><th>不得看见或不得执行</th>
+            </tr></thead>
+            <tbody id="roleBody"></tbody>
+          </table>
+        </div>
+        <p class="hint">
+          <i class="fa-solid fa-circle-info"></i>
+          <b>admin 分三级</b>：<b>admin_super</b> 全量配置权；<b>admin_app</b> 仅维护授权应用下的菜单与用户范围；
+          <b>admin_designer</b> 只能设计草稿，<b>由有权角色直接发布</b>——设计与发布分离。
+          <b>验-8</b>：<b>无发布权限的设计员不能发布</b>。
+        </p>
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-user-gear"></i> admin 三级子角色分工</div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>子角色</th><th>可维护范围</th><th>权限动作</th><th>数据范围</th><th>不可执行</th></tr></thead>
+                <tbody>
+                  <tr><td><code>admin_super</code></td>
+                    <td class="cell-lg">应用组织、用户角色、菜单权限资源、参数字典存储通知、工作日历、日志与国密、文件分类与调阅台账</td>
+                    <td>查看、新增、修改、配置、发布、导出</td><td>全市</td>
+                    <td class="cell-lg">窗口办件池、配置事项审核结论区</td></tr>
+                  <tr><td><code>admin_app</code></td>
+                    <td class="cell-lg">仅维护授权应用下的菜单与用户范围，在授权应用内分配角色</td>
+                    <td>查看、新增、修改</td><td>授权应用</td>
+                    <td class="cell-lg">跨应用配置、发布、国密、日志导出</td></tr>
+                  <tr class="row-warn"><td><code>admin_designer</code></td>
+                    <td class="cell-lg">表单草稿、流程草稿、合同模板草稿的设计与试填试跑</td>
+                    <td>查看、新增、修改</td><td>授权应用</td>
+                    <td class="cell-lg"><b>不得发布</b>——由有权角色（admin / city）直接发布或发版</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 权限矩阵 ===================== -->
+    <div class="tab-panel" data-panel="mx">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>符号含义：<b>● 主办</b>（可发起并产生结果）、<b>○ 协办或只读</b>、<b>空白 不可见</b>。
+            <b>本矩阵是权限配置的唯一依据</b>——原型菜单、按钮显隐与接口鉴权都按这张表配。</div>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-item"><label>只看某角色</label>
+            <select id="mxRole" onchange="renderMx()">
+              <option value="">全部角色</option>
+              <option value="0">admin 系统管理员</option><option value="1">city 市局业务处室</option>
+              <option value="2">district 县区经办窗口</option><option value="3">reviewer 业务审核</option>
+              <option value="4">leader 分管领导</option><option value="5">archive 档案管理</option>
+              <option value="6">dev 开发企业</option><option value="7">agency 经纪机构</option>
+              <option value="8">bank 金融机构</option><option value="9">public 群众用户</option>
+            </select></div>
+          <div class="filter-item"><label>功能点</label><input type="text" id="mxKw" oninput="renderMx()" placeholder="功能点关键字"></div>
+          <div class="filter-actions"><span class="muted" id="mxCnt" style="align-self:center"></span></div>
+        </div>
+        <div class="sp-tw">
+          <table class="data-table compact sp-mx">
+            <thead><tr>
+              <th>功能点</th><th>admin</th><th>city</th><th>dist</th><th>revi</th><th>lead</th>
+              <th>arch</th><th>dev</th><th>agcy</th><th>bank</th><th>pub</th>
+            </tr></thead>
+            <tbody id="mxBody"></tbody>
+          </table>
+        </div>
+        <div class="sp-src">
+          <span><b>●</b> 主办 · 可发起并产生结果</span>
+          <span><b>○</b> 协办或只读</span>
+          <span><b>空白</b> 不可见 · 菜单不出现且接口拒绝</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 数据范围 ===================== -->
+    <div class="tab-panel" data-panel="scope">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>数据范围既约束<b>能看到什么</b>，也约束<b>能导出什么</b>。
+            <b>district 的区划选择器锁定本辖区，界面不提供切换</b>，并在页面说明锁定依据（验-7）。
+            五档配置口径见<span class="link" onclick="location.href='wspt-14.html?tab=scope'">统一权限模型</span>。</div>
+        </div>
+        <div class="sp-tw">
+          <table class="data-table">
+            <thead><tr><th>角色</th><th>可见行政区划</th><th>可见主体 / 组织范围</th><th>导出限制</th></tr></thead>
+            <tbody id="scopeBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 脱敏矩阵 ===================== -->
+    <div class="tab-panel" data-panel="mask">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>取值三档：<b>明文、掩码、不可见</b>。下表为<b>最小必备范围</b>，实施时须按 6.1 的数据对象逐字段补全。
+            <b>门户或企业端查看高敏字段时，须经二次身份核验后方可展示</b>，
+            核验通过的展示行为<b>须留痕，并可按频次限制防止批量爬取</b>。</div>
+        </div>
+        <div class="sp-tw">
+          <table class="data-table compact sp-mx">
+            <thead><tr>
+              <th>字段</th><th>内部配置端</th><th>企业端（本主体）</th><th>门户 / 群众</th><th>移动端</th><th>解除方式</th>
+            </tr></thead>
+            <tbody id="maskBody"></tbody>
+          </table>
+        </div>
+        <div class="sp-src">
+          <span><span class="badge green">明文</span> 完整展示</span>
+          <span><span class="badge orange">掩码</span> 部分遮蔽，如 138****8800</span>
+          <span><span class="badge red">不可见</span> 后端不下发，前端取不到</span>
+        </div>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="btn btn-sm" onclick="SP.mask('手机号','138****8800','13800008800')"><i class="fa-solid fa-eye"></i> 演示解除脱敏</button>
+          <button class="btn btn-sm" onclick="SP.denied('您所在角色不可见该字段。用户口令与盐值、SM2 私钥与 SM4 主密钥任何端都不得展示明文')"><i class="fa-solid fa-eye-slash"></i> 演示不可见字段</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 高敏操作 ===================== -->
+    <div class="tab-panel" data-panel="gm">
+      <div class="card-body">
+        <div class="alert alert-danger">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <div>共 <b>13 类高敏操作</b>，其中 <b>5 类须双人授权</b>：
+            强制终止实例、合同作废、日志导出、密钥轮换、文件彻底删除。
+            其余为<b>强留痕</b>——单人可执行但留痕字段更严。
+            <b>高敏操作日志保留期限须单独规定，建议不少于三年</b>；
+            <b>统一写入本平台数据安全审计，业务子系统不另建审计模块</b>。</div>
+        </div>
+        <div class="sp-tw">
+          <table class="data-table">
+            <thead><tr>
+              <th>操作</th><th>可执行角色</th><th>双人授权</th><th>留痕字段</th><th>对外可见程度</th>
+            </tr></thead>
+            <tbody id="gmBody"></tbody>
+          </table>
+        </div>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="btn btn-sm" onclick="SP.dual('日志导出','蒙丽华',function(){PMS.toast('已通过双人授权，导出已提交并写入高敏留痕','success')})"><i class="fa-solid fa-user-shield"></i> 演示双人授权</button>
+          <button class="btn btn-sm" onclick="location.href='wspt-12.html?tab=gm'"><i class="fa-solid fa-clock-rotate-left"></i> 看高敏留痕台账</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 业务闭环 ===================== -->
+    <div class="tab-panel" data-panel="loop">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>内部闭环指<b>不依赖尚未建设的商品房、存量房、租赁等交易子系统</b>，
+            仅在本平台配置端与已建成的统一服务门户企业端范围内，<b>配置能保存即生效、合同拟制能按已发布流程走完</b>。
+            <b>R-I1 至 R-I12 依赖对端板块，本阶段以「对外约束清单」形式登记，不纳入闭环验收</b>。</div>
+        </div>
+        <div class="sp-tw">
+          <table class="data-table">
+            <thead><tr>
+              <th>闭环主线</th><th>涉及角色</th><th>起点</th><th>终点</th><th>本阶段是否必须走通</th>
+            </tr></thead>
+            <tbody id="loopBody"></tbody>
+          </table>
+        </div>
+
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-route"></i> 主线甲 · 应用与权限配置闭环
+            <span class="sub">不设受理、审核、补正环节</span></div>
+          <div class="sp-b">
+            <div class="sp-check">
+              <div class="ck pass"><i class="fa-solid fa-1"></i><div class="cb">
+                <div class="ct">录入 · admin / city</div>
+                <div class="cd">校验唯一性与必填；<b>不生成办件号</b>。完成标志：配置页可保存。</div></div></div>
+              <div class="ck pass"><i class="fa-solid fa-2"></i><div class="cb">
+                <div class="ct">保存生效 · admin / city</div>
+                <div class="cd">写入应用 / 用户 / 角色关联；置<b>首次登录强制改密标志</b>。完成标志：用户可登录，菜单按角色出现。</div></div></div>
+              <div class="ck pass"><i class="fa-solid fa-3"></i><div class="cb">
+                <div class="ct">留痕通知 · 系统自动</div>
+                <div class="cd">写操作日志；可选推送开通结果。完成标志：企业端 / 使用人可见账号已生效。</div></div></div>
+              <div class="ck block"><i class="fa-solid fa-ban"></i><div class="cb">
+                <div class="ct">不设受理、审核、补正环节</div>
+                <div class="cd">本平台配置类事项<b>一律直接配置、保存即生效</b>，没有窗口收件、没有审核结论区。</div></div>
+                <div class="co"><span class="link" onclick="location.href='wspt-16.html'">看配置事项清单</span></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-rotate-left"></i> 异常回流路径
+            <span class="sub">断了怎么办</span></div>
+          <div class="sp-b">
+            <div class="sp-check">
+              <div class="ck wait"><i class="fa-solid fa-arrow-rotate-left"></i><div class="cb">
+                <div class="ct">配置校验不通过</div>
+                <div class="cd">回配置页修改，<b>不产生办件</b>。</div></div></div>
+              <div class="ck wait"><i class="fa-solid fa-arrow-rotate-left"></i><div class="cb">
+                <div class="ct">试填 / 试跑不通过</div>
+                <div class="cd"><b>回设计，不得发布</b>。</div></div></div>
+              <div class="ck wait"><i class="fa-solid fa-arrow-rotate-left"></i><div class="cb">
+                <div class="ct">流程实例异常</div>
+                <div class="cd">按流程 E <b>退回 / 拒绝 / 终止</b>处置。</div></div></div>
+              <div class="ck wait"><i class="fa-solid fa-arrow-rotate-left"></i><div class="cb">
+                <div class="ct">合同审批不通过</div>
+                <div class="cd">按已发布流程定义<b>回退或作废</b>。</div></div></div>
+              <div class="ck block"><i class="fa-solid fa-scale-balanced"></i><div class="cb">
+                <div class="ct">授权错误更正 · R-K16</div>
+                <div class="cd">由授权管理员<b>在配置台直接更正并留痕，不得直接改库</b>；<b>更正前后值必须留痕</b>。</div></div></div>
+              <div class="ck block"><i class="fa-solid fa-comment-dots"></i><div class="cb">
+                <div class="ct">主体申诉 · R-K17 ~ R-K18</div>
+                <div class="cd">对账号误锁、权限缺失可提出申诉，须提供申诉入口并形成<b>核实、结论、回写闭环，不走办件受理</b>；
+                  <b>成立的恢复账号或补授权并通知，不成立的说明理由</b>。</div></div></div>
+              <div class="ck block"><i class="fa-solid fa-file-pen"></i><div class="cb">
+                <div class="ct">已办结件更正 · R-K19</div>
+                <div class="cd">已办结流程与已生效合同的更正 / 撤销<b>必须走审批</b>，<b>已对外文件须同步更正说明</b>。</div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 验收场景 ===================== -->
+    <div class="tab-panel" data-panel="acc">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>共 <b>16 个验收场景</b>：验-1 ~ 验-5 为<b>闭环走通类</b>，验-6 ~ 验-16 为<b>权限与口径核查类</b>。
+            每条都标注了在原型中的演示落点，可直接点过去看。</div>
+        </div>
+        <div class="sp-tw">
+          <table class="data-table">
+            <thead><tr>
+              <th>编号</th><th>场景</th><th>操作路径</th><th>通过标准</th><th>原型落点</th>
+            </tr></thead>
+            <tbody id="accBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 移动端 ===================== -->
+    <div class="tab-panel" data-panel="mob">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>移动端<b>只承载领导查阅、审批速览、归档件预览三类确有移动场景的诉求，不做全功能覆盖</b>。
+            <b>移动端不提供文件原件下载</b>，<b>敏感字段一律掩码</b>，
+            <b>不在移动端发布配置</b>。</div>
+        </div>
+        <div class="sp-tw">
+          <table class="data-table">
+            <thead><tr><th>角色</th><th>功能点</th><th>功能说明</th><th>权限</th><th>数据范围</th></tr></thead>
+            <tbody id="mobBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/spec.js"></script>
+<script>
+var ROLES = [
+  ['admin 系统管理员', 'PC 配置端', '维护应用组织用户角色菜单字典表单流程模板与国密配置，保存后即时生效', '配置项全量；业务明细按子角色授权', '不代替其他业务板块窗口收件'],
+  ['city 市局业务处室', 'PC 配置端', '直接维护或发布本处室相关配置，查看全市授权与流程监控', '全市', '不得直接改国密主密钥'],
+  ['district 县区经办窗口', 'PC 配置端', '查阅并协助维护本辖区组织与用户，协助合同拟制', '辖区', '不得发布全市流程/表单/模板、不得调整全市数据范围、不得导出全市日志、不得下载文件原件'],
+  ['reviewer 业务审核', 'PC 配置端', '办理合同拟制及其他业务板块经流程引擎产生的待办', '全市（或分管应用范围）', '不得审核本平台配置事项；不得配置国密主密钥'],
+  ['leader 分管领导', 'PC ＋ 移动端', '查阅运行概览与积压，作阅知与督办批示', '全市（只读）', '不得改配置、不得发布、不得解除脱敏未经授权、不得下载文件原件'],
+  ['archive 档案管理人员', 'PC 配置端', '查阅已生效合同与流程归档件并导出归档台账', '全市（归档范围）', '不得修改配置、不得审批、不得重置口令'],
+  ['dev 开发企业', 'PT-01 企业端', '查看本企业账号与待办，拟制本主体合同', '本主体', '不得进入任何监管端页面；不得查看其他主体'],
+  ['agency 经纪机构', 'PT-01 企业端', '提交本机构经办人需求说明，查看待办', '本主体', '同上'],
+  ['bank 金融机构', 'PT-01 企业端', '查看本机构账号与待办', '本主体', '同上；不涉及平台配置'],
+  ['public 群众用户', '门户', '完成登录与身份核验', '本人', '不得进入平台配置、审计、待办审批菜单']
+];
+
+var MX = [["应用与组织维护",2,1,1,0,1,0,0,0,0,0],["用户开通配置",2,2,1,0,0,0,0,0,0,0],["用户停用与解锁",2,2,0,0,0,0,0,0,0,0],["角色与数据范围配置",2,2,0,1,0,0,0,0,0,0],["菜单与权限资源",2,1,0,0,0,0,0,0,0,0],["字典与参数配置",2,1,0,0,0,0,0,0,0,0],["工作日历维护",2,1,0,0,0,0,0,0,0,0],["表单设计草稿",2,0,0,1,0,0,0,0,0,0],["表单发布",2,2,0,0,0,0,0,0,0,0],["流程设计草稿",2,0,0,1,0,0,0,0,0,0],["流程发布停用",2,2,0,0,0,0,0,0,0,0],["待办审批办理",1,2,2,2,1,1,2,2,2,0],["流程实例监控",2,2,0,1,2,1,0,0,0,0],["强制终止实例",2,1,0,0,0,0,0,0,0,0],["合同模板设计",2,1,0,1,0,0,0,0,0,0],["合同拟制提交",1,1,2,1,0,0,2,2,1,0],["合同审批归档",1,2,0,2,1,2,0,0,0,0],["登录操作日志",2,2,0,0,2,0,0,0,0,0],["日志导出",2,1,0,0,0,0,0,0,0,0],["国密密钥配置",2,0,0,0,0,0,0,0,0,0],["企业端经办人需求",0,0,1,1,0,0,2,2,1,0],["文件分类目录配置",2,1,0,0,0,0,0,0,0,0],["文件登记与检索",2,2,2,2,1,1,0,0,0,0],["文件在线预览",2,2,2,2,1,2,1,1,1,0],["文件原件下载",2,1,0,2,0,2,0,0,0,0],["调阅需求说明",1,1,2,1,1,2,2,2,0,0],["调阅授权配置",2,2,0,0,0,0,0,0,0,0],["调阅台账查阅",2,2,0,0,2,1,0,0,0,0],["登录与身份核验",1,1,1,1,1,1,1,1,1,2]];
+
+var SCOPE = [
+  ['district 县区经办窗口', '锁定本区县，界面不提供切换，并在页面说明锁定依据', '本辖区组织与用户', '仅可导出本辖区数据；<b>文件只可在线预览，不提供原件下载</b>'],
+  ['reviewer 业务审核', '默认全市，可按区划筛选', '授权应用范围内全部', '明细导出须记录导出人与用途'],
+  ['city 市局业务处室', '默认全市，可按区划筛选', '全部', '明细导出须记录导出人与用途'],
+  ['leader 分管领导', '默认全市', '全部（只读）', '<b>仅可导出汇总，明细须审批</b>'],
+  ['admin 系统管理员', '按子角色', '配置项全量；业务明细按授权', '配置项可导出，<b>业务明细须审批</b>'],
+  ['archive 档案管理人员', '默认全市', '已归档合同与已办结实例', '仅可导出归档范围'],
+  ['dev / agency / bank', '不适用', '仅本主体及其经办人', '仅可导出本主体数据'],
+  ['public 群众用户', '不适用', '本人登录会话', '<b>不提供批量导出</b>']
+];
+
+var MASK = [
+  ['用户口令与盐值', 'h', 'h', 'h', 'h', '任何端不得展示明文'],
+  ['手机号', 'm', 'p', 'h', 'm', '解除脱敏申请并审批，写审计'],
+  ['身份证号', 'm', 'm', 'h', 'm', '同上'],
+  ['请求参数 oper_param', 'm', 'h', 'h', 'h', '审计角色按授权查看'],
+  ['返回结果 json_result', 'm', 'h', 'h', 'h', '同上'],
+  ['Token', 'h', 'h', 'h', 'h', '不得落日志明文'],
+  ['SM2 私钥 / SM4 主密钥', 'h', 'h', 'h', 'h', '仅加密机 / KMS 侧管理'],
+  ['内部审核意见原文', 'p', 'h', 'h', 'p', '企业与群众只见结论'],
+  ['合同补充区原文', 'p', 'p', 'h', 'a', '按授权调阅留痕'],
+  ['超范围文件正文与附件', 'h', 'h', 'h', 'h', '经文件调阅授权后开放预览，下载另需授权'],
+  ['文件调阅台账', 'p', 'h', 'h', 'm', '按授权查看，导出纳入高敏留痕']
+];
+
+var GM = [
+  ['重置口令', 'admin', 0, '操作人、时间、目标用户、原因', '用户收通知，不见操作人细节'],
+  ['解锁账号', 'admin / city', 0, '操作人、时间、锁定原因、解锁依据', '用户收通知'],
+  ['角色授权变更', 'admin / city', 0, '操作人、时间、角色、菜单差量', '当事人可见结果'],
+  ['数据范围调整', 'admin / city', 0, '操作人、时间、调整前后档位、部门集合', '不对外'],
+  ['流程定义发布 / 停用', 'admin / city', 0, '操作人、时间、process_key、version', '设计员可见状态'],
+  ['强制终止实例', 'admin', 1, '操作人、时间、实例号、原因', '发起人可见终止结果'],
+  ['合同作废', 'reviewer / city', 1, '操作人、时间、合同号、原因', '拟制人可见作废状态'],
+  ['日志导出', 'admin', 1, '操作人、时间、条件、条数、用途', '不对外'],
+  ['密钥轮换', 'admin', 1, '操作人、时间、密钥标识、版本', '不对外'],
+  ['已生效配置更正与回滚', 'admin / city', 0, '操作人、时间、原值、新值', '已对外的须更正说明'],
+  ['文件原件下载', 'admin / city / reviewer / archive', 0, '操作人、时间、文件标识、事由、来源 IP', '不对外'],
+  ['文件调阅授权', 'admin / city', 0, '操作人、时间、授权范围、授权动作', '使用人可见授权结果'],
+  ['文件彻底删除', 'admin', 1, '操作人、时间、文件标识、原因、审批单号', '不对外']
+];
+
+var LOOP = [
+  ['主线甲 应用与权限开通', 'admin、city', '在配置台录入应用或账号', '应用可登录可见菜单；用户可登录且角色即时生效', 1],
+  ['主线乙 表单与流程配置发布', 'admin、city', '设计草稿', '已发布版本可被业务引用；设计器可见发布状态', 1],
+  ['主线丙 审批实例流转', '发起人、审批人、admin', '发起流程实例', '实例到达通过 / 拒绝 / 撤回 / 终止终态；待办消失且历史可查', 1],
+  ['主线丁 合同拟制审批归档', '拟制人、reviewer、archive', '选择模板拟制', '正式件可下载；台账状态为生效；归档可查', 1],
+  ['主线戊 文件登记与调阅', '业务经办人、admin、city、archive', '业务上传材料并登记文件', '授权范围内可检索可预览；调阅台账可查到每次预览、授权与下载', 1],
+  ['对外约束', '—', '其他板块发起校验', '本平台返回鉴权 / 字典 / 流程 / 日历结果', 0]
+];
+
+var ACC = [
+  ['验-1', '完成一次内部账号开通', 'admin / city 在配置台开通并分配角色 → 用户登录',
+   '保存后即时生效；新用户可登录且只看见授权菜单；操作日志可追溯操作人与时间', 'wspt-03.html'],
+  ['验-2', '表单与流程从草稿到发布', 'admin 设计试填 / 试跑 → admin / city 直接发布 → 业务按编码引用',
+   '发布后业务可取到该版本；改草稿升新版本不影响旧实例；<b>无审核待办</b>', 'wspt-08.html?tab=run'],
+  ['验-3', '审批实例走通同意与退回', '发起人提交 → 审批人退回 → 再提交 → 同意到 end',
+   '退回后待办回到指定节点；最终通过后待办清零且历史含 start / return / agree', 'wspt-09.html'],
+  ['验-4', '合同从拟制到正式件', '拟制人提交 → 审批通过 → 自动渲染 → archive 可查',
+   '台账生效；可下载正式件；template_ver 与拟制时一致；<b>企业端不见内部审批意见原文</b>', 'wspt-10.html?tab=sp'],
+  ['验-5', '文件从登记走到调阅授权', '业务经办人上传登记 → 文件中心检索 → admin / city 直接配置调阅授权 → archive 下载',
+   '<b>超范围文件授权前无预览入口、授权后可预览</b>；调阅台账逐条记录预览、授权与下载，含操作人、时间与来源 IP', 'wspt-11.html?tab=sq'],
+  ['验-6', '角色可见性', '十个角色逐一登录',
+   '菜单与第九章各表一致；<b>外部角色菜单树不出现监管端配置页</b>；<b>district 无发布按钮</b>', 'wspt-15.html?tab=mx'],
+  ['验-7', '数据范围', '切换角色核对区划选择器与检索结果',
+   '<b>县区角色范围选择器锁定本辖区且无法切全市</b>；企业账号检索不到其他主体；群众无法打开审计菜单', 'wspt-15.html?tab=scope'],
+  ['验-8', '分岗校验', '配置保存 → 设计员尝试发布 → 使用人尝试自行授权',
+   '配置保存后即时生效且写入操作日志；<b>无发布权限的设计员不能发布</b>；<b>使用人不能自行授权本人调阅范围外文件</b>', 'wspt-11.html?tab=sq'],
+  ['验-9', '权限与数据范围口径一致', '任取三个用户核对菜单与接口鉴权',
+   '可见菜单与接口鉴权结果一致；列表过滤结果与第十一章五档判定一致', 'wspt-14.html?tab=scope'],
+  ['验-10', '流程可追溯', '从已办结实例下钻',
+   '可下钻到全部 <code>wf_task_record</code>，含<b>动作、意见、时间</b>', 'wspt-09.html?tab=jk'],
+  ['验-11', '字典完整', '核对 6.3 各类字典与页面下拉',
+   '各类字典均已配置，<b>页面下拉无写死取值，内外端同一字典源</b>', 'wspt-05.html?tab=dict'],
+  ['验-12', '对外约束登记', '核对 5.9 的 R-I1 至 R-I12 清单',
+   '形成清单，逐条注明<b>生效板块、校验时机、命中后果与验证状态</b>', 'wspt-16.html?tab=ri'],
+  ['验-13', '合同版本固化', '改模板升版本后下载历史合同',
+   '历史已生效合同<b>仍按旧 template_ver 可下载，内容不变</b>', 'wspt-10.html?tab=tz'],
+  ['验-14', '国密闭环', '执行 13.5 三条链路演示',
+   '<b>传输加解密、口令 SM3 校验、敏感字段 SM4 落库与摘要检索</b>三条链路可演示', 'wspt-13.html?tab=probe'],
+  ['验-15', '文件口径一致', '核查全平台文件目录与实体',
+   '全平台文件只有一套目录与元数据；<b>业务板块不另建文件台账</b>；<b>平台库无文件字节流</b>，实体均可溯到 PC-33 对象标识', 'wspt-11.html'],
+  ['验-16', '文件调阅留痕', '任取一份文件执行四类操作',
+   '<b>预览、下载、授权、拒绝四类操作在调阅台账各有一条记录</b>，含操作人、时间与来源 IP；<b>下载前摘要校验失败可复现拦截</b>', 'wspt-11.html?tab=log']
+];
+
+var MOB = [
+  ['leader', '平台运行概览', '授权积压、流程超时、异常登录摘要；<b>敏感字段掩码</b>', '查看', '全市只读'],
+  ['leader', '待阅与督办批示', '查阅待阅并批示', '查看、新增', '全市只读'],
+  ['city / reviewer', '审批速览与办理', '同意 / 退回 / 转办；<b>不在移动端发布配置</b>', '查看、审核', '全市'],
+  ['district', '待办速览', '查看本辖区待办摘要；<b>不在移动端改配置</b>', '查看', '辖区'],
+  ['leader / archive', '归档文件在线预览', '在线预览已办结件文件；<b>移动端不提供原件下载</b>，敏感字段掩码', '查看', '全市只读']
+];
+
+var MK = { p: '<span class="badge green">明文</span>', m: '<span class="badge orange">掩码</span>',
+           h: '<span class="badge red">不可见</span>', a: '<span class="badge blue">按授权</span>' };
+
+function renderRole() {
+  document.getElementById('roleBody').innerHTML = ROLES.map(function (r) {
+    var ext = r[1].indexOf('企业端') >= 0 || r[1] === '门户';
+    return '<tr' + (ext ? ' class="row-off"' : '') + '>'
+      + '<td><code>' + r[0] + '</code></td><td>' + r[1] + '</td>'
+      + '<td class="cell-lg">' + r[2] + '</td><td>' + r[3] + '</td>'
+      + '<td class="cell-lg">' + r[4] + '</td></tr>';
+  }).join('');
+}
+
+function renderMx() {
+  var role = document.getElementById('mxRole').value;
+  var k = (document.getElementById('mxKw').value || '').trim();
+  var rows = MX.filter(function (m) {
+    if (k && m[0].indexOf(k) < 0) return false;
+    if (role !== '' && m[parseInt(role) + 1] === 0) return false;
+    return true;
+  });
+  document.getElementById('mxCnt').innerHTML = '共 <b>' + rows.length + '</b> 项功能点'
+    + (role !== '' ? '（该角色可见）' : '');
+  var CELL = ['<span class="muted">—</span>', '<b style="color:var(--info)">○</b>', '<b style="color:var(--primary)">●</b>'];
+  document.getElementById('mxBody').innerHTML = rows.map(function (m) {
+    return '<tr><td>' + m[0] + '</td>'
+      + m.slice(1).map(function (v, i) {
+          var hl = (role !== '' && parseInt(role) === i) ? ' style="background:var(--primary-light-2)"' : '';
+          return '<td' + hl + '>' + CELL[v] + '</td>';
+        }).join('') + '</tr>';
+  }).join('') || '<tr><td colspan="11" class="muted" style="text-align:center;padding:24px">没有符合条件的功能点</td></tr>';
+}
+
+function renderScope() {
+  document.getElementById('scopeBody').innerHTML = SCOPE.map(function (s) {
+    return '<tr><td><code>' + s[0] + '</code></td><td class="cell-lg">' + s[1] + '</td>'
+      + '<td class="cell-lg">' + s[2] + '</td><td class="cell-lg">' + s[3] + '</td></tr>';
+  }).join('');
+}
+
+function renderMask() {
+  document.getElementById('maskBody').innerHTML = MASK.map(function (m) {
+    var allHidden = m[1] === 'h' && m[2] === 'h' && m[3] === 'h' && m[4] === 'h';
+    return '<tr' + (allHidden ? ' class="row-bad"' : '') + '>'
+      + '<td>' + m[0] + '</td>'
+      + '<td>' + MK[m[1]] + '</td><td>' + MK[m[2]] + '</td>'
+      + '<td>' + MK[m[3]] + '</td><td>' + MK[m[4]] + '</td>'
+      + '<td class="cell-lg">' + m[5] + '</td></tr>';
+  }).join('');
+}
+
+function renderGm() {
+  document.getElementById('gmBody').innerHTML = GM.map(function (g) {
+    return '<tr' + (g[2] ? ' class="row-bad"' : '') + '>'
+      + '<td>' + g[0] + '</td><td class="cell-lg">' + g[1] + '</td>'
+      + '<td>' + (g[2] ? '<span class="badge red">是</span>' : '<span class="badge orange">否，强留痕</span>') + '</td>'
+      + '<td class="cell-lg">' + g[3] + '</td><td class="cell-lg">' + g[4] + '</td></tr>';
+  }).join('');
+}
+
+function renderLoop() {
+  document.getElementById('loopBody').innerHTML = LOOP.map(function (l) {
+    return '<tr' + (l[4] ? '' : ' class="row-off"') + '>'
+      + '<td class="cell-lg"><b>' + l[0] + '</b></td><td class="cell-lg">' + l[1] + '</td>'
+      + '<td class="cell-lg">' + l[2] + '</td><td class="cell-lg">' + l[3] + '</td>'
+      + '<td>' + (l[4] ? '<span class="badge green">是</span>' : '<span class="badge gray">否 · 本阶段只登记清单</span>') + '</td></tr>';
+  }).join('');
+}
+
+function renderAcc() {
+  document.getElementById('accBody').innerHTML = ACC.map(function (a) {
+    return '<tr><td><code>' + a[0] + '</code></td><td>' + a[1] + '</td>'
+      + '<td class="cell-lg">' + a[2] + '</td><td class="cell-lg">' + a[3] + '</td>'
+      + '<td><span class="link" onclick="location.href=\'' + a[4] + '\'">去演示</span></td></tr>';
+  }).join('');
+}
+
+function renderMob() {
+  document.getElementById('mobBody').innerHTML = MOB.map(function (m) {
+    return '<tr><td><code>' + m[0] + '</code></td><td>' + m[1] + '</td>'
+      + '<td class="cell-lg">' + m[2] + '</td><td>' + m[3] + '</td><td>' + m[4] + '</td></tr>';
+  }).join('');
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  renderRole(); renderMx(); renderScope(); renderMask(); renderGm(); renderLoop(); renderAcc(); renderMob();
+  var t = SP.param('tab'); if (t) SP.tab(t);
+});
+</script>
+</body>
+</html>

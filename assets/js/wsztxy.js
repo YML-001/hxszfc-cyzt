@@ -19,6 +19,9 @@
   function fixDepth(scope) {
     var box = document.querySelector(scope);
     if (!box) return;
+    /* app.js 补丁 J 已统一处理，重复补会多出 ../ */
+    if (box.getAttribute('data-depth-fixed')) return;
+    box.setAttribute('data-depth-fixed', '1');
     box.querySelectorAll('a[href]').forEach(function (a) {
       var h = a.getAttribute('href') || '';
       if (/^(https?:|#|javascript:)/.test(h) || h.indexOf('../../') === 0) return;

@@ -195,6 +195,17 @@
     return html;
   }
 
+  /* portalHref 是按 modules/wsbiz/ 这一层写的，biz/ 下的页面又深一层，
+     直接用会落到 /modules/index.html。这里按当前路径实际层数算前缀。 */
+  function portalHref() {
+    var h = APP_CONFIG.portalHref || '../../index.html';
+    if (h.indexOf('../') !== 0) return h;
+    var p = location.pathname, i = p.lastIndexOf('/modules/');
+    if (i < 0) return h;
+    var n = p.slice(i + '/modules/'.length).split('/').length - 1;   /* wsbiz=1，wsbiz/biz=2 */
+    return new Array(n + 1).join('../') + '../index.html';
+  }
+
   function topbarHTML(meta) {
     return '<div class="brand">' +
         '<i class="sidebar-toggle fa-solid fa-bars"></i>' +
@@ -211,7 +222,7 @@
         '<div class="user"><div class="avatar">' + meta.user.charAt(0) + '</div>' +
           '<div class="u-meta"><div class="u-name">' + meta.user + '</div><div class="u-role">' + meta.role + '</div></div>' +
           '<i class="fa-solid fa-angle-down" style="font-size:12px;opacity:.8"></i></div>' +
-        '<a href="' + (APP_CONFIG.portalHref || '../../index.html') + '" class="topbar-icon" title="返回门户/退出"><i class="fa-solid fa-right-from-bracket"></i></a>' +
+        '<a href="' + portalHref() + '" class="topbar-icon" title="返回门户/退出"><i class="fa-solid fa-right-from-bracket"></i></a>' +
       '</div>';
   }
 

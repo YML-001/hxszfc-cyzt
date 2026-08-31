@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>统一文件管理 · 应用支撑平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<link rel="stylesheet" href="../../assets/css/spec.css">
+<style>
+  .sm3 { font-family: Consolas, Monaco, monospace; font-size: 11px; color: var(--text-3); }
+  .ftype {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 6px; font-size: 11px; font-weight: 700; flex-shrink: 0;
+  }
+  .ftype.pdf { background: var(--danger-light); color: var(--lv-red); }
+  .ftype.ofd { background: var(--warning-light); color: #8a6100; }
+  .ftype.doc { background: var(--primary-light); color: var(--primary); }
+  .ftype.img { background: var(--success-light); color: var(--success); }
+  .fcell { display: flex; align-items: center; gap: 8px; }
+</style>
+</head>
+<body data-role="admin" data-active="wspt-11">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 应用支撑平台
+        <span class="sep">/</span> 合同与文件
+        <span class="sep">/</span> <span class="cur">统一文件管理</span>
+      </div>
+      <div class="page-title">统一文件管理 <span class="badge blue">模块十一 · 10 个功能点</span></div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="SP.todo('已核查文件口径：全平台仅本平台一套文件目录与元数据，各业务板块未另建文件台账；平台库无文件字节流，18.6 万件实体均可溯到 PC-33 对象标识（验-15）')"><i class="fa-solid fa-list-check"></i> 核查文件口径</button>
+      <button class="btn" onclick="SP.exportAsync('文件调阅台账')"><i class="fa-solid fa-download"></i> 导出调阅台账</button>
+      <button class="btn btn-primary" onclick="SP.tab('sq')"><i class="fa-solid fa-key"></i> 调阅授权</button>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>本平台<b>只维护文件目录、元数据、版本与调阅台账</b>；文件实体经存储适配层落
+      <b>PC-33 统一文件与影像服务平台</b>，<b>平台库不存文件字节流</b>（R-G8）。
+      <b>R-G7</b>：全平台文件<b>只有一套目录与元数据</b>，<b>各业务板块不得另建文件台账</b>。
+      <b>R-I10</b>：上传材料<b>必须登记到本平台文件中心并取得文件标识，业务表只存文件标识，不得只存本地路径</b>。</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-folder-tree"></i></div><div>
+      <div class="s-label">登记文件</div><div class="s-value">18.6</div><div class="s-trend text-2">万件 · 分类 46 个</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-eye"></i></div><div>
+      <div class="s-label">本月调阅</div><div class="s-value">2,486</div><div class="s-trend text-2">预览 2,142 · 下载 344</div></div></div>
+    <div class="stat-card dc-alarm"><div class="s-icon orange"><i class="fa-solid fa-key"></i></div><div>
+      <div class="s-label">待授权调阅需求</div><div class="s-value">8</div><div class="s-trend">不形成办件 · 直接授权</div></div></div>
+    <div class="stat-card dc-alarm"><div class="s-icon red"><i class="fa-solid fa-shield-halved"></i></div><div>
+      <div class="s-label">摘要校验失败</div><div class="s-value">1</div><div class="s-trend">已拦截下载</div></div></div>
+    <div class="stat-card"><div class="s-icon purple"><i class="fa-solid fa-trash-can"></i></div><div>
+      <div class="s-label">回收站</div><div class="s-value">42</div><div class="s-trend text-2">逻辑删除 · 可恢复</div></div></div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="cat">分类目录与登记</div>
+      <div class="tab" data-tab="find">文件检索与预览</div>
+      <div class="tab" data-tab="sq">调阅需求与授权 <span class="badge orange">8</span></div>
+      <div class="tab" data-tab="log">调阅台账</div>
+      <div class="tab" data-tab="bin">回收站 <span class="badge">42</span></div>
+    </div>
+
+    <!-- ===================== 分类目录与登记 ===================== -->
+    <div class="tab-panel active" data-panel="cat">
+      <div class="card-body">
+        <div class="sp-split">
+          <aside class="sp-tree">
+            <div class="sp-ti on" onclick="pickCat(this,'')"><i class="fa-solid fa-folder-tree"></i> 全部分类 <span class="tc">46</span></div>
+            <div class="sp-ti lv2" style="font-weight:700;color:var(--text-2);margin-top:6px">按业务域</div>
+            <div class="sp-ti lv2" onclick="pickCat(this,'交易网签')">交易网签 <span class="tc">14</span></div>
+            <div class="sp-ti lv3" onclick="pickCat(this,'预售方案材料')">预售方案材料</div>
+            <div class="sp-ti lv3" onclick="pickCat(this,'网签合同影像')">网签合同影像</div>
+            <div class="sp-ti lv2" onclick="pickCat(this,'资金监管')">资金监管 <span class="tc">12</span></div>
+            <div class="sp-ti lv3" onclick="pickCat(this,'监管协议影像')">监管协议影像</div>
+            <div class="sp-ti lv3" onclick="pickCat(this,'资金使用材料')">资金使用材料</div>
+            <div class="sp-ti lv2" onclick="pickCat(this,'市场监管')">市场监管 <span class="tc">8</span></div>
+            <div class="sp-ti lv2" onclick="pickCat(this,'测绘成果')">测绘成果 <span class="tc">6</span></div>
+            <div class="sp-ti lv2 veto" onclick="pickCat(this,'旧版材料')">旧版材料（已停用） <span class="tc">6</span></div>
+            <div class="btn-row" style="margin-top:10px">
+              <button class="btn btn-sm" onclick="PMS.openDrawer('catDrawer')"><i class="fa-solid fa-plus"></i> 新增分类</button>
+            </div>
+            <p class="hint" style="padding:10px 2px 0">
+              <i class="fa-solid fa-circle-info"></i>
+              <b>停用分类不得再挂新文件</b>，已挂文件仍可检索与预览。
+            </p>
+          </aside>
+          <div class="sp-pane">
+            <div class="filter-bar">
+              <div class="filter-item"><label>当前分类</label><input type="text" id="catNow" value="全部分类" readonly></div>
+              <div class="filter-item"><label>业务关联键</label><input type="text" id="rKey" oninput="renderReg()" placeholder="办件号或业务主键"></div>
+              <div class="filter-item"><label>格式</label>
+                <select id="rFmt" onchange="renderReg()"><option value="">全部</option><option>pdf</option><option>ofd</option><option>docx</option><option>jpg</option></select></div>
+              <div class="filter-actions">
+                <button class="btn" onclick="PMS.openDrawer('regDrawer')"><i class="fa-solid fa-plus"></i> 登记文件</button>
+                <span class="muted" id="rCnt" style="align-self:center"></span>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead><tr>
+                  <th>文件名称</th><th>分类</th><th>业务关联键</th><th>办件号</th><th class="num">大小</th>
+                  <th>版本</th><th>SM3 摘要 / PC-33 对象标识</th><th>操作</th>
+                </tr></thead>
+                <tbody id="regBody"></tbody>
+              </table>
+            </div>
+            <p class="hint">
+              <i class="fa-solid fa-circle-info"></i>
+              <b>R-G9</b>：文件登记必须带<b>业务关联键与分类</b>，登记时<b>计算 SM3 摘要</b>；
+              <b>下载前摘要校验不一致的文件不得下载</b>。
+              <b>R-G10</b>：同一业务关联键下的文件<b>按版本留存，新版本不得覆盖历史版本</b>；已归档文件不得修改与替换。
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 检索与预览 ===================== -->
+    <div class="tab-panel" data-panel="find">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div><b>检索结果受数据范围过滤</b>。<b>R-G11</b>：超出调阅人数据范围的文件
+            <b>只允许检索到标题与分类，正文与附件必须经调阅授权后方可查看</b>——
+            下表中灰化的行即属此类，<b>预览与下载入口不出现</b>，须先提交调阅需求。</div>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-item"><label>数据范围</label><input type="text" value="全市（admin）" readonly>
+          </div>
+          <div class="filter-item"><label>分类</label>
+            <select id="sCat" onchange="renderFind()"><option value="">全部</option><option>监管协议影像</option><option>资金使用材料</option><option>网签合同影像</option><option>测绘成果</option></select></div>
+          <div class="filter-item"><label>上传人</label><input type="text" id="sBy" oninput="renderFind()" placeholder="上传人"></div>
+          <div class="filter-item"><label>上传时间</label><input type="date" value="2026-08-01"></div>
+          <div class="filter-item"><label>范围内外</label>
+            <select id="sScope" onchange="renderFind()"><option value="">全部</option><option value="1">范围内</option><option value="0">范围外</option></select></div>
+          <div class="filter-actions"><span class="muted" id="sCnt" style="align-self:center"></span></div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>文件名称</th><th>分类</th><th>业务关联键</th><th>上传人</th><th>上传时间</th><th>格式</th><th>可见范围</th><th>操作</th>
+            </tr></thead>
+            <tbody id="findBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 调阅需求与授权 ===================== -->
+    <div class="tab-panel" data-panel="sq">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div><b>调阅需求说明不形成办件</b>：使用人提交需求说明后，<b>由授权人员在配置台直接授权，保存后即时生效并写入台账</b>——
+            不设受理、不设审核、不计时限。<b>R-K1</b>：文件调阅授权属授权判定的一种，
+            <b>一律复用统一权限模型</b>，<b>任何端不得另立一套文件权限体系</b>。
+            <b>使用人不能自行授权本人调阅范围外的文件</b>（验-8）。</div>
+        </div>
+        <div class="grid-2">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-inbox"></i> 待授权的调阅需求
+              <span class="sub">8 条 · 直接配置授权即可</span></div>
+            <div class="sp-b pad0">
+              <div class="sp-tw">
+                <table class="data-table compact">
+                  <thead><tr><th>申请人</th><th>目标文件</th><th>需求说明</th><th>提交时间</th><th>操作</th></tr></thead>
+                  <tbody id="sqBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-key"></i> 已配置的调阅授权
+              <span class="sub">保存即生效 · 可随时收回</span></div>
+            <div class="sp-b pad0">
+              <div class="sp-tw">
+                <table class="data-table compact">
+                  <thead><tr><th>被授权人</th><th>授权范围</th><th>允许动作</th><th>有效期至</th><th>状态</th><th>操作</th></tr></thead>
+                  <tbody id="authBody"></tbody>
+                </table>
+              </div>
+              <p class="hint" style="padding:9px 12px">
+                <i class="fa-solid fa-circle-info"></i>
+                授权状态三档：<b>未授权 → 已授权 → 已收回</b>。收回后<b>即时收回预览与下载</b>，
+                正在预览的凭证同步失效。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 调阅台账 ===================== -->
+    <div class="tab-panel" data-panel="log">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div><b>R-G12</b>：<b>每次预览、下载、授权与拒绝逐次写入调阅台账</b>，含<b>操作人、时间与来源 IP</b>。
+            <b>验-16</b> 要求：任取一份文件，<b>预览、下载、授权、拒绝四类操作在调阅台账各有一条记录</b>；
+            <b>下载前摘要校验失败可复现拦截</b>。</div>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-item"><label>操作类型</label>
+            <select id="lAct" onchange="renderLog()">
+              <option value="">全部</option><option>预览</option><option>下载</option><option>授权</option><option>拒绝</option><option>拦截</option>
+            </select></div>
+          <div class="filter-item"><label>操作人</label><input type="text" id="lBy" oninput="renderLog()" placeholder="操作人"></div>
+          <div class="filter-item"><label>文件</label><input type="text" id="lFile" oninput="renderLog()" placeholder="文件名称"></div>
+          <div class="filter-actions">
+            <button class="btn" onclick="SP.exportAsync('文件调阅台账')"><i class="fa-solid fa-download"></i> 导出</button>
+            <span class="muted" id="lCnt" style="align-self:center"></span>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>时间</th><th>操作类型</th><th>文件名称</th><th>操作人</th><th>角色</th><th>来源 IP</th><th>结果</th>
+            </tr></thead>
+            <tbody id="logBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 回收站 ===================== -->
+    <div class="tab-panel" data-panel="bin">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div><b>R-G12</b>：文件<b>一律逻辑删除进回收站</b>，<b>彻底删除须授权</b>。
+            <b>已归档文件不得修改与替换</b>（R-G10），也不得删除——下表中已归档的行删除入口为置灰。</div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>文件名称</th><th>分类</th><th>业务关联键</th><th>删除人</th><th>删除时间</th><th>删除原因</th><th>是否已归档</th><th>操作</th>
+            </tr></thead>
+            <tbody id="binBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ========== 抽屉 · 分类 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="catDrawer">
+  <div class="drawer-head"><h3>文件分类目录</h3><div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="form-grid form-align">
+      <div class="form-item"><label>上级分类</label><select><option>顶级</option><option>交易网签</option><option>资金监管</option><option>市场监管</option></select></div>
+      <div class="form-item"><label>分类名称 <span class="req">*</span></label><input type="text" placeholder="如 保交楼协议影像"></div>
+      <div class="form-item"><label>所属业务域 <span class="req">*</span></label>
+        <select><option>交易网签</option><option>资金监管</option><option>市场监管</option><option>测绘成果</option></select></div>
+      <div class="form-item"><label>关联事项</label><input type="text" placeholder="如 5601 保交楼账户备案"></div>
+      <div class="form-item"><label>材料类型</label>
+        <select><option>申请材料</option><option>证照影像</option><option>协议文本</option><option>成果文件</option><option>出件材料</option></select></div>
+      <div class="form-item"><label>状态</label><select><option>启用</option><option>停用</option></select>
+        <div class="hint"><b>停用分类不得再挂新文件</b>，已挂文件仍可检索与预览。</div></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('已保存并即时生效','success')"><i class="fa-solid fa-check"></i> 保存</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉 · 登记文件 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="regDrawer">
+  <div class="drawer-head"><h3>文件登记</h3><span class="badge blue">登记即算 SM3 摘要</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div>文件实体经<b>存储适配层落 PC-33</b>，本平台只登记元数据与对象标识。
+        登记必须带<b>业务关联键与分类</b>，并计算 <b>SM3 摘要</b>（R-G9）。</div>
+    </div>
+    <div class="form-grid form-align">
+      <div class="form-item col-full"><label>选择文件 <span class="req">*</span></label><input type="text" data-upload="1"></div>
+      <div class="form-item"><label>文件名称 <span class="req">*</span></label><input type="text" placeholder="文件名称"></div>
+      <div class="form-item"><label>分类 <span class="req">*</span></label>
+        <select><option>监管协议影像</option><option>资金使用材料</option><option>网签合同影像</option><option>测绘成果</option></select></div>
+      <div class="form-item"><label>业务关联键 <span class="req">*</span></label><input type="text" placeholder="如 HT2026-0186">
+        <div class="hint">同一关联键下按版本留存，<b>新版本不覆盖历史版本</b>。</div></div>
+      <div class="form-item"><label>办件号</label><input type="text" placeholder="如 5301-2026-0086"></div>
+      <div class="form-item"><label>格式</label><input type="text" value="pdf" readonly></div>
+      <div class="form-item"><label>大小</label><input type="text" value="2.4 MB" readonly></div>
+      <div class="form-item col-full"><label>SM3 摘要</label>
+        <input type="text" class="sm3" value="a3f5e8c1d2b7940f6e3a8c5b1d9f2e47c8a6b3d5e1f7920c4a8b6d3e5f1c9720a" readonly>
+        <div class="hint">登记时自动计算，<b>下载前校验，不一致的不得下载</b>。</div></div>
+      <div class="form-item col-full"><label>PC-33 对象标识</label><input type="text" value="OBJ-20260831-0186248" readonly>
+        <div class="hint">文件实体存放在 PC-33，<b>本平台库不落字节流</b>（R-G8）。</div></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('已登记并即时生效，文件标识 FILE-20260831-08642；业务表只存该标识，不存路径（R-I10）','success')"><i class="fa-solid fa-check"></i> 登记</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉 · 配置调阅授权 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="authDrawer">
+  <div class="drawer-head"><h3>配置调阅授权</h3><span class="badge blue">保存即生效</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div>调阅授权<b>不走流程定义审批</b>，由授权人员直接配置，<b>保存后即时生效并写入调阅台账</b>。
+        授权范围按<b>数据范围五档</b>判定，<b>不另立一套文件权限体系</b>（R-K1）。</div>
+    </div>
+    <dl class="desc-list">
+      <div class="desc-item"><dt>申请人</dt><dd data-fill="who">覃永明（柳南区经办窗口）</dd></div>
+      <div class="desc-item"><dt>目标文件</dt><dd data-fill="file">监管协议影像 · 彰泰滨江学府</dd></div>
+      <div class="desc-item col-full"><dt>需求说明</dt><dd data-fill="why">协助核对跨区项目的监管账户信息</dd></div>
+    </dl>
+    <div class="form-grid form-align" style="margin-top:12px">
+      <div class="form-item col-full"><label>授权范围 <span class="req">*</span></label>
+        <select><option>仅本文件</option><option>本业务关联键下全部文件</option><option>本分类下全部文件</option></select>
+        <div class="hint">范围越窄越好；<b>不建议按分类整体授权</b>。</div></div>
+      <div class="form-item col-full"><label>允许动作 <span class="req">*</span></label>
+        <div class="radio-line">
+          <label><input type="checkbox" checked> 在线预览</label>
+          <label><input type="checkbox"> 下载原件</label>
+        </div>
+        <div class="hint">下载原件属<b>高敏操作</b>，纳入高敏留痕；leader 与 district 角色<b>不得下载文件原件</b>。</div></div>
+      <div class="form-item"><label>有效期至 <span class="req">*</span></label><input type="date" value="2026-09-30">
+        <div class="hint">到期自动收回，无需人工操作。</div></div>
+      <div class="form-item"><label>授权人</label><input type="text" value="蒙丽华（系统管理员）" readonly></div>
+      <div class="form-item col-full"><label>授权依据 <span class="req">*</span></label>
+        <textarea id="authReason" rows="2" placeholder="必填，不少于 10 字。超范围授权须写明依据"></textarea></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn" onclick="rejectSq()"><i class="fa-solid fa-xmark"></i> 拒绝</button>
+    <button class="btn btn-primary" onclick="submitAuth()"><i class="fa-solid fa-check"></i> 授权</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/spec.js"></script>
+<script>
+var REGS = [
+  ['商品房预售资金三方监管协议（签章件）', '监管协议影像', 'HT2026-0142', '5001-2025-0142', '2.4 MB', 'v2', 'a3f5e8c1…20a', 'OBJ-20260618-0142886', 'pdf'],
+  ['监管资金使用申请材料', '资金使用材料', '5301-2026-0086', '5301-2026-0086', '5.8 MB', 'v1', 'b7d2c9e4…f31', 'OBJ-20260831-0186248', 'pdf'],
+  ['形象进度照片（主体封顶）', '资金使用材料', '5004-2026-0186', '5004-2026-0186', '12.6 MB', 'v1', 'c1e8f3a7…5b9', 'OBJ-20260812-0178624', 'jpg'],
+  ['网签合同影像 · 8-1-1502', '网签合同影像', 'WQ2026-004186', 'WQ2026-004186', '1.8 MB', 'v1', 'd5a2b8c6…e47', 'OBJ-20260826-0184062', 'ofd'],
+  ['面积成果批次明细表', '测绘成果', 'PC2026-0824-0186', 'FW15-2026-004186', '860 KB', 'v3', 'e9c4d1f8…a26', 'OBJ-20260824-0182046', 'docx'],
+  ['面积成果批次明细表', '测绘成果', 'PC2026-0824-0186', 'FW15-2026-004186', '842 KB', 'v2', 'f2b6e3a9…c58', 'OBJ-20260618-0142208', 'docx'],
+  ['保交楼协议（线下签订件）', '监管协议影像', 'HT2026-0158', '5603-2026-0091', '3.2 MB', 'v1', 'a8d3c5e2…b74', 'OBJ-20260718-0158426', 'pdf'],
+  ['委托测绘协议正式件', '监管协议影像', 'HT2026-0178', '—', '1.2 MB', 'v1', 'b4f7a1d6…e92', 'OBJ-20260828-0185124', 'pdf']
+];
+
+var FINDS = [
+  ['商品房预售资金三方监管协议（签章件）', '监管协议影像', 'HT2026-0142', '韦国强', '2026-06-18 15:22', 'pdf', 1],
+  ['监管资金使用申请材料', '资金使用材料', '5301-2026-0086', '荣和地产 · 陈××', '2026-08-31 09:22', 'pdf', 1],
+  ['形象进度照片（主体封顶）', '资金使用材料', '5004-2026-0186', '荣和地产 · 陈××', '2026-08-12 11:06', 'jpg', 1],
+  ['网签合同影像 · 8-1-1502', '网签合同影像', 'WQ2026-004186', '覃永明', '2026-08-26 14:38', 'ofd', 1],
+  ['监管协议影像 · 彰泰滨江学府', '监管协议影像', 'HT2026-0174', '李慧', '2026-08-20 10:12', 'pdf', 0],
+  ['资金使用材料 · 万科城三期', '资金使用材料', '5301-2026-0074', '万科房地产 · 吴××', '2026-08-18 16:44', 'pdf', 0],
+  ['面积成果批次明细表', '测绘成果', 'PC2026-0824-0186', 'XXXX市测绘院', '2026-08-24 09:18', 'docx', 1],
+  ['网签合同影像 · 6-1-0902', '网签合同影像', 'WQ2026-004174', '彰泰置业 · 黄××', '2026-08-22 11:52', 'ofd', 0]
+];
+
+var SQS = [
+  ['覃永明（柳南区经办窗口）', '监管协议影像 · 彰泰滨江学府', '协助核对跨区项目的监管账户信息', '2026-08-31 10:22'],
+  ['周××（档案管理）', '资金使用材料 · 万科城三期', '归档前核对材料完整性', '2026-08-31 09:48'],
+  ['韦国强（业务审核）', '网签合同影像 · 6-1-0902', '资金核退审核需核对合同解除情况', '2026-08-30 16:12'],
+  ['李慧（市局业务处室）', '测绘成果 · 恒达阳光里', '专项检查需查阅面积成果原件', '2026-08-30 14:06'],
+  ['覃永明（柳南区经办窗口）', '监管协议影像 · 万科城三期', '协助企业核对协议条款', '2026-08-30 10:38'],
+  ['周××（档案管理）', '网签合同影像 · 12-2-0603', '档案编目需核对合同号', '2026-08-29 15:22'],
+  ['韦国强（业务审核）', '资金使用材料 · 恒达阳光里', '高危项目专项核查', '2026-08-29 11:04'],
+  ['张伟（分管领导）', '监管协议影像 · 荣和公园大道二期', '专题汇报需查阅协议', '2026-08-28 17:30']
+];
+
+var AUTHS = [
+  ['覃永明', '仅本文件 · 监管协议影像 · 万科城三期', '预览', '2026-09-15', 1],
+  ['周××（档案管理）', '本业务关联键 HT2026-0142 下全部文件', '预览、下载', '2026-12-31', 1],
+  ['李慧', '本分类「测绘成果」下全部文件', '预览', '2026-09-30', 1],
+  ['专项检查组（3 人）', '本业务关联键 5301-2026-0074 下全部文件', '预览', '2026-10-31', 1],
+  ['吴××（南站街道）', '仅本文件 · 网签合同影像 · 6-1-0902', '预览', '2026-08-20', 2]
+];
+
+var LOGS = [
+  ['2026-08-31 10:48', '预览', '监管资金使用申请材料', '韦国强', 'reviewer 业务审核', '10.16.32.108', 1],
+  ['2026-08-31 10:22', '授权', '监管协议影像 · 彰泰滨江学府', '蒙丽华', 'admin 系统管理员', '10.16.32.12', 1],
+  ['2026-08-31 09:56', '下载', '商品房预售资金三方监管协议（签章件）', '周××', 'archive 档案管理', '10.16.34.66', 1],
+  ['2026-08-31 09:14', '拦截', '面积成果批次明细表 v2', '覃永明', 'district 县区经办窗口', '10.16.36.24', 0],
+  ['2026-08-30 17:02', '拒绝', '监管协议影像 · 荣和公园大道二期', '蒙丽华', 'admin 系统管理员', '10.16.32.12', 2],
+  ['2026-08-30 16:44', '预览', '网签合同影像 · 8-1-1502', '李慧', 'city 市局业务处室', '10.16.32.48', 1],
+  ['2026-08-30 15:38', '下载', '委托测绘协议正式件', '韦国强', 'reviewer 业务审核', '10.16.32.108', 1],
+  ['2026-08-30 14:12', '预览', '形象进度照片（主体封顶）', '张伟', 'leader 分管领导', '10.16.32.6', 1],
+  ['2026-08-30 11:26', '授权', '资金使用材料 · 万科城三期', '李慧', 'city 市局业务处室', '10.16.32.48', 1],
+  ['2026-08-29 16:08', '预览', '保交楼协议（线下签订件）', '周××', 'archive 档案管理', '10.16.34.66', 1]
+];
+
+var BINS = [
+  ['监管资金使用申请材料（误传）', '资金使用材料', '5301-2026-0082', '荣和地产 · 陈××', '2026-08-28 10:14', '上传错误，已重新上传正确版本', 0],
+  ['形象进度照片（重复）', '资金使用材料', '5004-2026-0178', '荣和地产 · 陈××', '2026-08-26 15:32', '与已有文件重复', 0],
+  ['测试文件', '旧版材料', 'TEST-001', '蒙丽华', '2026-08-20 09:06', '联调测试遗留', 0],
+  ['网签合同影像 · 已归档', '网签合同影像', 'WQ2025-003862', '覃永明', '2026-08-18 14:22', '误操作删除', 1]
+];
+
+var curCat = '';
+
+function pickCat(el, c) {
+  SP.pick(el, '.sp-ti');
+  curCat = c;
+  document.getElementById('catNow').value = c || '全部分类';
+  renderReg();
+}
+
+function fIcon(f) {
+  var c = { pdf: 'pdf', ofd: 'ofd', docx: 'doc', jpg: 'img' }[f] || 'doc';
+  return '<span class="ftype ' + c + '">' + f.toUpperCase().slice(0, 3) + '</span>';
+}
+
+function renderReg() {
+  var k = (document.getElementById('rKey').value || '').trim();
+  var fmt = document.getElementById('rFmt').value;
+  var rows = REGS.filter(function (r) {
+    if (curCat && r[1] !== curCat && ['交易网签', '资金监管', '市场监管', '测绘成果', '旧版材料'].indexOf(curCat) < 0) return false;
+    if (k && r[2].indexOf(k) < 0 && r[3].indexOf(k) < 0) return false;
+    if (fmt && r[8] !== fmt) return false;
+    return true;
+  });
+  document.getElementById('rCnt').innerHTML = '共 <b>' + rows.length + '</b> 件';
+  document.getElementById('regBody').innerHTML = rows.map(function (r) {
+    var old = r[5] !== 'v1' && r[5] !== 'v3' && r[5] !== 'v2';
+    return '<tr>'
+      + '<td class="cell-lg"><span class="fcell">' + fIcon(r[8]) + r[0] + '</span></td>'
+      + '<td>' + r[1] + '</td><td><code>' + r[2] + '</code></td><td>' + r[3] + '</td>'
+      + '<td class="num">' + r[4] + '</td>'
+      + '<td><span class="sp-vt ' + (r[5] === 'v3' || r[5] === 'v1' ? 'cur' : 'old') + '">' + r[5] + '</span></td>'
+      + '<td><div class="sm3">' + r[6] + '</div><code style="font-size:11px;color:var(--text-3)">' + r[7] + '</code></td>'
+      + '<td><span class="link" onclick="SP.todo(\'在线预览签发一次性预览凭证，不下载即可查看；本次预览已写入调阅台账，含操作人、时间与来源 IP\')">预览</span>'
+      + '<span class="link" onclick="SP.todo(\'下载前校验 SM3 摘要，一致方可下载；下载纳入高敏留痕（R-G9）\')">下载</span></td></tr>';
+  }).join('') || '<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">本分类下暂无文件</td></tr>';
+}
+
+function renderFind() {
+  var c = document.getElementById('sCat').value;
+  var b = (document.getElementById('sBy').value || '').trim();
+  var s = document.getElementById('sScope').value;
+  var rows = FINDS.filter(function (r) {
+    if (c && r[1] !== c) return false;
+    if (b && r[3].indexOf(b) < 0) return false;
+    if (s !== '' && String(r[6]) !== s) return false;
+    return true;
+  });
+  document.getElementById('sCnt').innerHTML = '共 <b>' + rows.length + '</b> 件 · 范围外 <b>'
+    + rows.filter(function (r) { return !r[6]; }).length + '</b> 件';
+  document.getElementById('findBody').innerHTML = rows.map(function (r) {
+    var inScope = r[6] === 1;
+    return '<tr' + (inScope ? '' : ' class="row-off"') + '>'
+      + '<td class="cell-lg"><span class="fcell">' + fIcon(r[5]) + r[0] + '</span></td>'
+      + '<td>' + r[1] + '</td><td><code>' + r[2] + '</code></td>'
+      + '<td>' + r[3] + '</td><td>' + r[4] + '</td><td>' + r[5] + '</td>'
+      + '<td>' + (inScope ? '<span class="badge green">范围内</span>' : '<span class="badge orange">范围外</span>') + '</td>'
+      + '<td>' + (inScope
+          ? '<span class="link" onclick="SP.todo(\'已签发一次性预览凭证，本次预览写入调阅台账\')">预览</span>'
+            + '<span class="link" onclick="SP.todo(\'下载前校验 SM3 摘要，一致方可下载\')">下载</span>'
+          : '<span class="link" onclick="askAuth(\'' + r[0] + '\')">提交调阅需求</span>'
+            + ' <span class="muted">（正文与附件须授权后方可查看）</span>') + '</td></tr>';
+  }).join('') || '<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">没有符合条件的文件</td></tr>';
+}
+
+function askAuth(f) {
+  SP.todo('已提交调阅需求说明：「' + f + '」。本需求不形成办件，由授权人员在配置台直接授权，保存后即时生效（R-K1）');
+}
+
+function renderSq() {
+  document.getElementById('sqBody').innerHTML = SQS.map(function (s, i) {
+    return '<tr class="row-warn"><td>' + s[0] + '</td><td class="cell-lg">' + s[1] + '</td>'
+      + '<td class="cell-lg">' + s[2] + '</td><td>' + s[3] + '</td>'
+      + '<td><span class="link" onclick="openAuth(' + i + ')">配置授权</span></td></tr>';
+  }).join('');
+
+  document.getElementById('authBody').innerHTML = AUTHS.map(function (a) {
+    return '<tr' + (a[4] === 1 ? '' : ' class="row-off"') + '>'
+      + '<td>' + a[0] + '</td><td class="cell-lg">' + a[1] + '</td><td>' + a[2] + '</td>'
+      + '<td>' + a[3] + '</td>'
+      + '<td>' + (a[4] === 1 ? '<span class="badge green">已授权</span>' : '<span class="badge gray">已收回</span>') + '</td>'
+      + '<td>' + (a[4] === 1
+          ? '<span class="link danger" onclick="revoke(\'' + a[0] + '\')">收回</span>'
+          : '<span class="muted">已到期自动收回</span>') + '</td></tr>';
+  }).join('');
+}
+
+function openAuth(i) {
+  var s = SQS[i];
+  PMS.fill('authDrawer', { who: s[0], file: s[1], why: s[2] });
+  document.getElementById('authReason').value = '';
+  PMS.openDrawer('authDrawer');
+}
+
+function submitAuth() {
+  var r = document.getElementById('authReason');
+  if ((r.value || '').trim().length < 10) { SP.denied('授权依据为必填且不少于 10 字，超范围授权须写明依据'); r.focus(); return; }
+  PMS.closeDrawer();
+  PMS.toast('已授权并即时生效，被授权人现在即可预览；本次授权已写入调阅台账（含操作人、时间与来源 IP）', 'success');
+}
+
+function rejectSq() {
+  var r = document.getElementById('authReason');
+  if ((r.value || '').trim().length < 10) { SP.denied('拒绝同样须写明理由，不少于 10 字'); r.focus(); return; }
+  PMS.closeDrawer();
+  PMS.toast('已拒绝该调阅需求，拒绝记录已写入调阅台账并反馈申请人', 'success');
+}
+
+function revoke(who) {
+  PMS.confirm({
+    title: '收回调阅授权', message: '确认收回「' + who + '」的调阅授权？',
+    detail: '收回后即时生效：被授权人立即失去预览与下载入口，正在预览的一次性凭证同步失效。收回记录写入调阅台账。',
+    type: 'warning', okText: '确认收回',
+    onOk: function () { PMS.toast('已收回并即时生效，预览凭证已失效', 'success'); }
+  });
+}
+
+function renderLog() {
+  var a = document.getElementById('lAct').value;
+  var b = (document.getElementById('lBy').value || '').trim();
+  var f = (document.getElementById('lFile').value || '').trim();
+  var rows = LOGS.filter(function (r) {
+    if (a && r[1] !== a) return false;
+    if (b && r[3].indexOf(b) < 0) return false;
+    if (f && r[2].indexOf(f) < 0) return false;
+    return true;
+  });
+  document.getElementById('lCnt').innerHTML = '共 <b>' + rows.length + '</b> 条';
+  var ACT = { '预览': '<span class="badge blue">预览</span>', '下载': '<span class="badge orange">下载</span>',
+              '授权': '<span class="badge green">授权</span>', '拒绝': '<span class="badge gray">拒绝</span>',
+              '拦截': '<span class="badge red">拦截</span>' };
+  document.getElementById('logBody').innerHTML = rows.map(function (r) {
+    return '<tr' + (r[6] === 0 ? ' class="row-bad"' : '') + '>'
+      + '<td>' + r[0] + '</td><td>' + ACT[r[1]] + '</td>'
+      + '<td class="cell-lg">' + r[2] + '</td><td>' + r[3] + '</td><td>' + r[4] + '</td>'
+      + '<td><code>' + r[5] + '</code></td>'
+      + '<td>' + (r[6] === 1 ? '<span class="badge green">成功</span>'
+          : (r[6] === 0 ? '<span class="badge red">SM3 摘要不一致，已拦截下载</span>' : '<span class="badge gray">已拒绝</span>')) + '</td></tr>';
+  }).join('') || '<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">没有符合条件的记录</td></tr>';
+}
+
+function renderBin() {
+  document.getElementById('binBody').innerHTML = BINS.map(function (b) {
+    return '<tr' + (b[6] ? ' class="row-warn"' : '') + '>'
+      + '<td class="cell-lg">' + b[0] + '</td><td>' + b[1] + '</td><td><code>' + b[2] + '</code></td>'
+      + '<td>' + b[3] + '</td><td>' + b[4] + '</td><td class="cell-lg">' + b[5] + '</td>'
+      + '<td>' + (b[6] ? '<span class="badge red">已归档</span>' : '<span class="badge gray">未归档</span>') + '</td>'
+      + '<td><span class="link" onclick="restore(\'' + b[0] + '\')">恢复</span>'
+      + (b[6]
+          ? '<span class="link is-off" onclick="SP.denied(\'已归档文件不得修改与替换，也不得彻底删除（R-G10）。如确需处理请走档案管理流程\')">彻底删除</span>'
+          : '<span class="link danger" onclick="purge(\'' + b[0] + '\')">彻底删除</span>') + '</td></tr>';
+  }).join('');
+}
+
+function restore(n) {
+  SP.dual('恢复文件', '蒙丽华', function () {
+    PMS.toast('已恢复「' + n + '」，恢复操作已留痕', 'success');
+  });
+}
+function purge(n) {
+  PMS.confirm({
+    title: '彻底删除文件', message: '确认彻底删除「' + n + '」？',
+    detail: '彻底删除须授权并留痕，删除后文件元数据与 PC-33 实体一并清除，不可恢复（R-G12）。',
+    type: 'warning', okText: '确认删除',
+    onOk: function () { PMS.toast('已彻底删除，操作已写入操作日志与调阅台账', 'success'); }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  renderReg(); renderFind(); renderSq(); renderLog(); renderBin();
+  var t = SP.param('tab'); if (t) SP.tab(t);
+});
+</script>
+</body>
+</html>

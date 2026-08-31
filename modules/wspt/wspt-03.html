@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>用户与角色授权 · 应用支撑平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<link rel="stylesheet" href="../../assets/css/spec.css">
+<style>
+  /* 数据范围五档：颜色按宽窄递进，一眼看出谁能看多少 */
+  .dsc {
+    display: inline-flex; align-items: center; gap: 4px; padding: 0 8px;
+    border-radius: 20px; font-size: 11.5px; font-weight: 600; line-height: 20px; white-space: nowrap;
+  }
+  .dsc.d1 { background: var(--danger-light); color: var(--lv-red); }
+  .dsc.d2 { background: var(--warning-light); color: #8a6100; }
+  .dsc.d3 { background: var(--primary-light); color: var(--primary); }
+  .dsc.d4 { background: var(--success-light); color: var(--success); }
+  .dsc.d5 { background: #f0e9ff; color: #7c3aed; }
+  .rtag {
+    display: inline-block; padding: 0 7px; margin: 1px 3px 1px 0; border-radius: var(--radius-sm);
+    font-size: 11.5px; line-height: 19px; background: var(--primary-light-2);
+    color: var(--primary); border: 1px solid var(--primary-soft);
+  }
+</style>
+</head>
+<body data-role="admin" data-active="wspt-03">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 应用支撑平台
+        <span class="sep">/</span> 应用与用户
+        <span class="sep">/</span> <span class="cur">用户与角色授权</span>
+      </div>
+      <div class="page-title">用户与角色授权 <span class="badge blue">模块二 · 8 个功能点</span></div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="SP.todo('已校验授权一致性：486 个账号的可见菜单与接口鉴权结果逐一比对，全部一致（验-9）')"><i class="fa-solid fa-list-check"></i> 校验授权一致性</button>
+      <button class="btn" onclick="SP.exportAsync('用户与角色授权台账')"><i class="fa-solid fa-download"></i> 导出台账</button>
+      <button class="btn btn-primary" onclick="PMS.openDrawer('userDrawer')"><i class="fa-solid fa-user-plus"></i> 新增用户</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>账号开通与角色授权是<b>配置类事项</b>：授权人员在本页维护，<b>保存后即时生效</b>，
+      <b>不设受理、审核、补正环节，不产生办件号</b>。新用户首次登录<b>强制改密</b>。
+      <b>一人多角色时，功能权限取并集、数据范围取最宽档位并集</b>（R-K6）。
+      <a class="link" href="wspt-14.html?tab=fw">看数据范围五档口径</a></div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-users"></i></div><div>
+      <div class="s-label">在用账号</div><div class="s-value">486</div><div class="s-trend text-2">内部 312 · 外部 174</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-user-tag"></i></div><div>
+      <div class="s-label">角色</div><div class="s-value">24</div><div class="s-trend text-2">内部 16 · 外部 8</div></div></div>
+    <div class="stat-card dc-alarm"><div class="s-icon red"><i class="fa-solid fa-user-lock"></i></div><div>
+      <div class="s-label">锁定账号</div><div class="s-value">2</div><div class="s-trend">连续登录失败</div></div></div>
+    <div class="stat-card"><div class="s-icon orange"><i class="fa-solid fa-key"></i></div><div>
+      <div class="s-label">待首次改密</div><div class="s-value">6</div><div class="s-trend text-2">新开通未登录</div></div></div>
+    <div class="stat-card"><div class="s-icon purple"><i class="fa-solid fa-crosshairs"></i></div><div>
+      <div class="s-label">自定义数据范围</div><div class="s-value">3</div><div class="s-trend text-2">跨部门专项授权</div></div></div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="usr">用户管理</div>
+      <div class="tab" data-tab="rol">角色管理</div>
+      <div class="tab" data-tab="men">角色菜单授权</div>
+      <div class="tab" data-tab="fw">角色数据范围</div>
+      <div class="tab" data-tab="zdy">自定义数据部门 <span class="badge purple">3</span></div>
+    </div>
+
+    <!-- ===================== 用户管理 ===================== -->
+    <div class="tab-panel active" data-panel="usr">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>归属部门</label>
+            <select><option>全部</option><option>市房产交易所</option><option>柳南区房管所</option><option>柳北区房管所</option><option>外部主体</option></select></div>
+          <div class="filter-item"><label>用户名 / 姓名</label><input type="text" placeholder="登录名或姓名"></div>
+          <div class="filter-item"><label>角色</label><select><option>全部</option><option>系统管理员</option><option>业务审核</option><option>窗口受理</option><option>开发企业</option></select></div>
+          <div class="filter-item"><label>状态</label><select><option>全部</option><option>正常</option><option>禁用</option><option>锁定</option></select></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按所选条件检索用户','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>登录名</th><th>姓名</th><th>归属部门</th><th>岗位</th><th>已绑角色</th>
+              <th>数据范围</th><th>状态</th><th>最近登录</th><th>操作</th>
+            </tr></thead>
+            <tbody id="usrBody"></tbody>
+          </table>
+        </div>
+        <p class="hint">
+          <i class="fa-solid fa-circle-info"></i>
+          用户与角色是<b>一人多角色</b>关系，<b>变更留痕</b>。保存后即时生效：用户下次请求即按新角色鉴权，
+          正在进行的会话<b>无需重新登录</b>即可看到菜单变化。
+        </p>
+      </div>
+    </div>
+
+    <!-- ===================== 角色管理 ===================== -->
+    <div class="tab-panel" data-panel="rol">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>角色分类</label><select><option>全部</option><option>内部办理</option><option>外部主体</option><option>运维</option></select></div>
+          <div class="filter-item"><label>角色名称</label><input type="text" placeholder="名称或标识"></div>
+          <div class="filter-actions">
+            <button class="btn btn-primary" onclick="PMS.toast('已按所选条件检索角色','success')"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+            <button class="btn" onclick="PMS.openDrawer('roleDrawer')"><i class="fa-solid fa-plus"></i> 新增角色</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>角色标识</th><th>角色名称</th><th>分类</th><th class="num">绑定用户</th>
+              <th class="num">授权菜单</th><th>可访问应用</th><th>数据范围</th><th>状态</th><th>操作</th>
+            </tr></thead>
+            <tbody id="rolBody"></tbody>
+          </table>
+        </div>
+        <p class="hint">
+          <i class="fa-solid fa-circle-info"></i>
+          <b>角色应用边界</b>限定该角色可访问的应用集合——即便菜单授权里勾了某个菜单，
+          若该菜单所属应用不在角色的应用边界内，<b>菜单仍不出现</b>。这是权限链路的最后一道闸。
+        </p>
+      </div>
+    </div>
+
+    <!-- ===================== 角色菜单授权 ===================== -->
+    <div class="tab-panel" data-panel="men">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>功能权限链路固定为：<b>用户 → 角色 → 菜单/按钮 → 权限资源（method_name / api_url）→ 应用</b>（R-K2）。
+            本页配置的是链路中的<b>角色 → 菜单/按钮</b>一段；接口权限资源的登记在
+            <span class="link" onclick="location.href='wspt-04.html'">菜单与权限资源</span>。</div>
+        </div>
+        <div class="sp-split">
+          <aside class="sp-side">
+            <div class="sp-block">
+              <div class="sp-h"><i class="fa-solid fa-user-tag"></i> 选择角色</div>
+              <div class="sp-b">
+                <div class="sp-ti on" onclick="pickRole(this,0)"><i class="fa-solid fa-gear"></i> 系统管理员 <span class="tc">4</span></div>
+                <div class="sp-ti" onclick="pickRole(this,1)"><i class="fa-solid fa-user-check"></i> 业务审核 <span class="tc">42</span></div>
+                <div class="sp-ti" onclick="pickRole(this,2)"><i class="fa-solid fa-building-columns"></i> 县区经办窗口 <span class="tc">86</span></div>
+                <div class="sp-ti" onclick="pickRole(this,3)"><i class="fa-solid fa-city"></i> 市局业务处室 <span class="tc">28</span></div>
+                <div class="sp-ti" onclick="pickRole(this,4)"><i class="fa-solid fa-user-tie"></i> 分管领导 <span class="tc">6</span></div>
+                <div class="sp-ti" onclick="pickRole(this,5)"><i class="fa-solid fa-box-archive"></i> 档案管理 <span class="tc">7</span></div>
+                <div class="sp-ti" onclick="pickRole(this,6)"><i class="fa-solid fa-building-flag"></i> 开发企业 <span class="tc">96</span></div>
+              </div>
+            </div>
+            <div class="sp-block">
+              <div class="sp-h"><i class="fa-solid fa-circle-info"></i> 当前角色</div>
+              <div class="sp-b">
+                <div class="sp-kv">
+                  <div class="kv"><span class="k">角色标识</span><span class="v" id="rKey">admin</span></div>
+                  <div class="kv"><span class="k">已授权菜单</span><span class="v" id="rMenu">142</span></div>
+                  <div class="kv"><span class="k">已授权按钮</span><span class="v" id="rBtn">386</span></div>
+                  <div class="kv"><span class="k">应用边界</span><span class="v" id="rApp">全部 20 个应用</span></div>
+                  <div class="kv"><span class="k">数据范围</span><span class="v" id="rScope">全部</span></div>
+                </div>
+              </div>
+            </div>
+          </aside>
+          <div class="sp-pane">
+            <div class="sp-block">
+              <div class="sp-h"><i class="fa-solid fa-sitemap"></i> 菜单与按钮授权树
+                <span class="sub">勾选即授权，保存后即时生效</span></div>
+              <div class="sp-b">
+                <div class="sp-scroll" style="max-height:400px">
+                  <div id="treeBox"></div>
+                </div>
+                <div class="btn-row" style="margin-top:10px">
+                  <button class="btn btn-sm" onclick="SP.todo('已展开全部节点')"><i class="fa-solid fa-list"></i> 全部展开</button>
+                  <button class="btn btn-sm" onclick="SP.todo('已按当前角色的应用边界过滤：不在边界内的应用菜单已隐藏，勾选也不会生效')"><i class="fa-solid fa-filter"></i> 按应用边界过滤</button>
+                  <button class="btn btn-sm btn-primary" onclick="PMS.toast('已保存菜单授权并即时生效，已写入操作日志与变更对照','success')"><i class="fa-solid fa-check"></i> 保存授权</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 角色数据范围 ===================== -->
+    <div class="tab-panel" data-panel="fw">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>数据范围<b>固定五档</b>：全部、本部门、本部门及以下、本人、自定义（R-K3）。
+            对外表述归并为<b>全市、辖区、本主体、本人</b>。
+            <b>一人多角色时数据范围取最宽档位并集</b>——配置时须留意：给某角色放宽会连带放宽所有绑定该角色的用户。</div>
+        </div>
+        <div class="sp-tw">
+          <table class="data-table">
+            <thead><tr>
+              <th class="num">档位</th><th>档位名称</th><th>判定条件</th><th>归并对外表述</th><th>常见应用</th><th class="num">当前角色数</th>
+            </tr></thead>
+            <tbody>
+              <tr><td class="num">1</td><td><span class="dsc d1">全部</span></td>
+                <td class="cell-lg">不限制 <code>owner_dept_id</code></td><td>全市</td>
+                <td class="cell-lg">超管、市局业务处室、全市审核</td><td class="num">5</td></tr>
+              <tr><td class="num">2</td><td><span class="dsc d2">本部门</span></td>
+                <td class="cell-lg"><code>owner_dept_id = 当前用户 dept_id</code></td><td>辖区或本主体<span class="muted">（按部门类型）</span></td>
+                <td class="cell-lg">科室内部台账</td><td class="num">4</td></tr>
+              <tr class="row-warn"><td class="num">3</td><td><span class="dsc d3">本部门及以下</span></td>
+                <td class="cell-lg"><code>owner_dept_id ∈ 当前部门及其 ancestors 子树</code></td><td>辖区</td>
+                <td class="cell-lg">城区负责人查看街道与社区</td><td class="num">7</td></tr>
+              <tr><td class="num">4</td><td><span class="dsc d4">本人</span></td>
+                <td class="cell-lg"><code>owner_user_id = 当前用户</code></td><td>本人</td>
+                <td class="cell-lg">个人待办、个人草稿</td><td class="num">5</td></tr>
+              <tr><td class="num">5</td><td><span class="dsc d5">自定义</span></td>
+                <td class="cell-lg"><code>owner_dept_id ∈ sys_role_dept 集合</code></td><td>全市或辖区<span class="muted">（按配置）</span></td>
+                <td class="cell-lg">跨部门专项授权</td><td class="num">3</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-code"></i> 第 3 档的落地要求
+            <span class="sub">性能与正确性都取决于这一条</span></div>
+          <div class="sp-b">
+            <div class="sp-fx">
+              <span class="lb">正确写法</span> <code>WHERE ancestors LIKE '0,100,200%' OR id = 200</code><br>
+              <span class="lb">错误写法</span> <em>递归查询子部门</em> <span class="muted">（层级深时性能急剧下降，且易漏节点）</span>
+            </div>
+            <p class="hint">
+              <i class="fa-solid fa-triangle-exclamation" style="color:var(--lv-orange)"></i>
+              子树查询使用 <b>ancestors 路径 LIKE 匹配</b>（当前部门 ancestors ＋ 当前部门 id 前缀）或 id 等于当前部门，
+              <b>禁止递归查询</b>。<b>部门层级变动时必须同步维护 ancestors</b>，
+              否则第 3 档判定会漏掉整棵子树。
+              <span class="link" onclick="location.href='wspt-02.html?tab=org'">去组织树检查 ancestors</span>
+            </p>
+          </div>
+        </div>
+
+        <div class="sp-tw">
+          <table class="data-table">
+            <thead><tr><th>角色</th><th>数据范围档位</th><th>对外表述</th><th class="num">绑定用户</th><th>说明</th><th>操作</th></tr></thead>
+            <tbody id="fwBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 自定义数据部门 ===================== -->
+    <div class="tab-panel" data-panel="zdy">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div><code>data_scope = 自定义</code> 时须维护<b>角色 — 部门集合</b>（<code>sys_role_dept</code>）。
+            自定义档常用于<b>跨部门专项授权</b>，例如专项检查组要看多个城区的数据但不给全市范围。
+            配置后<b>即时生效</b>并写入操作日志。</div>
+        </div>
+        <div class="sp-tw">
+          <table class="data-table">
+            <thead><tr><th>角色</th><th class="num">授权部门数</th><th>部门集合</th><th>设置依据</th><th>设置人</th><th>设置时间</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>专项检查组</td><td class="num">3</td>
+                <td class="cell-lg"><span class="rtag">柳南区房管所</span><span class="rtag">柳北区房管所</span><span class="rtag">城中区房管所</span></td>
+                <td class="cell-lg">2026 年度预售资金专项检查，需跨三城区查阅</td><td>李慧</td><td>2026-07-12</td>
+                <td><span class="link" onclick="PMS.openDrawer('zdyDrawer')">编辑</span></td>
+              </tr>
+              <tr>
+                <td>档案调阅专员</td><td class="num">5</td>
+                <td class="cell-lg"><span class="rtag">市房产交易所</span><span class="rtag">档案科</span><span class="rtag">柳南区房管所</span><span class="rtag">柳北区房管所</span><span class="rtag">城中区房管所</span></td>
+                <td class="cell-lg">跨部门查档需要，范围随专项结束回收</td><td>蒙丽华</td><td>2026-06-20</td>
+                <td><span class="link" onclick="PMS.openDrawer('zdyDrawer')">编辑</span></td>
+              </tr>
+              <tr class="row-warn">
+                <td>县区联审组</td><td class="num">6</td>
+                <td class="cell-lg"><span class="rtag">融水县房管所</span><span class="rtag">融安县房管所</span><span class="rtag">三江县房管所</span><span class="rtag">鹿寨县房管所</span><span class="rtag">柳城县房管所</span><span class="rtag">柳江区房管所</span></td>
+                <td class="cell-lg">六县区联合审核，<b>2026-12-31 到期后须回收</b></td><td>李慧</td><td>2026-05-08</td>
+                <td>
+                  <span class="link" onclick="PMS.openDrawer('zdyDrawer')">编辑</span>
+                  <span class="link danger" onclick="SP.dual('回收自定义数据范围','李慧',function(){PMS.toast('已回收该角色的自定义部门集合，绑定用户的数据范围即时收窄','success')})">回收</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="hint">
+          <i class="fa-solid fa-triangle-exclamation" style="color:var(--lv-orange)"></i>
+          自定义范围属<b>放宽授权</b>，建议设到期日并定期复核。回收后绑定用户的数据范围<b>即时收窄</b>，
+          正在查看的列表刷新后即按新范围过滤。
+        </p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ========== 抽屉 · 用户 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="userDrawer">
+  <div class="drawer-head"><h3>用户配置</h3><span class="badge blue">保存即生效</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="form-grid form-align">
+      <div class="form-item"><label>登录名 <span class="req">*</span></label><input type="text" placeholder="登录名">
+        <div class="hint">全平台唯一，保存后不可修改。</div></div>
+      <div class="form-item"><label>姓名 <span class="req">*</span></label><input type="text" placeholder="真实姓名"></div>
+      <div class="form-item"><label>归属部门 <span class="req">*</span></label>
+        <select><option>市房产交易所 / 交易科</option><option>市房产交易所 / 资金监管科</option><option>柳南区房管所 / 柳南区交易大厅</option></select>
+        <div class="hint">归属部门决定<b>本部门</b>与<b>本部门及以下</b>两档数据范围的基准。</div></div>
+      <div class="form-item"><label>岗位</label>
+        <select><option>窗口受理员</option><option>业务审核员</option><option>复核员</option><option>系统管理员</option></select>
+        <div class="hint">岗位用于流程审批人按岗位取人。</div></div>
+      <div class="form-item col-full"><label>绑定角色 <span class="req">*</span></label>
+        <div class="radio-line">
+          <label><input type="checkbox" checked> 业务审核</label>
+          <label><input type="checkbox"> 县区经办窗口</label>
+          <label><input type="checkbox"> 档案管理</label>
+          <label><input type="checkbox"> 分管领导</label>
+        </div>
+        <div class="hint"><b>一人多角色</b>：功能权限取并集，数据范围取<b>最宽档位并集</b>（R-K6）。</div></div>
+      <div class="form-item"><label>手机号</label><input type="text" placeholder="手机号"></div>
+      <div class="form-item"><label>状态</label><select><option>正常</option><option>禁用</option></select></div>
+      <div class="form-item col-full"><label>初始口令</label><input type="text" value="系统随机生成并短信下发" readonly>
+        <div class="hint">口令按 <b>SM3 加盐哈希</b>落库，<b>首次登录强制改密</b>。</div></div>
+    </div>
+    <p class="hint">
+      <i class="fa-solid fa-circle-info"></i>
+      保存后<b>即时生效</b>：用户可立即登录且只看见授权菜单；不产生办件号，只写操作日志（验-1）。
+    </p>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('已保存并即时生效，初始口令已短信下发，首次登录须改密','success')"><i class="fa-solid fa-check"></i> 保存</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉 · 角色 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="roleDrawer">
+  <div class="drawer-head"><h3>角色配置</h3><span class="badge blue">保存即生效</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="form-grid form-align">
+      <div class="form-item"><label>角色标识 <span class="req">*</span></label><input type="text" placeholder="如 reviewer"></div>
+      <div class="form-item"><label>角色名称 <span class="req">*</span></label><input type="text" placeholder="如 业务审核"></div>
+      <div class="form-item"><label>角色分类 <span class="req">*</span></label>
+        <select><option>内部办理</option><option>外部主体</option><option>运维</option></select>
+        <div class="hint"><b>外部主体角色与内部办理角色严格隔离</b>，走不同的身份认证入口（RO-5）。</div></div>
+      <div class="form-item"><label>数据范围 <span class="req">*</span></label>
+        <select><option>全部</option><option>本部门</option><option>本部门及以下</option><option>本人</option><option>自定义</option></select></div>
+      <div class="form-item col-full"><label>可访问应用（应用边界）<span class="req">*</span></label>
+        <div class="radio-line">
+          <label><input type="checkbox" checked> 统一工作门户</label>
+          <label><input type="checkbox" checked> 新建商品房网签备案</label>
+          <label><input type="checkbox" checked> 预售资金监管</label>
+          <label><input type="checkbox"> 应用支撑平台</label>
+        </div>
+        <div class="hint">不在边界内的应用，<b>即使菜单已勾选也不出现</b>。</div></div>
+      <div class="form-item"><label>状态</label><select><option>启用</option><option>停用</option></select></div>
+      <div class="form-item"><label>排序</label><input type="text" value="10"></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn" onclick="SP.todo('已复制角色「业务审核」的全部菜单与按钮授权到新角色，可在此基础上增删')"><i class="fa-solid fa-copy"></i> 从现有角色复制</button>
+    <button class="btn btn-primary" onclick="PMS.closeDrawer();PMS.toast('已保存并即时生效','success')"><i class="fa-solid fa-check"></i> 保存</button>
+  </div>
+</div>
+
+<!-- ========== 抽屉 · 自定义数据部门 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="zdyDrawer">
+  <div class="drawer-head"><h3>自定义数据部门</h3><span class="badge purple">data_scope = 自定义</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="form-grid form-align">
+      <div class="form-item"><label>角色</label><input type="text" value="专项检查组" readonly></div>
+      <div class="form-item"><label>到期日期</label><input type="date" value="2026-12-31">
+        <div class="hint">自定义范围属放宽授权，<b>建议设到期日并定期复核</b>。</div></div>
+      <div class="form-item col-full"><label>授权部门集合 <span class="req">*</span></label>
+        <div class="radio-line" style="flex-direction:column;align-items:flex-start;gap:6px">
+          <label><input type="checkbox" checked> 柳南区房管所 <span class="muted">（含其子树 12 个节点）</span></label>
+          <label><input type="checkbox" checked> 柳北区房管所 <span class="muted">（含其子树 9 个节点）</span></label>
+          <label><input type="checkbox" checked> 城中区房管所 <span class="muted">（含其子树 8 个节点）</span></label>
+          <label><input type="checkbox"> 融水县房管所</label>
+          <label><input type="checkbox"> 市房产交易所</label>
+        </div>
+        <div class="hint">勾选部门<b>是否含子树</b>按部门配置决定；集合写入 <code>sys_role_dept</code>。</div></div>
+      <div class="form-item col-full"><label>设置依据 <span class="req">*</span></label>
+        <textarea id="zdyReason" rows="2" placeholder="必填，不少于 10 字。放宽授权须写明依据"></textarea></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="submitZdy()"><i class="fa-solid fa-check"></i> 保存</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/spec.js"></script>
+<script>
+var USERS = [
+  ['mengliho', '蒙丽华', '市房产交易所', '系统管理员', ['系统管理员'], 1, '正常', '今天 08:12'],
+  ['weiguoq', '韦国强', '市房产交易所 / 交易科', '业务审核员', ['业务审核'], 1, '正常', '今天 09:04'],
+  ['lihui', '李慧', '市房产交易所 / 资金监管科', '业务管理员', ['市局业务处室', '业务审核'], 1, '正常', '今天 08:46'],
+  ['qinym', '覃永明', '柳南区房管所 / 柳南区交易大厅', '窗口受理员', ['县区经办窗口'], 3, '锁定', '2026-08-29 16:22'],
+  ['zhangwei', '张伟', 'XXXX市住房和城乡建设局', '分管领导', ['分管领导'], 1, '正常', '昨天 17:30'],
+  ['zhouxx', '周××', '市房产交易所 / 档案科', '档案管理员', ['档案管理'], 1, '正常', '今天 10:02'],
+  ['ronghe01', '荣和地产 · 陈××', '外部主体', '—', ['开发企业'], 4, '正常', '今天 09:38'],
+  ['newuser01', '吴××', '柳南区房管所 / 南站街道', '窗口受理员', ['县区经办窗口'], 3, '待首次改密', '—']
+];
+
+var ROLES = [
+  ['admin', '系统管理员', '内部办理', 4, 142, '全部 20 个应用', 1, 1],
+  ['city', '市局业务处室', '内部办理', 28, 96, '全部 20 个应用', 1, 1],
+  ['reviewer', '业务审核', '内部办理', 42, 68, '18 个业务应用', 1, 1],
+  ['district', '县区经办窗口', '内部办理', 86, 42, '12 个业务应用', 3, 1],
+  ['leader', '分管领导', '内部办理', 6, 34, '全部 20 个应用', 1, 1],
+  ['archive', '档案管理', '内部办理', 7, 18, '6 个业务应用', 1, 1],
+  ['dev', '开发企业', '外部主体', 96, 12, '统一服务门户', 4, 1],
+  ['agency', '经纪机构', '外部主体', 48, 10, '统一服务门户', 4, 1],
+  ['bank', '金融机构', '外部主体', 22, 8, '统一服务门户', 4, 1],
+  ['public', '群众用户', '外部主体', 8, 6, '统一服务门户', 4, 1],
+  ['inspect', '专项检查组', '内部办理', 5, 24, '8 个业务应用', 5, 1],
+  ['ops_old', '旧运维角色', '运维', 0, 0, '—', 2, 2]
+];
+
+var SCOPE = { 1: ['d1', '全部', '全市'], 2: ['d2', '本部门', '辖区'], 3: ['d3', '本部门及以下', '辖区'],
+              4: ['d4', '本人', '本主体或本人'], 5: ['d5', '自定义', '按配置'] };
+
+var ROLE_DETAIL = [
+  ['admin', 142, 386, '全部 20 个应用', 1],
+  ['reviewer', 68, 184, '18 个业务应用', 1],
+  ['district', 42, 96, '12 个业务应用', 3],
+  ['city', 96, 248, '全部 20 个应用', 1],
+  ['leader', 34, 12, '全部 20 个应用', 1],
+  ['archive', 18, 42, '6 个业务应用', 1],
+  ['dev', 12, 28, '统一服务门户', 4]
+];
+
+var TREE = [
+  ['应用支撑平台', 1, [['我的工作台', 1, []], ['应用与组织', 1, ['查看', '新增', '修改', '停用', '导入导出']],
+    ['用户与角色授权', 1, ['查看', '新增', '修改', '重置口令', '锁定解锁']],
+    ['菜单与权限资源', 1, ['查看', '新增', '修改']],
+    ['基础配置与数据字典', 1, ['查看', '修改', '刷新缓存', '导入导出']]]],
+  ['新建商品房网签备案管理系统', 1, [['我的工作台', 1, []], ['预售方案备案', 1, ['查看', '受理', '审核', '退回']],
+    ['合同网签备案', 1, ['查看', '受理', '审核', '打印']]]],
+  ['新建商品房预售资金监管系统', 0, [['我的工作台', 0, []], ['监管项目管理', 0, ['查看', '受理', '审核']],
+    ['资金使用管理', 0, ['查看', '受理', '初审', '复核', '审核', '下发指令']]]]
+];
+
+function renderUsers() {
+  document.getElementById('usrBody').innerHTML = USERS.map(function (u) {
+    var st = u[6];
+    var stTag = st === '正常' ? '<span class="badge green">正常</span>'
+      : (st === '锁定' ? '<span class="badge red">锁定</span>' : '<span class="badge orange">待首次改密</span>');
+    var s = SCOPE[u[5]];
+    return '<tr' + (st === '锁定' ? ' class="row-bad"' : (st === '待首次改密' ? ' class="row-warn"' : '')) + '>'
+      + '<td><code>' + u[0] + '</code></td><td>' + u[1] + '</td>'
+      + '<td class="cell-lg">' + u[2] + '</td><td>' + u[3] + '</td>'
+      + '<td class="cell-lg">' + u[4].map(function (r) { return '<span class="rtag">' + r + '</span>'; }).join('') + '</td>'
+      + '<td><span class="dsc ' + s[0] + '">' + s[1] + '</span></td>'
+      + '<td>' + stTag + '</td><td>' + u[7] + '</td>'
+      + '<td><span class="link" onclick="PMS.openDrawer(\'userDrawer\')">编辑</span>'
+      + (st === '锁定'
+          ? '<span class="link" onclick="unlock(\'' + u[1] + '\')">解锁</span>'
+          : '<span class="link" onclick="resetPwd(\'' + u[1] + '\')">重置口令</span>') + '</td></tr>';
+  }).join('');
+}
+
+function unlock(n) {
+  PMS.confirm({
+    title: '解锁账号', message: '确认解锁「' + n + '」？',
+    detail: '账号因连续登录失败被锁定。解锁后即时生效，本次解锁写入操作日志与安全审计。',
+    type: 'warning', okText: '确认解锁',
+    onOk: function () { PMS.toast('已解锁并即时生效，已写入操作日志', 'success'); }
+  });
+}
+function resetPwd(n) {
+  PMS.confirm({
+    title: '重置口令', message: '确认重置「' + n + '」的登录口令？',
+    detail: '新口令随机生成并短信下发，按 SM3 加盐哈希落库，用户下次登录强制改密。本操作纳入高敏留痕。',
+    type: 'warning', okText: '确认重置',
+    onOk: function () { PMS.toast('已重置并短信下发，用户下次登录须改密', 'success'); }
+  });
+}
+
+function renderRoles() {
+  document.getElementById('rolBody').innerHTML = ROLES.map(function (r) {
+    var s = SCOPE[r[6]];
+    return '<tr' + (r[7] === 1 ? '' : ' class="row-off"') + '>'
+      + '<td><code>' + r[0] + '</code></td><td>' + r[1] + '</td><td>' + r[2] + '</td>'
+      + '<td class="num">' + r[3] + '</td><td class="num">' + r[4] + '</td>'
+      + '<td class="cell-lg">' + r[5] + '</td>'
+      + '<td><span class="dsc ' + s[0] + '">' + s[1] + '</span></td>'
+      + '<td>' + (r[7] === 1 ? '<span class="badge green">启用</span>' : '<span class="badge gray">停用</span>') + '</td>'
+      + '<td><span class="link" onclick="PMS.openDrawer(\'roleDrawer\')">编辑</span>'
+      + '<span class="link" onclick="SP.tab(\'men\')">菜单授权</span></td></tr>';
+  }).join('');
+
+  document.getElementById('fwBody').innerHTML = ROLES.filter(function (r) { return r[7] === 1; }).map(function (r) {
+    var s = SCOPE[r[6]];
+    var note = { 1: '不限制归属部门，可见全市数据', 2: '仅本部门，科室内部台账',
+                 3: '本部门及其 ancestors 子树', 4: '仅本人发起或归属的数据',
+                 5: '按 sys_role_dept 集合，跨部门专项授权' }[r[6]];
+    return '<tr' + (r[6] === 5 ? ' class="row-warn"' : '') + '>'
+      + '<td>' + r[1] + '</td><td><span class="dsc ' + s[0] + '">' + s[1] + '</span></td>'
+      + '<td>' + s[2] + '</td><td class="num">' + r[3] + '</td>'
+      + '<td class="cell-lg">' + note + '</td>'
+      + '<td>' + (r[6] === 5
+          ? '<span class="link" onclick="SP.tab(\'zdy\')">配部门集合</span>'
+          : '<span class="link" onclick="PMS.openDrawer(\'roleDrawer\')">调整档位</span>') + '</td></tr>';
+  }).join('');
+}
+
+function pickRole(el, i) {
+  SP.pick(el, '.sp-ti');
+  var d = ROLE_DETAIL[i];
+  document.getElementById('rKey').textContent = d[0];
+  document.getElementById('rMenu').textContent = d[1];
+  document.getElementById('rBtn').textContent = d[2];
+  document.getElementById('rApp').textContent = d[3];
+  var s = SCOPE[d[4]];
+  document.getElementById('rScope').innerHTML = '<span class="dsc ' + s[0] + '">' + s[1] + '</span>';
+  renderTree(i);
+}
+
+function renderTree(i) {
+  var full = i === 0;
+  document.getElementById('treeBox').innerHTML = TREE.map(function (app) {
+    var on = full || app[1];
+    var kids = app[2].map(function (m) {
+      var mo = full || m[1];
+      var btns = m[2].length
+        ? '<div style="padding:2px 0 4px 44px">' + m[2].map(function (b) {
+            return '<label style="margin-right:12px;font-size:12px;color:var(--text-3)"><input type="checkbox"'
+              + (mo ? ' checked' : '') + '> ' + b + '</label>';
+          }).join('') + '</div>'
+        : '';
+      return '<div class="sp-ti lv2" style="cursor:default"><label style="display:flex;align-items:center;gap:7px;cursor:pointer">'
+        + '<input type="checkbox"' + (mo ? ' checked' : '') + '> ' + m[0] + '</label></div>' + btns;
+    }).join('');
+    return '<div class="sp-ti" style="cursor:default;font-weight:600"><label style="display:flex;align-items:center;gap:7px;cursor:pointer">'
+      + '<input type="checkbox"' + (on ? ' checked' : '') + '> <i class="fa-solid fa-cube"></i> ' + app[0]
+      + (on ? '' : ' <span class="muted">（不在应用边界内）</span>') + '</label></div>' + kids;
+  }).join('');
+}
+
+function submitZdy() {
+  var r = document.getElementById('zdyReason');
+  if ((r.value || '').trim().length < 10) { SP.denied('设置依据为必填且不少于 10 字，放宽授权须写明依据'); r.focus(); return; }
+  PMS.closeDrawer();
+  PMS.toast('已保存部门集合并即时生效，已写入 sys_role_dept 与操作日志', 'success');
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  renderUsers(); renderRoles(); pickRole(document.querySelector('[data-panel="men"] .sp-ti'), 0);
+  var t = SP.param('tab'); if (t) SP.tab(t);
+});
+</script>
+</body>
+</html>

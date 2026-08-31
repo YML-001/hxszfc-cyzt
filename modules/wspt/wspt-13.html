@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>国密与信创安全配置 · 应用支撑平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<link rel="stylesheet" href="../../assets/css/spec.css">
+<style>
+  .fp { font-family: Consolas, Monaco, monospace; font-size: 11.5px; letter-spacing: .3px; }
+  .swrow { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+           padding: 11px 13px; border: 1px solid var(--border); border-radius: var(--radius);
+           background: #fff; margin-bottom: 8px; }
+  .swrow:last-child { margin-bottom: 0; }
+  .swrow.lock { background: var(--bg-soft); }
+  .swrow .sl { min-width: 0; }
+  .swrow .st { font-size: 13px; font-weight: 600; color: var(--text-1); }
+  .swrow .sd { font-size: 11.5px; color: var(--text-3); margin-top: 2px; line-height: 1.6; }
+  .sw { position: relative; width: 42px; height: 22px; border-radius: 20px; flex-shrink: 0;
+        background: var(--border-strong); cursor: pointer; transition: background .18s; }
+  .sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px;
+               border-radius: 50%; background: #fff; transition: left .18s; }
+  .sw.on { background: var(--success); }
+  .sw.on::after { left: 22px; }
+  .sw.off { background: var(--lv-red); }
+  .sw.dis { opacity: .45; cursor: not-allowed; }
+</style>
+</head>
+<body data-role="admin" data-active="wspt-13">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 应用支撑平台
+        <span class="sep">/</span> 安全与审计
+        <span class="sep">/</span> <span class="cur">国密与信创安全配置</span>
+      </div>
+      <div class="page-title">国密与信创安全配置 <span class="badge blue">第十三章 · 配置端 5 个功能点</span></div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="SP.tab('probe')"><i class="fa-solid fa-satellite-dish"></i> 联调探针自检</button>
+      <button class="btn" onclick="SP.exportAsync('密钥与证书台账')"><i class="fa-solid fa-download"></i> 导出台账</button>
+      <button class="btn btn-primary" onclick="PMS.openDrawer('issueDrawer')"><i class="fa-solid fa-key"></i> 签发密钥</button>
+    </div>
+  </div>
+
+  <div class="alert alert-danger">
+    <i class="fa-solid fa-circle-exclamation"></i>
+    <div><b>R-M4</b>：<b>SM2 私钥与 SM4 主密钥禁止硬编码</b>，须配置中心加密项或 HSM/KMS 托管——
+      本页<b>只展示密钥元数据，任何角色都看不到私钥与主密钥明文</b>。
+      <b>R-M1</b>：<b>生产环境必须启用应用层 SM2+SM4 加解密，不得以仅 HTTPS 替代而关闭应用层加密</b>。
+      <b>R-M5</b>：<b>密钥轮换必须双人授权</b>，轮换窗口须兼容旧密文解密。</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-shield-halved"></i></div><div>
+      <div class="s-label">生产应用层加密</div><div class="s-value" style="font-size:22px">已开启</div><div class="s-trend text-success">SM2+SM4 混合</div></div></div>
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-key"></i></div><div>
+      <div class="s-label">生效密钥</div><div class="s-value">6</div><div class="s-trend text-2">轮换中 1 · 已吊销 2</div></div></div>
+    <div class="stat-card dc-alarm"><div class="s-icon orange"><i class="fa-solid fa-certificate"></i></div><div>
+      <div class="s-label">90 日内到期证书</div><div class="s-value">2</div><div class="s-trend">需提前更新</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-database"></i></div><div>
+      <div class="s-label">SM4 密文字段</div><div class="s-value">14</div><div class="s-trend text-2">含摘要列 8 个</div></div></div>
+    <div class="stat-card"><div class="s-icon purple"><i class="fa-solid fa-server"></i></div><div>
+      <div class="s-label">信创底座</div><div class="s-value" style="font-size:20px">达梦 DM8</div><div class="s-trend text-2">工作流自研表</div></div></div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="key">密钥版本台账</div>
+      <div class="tab" data-tab="issue">签发与轮换</div>
+      <div class="tab" data-tab="sw">算法与加解密开关</div>
+      <div class="tab" data-tab="cert">证书管理 <span class="badge orange">2</span></div>
+      <div class="tab" data-tab="probe">国密联调探针</div>
+      <div class="tab" data-tab="chain">三条链路与规则</div>
+    </div>
+
+    <!-- ===================== 密钥版本台账 ===================== -->
+    <div class="tab-panel active" data-panel="key">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>台账<b>只存密钥元数据</b>：算法、版本、状态、生效期、托管位置。
+            <b>SM2 私钥与 SM4 主密钥明文对全部角色不可见</b>——含 admin，
+            实际密钥材料<b>仅在加密机 / KMS 侧管理</b>。
+            <b>R-M6</b>：<b>Token 与私钥明文不得写入操作日志</b>。</div>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-item"><label>算法</label>
+            <select id="kAlg" onchange="renderKey()"><option value="">全部</option><option>SM2</option><option>SM3</option><option>SM4</option></select></div>
+          <div class="filter-item"><label>状态</label>
+            <select id="kSt" onchange="renderKey()"><option value="">全部</option><option>生效</option><option>轮换中</option><option>已退役</option><option>已吊销</option></select></div>
+          <div class="filter-item"><label>用途</label><input type="text" id="kUse" oninput="renderKey()" placeholder="用途关键字"></div>
+          <div class="filter-actions"><span class="muted" id="kCnt" style="align-self:center"></span></div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>密钥编号</th><th>算法</th><th>用途</th><th>版本</th><th>状态</th><th>生效期</th><th>托管位置</th><th>操作</th>
+            </tr></thead>
+            <tbody id="keyBody"></tbody>
+          </table>
+        </div>
+        <div class="sp-src">
+          <span><b>生效</b> 当前用于加密与解密</span>
+          <span><b>轮换中</b> 新密钥加密，新旧并行解密</span>
+          <span><b>已退役</b> 仅解密历史密文</span>
+          <span><b>已吊销</b> 终态不可逆，仅审计可查</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 签发与轮换 ===================== -->
+    <div class="tab-panel" data-panel="issue">
+      <div class="card-body">
+        <div class="alert alert-danger">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <div>密钥签发、轮换、吊销<b>在配置台直接配置，保存后即时生效并留痕，不设办件、不设审核、不计办理时限</b>。
+            <b>R-M5</b>：<b>密钥轮换必须双人授权</b>，<b>轮换窗口须兼容旧密文解密</b>——
+            否则轮换瞬间历史密文全部解不开。
+            <b>R-M10</b>：每一次签发、轮换、吊销、开关变更<b>必须生成不可删改流水</b>。</div>
+        </div>
+
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-diagram-project"></i> 密钥与证书状态机
+            <span class="sub">相关能力一律以状态为准，不另设旁路开关绕过</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>当前状态</th><th>动作</th><th>目标状态</th><th>必须同时发生的事</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="sp-st init">—（无密钥）</span></td><td><b>签发保存</b></td>
+                    <td><span class="sp-st done">生效</span></td>
+                    <td class="cell-lg">写入密钥版本；下发公钥；<b>开启加解密过滤器</b></td></tr>
+                  <tr><td><span class="sp-st done">生效</span></td><td><b>轮换开始</b></td>
+                    <td><span class="sp-st doing">轮换中</span></td>
+                    <td class="cell-lg"><b>新密钥可解密旧密文</b>；新写入用新密钥</td></tr>
+                  <tr><td><span class="sp-st doing">轮换中</span></td><td><b>轮换完成</b></td>
+                    <td><span class="sp-st done">生效（新）</span></td>
+                    <td class="cell-lg">旧密钥进入<b>退役</b>；记录版本与操作人</td></tr>
+                  <tr class="row-bad"><td><span class="sp-st done">生效</span></td><td><b>紧急吊销</b></td>
+                    <td><span class="sp-st dead">已吊销</span></td>
+                    <td class="cell-lg"><b>作废相关 Token</b>；<b>强制重新握手</b></td></tr>
+                  <tr><td><span class="sp-st done">生效</span></td><td><b>证书更新</b></td>
+                    <td><span class="sp-st done">生效</span></td>
+                    <td class="cell-lg">热加载或滚动生效；<b>失败则回滚并告警</b></td></tr>
+                  <tr class="row-off"><td><span class="sp-st dead">已吊销</span></td><td>—</td><td>—</td>
+                    <td class="cell-lg"><b>终态，不可逆；仅审计可查</b></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top:12px">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-rotate"></i> 轮换任务
+              <span class="sub">轮换期间新旧并行解密</span></div>
+            <div class="sp-b pad0">
+              <div class="sp-tw">
+                <table class="data-table compact">
+                  <thead><tr><th>密钥</th><th>轮换进度</th><th>开始时间</th><th>状态</th><th>操作</th></tr></thead>
+                  <tbody>
+                    <tr class="row-warn"><td class="cell-lg">KEY-0006 影像文件加密主密钥<br><span class="muted">v3 → v4</span></td>
+                      <td style="min-width:130px"><span class="sp-days"><span class="db"><span style="width:68%"></span></span><span class="dv">68%</span></span>
+                        <div class="muted" style="font-size:11.5px">已重加密 12.6 万 / 18.6 万件</div></td>
+                      <td>2026-08-29 15:38</td>
+                      <td><span class="sp-st doing">轮换中</span></td>
+                      <td><span class="link" onclick="SP.todo('轮换中：新写入用 v4 加密，读取时 v4 与 v3 并行尝试解密。存量密文后台分批重加密，完成后 v3 进入退役（R-M5）')">看明细</span></td></tr>
+                    <tr><td class="cell-lg">KEY-0002 敏感字段 SM4 主密钥<br><span class="muted">v2 → v3</span></td>
+                      <td style="min-width:130px"><span class="sp-days"><span class="db"><span style="width:100%"></span></span><span class="dv">100%</span></span>
+                        <div class="muted" style="font-size:11.5px">已重加密 86.2 万 / 86.2 万条</div></td>
+                      <td>2026-06-18 10:22</td>
+                      <td><span class="sp-st done">已完成</span></td>
+                      <td><span class="link" onclick="SP.todo('轮换已完成，v2 已进入退役状态，仅用于解密未重加密的历史密文；v3 为当前生效密钥')">看明细</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-clock-rotate-left"></i> 密钥操作流水
+              <span class="sub">不可删改</span></div>
+            <div class="sp-b pad0">
+              <div class="sp-tw">
+                <table class="data-table compact">
+                  <thead><tr><th>时间</th><th>动作</th><th>密钥</th><th>操作人</th><th>双人授权</th></tr></thead>
+                  <tbody id="flowBody"></tbody>
+                </table>
+              </div>
+              <p class="hint" style="padding:9px 12px">
+                <i class="fa-solid fa-circle-info"></i>
+                <b>R-M10</b>：流水<b>不可删改</b>，管理员也不能删。同步写入
+                <span class="link" onclick="location.href='wspt-12.html?tab=gm'">高敏操作留痕</span>。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 算法与开关 ===================== -->
+    <div class="tab-panel" data-panel="sw">
+      <div class="card-body">
+        <div class="alert alert-danger">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <div><b>R-M7</b>：<b>国密联调开关仅限非生产</b>；<b>生产强制开启并阻断明文接口</b>
+            （白名单除外<b>且白名单须审批</b>）。下方生产环境的应用层加解密开关<b>已锁死为开启，不可关闭</b>。
+            <b>R-I9</b>：<b>生产环境不得关闭应用层加解密</b>。</div>
+        </div>
+
+        <div class="grid-2">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-toggle-on"></i> 生产环境
+              <span class="sub">强制开启 · 不可关闭</span></div>
+            <div class="sp-b">
+              <div class="swrow lock">
+                <div class="sl"><div class="st">应用层 SM2+SM4 加解密</div>
+                  <div class="sd">请求/响应报文体 SM4 加密，SM2 保护会话密钥。<b>不得以仅 HTTPS 替代而关闭</b>（R-M1）。</div></div>
+                <div class="sw on dis" onclick="SP.denied('生产环境必须启用应用层 SM2+SM4 加解密，不得以仅 HTTPS 替代而关闭应用层加密（R-M1、R-I9）。本开关在生产环境锁死')"></div>
+              </div>
+              <div class="swrow lock">
+                <div class="sl"><div class="st">SM3 摘要与时间戳 / nonce 校验</div>
+                  <div class="sd">防篡改防重放。<b>缺时间戳 / nonce 或摘要校验失败必须阻断</b>。</div></div>
+                <div class="sw on dis" onclick="SP.denied('摘要与防重放校验在生产环境强制开启，不可关闭')"></div>
+              </div>
+              <div class="swrow lock">
+                <div class="sl"><div class="st">口令 SM3 加盐哈希</div>
+                  <div class="sd"><b>禁止 BCrypt / 明文 / 可逆加密作为最终方案</b>（R-M2）。</div></div>
+                <div class="sw on dis" onclick="SP.denied('口令必须 SM3 加盐哈希存储，本开关不可关闭（R-M2）')"></div>
+              </div>
+              <div class="swrow lock">
+                <div class="sl"><div class="st">敏感字段 SM4 落库</div>
+                  <div class="sd">身份证、手机号、银行账号等<b>必须 SM4 加密落库</b>（R-M3）。</div></div>
+                <div class="sw on dis" onclick="SP.denied('敏感字段必须 SM4 加密落库，本开关不可关闭（R-M3）')"></div>
+              </div>
+              <div class="swrow">
+                <div class="sl"><div class="st">国密 SSL（可选叠加）</div>
+                  <div class="sd"><b>R-M8</b>：可选叠加国密 SSL，<b>与应用层加密可同时启用</b>。当前已启用。</div></div>
+                <div class="sw on" onclick="toggleSw(this,'国密 SSL')"></div>
+              </div>
+              <div class="swrow">
+                <div class="sl"><div class="st">硬件加密机（HSM）接入</div>
+                  <div class="sd">私钥与主密钥托管在加密机侧，应用不持有密钥材料。<span class="muted">本期是否必建待确认，见待确认事项 10</span></div></div>
+                <div class="sw on" onclick="toggleSw(this,'硬件加密机接入')"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-flask"></i> 联调 / 测试环境
+              <span class="sub">可降级但须留痕</span></div>
+            <div class="sp-b">
+              <div class="swrow">
+                <div class="sl"><div class="st">应用层加解密</div>
+                  <div class="sd">联调期间可降级为明文便于排查，<b>降级操作须留痕</b>。当前已关闭。</div></div>
+                <div class="sw off" onclick="toggleSw(this,'联调环境应用层加解密')"></div>
+              </div>
+              <div class="swrow">
+                <div class="sl"><div class="st">明文接口白名单</div>
+                  <div class="sd">生产的白名单<b>须审批</b>；当前生产白名单 <b>2 个</b>（健康检查、公钥获取）。</div></div>
+                <div class="sw on" onclick="toggleSw(this,'明文接口白名单')"></div>
+              </div>
+            </div>
+
+            <div class="sp-b" style="border-top:1px solid var(--border)">
+              <div class="sp-h" style="border:none;padding:0 0 8px"><i class="fa-solid fa-list-check"></i> 生产明文接口白名单</div>
+              <div class="sp-tw">
+                <table class="data-table compact">
+                  <thead><tr><th>接口</th><th>免加密理由</th><th>审批人</th><th>审批时间</th></tr></thead>
+                  <tbody>
+                    <tr><td><code>/actuator/health</code></td><td class="cell-lg">健康检查探针，不含业务数据</td><td>李慧</td><td>2026-03-12</td></tr>
+                    <tr><td><code>/auth/publicKey</code></td><td class="cell-lg">前端启动获取 SM2 公钥，握手前无法加密</td><td>李慧</td><td>2026-03-12</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="hint">
+                <i class="fa-solid fa-triangle-exclamation" style="color:var(--lv-orange)"></i>
+                白名单须逐条审批并写明免加密理由，<b>不得整体放行某个模块</b>。
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-server"></i> 信创底座
+            <span class="sub">R-M9</span></div>
+          <div class="sp-b">
+            <div class="sp-kv">
+              <div class="kv"><span class="k">数据库</span><span class="v"><b>达梦 DM8</b>　<span class="muted">必须使用，索引名 schema 级全局唯一且带表名前缀（D-6）</span></span></div>
+              <div class="kv"><span class="k">工作流</span><span class="v"><b>自研表实现</b>　<span class="muted">无需 Oracle 兼容模式</span></span></div>
+              <div class="kv"><span class="k">敏感字段列长度</span><span class="v"><b>按密文放大</b>　<span class="muted">需等值检索的另存 SM3 摘要列（D-8）</span></span></div>
+              <div class="kv"><span class="k">密钥托管</span><span class="v"><b>HSM / KMS</b>　<span class="muted">禁止硬编码（R-M4）</span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 证书管理 ===================== -->
+    <div class="tab-panel" data-panel="cert">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>证书更新后<b>全实例热加载或滚动重启</b>；<b>更新失败则回滚并告警</b>，不允许半更新状态。
+            SM2 采用<b>双证书</b>（签名证书 ＋ 加密证书）。</div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>证书名称</th><th>类型</th><th>颁发机构</th><th>指纹</th><th>生效日</th><th>到期日</th><th>剩余</th><th>状态</th><th>操作</th>
+            </tr></thead>
+            <tbody id="certBody"></tbody>
+          </table>
+        </div>
+        <p class="hint">
+          <i class="fa-solid fa-circle-info"></i>
+          到期提前量默认 <b>90 天</b>预警，在<span class="link" onclick="location.href='wspt-05.html?tab=kv'">参数键值配置</span>中调整；
+          提醒通道走 <b>PC-34 统一消息服务平台</b>。
+        </p>
+      </div>
+    </div>
+
+    <!-- ===================== 联调探针 ===================== -->
+    <div class="tab-panel" data-panel="probe">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div><b>验-14 国密闭环</b>要求三条链路可演示：<b>传输加解密、口令 SM3 校验、敏感字段 SM4 落库与摘要检索</b>。
+            探针执行握手与加解密往返自检，<b>结果留痕</b>。</div>
+        </div>
+        <div class="btn-row" style="margin-bottom:12px">
+          <button class="btn btn-primary" onclick="runProbe()"><i class="fa-solid fa-play"></i> 执行全量自检</button>
+          <button class="btn" onclick="SP.exportAsync('联调探针报告')"><i class="fa-solid fa-file-export"></i> 导出探针报告</button>
+        </div>
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-satellite-dish"></i> 最近一次自检
+            <span class="sub" id="probeAt">2026-08-31 10:52 · 全部通过</span></div>
+          <div class="sp-b">
+            <div class="sp-check" id="probeBody"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 三条链路与规则 ===================== -->
+    <div class="tab-panel" data-panel="chain">
+      <div class="card-body">
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-arrow-right-arrow-left"></i> 图 10 · SM2+SM4 混合加解密链路（流程 H）
+            <span class="sub">加解密在 gateway 或 platform-security 过滤器完成，业务代码只处理明文</span></div>
+          <div class="sp-b">
+            <div class="sp-chain">
+              <div class="cn ok">
+                <div class="ch"><span class="ct">前端启动：获取 SM2 公钥</span><span class="cx">握手 · 一次性</span></div>
+                <div class="cm"><span>公钥由后端下发，<b>私钥始终不出加密机</b></span></div>
+              </div>
+              <div class="cn ok">
+                <div class="ch"><span class="ct">每次请求：生成随机 SM4 会话密钥</span><span class="cx">前端</span></div>
+                <div class="cm"><span><b>一请求一密钥</b>，不复用会话密钥</span></div>
+              </div>
+              <div class="cn ok">
+                <div class="ch"><span class="ct">SM4 加密请求体 → SM2 公钥加密 SM4 密钥</span><span class="cx">前端</span></div>
+                <div class="cm"><span>报文体走对称加密保效率，会话密钥走非对称加密保安全</span></div>
+              </div>
+              <div class="cn ok">
+                <div class="ch"><span class="ct">附 SM3 摘要 ＋ 时间戳 / nonce</span><span class="cx">前端</span></div>
+                <div class="cm"><span>摘要防篡改，<b>时间戳与 nonce 防重放</b></span></div>
+              </div>
+              <div class="cn cur">
+                <div class="ch"><span class="ct">网关安全过滤器：SM2 私钥解出 SM4 密钥 → 解密请求体</span><span class="cx">gateway / platform-security</span></div>
+                <div class="cm"><span><b>缺时间戳 / nonce 或摘要校验失败必须阻断</b></span></div>
+              </div>
+              <div class="cn ok">
+                <div class="ch"><span class="ct">业务明文处理</span><span class="cx">业务服务</span></div>
+                <div class="cm"><span><b>业务代码只处理明文，不感知加解密</b></span></div>
+              </div>
+              <div class="cn ok">
+                <div class="ch"><span class="ct">响应：同会话 SM4 加密 → 前端解密</span><span class="cx">网关 → 前端</span></div>
+                <div class="cm"><span>响应复用本次请求的会话密钥</span></div>
+              </div>
+            </div>
+            <p class="hint">
+              <i class="fa-solid fa-triangle-exclamation" style="color:var(--lv-red)"></i>
+              <b>缺时间戳 / nonce 或摘要校验失败必须阻断</b>。
+              易断点：<b>前端未升级仍发明文</b>、<b>密钥轮换窗口私钥不一致</b>。
+            </p>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top:12px">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-lock"></i> 图 11 · 口令 SM3 校验链路（流程 I）</div>
+            <div class="sp-b">
+              <div class="sp-check">
+                <div class="ck pass"><i class="fa-solid fa-1"></i><div class="cb">
+                  <div class="ct">登录提交口令</div>
+                  <div class="cd">前端不做任何口令处理，明文经应用层加密传输。</div></div></div>
+                <div class="ck pass"><i class="fa-solid fa-2"></i><div class="cb">
+                  <div class="ct">查 sys_user.salt 与 password</div>
+                  <div class="cd">password 存的是 SM3 摘要，<b>不是可逆密文</b>。</div></div></div>
+                <div class="ck pass"><i class="fa-solid fa-3"></i><div class="cb">
+                  <div class="ct">计算 SM3(password + salt) 并比对</div>
+                  <div class="cd"><b>不得回退为明文比对或可逆解密验密</b>（R-M2）。</div></div></div>
+                <div class="ck pass"><i class="fa-solid fa-4"></i><div class="cb">
+                  <div class="ct">匹配 → 签发 Token · 写登录成功日志</div>
+                  <div class="cd"><b>Token 明文不得写入操作日志</b>（R-M6）。</div></div></div>
+                <div class="ck block"><i class="fa-solid fa-xmark"></i><div class="cb">
+                  <div class="ct">不匹配 → 失败次数 +1 · 写失败日志</div>
+                  <div class="cd">达阈值（5 次）<b>锁定账号并预警</b>。</div></div>
+                  <div class="co"><span class="link" onclick="location.href='wspt-12.html?tab=yc'">看预警</span></div></div>
+                <div class="ck wait"><i class="fa-solid fa-key"></i><div class="cb">
+                  <div class="ct">首次登录或口令过期</div>
+                  <div class="cd"><b>必须强制修改口令</b>。</div></div></div>
+              </div>
+              <p class="hint">
+                <i class="fa-solid fa-triangle-exclamation" style="color:var(--lv-orange)"></i>
+                易断点：<b>迁移用户未重算 SM3 摘要导致全员无法登录</b>——迁移时必须重算。
+              </p>
+            </div>
+          </div>
+
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-database"></i> 图 12 · 敏感字段 SM4 落库与摘要检索（流程 J）</div>
+            <div class="sp-b">
+              <div class="sp-check">
+                <div class="ck pass"><i class="fa-solid fa-1"></i><div class="cb">
+                  <div class="ct">写入手机号 / 身份证等</div>
+                  <div class="cd">TypeHandler / 注解拦截，<b>SM4 加密后落库</b>。</div></div></div>
+                <div class="ck pass"><i class="fa-solid fa-2"></i><div class="cb">
+                  <div class="ct">若需等值检索：同步写 SM3 摘要列</div>
+                  <div class="cd">摘要列不可逆，用于精确匹配。</div></div></div>
+                <div class="ck pass"><i class="fa-solid fa-3"></i><div class="cb">
+                  <div class="ct">查询条件走摘要列等值匹配</div>
+                  <div class="cd"><b>禁止用明文列做模糊检索替代摘要方案</b>。</div></div></div>
+                <div class="ck pass"><i class="fa-solid fa-4"></i><div class="cb">
+                  <div class="ct">读出：解密后按角色脱敏矩阵展示</div>
+                  <div class="cd">同一字段不同角色看到不同粒度。</div></div>
+                  <div class="co"><span class="link" onclick="location.href='wspt-15.html?tab=mask'">看脱敏矩阵</span></div></div>
+              </div>
+              <p class="hint">
+                <i class="fa-solid fa-triangle-exclamation" style="color:var(--lv-orange)"></i>
+                <b>列长度须按密文放大</b>。易断点：<b>密钥轮换后旧密文未兼容解密</b>——
+                所以 R-M5 要求轮换窗口必须兼容旧密文。
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-scale-balanced"></i> 13.6 业务规则 R-M1 ~ R-M10</div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>编号</th><th>规则</th><th>原型落点</th></tr></thead>
+                <tbody id="ruleBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ========== 抽屉 · 签发密钥 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="issueDrawer">
+  <div class="drawer-head"><h3>签发国密密钥</h3><span class="badge red">高敏 · 二次确认</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-danger">
+      <i class="fa-solid fa-circle-exclamation"></i>
+      <div>签发<b>保存后即时生效并留痕，不设办件、不设审核</b>；<b>高敏操作须二次确认</b>。
+        <b>密钥材料在加密机 / KMS 侧生成与保管，本平台只登记元数据</b>（R-M4）。</div>
+    </div>
+    <div class="form-grid form-align">
+      <div class="form-item"><label>算法 <span class="req">*</span></label>
+        <select><option>SM2（非对称 · 保护会话密钥与签名）</option><option>SM4（对称 · 报文体与敏感字段）</option></select></div>
+      <div class="form-item"><label>用途 <span class="req">*</span></label>
+        <select><option>传输会话密钥保护</option><option>敏感字段落库加密</option><option>影像文件加密</option><option>报文签名</option></select></div>
+      <div class="form-item"><label>版本号</label><input type="text" value="v1（自动生成）" readonly></div>
+      <div class="form-item"><label>生效日期 <span class="req">*</span></label><input type="date" value="2026-09-01"></div>
+      <div class="form-item"><label>有效期至</label><input type="date" value="2028-08-31"></div>
+      <div class="form-item"><label>托管位置 <span class="req">*</span></label>
+        <select><option>硬件加密机 HSM-01</option><option>KMS 托管</option><option>配置中心加密项</option></select>
+        <div class="hint"><b>禁止硬编码</b>（R-M4）。</div></div>
+      <div class="form-item col-full"><label>签发说明 <span class="req">*</span></label>
+        <textarea id="isNote" rows="2" placeholder="必填，不少于 10 字。说明签发缘由，建议同时挂载签发说明材料"></textarea></div>
+      <div class="form-item col-full"><label>签发说明材料</label><input type="text" data-upload="1">
+        <div class="hint">建议挂载；同时可挂加密机 / KMS 接入证明与联调探针报告。</div></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="submitIssue()"><i class="fa-solid fa-key"></i> 签发并即时生效</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/spec.js"></script>
+<script>
+var KEYS = [
+  ['KEY-0001', 'SM2', '传输会话密钥保护（双证书 · 加密证书）', 'v2', '生效', '2026-03-12 至 2028-03-11', '硬件加密机 HSM-01'],
+  ['KEY-0002', 'SM4', '敏感字段落库加密主密钥', 'v3', '生效', '2026-06-18 至 2028-06-17', '硬件加密机 HSM-01'],
+  ['KEY-0003', 'SM2', '报文签名（双证书 · 签名证书）', 'v2', '生效', '2026-03-12 至 2028-03-11', '硬件加密机 HSM-01'],
+  ['KEY-0004', 'SM3', '口令加盐哈希（盐值策略）', 'v1', '生效', '2026-01-08 起长期', '配置中心加密项'],
+  ['KEY-0005', 'SM4', '文件下载链接短时令牌', 'v1', '生效', '2026-01-08 至 2027-01-07', 'KMS 托管'],
+  ['KEY-0006', 'SM4', '影像文件加密主密钥', 'v4', '轮换中', '2026-08-29 起', '硬件加密机 HSM-01'],
+  ['KEY-0006', 'SM4', '影像文件加密主密钥（旧版）', 'v3', '生效', '2025-08-20 至 2026-08-29', '硬件加密机 HSM-01'],
+  ['KEY-0002', 'SM4', '敏感字段落库加密主密钥（旧版）', 'v2', '已退役', '2024-06-12 至 2026-06-18', '硬件加密机 HSM-01'],
+  ['KEY-0007', 'SM2', '联调测试密钥', 'v1', '已吊销', '2025-11-06 至 2026-02-14', '配置中心加密项'],
+  ['KEY-0008', 'SM4', '历史遗留密钥（疑泄露）', 'v1', '已吊销', '2024-03-08 至 2025-09-22', '配置中心加密项']
+];
+
+var FLOWS = [
+  ['2026-08-29 15:38', '轮换开始', 'KEY-0006 影像文件加密主密钥 v3 → v4', '蒙丽华', 1],
+  ['2026-06-18 10:22', '轮换完成', 'KEY-0002 敏感字段 SM4 主密钥 v2 → v3', '蒙丽华', 1],
+  ['2026-03-12 09:14', '签发保存', 'KEY-0001 / KEY-0003 SM2 双证书 v2', '蒙丽华', 1],
+  ['2026-02-14 16:48', '紧急吊销', 'KEY-0007 联调测试密钥 v1', '蒙丽华', 1],
+  ['2026-01-08 11:06', '签发保存', 'KEY-0004 SM3 盐值策略 v1', '蒙丽华', 1],
+  ['2025-09-22 14:32', '紧急吊销', 'KEY-0008 历史遗留密钥 v1（疑泄露，已作废全部 Token）', '蒙丽华', 1],
+  ['2026-08-30 17:02', '开关变更', '联调环境应用层加解密：开启 → 关闭（降级留痕）', '蒙丽华', 0]
+];
+
+var CERTS = [
+  ['平台 SM2 加密证书', 'SM2 加密证书', '广西 CA', '3A:F5:E8:C1:D2:B7:94:0F:6E:3A', '2026-03-12', '2028-03-11', '558 天', '生效', 0],
+  ['平台 SM2 签名证书', 'SM2 签名证书', '广西 CA', 'B7:D2:C9:E4:1F:8A:36:5C:2E:91', '2026-03-12', '2028-03-11', '558 天', '生效', 0],
+  ['国密 SSL 服务器证书', '国密 SSL', '广西 CA', 'C1:E8:F3:A7:25:B9:4D:60:8F:32', '2025-12-01', '2026-11-30', '91 天', '生效', 0],
+  ['统一服务门户 SSL 证书', '国密 SSL', '广西 CA', 'D5:A2:B8:C6:3E:47:19:8B:5F:04', '2025-11-20', '2026-11-19', '80 天', '生效', 1],
+  ['接口网关 SSL 证书', '国密 SSL', '广西 CA', 'E9:C4:D1:F8:6A:2B:53:07:9E:16', '2025-11-08', '2026-11-07', '68 天', '生效', 1],
+  ['旧版 SM2 加密证书', 'SM2 加密证书', '广西 CA', 'F2:B6:E3:A9:1C:58:70:4D:6A:83', '2024-03-08', '2026-03-12', '已过期', '已停用', 0]
+];
+
+var PROBE = [
+  ['pass', '前端握手获取 SM2 公钥', '公钥指纹 3A:F5:E8:C1… 与台账 KEY-0001 v2 一致，握手耗时 42ms'],
+  ['pass', 'SM4 会话密钥加密往返', '随机会话密钥经 SM2 公钥加密，网关侧成功解出并解密报文体，往返耗时 68ms'],
+  ['pass', 'SM3 摘要与防重放校验', '摘要一致；重复 nonce 请求被正确阻断，返回 4290 重放拒绝'],
+  ['pass', '明文请求阻断', '模拟未加密请求发往 /fund/apply，网关按 R-M7 阻断并记录；白名单接口正常放行'],
+  ['pass', '口令 SM3 校验', '测试账号 SM3(password+salt) 比对通过；错误口令计入失败次数并触发锁定阈值'],
+  ['pass', '敏感字段 SM4 落库', '写入测试手机号，库中为密文；同步写入 SM3 摘要列'],
+  ['pass', '摘要列等值检索', '按手机号检索命中摘要列索引，未走明文列模糊匹配'],
+  ['pass', '轮换窗口旧密文兼容', 'KEY-0006 v4 生效期间，v3 加密的 12.6 万件影像仍可正常解密'],
+  ['wait', '硬件加密机可用性', 'HSM-01 心跳正常，响应时间 12ms；<b>本期是否必建仍待确认</b>（待确认事项 10）']
+];
+
+var RULES = [
+  ['R-M1', '生产环境必须启用应用层 SM2+SM4 加解密，不得以仅 HTTPS 替代而关闭应用层加密', '算法与加解密开关 · 生产开关锁死'],
+  ['R-M2', '用户口令必须 SM3 加盐哈希存储，禁止 BCrypt/明文/可逆加密作为最终方案', '流程 I 口令 SM3 校验链路'],
+  ['R-M3', '身份证、手机号、银行账号等敏感字段必须 SM4 加密落库', '流程 J 敏感字段落库链路'],
+  ['R-M4', 'SM2 私钥与 SM4 主密钥禁止硬编码，须配置中心加密项或 HSM/KMS 托管', '密钥版本台账 · 托管位置列'],
+  ['R-M5', '密钥轮换必须双人授权，轮换窗口须兼容旧密文解密', '签发与轮换 · 轮换任务与双人授权'],
+  ['R-M6', 'Token 与私钥明文不得写入操作日志', '密钥台账不展示明文 · 操作日志脱敏落库'],
+  ['R-M7', '国密联调开关仅限非生产；生产强制开启并阻断明文接口（白名单除外且白名单须审批）', '算法与开关 · 明文接口白名单'],
+  ['R-M8', '可选叠加国密 SSL；与应用层加密可同时启用', '算法与开关 · 国密 SSL 开关'],
+  ['R-M9', '数据库必须使用达梦 DM8；工作流自研表实现，无需 Oracle 兼容模式', '算法与开关 · 信创底座'],
+  ['R-M10', '每一次密钥签发、轮换、吊销、开关变更必须生成不可删改流水', '签发与轮换 · 密钥操作流水']
+];
+
+function renderKey() {
+  var a = document.getElementById('kAlg').value;
+  var s = document.getElementById('kSt').value;
+  var u = (document.getElementById('kUse').value || '').trim();
+  var rows = KEYS.filter(function (k) {
+    if (a && k[1] !== a) return false;
+    if (s && k[4] !== s) return false;
+    if (u && k[2].indexOf(u) < 0) return false;
+    return true;
+  });
+  document.getElementById('kCnt').innerHTML = '共 <b>' + rows.length + '</b> 个版本';
+  var ST = { '生效': '<span class="sp-st done">生效</span>', '轮换中': '<span class="sp-st doing">轮换中</span>',
+             '已退役': '<span class="sp-st init">已退役</span>', '已吊销': '<span class="sp-st dead">已吊销</span>' };
+  document.getElementById('keyBody').innerHTML = rows.map(function (k) {
+    var cls = k[4] === '已吊销' ? ' class="row-off"' : (k[4] === '轮换中' ? ' class="row-warn"' : '');
+    return '<tr' + cls + '>'
+      + '<td><code>' + k[0] + '</code></td><td><span class="badge blue">' + k[1] + '</span></td>'
+      + '<td class="cell-lg">' + k[2] + '</td>'
+      + '<td><span class="sp-vt ' + (k[4] === '生效' || k[4] === '轮换中' ? 'cur' : 'old') + '">' + k[3] + '</span></td>'
+      + '<td>' + ST[k[4]] + '</td><td class="cell-lg">' + k[5] + '</td><td>' + k[6] + '</td>'
+      + '<td>' + (k[4] === '生效'
+          ? '<span class="link" onclick="doRotate(\'' + k[0] + ' ' + k[3] + '\')">轮换</span>'
+            + '<span class="link danger" onclick="doRevoke(\'' + k[0] + ' ' + k[3] + '\')">紧急吊销</span>'
+          : (k[4] === '轮换中' ? '<span class="link" onclick="SP.tab(\'issue\')">看进度</span>'
+             : '<span class="muted">仅审计可查</span>')) + '</td></tr>';
+  }).join('') || '<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">没有符合条件的密钥</td></tr>';
+}
+
+function renderFlow() {
+  var AT = { '签发保存': 'green', '轮换开始': 'orange', '轮换完成': 'blue', '紧急吊销': 'red', '开关变更': 'purple' };
+  document.getElementById('flowBody').innerHTML = FLOWS.map(function (f) {
+    return '<tr><td>' + f[0] + '</td>'
+      + '<td><span class="badge ' + AT[f[1]] + '">' + f[1] + '</span></td>'
+      + '<td class="cell-lg">' + f[2] + '</td><td>' + f[3] + '</td>'
+      + '<td>' + (f[4] ? '<span class="badge red">是</span>' : '<span class="badge gray">否</span>') + '</td></tr>';
+  }).join('');
+}
+
+function renderCert() {
+  document.getElementById('certBody').innerHTML = CERTS.map(function (c) {
+    return '<tr' + (c[9] ? ' class="row-warn"' : (c[8] === '已停用' ? ' class="row-off"' : '')) + '>'
+      + '<td class="cell-lg">' + c[0] + '</td><td>' + c[1] + '</td><td>' + c[2] + '</td>'
+      + '<td><span class="fp">' + c[3] + '</span></td>'
+      + '<td>' + c[4] + '</td><td>' + c[5] + '</td>'
+      + '<td' + (c[9] ? ' class="text-danger"' : '') + '><b>' + c[6] + '</b></td>'
+      + '<td>' + (c[8] === '生效' ? '<span class="badge green">生效</span>' : '<span class="badge gray">已停用</span>') + '</td>'
+      + '<td>' + (c[8] === '生效'
+          ? '<span class="link" onclick="doCert(\'' + c[0] + '\')">更新证书</span>'
+          : '<span class="muted">—</span>') + '</td></tr>';
+  }).join('');
+}
+
+function renderProbe() {
+  var IC = { pass: '<i class="fa-solid fa-circle-check"></i>', wait: '<i class="fa-solid fa-hourglass-half"></i>',
+             block: '<i class="fa-solid fa-ban"></i>' };
+  document.getElementById('probeBody').innerHTML = PROBE.map(function (p) {
+    return '<div class="ck ' + p[0] + '">' + IC[p[0]] + '<div class="cb">'
+      + '<div class="ct">' + p[1] + '</div><div class="cd">' + p[2] + '</div></div></div>';
+  }).join('');
+}
+
+function renderRule() {
+  document.getElementById('ruleBody').innerHTML = RULES.map(function (r) {
+    return '<tr><td><code>' + r[0] + '</code></td><td class="cell-lg">' + r[1] + '</td>'
+      + '<td class="cell-lg">' + r[2] + '</td></tr>';
+  }).join('');
+}
+
+function toggleSw(el, name) {
+  if (el.classList.contains('dis')) return;
+  var on = el.classList.contains('on');
+  PMS.confirm({
+    title: '切换开关', message: '确认' + (on ? '关闭' : '开启') + '「' + name + '」？',
+    detail: '开关变更保存后即时生效，并生成不可删改流水（R-M10）；同步写入高敏操作留痕。',
+    type: 'warning', okText: '确认切换',
+    onOk: function () {
+      el.classList.toggle('on'); el.classList.toggle('off');
+      PMS.toast('已' + (on ? '关闭' : '开启') + '「' + name + '」并即时生效，变更已生成流水', 'success');
+    }
+  });
+}
+
+function doRotate(k) {
+  SP.dual('密钥轮换', '蒙丽华', function () {
+    PMS.toast('已启动轮换 ' + k + '：新密钥加密新写入，轮换窗口内新旧密钥并行解密，存量密文后台分批重加密（R-M5）', 'success');
+  });
+}
+
+function doRevoke(k) {
+  SP.dual('紧急吊销密钥', '蒙丽华', function () {
+    PMS.toast('已紧急吊销 ' + k + '：相关 Token 已作废，客户端须强制重新握手；吊销为终态不可逆，仅审计可查', 'success');
+  });
+}
+
+function doCert(n) {
+  PMS.confirm({
+    title: '更新证书', message: '确认更新「' + n + '」？',
+    detail: '更新后全实例热加载或滚动生效；若加载失败自动回滚至原证书并告警，不允许出现半更新状态。',
+    type: 'warning', okText: '确认更新',
+    onOk: function () { PMS.toast('已更新证书，全实例热加载完成；指纹已记录并写入高敏留痕', 'success'); }
+  });
+}
+
+function submitIssue() {
+  var n = document.getElementById('isNote');
+  if ((n.value || '').trim().length < 10) { SP.denied('签发说明为必填且不少于 10 字'); n.focus(); return; }
+  PMS.closeDrawer();
+  SP.dual('签发国密密钥', '蒙丽华', function () {
+    PMS.toast('已签发并即时生效：写入密钥版本、下发公钥、开启加解密过滤器；密钥材料在 HSM 侧生成，本平台不持有明文', 'success');
+  });
+}
+
+function runProbe() {
+  PMS.toast('正在执行国密联调探针自检…', 'info');
+  setTimeout(function () {
+    document.getElementById('probeAt').textContent = '2026-08-31 16:38 · 8 项通过 · 1 项待确认';
+    PMS.toast('自检完成：传输加解密、口令 SM3 校验、敏感字段 SM4 落库三条链路全部通过（验-14）；报告已留痕', 'success');
+  }, 1400);
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  renderKey(); renderFlow(); renderCert(); renderProbe(); renderRule();
+  var t = SP.param('tab'); if (t) SP.tab(t);
+});
+</script>
+</body>
+</html>

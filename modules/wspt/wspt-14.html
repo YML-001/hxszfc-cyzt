@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>统一权限与流程引擎模型 · 应用支撑平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<link rel="stylesheet" href="../../assets/css/spec.css">
+<style>
+  /* 权限链路：五段横向传递 */
+  .plink { display: flex; align-items: stretch; flex-wrap: wrap; gap: 0; }
+  .plink .pn {
+    flex: 1 1 150px; min-width: 0; padding: 11px 12px; border: 1px solid var(--border);
+    background: #fff; text-align: center;
+  }
+  .plink .pn:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+  .plink .pn:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+  .plink .pn + .pn { border-left: none; }
+  .plink .pn .pt { font-size: 13px; font-weight: 700; color: var(--text-1); }
+  .plink .pn .pd { font-size: 11.5px; color: var(--text-3); margin-top: 3px; line-height: 1.6; }
+  .plink .pn.key { background: var(--primary-light-2); border-color: var(--primary-soft); }
+  @media (max-width: 900px) {
+    .plink { flex-direction: column; }
+    .plink .pn { border-radius: var(--radius) !important; border-left: 1px solid var(--border) !important; margin-bottom: 6px; }
+  }
+  .cons { display: grid; grid-template-columns: repeat(auto-fill, minmax(228px, 1fr)); gap: 8px; }
+  .cons .c {
+    padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: #fff;
+  }
+  .cons .c .cn { font-size: 13px; font-weight: 600; color: var(--text-1); }
+  .cons .c .cw { font-size: 11.5px; color: var(--text-3); margin-top: 4px; line-height: 1.7; }
+  .cons .c .cw b { color: var(--primary); font-weight: 600; }
+</style>
+</head>
+<body data-role="admin" data-active="wspt-14">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 应用支撑平台
+        <span class="sep">/</span> 口径与验收
+        <span class="sep">/</span> <span class="cur">统一权限与流程引擎模型</span>
+      </div>
+      <div class="page-title">统一权限与流程引擎模型 <span class="badge blue">唯一真值口径</span></div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="SP.todo('已核查全平台口径一致性：20 个接入应用均调用本平台鉴权与数据范围接口，未发现自建 RBAC 或自写数据过滤；未发现第二套流程引擎（R-K1）')"><i class="fa-solid fa-list-check"></i> 核查口径一致性</button>
+      <button class="btn" onclick="SP.exportAsync('统一模型说明')"><i class="fa-solid fa-download"></i> 导出</button>
+    </div>
+  </div>
+
+  <div class="alert alert-danger">
+    <i class="fa-solid fa-circle-exclamation"></i>
+    <div><b>R-K1</b>：<b>全平台只有一套 RBAC 权限模型与一套自研流程引擎</b>。
+      <b>授权判定与数据范围计算只在本平台完成，其他板块只消费结果</b>，
+      <b>不得在本端重新推导角色或另写数据过滤</b>。
+      这是应用支撑平台存在的根本理由——如果各板块自建一套，就会出现同一个人在 A 系统能看、在 B 系统看不到的口径分裂。</div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="rbac">功能权限链路</div>
+      <div class="tab" data-tab="scope">数据范围五档</div>
+      <div class="tab" data-tab="wf">流程引擎模型</div>
+      <div class="tab" data-tab="ver">版本固化规则</div>
+      <div class="tab" data-tab="cons">板块消费关系</div>
+      <div class="tab" data-tab="rule">统一口径规则 R-K</div>
+    </div>
+
+    <!-- ===================== 功能权限链路 ===================== -->
+    <div class="tab-panel active" data-panel="rbac">
+      <div class="card-body">
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-link"></i> R-K2 · 功能权限链路固定五段
+            <span class="sub">链路固定，不允许跳段或加段</span></div>
+          <div class="sp-b">
+            <div class="plink">
+              <div class="pn"><div class="pt">用户</div><div class="pd">sys_user<br>登录账号 · 归属部门</div></div>
+              <div class="pn"><div class="pt">角色</div><div class="pd">sys_role<br>一人可多角色</div></div>
+              <div class="pn"><div class="pt">菜单 / 按钮</div><div class="pd">sys_menu<br>perm_code 前端显隐</div></div>
+              <div class="pn key"><div class="pt">权限资源</div><div class="pd">sys_permission<br>method_name / api_url</div></div>
+              <div class="pn"><div class="pt">应用</div><div class="pd">sys_app<br>app_code 应用边界</div></div>
+            </div>
+            <p class="hint">
+              <i class="fa-solid fa-circle-info"></i>
+              <b>R-A4</b>：权限资源<b>必须关联到具体菜单/按钮</b>，后端按 <code>method_name</code> 或 <code>api_url</code> <b>反查鉴权</b>。
+              <b>R-C3</b>：<b>前端按钮显隐以 perm_code 为准，后端接口鉴权以 sys_permission 反查为准，两端必须一致</b>——
+              光藏按钮不算控制住，接口照样能被直接调。
+            </p>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top:12px">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-shield-halved"></i> 双重校验
+              <span class="sub">R-I1</span></div>
+            <div class="sp-b">
+              <div class="sp-check">
+                <div class="ck pass"><i class="fa-solid fa-1"></i><div class="cb">
+                  <div class="ct">网关侧校验</div>
+                  <div class="cd">按 Token 解出用户，查其角色下的权限资源，<b>比对本次请求的 api_url</b>。</div></div></div>
+                <div class="ck pass"><i class="fa-solid fa-2"></i><div class="cb">
+                  <div class="ct">服务侧校验</div>
+                  <div class="cd">方法级注解按 <code>method_name</code> 二次校验，<b>防止绕过网关直调服务</b>。</div></div></div>
+                <div class="ck block"><i class="fa-solid fa-ban"></i><div class="cb">
+                  <div class="ct">未授权角色不得访问对应菜单与接口</div>
+                  <div class="cd"><b>网关与服务双重校验</b>，任一不通过即拒绝（R-I1）。</div></div>
+                  <div class="co"><button class="btn btn-sm" onclick="SP.denied('您所在角色未被授予该权限资源，网关已拒绝本次请求（R-I1）。菜单不可见的功能，直接调接口同样会被拒')">试点</button></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-users"></i> R-K6 · 一人多角色的合并口径</div>
+            <div class="sp-b">
+              <div class="sp-kv">
+                <div class="kv"><span class="k">功能权限</span><span class="v"><b>取并集</b>　<span class="muted">任一角色有该权限即有</span></span></div>
+                <div class="kv"><span class="k">数据范围</span><span class="v"><b>取最宽档位并集</b>　<span class="muted">按五档排序取最宽</span></span></div>
+              </div>
+              <div class="sp-block" style="margin-top:10px;box-shadow:none">
+                <div class="sp-h" style="padding:8px 12px"><i class="fa-solid fa-user"></i> 示例 · 韦国强</div>
+                <div class="sp-b">
+                  <div class="sp-kv">
+                    <div class="kv"><span class="k">角色 1 reviewer</span><span class="v">功能：审核办理　数据范围：<b>本部门及以下</b></span></div>
+                    <div class="kv"><span class="k">角色 2 archive</span><span class="v">功能：档案调阅　数据范围：<b>全部</b></span></div>
+                    <div class="kv"><span class="k">合并结果</span><span class="v"><b>功能 = 审核办理 ＋ 档案调阅</b>；<b>数据范围 = 全部</b>（取最宽）</span></div>
+                  </div>
+                  <p class="hint">
+                    <i class="fa-solid fa-triangle-exclamation" style="color:var(--lv-orange)"></i>
+                    配角色时要留意：<b>叠加一个宽范围角色会把窄范围角色的限制一起放开</b>。
+                    需要限制的场景应<b>拆账号</b>而不是叠角色。
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 数据范围五档 ===================== -->
+    <div class="tab-panel" data-panel="scope">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div><b>R-K3</b>：数据范围<b>固定五档</b>：全部、本部门、本部门及以下、本人、自定义；
+            <b>对外表述归并为全市、辖区、本主体、本人</b>——
+            内部按五档配置，对企业与公众说话时用归并后的四种说法，避免把内部组织结构暴露出去。</div>
+        </div>
+        <div class="sp-tw">
+          <table class="data-table">
+            <thead><tr><th>档位</th><th>含义</th><th>对外表述</th><th>典型角色</th><th>过滤实现</th></tr></thead>
+            <tbody>
+              <tr><td><b>全部</b></td><td class="cell-lg">不加部门过滤，可见全市数据</td><td><b>全市</b></td>
+                <td>admin、city、leader、reviewer</td><td class="cell-lg">拦截器不注入部门条件</td></tr>
+              <tr><td><b>本部门</b></td><td class="cell-lg">仅本人所在部门的数据</td><td><b>辖区</b></td>
+                <td>—</td><td class="cell-lg">注入 <code>dept_id = 当前用户部门</code></td></tr>
+              <tr><td><b>本部门及以下</b></td><td class="cell-lg">本部门与其全部下级部门</td><td><b>辖区</b></td>
+                <td>district 县区经办窗口</td><td class="cell-lg">注入 <code>dept_id IN (部门树子集)</code></td></tr>
+              <tr><td><b>本人</b></td><td class="cell-lg">仅本人创建或办理的数据</td><td><b>本人</b></td>
+                <td>—</td><td class="cell-lg">注入 <code>create_by = 当前用户</code></td></tr>
+              <tr class="row-warn"><td><b>自定义</b></td><td class="cell-lg">手工指定若干部门的集合，跨层级</td><td><b>辖区</b></td>
+                <td>专项检查组等临时角色</td><td class="cell-lg">注入 <code>dept_id IN (自定义集合)</code></td></tr>
+              <tr class="row-off"><td><b>本主体</b></td><td class="cell-lg">企业端专用：仅本企业的数据，与内部五档不同源</td><td><b>本主体</b></td>
+                <td>developer、bank、builder、agency</td><td class="cell-lg">注入 <code>credit_code = 当前主体</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="hint">
+          <i class="fa-solid fa-circle-info"></i>
+          <b>R-I5</b>：业务表需数据权限隔离的，<b>必须带归属字段并由本平台拦截器注入过滤</b>——
+          <b>不是由各板块自己写 where 条件</b>。业务开发只要给表加归属字段，过滤由平台统一注入。
+        </p>
+
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-flask"></i> 验-9 · 口径一致性验证
+            <span class="sub">任取三个用户，可见菜单与接口鉴权结果一致</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>测试用户</th><th>角色</th><th>数据范围</th><th>菜单可见数</th><th>接口鉴权通过数</th><th>列表过滤结果</th><th>一致性</th></tr></thead>
+                <tbody>
+                  <tr><td>蒙丽华</td><td>admin</td><td>全部</td><td class="num">18</td><td class="num">18</td>
+                    <td class="cell-lg">全市 218 个实例全部可见</td><td><span class="badge green">一致</span></td></tr>
+                  <tr><td>覃永明</td><td>district</td><td>本部门及以下</td><td class="num">6</td><td class="num">6</td>
+                    <td class="cell-lg">仅柳南区 42 个实例可见，其余不返回</td><td><span class="badge green">一致</span></td></tr>
+                  <tr><td>荣和地产 陈××</td><td>developer</td><td>本主体</td><td class="num">4</td><td class="num">4</td>
+                    <td class="cell-lg">仅本企业 12 个实例可见</td><td><span class="badge green">一致</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 流程引擎模型 ===================== -->
+    <div class="tab-panel" data-panel="wf">
+      <div class="card-body">
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-arrow-right-arrow-left"></i> R-K4 · 流程推进固定口径
+            <span class="sub">不允许各板块自行定义推进方式</span></div>
+          <div class="sp-b">
+            <div class="plink">
+              <div class="pn"><div class="pt">当前任务办结</div><div class="pd">审批人提交动作与意见<br>写入 wf_task_record</div></div>
+              <div class="pn key"><div class="pt">条件表达式选下一节点</div><div class="pd">按出线优先级依次判定<br>命中即走，不再往下判</div></div>
+              <div class="pn"><div class="pt">生成新任务</div><div class="pd">按审批人配置取人<br>叠加数据范围与分岗校验</div></div>
+              <div class="pn"><div class="pt">到 end 则实例结束</div><div class="pd">实例状态置为通过<br>映射统一七态为已办结</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top:12px">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-diagram-project"></i> 实例状态五档与统一七态映射</div>
+            <div class="sp-b pad0">
+              <div class="sp-tw">
+                <table class="data-table compact sp-map">
+                  <thead><tr><th>流程实例状态</th><th>统一七态</th><th>说明</th></tr></thead>
+                  <tbody>
+                    <tr><td><span class="sp-st doing">审批中</span></td><td><b>在办</b></td><td class="cell-lg">有未办结任务</td></tr>
+                    <tr><td><span class="sp-st done">通过</span></td><td><b>已办结</b></td><td class="cell-lg">到达 end 节点</td></tr>
+                    <tr><td><span class="sp-st bad">拒绝</span></td><td><b>已退回</b></td><td class="cell-lg">审批人执行 reject，实例终结</td></tr>
+                    <tr><td><span class="sp-st dead">撤回</span></td><td><b>已作废</b></td><td class="cell-lg">发起人在首节点未被处理时撤回</td></tr>
+                    <tr><td><span class="sp-st dead">终止</span></td><td><b>已作废</b></td><td class="cell-lg">管理员强制终止</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="hint" style="padding:9px 12px">
+                <i class="fa-solid fa-circle-info"></i>
+                另两态<b>待受理</b>与<b>补正中</b>由各业务板块的办件状态承担，
+                <b>本平台的合同拟制不设受理环节</b>，故不出现待受理。
+              </p>
+            </div>
+          </div>
+
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-hand"></i> R-K15 · 可用的干预动作</div>
+            <div class="sp-b">
+              <div class="sp-check">
+                <div class="ck pass"><i class="fa-solid fa-rotate-left"></i><div class="cb">
+                  <div class="ct">退回 · 审批人</div>
+                  <div class="cd">退回上一节点或指定节点，补正后重新流转。</div></div></div>
+                <div class="ck pass"><i class="fa-solid fa-share"></i><div class="cb">
+                  <div class="ct">转办 · 审批人</div>
+                  <div class="cd">把任务转给他人办理，转办记录写入轨迹。</div></div></div>
+                <div class="ck pass"><i class="fa-solid fa-user-plus"></i><div class="cb">
+                  <div class="ct">加签 · 审批人</div>
+                  <div class="cd">新增会签人，本节点须全部同意方可通过。</div></div></div>
+                <div class="ck wait"><i class="fa-solid fa-rotate-left"></i><div class="cb">
+                  <div class="ct">撤回 · 发起人</div>
+                  <div class="cd"><b>仅限首节点未被处理时</b>；已有人办理的不得撤回。</div></div></div>
+                <div class="ck block"><i class="fa-solid fa-ban"></i><div class="cb">
+                  <div class="ct">强制终止 · 管理员</div>
+                  <div class="cd">异常处置手段，<b>理由必填并写入操作日志</b>，待办即时清除不可恢复。</div></div>
+                  <div class="co"><span class="link" onclick="location.href='wspt-09.html?tab=stop'">去处置</span></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 版本固化 ===================== -->
+    <div class="tab-panel" data-panel="ver">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div><b>R-K5</b>：<b>流程定义与表单定义均按版本发布，实例与填写数据必须固化版本号</b>。
+            这条是整个平台最容易踩坑的地方——<b>不固化版本，改一次流程就会把在办件全搞乱</b>。
+            合同模板同理，固化 <code>template_ver</code>。</div>
+        </div>
+        <div class="sp-tw">
+          <table class="data-table">
+            <thead><tr><th>编号</th><th>规则</th><th>落点</th></tr></thead>
+            <tbody id="verBody"></tbody>
+          </table>
+        </div>
+
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-code-branch"></i> 三类定义的版本行为对照</div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact sp-mx">
+                <thead><tr><th>行为</th><th>流程定义</th><th>表单定义</th><th>合同模板</th></tr></thead>
+                <tbody>
+                  <tr><td>发布前校验</td><td>试跑三条路径</td><td>试填校验</td><td>示例数据预览</td></tr>
+                  <tr><td>发布后能否改结构</td><td><span class="badge red">不可改</span></td><td><span class="badge red">不可改</span></td><td><span class="badge red">不可改</span></td></tr>
+                  <tr><td>改错怎么办</td><td>新建版本覆盖</td><td>新建版本覆盖</td><td>升版本</td></tr>
+                  <tr><td>实例固化字段</td><td><code>process_ver</code></td><td><code>form_ver</code></td><td><code>template_ver</code></td></tr>
+                  <tr><td>新发起用哪版</td><td>最新已发布</td><td>最新已发布</td><td>当前启用版</td></tr>
+                  <tr><td>运行中实例</td><td><span class="badge green">保持原版本</span></td><td><span class="badge green">保持原版本</span></td><td><span class="badge green">保持原版本</span></td></tr>
+                  <tr><td>停用影响</td><td>仅禁新发起</td><td>仅禁新引用</td><td>仅禁新选用</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="hint" style="padding:9px 12px">
+              <i class="fa-solid fa-circle-info"></i>
+              <b>R-K10</b>：定义一经发布<b>结构不可修改；发现错误只能新建版本覆盖</b>。
+              <b>R-K14</b>：发布时<b>须确定适用应用范围，未授权应用不得引用该 process_key</b>——
+              防止 A 板块的流程被 B 板块拿去用。
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 板块消费关系 ===================== -->
+    <div class="tab-panel" data-panel="cons">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>下列板块<b>消费本平台的能力</b>，箭头方向为「板块向本平台索取」。
+            各板块<b>只消费结果，不重新推导</b>——这是 R-K1 的具体落地。
+            完整的跨板块约束见<span class="link" onclick="SP.tab('rule')">统一口径规则</span>。</div>
+        </div>
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-cubes"></i> 交易业务</div>
+          <div class="sp-b"><div class="cons" id="c1"></div></div>
+        </div>
+        <div class="sp-block" style="margin-top:10px">
+          <div class="sp-h"><i class="fa-solid fa-sack-dollar"></i> 资金监管</div>
+          <div class="sp-b"><div class="cons" id="c2"></div></div>
+        </div>
+        <div class="sp-block" style="margin-top:10px">
+          <div class="sp-h"><i class="fa-solid fa-chart-line"></i> 项目与监测</div>
+          <div class="sp-b"><div class="cons" id="c3"></div></div>
+        </div>
+        <div class="sp-block" style="margin-top:10px">
+          <div class="sp-h"><i class="fa-solid fa-globe"></i> 对外服务与平台支撑</div>
+          <div class="sp-b"><div class="cons" id="c4"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 统一口径规则 ===================== -->
+    <div class="tab-panel" data-panel="rule">
+      <div class="card-body">
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-scale-balanced"></i> 统一模型规则 R-K1 ~ R-K7
+            <span class="sub">全平台唯一口径</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>编号</th><th>规则</th><th>原型落点</th></tr></thead>
+                <tbody id="rkBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-link-slash"></i> 对其他板块的强制约束 R-I1 ~ R-I12
+            <span class="sub">这些是别的板块必须遵守的，不是本平台内部规则</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>编号</th><th>约束</th><th>约束对象</th></tr></thead>
+                <tbody id="riBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/spec.js"></script>
+<script>
+var VER = [
+  ['R-K5', '流程定义与表单定义均按版本发布，实例与填写数据必须固化版本号', '流程设计 · 表单设计 · 合同拟制'],
+  ['R-K8', '流程定义按批次版本管理。版本属性包括 process_key、version、绑定 form_id、model_json、发布人、发布时间', '业务流程设计 · 流程定义列表'],
+  ['R-K9', '发布前必须试跑，至少验证同意到 end、退回、拒绝三条路径可到达合法终态', '业务流程设计 · 试跑与发布'],
+  ['R-K10', '定义一经发布，结构不可修改；发现错误只能新建版本覆盖', '业务流程设计 · 版本与停用'],
+  ['R-K11', '新发起实例必须绑定最新已发布版本；运行中与已结束实例保持原版本', '待办与流程监控 · 实例固化版本'],
+  ['R-K12', '停用只影响新发起，不影响运行中实例', '业务流程设计 · 停用确认'],
+  ['R-K13', '表单定义发布规则同流程：试填通过后方可发布，提交数据固化 form_ver', '表单设计 · 发布与版本'],
+  ['R-K14', '发布时须确定适用应用范围，未授权应用不得引用该 process_key', '业务流程设计 · 流程定义列表']
+];
+
+var RK = [
+  ['R-K1', '全平台只有一套 RBAC 权限模型与一套自研流程引擎。授权判定与数据范围计算只在本平台完成，其他板块只消费结果，不得在本端重新推导角色或另写数据过滤', '本页全部页签 · 板块消费关系'],
+  ['R-K2', '功能权限链路固定为：用户 → 角色 → 菜单/按钮 → 权限资源(method_name/api_url) → 应用', '功能权限链路 · 五段链路图'],
+  ['R-K3', '数据范围固定五档：全部、本部门、本部门及以下、本人、自定义；对外表述归并为全市、辖区、本主体、本人', '数据范围五档 · 档位对照表'],
+  ['R-K4', '流程推进固定为：当前任务办结 → 条件表达式选下一节点 → 生成新任务；到 end 则实例结束', '流程引擎模型 · 推进口径图'],
+  ['R-K5', '流程定义与表单定义均按版本发布，实例与填写数据必须固化版本号', '版本固化规则'],
+  ['R-K6', '一人多角色时，功能权限取并集，数据范围取最宽档位并集', '功能权限链路 · 多角色合并口径'],
+  ['R-K7', '每一次授权变更、数据范围变更、流程状态变更都必须可追溯到操作人、时间与操作日志', '日志与安全审计 · 高敏操作留痕']
+];
+
+var RI = [
+  ['R-I1', '未授权角色不得访问对应菜单与接口，网关与服务双重校验', '全部业务板块'],
+  ['R-I2', '未发布的流程定义不得被业务发起实例', '全部办件类板块'],
+  ['R-I3', '页面下拉选项必须从本平台字典取值，不得页面写死', '全部业务板块'],
+  ['R-I4', '办件承诺时限与 SLA 必须调用本平台工作日历计算', '全部办件类板块'],
+  ['R-I5', '业务表需数据权限隔离的，必须带归属字段并由本平台拦截器注入过滤', '全部业务板块'],
+  ['R-I6', '高敏操作日志必须写入本平台，业务子系统不另建审计', '全部业务板块'],
+  ['R-I7', '合同正式件必须经本平台模板渲染生成，不得绕过模板直接上传代替正式件', '使用合同能力的板块'],
+  ['R-I8', '外部主体只能经统一服务门户企业工作台访问授权功能，不得直链监管端', 'PT-01 及各企业端'],
+  ['R-I9', '传输与口令须符合第十三章国密要求，生产环境不得关闭应用层加解密', '全部业务板块'],
+  ['R-I10', '上传材料必须登记到本平台文件中心并取得文件标识，业务表只存文件标识，不得只存本地路径', '全部业务板块'],
+  ['R-I11', '统计与报表口径以各业务板块自身为准，本平台不重复出具业务统计', '本平台与统计类板块'],
+  ['R-I12', '预警信号统一汇入 PC-25 闭环，本平台只输出信号不做督办派单', '本平台与 PC-25']
+];
+
+var CONS = {
+  c1: [
+    ['PC-07 统一签约平台', '登录鉴权 · 角色权限 · 待办'],
+    ['PC-08 商品房交易管理', '鉴权 · 字典 · 流程 · 数据范围'],
+    ['PC-09 存量房交易管理', '鉴权 · 字典 · 流程 · 数据范围'],
+    ['PC-10 房屋租赁管理', '鉴权 · 字典 · 流程'],
+    ['PC-13 房产测绘', '鉴权 · 字典 · 流程']
+  ],
+  c2: [
+    ['PC-15 预售资金监管', '鉴权 · 流程 · 日历时限'],
+    ['PC-17 维修资金', '鉴权 · 字典'],
+    ['PC-18 房银行直联', '鉴权 · 账号状态']
+  ],
+  c3: [
+    ['PC-20 房地产项目库', '鉴权 · 组织数据范围'],
+    ['PC-23 市场监测分析', '鉴权 · 字典'],
+    ['PC-24 综合驾驶舱', '鉴权 · 统计授权'],
+    ['PC-25 预警与督办', '鉴权 · 消息待办 · 审计'],
+    ['PC-26 项目全生命周期', '鉴权 · 数据范围']
+  ],
+  c4: [
+    ['PT-01 统一服务门户', '登录 · 企业端待办与合同入口'],
+    ['PT-05 从业主体监管平台', '鉴权 · 字典 · 流程 · 审计写入'],
+    ['PC-19 从业主体与信用', '鉴权 · 字典 · 流程 · 审计写入'],
+    ['PC-33 统一文件与影像', '文件登记 · 分类与调阅授权<br><b>→ 本平台向其输出文件实体存储</b>'],
+    ['PC-34 统一消息服务', '<b>→ 本平台向其输出催办与到期消息</b>'],
+    ['数据中心', '用户组织与配置主数据']
+  ]
+};
+
+function renderTable(id, data, cols) {
+  document.getElementById(id).innerHTML = data.map(function (r) {
+    return '<tr><td><code>' + r[0] + '</code></td>'
+      + '<td class="cell-lg">' + r[1] + '</td><td class="cell-lg">' + r[2] + '</td></tr>';
+  }).join('');
+}
+
+function renderCons() {
+  Object.keys(CONS).forEach(function (k) {
+    document.getElementById(k).innerHTML = CONS[k].map(function (c) {
+      return '<div class="c"><div class="cn">' + c[0] + '</div><div class="cw">' + c[1] + '</div></div>';
+    }).join('');
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  renderTable('verBody', VER);
+  renderTable('rkBody', RK);
+  renderTable('riBody', RI);
+  renderCons();
+  var t = SP.param('tab'); if (t) SP.tab(t);
+});
+</script>
+</body>
+</html>
