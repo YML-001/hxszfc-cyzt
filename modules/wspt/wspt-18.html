@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>楼盘表状态配置 · 应用支撑平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<link rel="stylesheet" href="../../assets/css/spec.css">
+<style>
+  .sw { display: inline-flex; align-items: center; gap: 6px; }
+  .sw i { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; border: 1px solid rgba(0,0,0,.12); }
+  /* 四档优先级条 */
+  .lane { border: 1px solid var(--border); border-radius: var(--radius); background: #fff; margin-bottom: 8px; }
+  .lane:last-child { margin-bottom: 0; }
+  .lane .lh { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border-bottom: 1px solid var(--border); }
+  .lane .lt { font-size: 13px; font-weight: 700; color: var(--text-1); }
+  .lane .lr { margin-left: auto; font-size: 11.5px; color: var(--text-3); font-family: Consolas, Monaco, monospace; }
+  .lane .lb { padding: 9px 12px; font-size: 12.5px; color: var(--text-2); line-height: 1.75; }
+  .lane.block { border-left: 3px solid var(--lv-red); }
+  .lane.limit { border-left: 3px solid var(--lv-orange); }
+  .lane.proc  { border-left: 3px solid var(--primary); }
+  .lane.sale  { border-left: 3px solid var(--success); }
+  /* 场景卡 */
+  .scn { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 10px; }
+  .scn .s { border: 1px solid var(--border); border-radius: var(--radius); background: #fff; }
+  .scn .s .sh { padding: 9px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 7px; }
+  .scn .s .sc { font-family: Consolas, Monaco, monospace; font-size: 11.5px; color: var(--text-3); }
+  .scn .s .sn { font-size: 13px; font-weight: 700; color: var(--text-1); }
+  .scn .s .sb { padding: 9px 12px; font-size: 12px; color: var(--text-3); line-height: 1.85; }
+  .scn .s .sb b { color: var(--text-2); font-weight: 600; }
+  .scn .s.out { border-color: var(--warning-soft); background: #fffdf7; }
+</style>
+</head>
+<body data-role="admin" data-active="wspt-18">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 应用支撑平台
+        <span class="sep">/</span> 业务配置管理
+        <span class="sep">/</span> <span class="cur">楼盘表状态配置</span>
+      </div>
+      <div class="page-title">楼盘表状态配置 <span class="badge blue">模块一 · 4 个功能点</span></div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="SP.tab('check')"><i class="fa-solid fa-list-check"></i> 一致性核查</button>
+      <button class="btn" onclick="SP.exportAsync('状态项配置台账')"><i class="fa-solid fa-download"></i> 导出台账</button>
+      <button class="btn btn-primary" onclick="PMS.openDrawer('itemDrawer')"><i class="fa-solid fa-plus"></i> 新增状态项</button>
+    </div>
+  </div>
+
+  <div class="alert alert-danger">
+    <i class="fa-solid fa-circle-exclamation"></i>
+    <div><b>R-B1</b>：<b>未经登记审定的状态项不予配置</b>，状态服务不受理未配置状态项的写入请求。
+      <b>R-C3</b>：<b>综合状态由楼盘表状态服务按本子系统配置派生，任何系统不得直接写入</b>。
+      <b>R-B7</b>：本子系统<b>不置位任何房间状态项</b>，也不写入房屋物理属性、权属与面积——只做状态模型的配置方。</div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div><b>各责任板块的具体状态项名称、置位与清除动作、前置与互斥关系、对外公开范围待登记审定后回填</b>
+      （12.6 第 1 条，开发启动前确认）。下列清单按 11.3 示范结构与 6.3 字典既有取值预置，
+      <b>优先级与权重按文档标注为「待定」</b>，档位区间为建议值，须业务核定。</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-list-check"></i></div><div>
+      <div class="s-label">已发布状态项</div><div class="s-value">32</div><div class="s-trend text-2">涉 9 个责任板块</div></div></div>
+    <div class="stat-card dc-alarm"><div class="s-icon red"><i class="fa-solid fa-ban"></i></div><div>
+      <div class="s-label">阻断类</div><div class="s-value">6</div><div class="s-trend">一票否决</div></div></div>
+    <div class="stat-card"><div class="s-icon cyan"><i class="fa-solid fa-eye"></i></div><div>
+      <div class="s-label">对外公开项</div><div class="s-value">11</div><div class="s-trend text-2">仅这些可上公示端</div></div></div>
+    <div class="stat-card dc-alarm"><div class="s-icon orange"><i class="fa-solid fa-snowflake"></i></div><div>
+      <div class="s-label">冻结配置</div><div class="s-value">2</div><div class="s-trend">禁止发布</div></div></div>
+    <div class="stat-card"><div class="s-icon purple"><i class="fa-solid fa-code-branch"></i></div><div>
+      <div class="s-label">草稿 / 待审核</div><div class="s-value">3</div><div class="s-trend text-2">待分岗审核</div></div></div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="item">状态项清单</div>
+      <div class="tab" data-tab="prio">派生优先级与互斥</div>
+      <div class="tab" data-tab="color">着色与图例</div>
+      <div class="tab" data-tab="scene">展示内容与场景</div>
+      <div class="tab" data-tab="model">状态派生模型口径</div>
+      <div class="tab" data-tab="ledger">结果台账与冻结 <span class="badge orange">2</span></div>
+      <div class="tab" data-tab="check">一致性核查</div>
+    </div>
+
+    <!-- ===================== 状态项清单 ===================== -->
+    <div class="tab-panel active" data-panel="item">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>责任板块</label>
+            <select id="fBoard" onchange="renderItem()"><option value="">全部</option></select></div>
+          <div class="filter-item"><label>状态类别</label>
+            <select id="fCat" onchange="renderItem()"><option value="">全部</option></select></div>
+          <div class="filter-item"><label>登记审定</label>
+            <select id="fReg" onchange="renderItem()"><option value="">全部</option><option value="1">已审定</option><option value="0">未审定</option></select></div>
+          <div class="filter-item"><label>状态项编码 / 名称</label><input type="text" id="fKw" oninput="renderItem()" placeholder="编码或名称"></div>
+          <div class="filter-actions"><span class="muted" id="iCnt" style="align-self:center"></span></div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>状态项编码</th><th>名称</th><th>责任板块</th><th>状态类别</th><th>类型</th>
+              <th>登记审定</th><th>对外公开</th><th>版本 / 状态</th><th>操作</th>
+            </tr></thead>
+            <tbody id="itemBody"></tbody>
+          </table>
+        </div>
+        <p class="hint">
+          <i class="fa-solid fa-circle-info"></i>
+          <b>R-B2</b>：<b>一个状态项对应唯一责任板块，不得由两个板块共同维护</b>；
+          确需多来源置位的，在登记时列明全部来源并指定主责板块。
+          <b>D-1</b>：编码前缀按状态类别区分——阻断 <code>ZD</code>、销售 <code>XS</code>、签约 <code>QY</code>、核验 <code>HY</code>、
+          租赁 <code>ZL</code>、资金 <code>ZJ</code>、交付 <code>JF</code>、外部登记 <code>WB</code>。
+        </p>
+
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-table-list"></i> 状态项配置登记表 · 按责任板块占位
+            <span class="sub">8.3④ · 具体状态项由各板块登记后汇总</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>责任板块</th><th>状态类别</th><th>置位 / 清除触发动作</th><th>前置与互斥</th><th>建议派生档位</th><th>登记状态</th></tr></thead>
+                <tbody id="regBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 派生优先级与互斥 ===================== -->
+    <div class="tab-panel" data-panel="prio">
+      <div class="card-body">
+        <div class="alert alert-danger">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <div><b>R-C2</b>：<b>查封、异议类状态优先级最高，命中即阻断全部交易类业务</b>，
+            档位配置须保证<b>阻断类高于其他类别</b>。
+            <b>R-C1</b>：状态变更须符合配置的前置与互斥关系，<b>不得越过前置状态直接置位</b>。
+            <b>R-K4</b>：<b>取该房屋全部成立状态项中优先级最高者作为综合状态，同档并列时按档内权重取高者</b>。</div>
+        </div>
+
+        <div class="grid-2">
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-layer-group"></i> 四档优先级
+              <span class="sub">档间高低固定，档内顺序按配置权重</span></div>
+            <div class="sp-b" id="laneBox"></div>
+          </div>
+
+          <div class="sp-block">
+            <div class="sp-h"><i class="fa-solid fa-diagram-project"></i> 派生推演
+              <span class="sub">同一房屋多个成立状态项时取最高档</span></div>
+            <div class="sp-b">
+              <div class="sp-check">
+                <div class="ck block"><i class="fa-solid fa-ban"></i><div class="cb">
+                  <div class="ct">例 1 · 同时成立「已签约」与「查封」</div>
+                  <div class="cd">查封为<b>阻断类且一票否决</b>，综合状态取<b>查封</b>；
+                    全部交易类业务被阻断，页面提示阻断依据。</div></div></div>
+                <div class="ck wait"><i class="fa-solid fa-hourglass-half"></i><div class="cb">
+                  <div class="ct">例 2 · 同时成立「限售」与「已备案」</div>
+                  <div class="cd">限售为<b>限制类</b>档位高于交易过程类，综合状态取<b>限售</b>，
+                    阻断挂牌与网签并<b>提示可交易时间</b>。</div></div></div>
+                <div class="ck pass"><i class="fa-solid fa-circle-check"></i><div class="cb">
+                  <div class="ct">例 3 · 同档并列「已认购」与「已签约」</div>
+                  <div class="cd">同为交易过程类，<b>按档内权重取高者</b>——已签约权重高于已认购，综合状态取<b>已签约</b>。</div></div></div>
+                <div class="ck bad"><i class="fa-solid fa-triangle-exclamation"></i><div class="cb">
+                  <div class="ct">例 4 · 两条时间相同的状态变更</div>
+                  <div class="cd"><b>R-C4</b>：按到达顺序处理首条，<b>第二条转入人工判定清单，不得静默丢弃</b>。</div></div>
+                  <div class="co"><button class="btn btn-sm" onclick="SP.todo('人工判定清单当前 1 条：柳南区某项目 8-1-1502 于 2026-08-30 14:22:06 同时收到「已签约」与「异议」两条变更，首条已处理，第二条待人工判定')">看清单</button></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-code-branch"></i> 前置与互斥关系配置</div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>状态项</th><th>档位</th><th class="num">档内权重</th><th>前置状态项</th><th>互斥状态项</th><th>一票否决</th><th>操作</th></tr></thead>
+                <tbody id="prioBody"></tbody>
+              </table>
+            </div>
+            <p class="hint" style="padding:9px 12px">
+              <i class="fa-solid fa-circle-info"></i>
+              <b>R-C5</b>：<b>同一房屋同一时刻仅允许一笔在办交易类业务</b>，本子系统须在配置中支持该互斥判定。
+              <b>R-C7</b>：<b>选房占用超时时长、限售年限、面积差异阈值属 PC-32 一城一策职责，本子系统不配置该三项</b>。
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 着色与图例 ===================== -->
+    <div class="tab-panel" data-panel="color">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div><b>R-D5</b>：着色与图例发布后，<b>PC-08、PC-24、PT-02 与移动端不得自行改写颜色与图例文字</b>——
+            各展示端一律调用本页已发布配置。
+            <b>R-D1</b>：着色配置<b>按市本级与六个县区分级配置</b>，附生效日期与版本留痕。</div>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-item"><label>适用区划</label>
+            <select id="cArea" onchange="renderColor()">
+              <option>市本级（全市统一口径）</option><option>柳江区</option><option>鹿寨县</option>
+              <option>三江县</option><option>融安县</option><option>融水县</option><option>柳城县</option>
+            </select></div>
+          <div class="filter-item"><label>只看对外公开</label>
+            <select id="cPub" onchange="renderColor()"><option value="">全部</option><option value="1">仅对外公开项</option></select></div>
+          <div class="filter-actions">
+            <button class="btn" onclick="location.href='../wsswb/building-table.html'"><i class="fa-solid fa-table-cells"></i> 到销控图看效果</button>
+            <span class="muted" id="cCnt" style="align-self:center"></span>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>状态项</th><th>颜色</th><th>颜色代码</th><th>图例文字</th><th>业务含义</th><th>对外公开</th><th>适用区划</th><th>操作</th>
+            </tr></thead>
+            <tbody id="colorBody"></tbody>
+          </table>
+        </div>
+        <p class="hint">
+          <i class="fa-solid fa-circle-info"></i>
+          县区未配置本级差异值的<b>继承市本级</b>（R-J1）。
+          <b>县区可配置的具体项范围待业务确认</b>，确认前<b>县区仅可查看市本级已发布配置，不得发布本级差异值</b>（R-J5）。
+        </p>
+      </div>
+    </div>
+
+    <!-- ===================== 展示场景 ===================== -->
+    <div class="tab-panel" data-panel="scene">
+      <div class="card-body">
+        <div class="alert alert-danger">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <div><b>R-D3</b>：<b>对外场景只能选用已标注对外公开的状态项</b>，未标注的不得在对外门户与移动端展示。
+            <b>R-D4</b>：对外场景的展示字段<b>须套用对外脱敏规则，房号按配置截断，权利人姓名与证件号码不得展示</b>。
+            <b>R-D2</b>：四个场景<b>配置相互独立</b>。</div>
+        </div>
+        <div class="scn" id="scnBox"></div>
+
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-sliders"></i> 场景配置明细
+            <span class="sub">11.3 展示内容与场景配置</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>场景</th><th>消费板块</th><th>可选状态项范围</th><th>展示字段</th><th>着色方案</th><th>脱敏范围</th></tr></thead>
+                <tbody id="scnBody"></tbody>
+              </table>
+            </div>
+            <p class="hint" style="padding:9px 12px">
+              <i class="fa-solid fa-triangle-exclamation" style="color:var(--lv-orange)"></i>
+              <b>验-4</b>：四场景发布后<b>按场景返回不同内容</b>，<b>对外场景不含未公开状态项</b>。
+              <b>D-2</b>：场景编码固定四个，不得新增。
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 派生模型口径 ===================== -->
+    <div class="tab-panel" data-panel="model">
+      <div class="card-body">
+        <div class="alert alert-danger">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <div><b>R-K1</b>：<b>全平台只有一套楼盘表状态模型</b>——状态项清单、派生优先级与互斥、着色与图例、
+            展示场景配置<b>只在本子系统计算与维护，其他板块只展示</b>。
+            <b>R-K2</b>：综合状态派生<b>只在楼盘表状态服务按本子系统已发布配置执行</b>，
+            PC-08、PC-24、PT-02 与移动端<b>不得自行计算综合状态</b>。</div>
+        </div>
+
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-scale-balanced"></i> 11.1 模型总则 R-K1 ~ R-K6</div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>编号</th><th>规则</th><th>原型落点</th></tr></thead>
+                <tbody id="k16Body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-layer-group"></i> 11.2 档位与映射
+            <span class="sub">建议值需业务核定，核定前按下表实现</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>档位</th><th>取值区间</th><th>归并类别</th><th>对外表述</th><th>常见应用</th></tr></thead>
+                <tbody>
+                  <tr class="row-bad"><td><b>阻断类</b></td><td><span class="badge orange">待定</span> 建议 90 ~ 100</td>
+                    <td class="cell-lg">查封、异议及协助执行类</td><td><b>不可交易</b></td>
+                    <td class="cell-lg">命中即阻断全部交易类业务</td></tr>
+                  <tr class="row-warn"><td><b>限制类</b></td><td><span class="badge orange">待定</span> 建议 70 ~ 89</td>
+                    <td class="cell-lg">限售、暂停销售类</td><td><b>限制交易</b></td>
+                    <td class="cell-lg">阻断挂牌与网签并提示可交易时间</td></tr>
+                  <tr><td><b>交易过程类</b></td><td><span class="badge orange">待定</span> 建议 40 ~ 69</td>
+                    <td class="cell-lg">签约、备案、核验、租赁、资金监管、交付类</td><td><b>过程状态</b></td>
+                    <td class="cell-lg">销控看板与办理进度展示</td></tr>
+                  <tr><td><b>可售类</b></td><td><span class="badge orange">待定</span> 建议 0 ~ 39</td>
+                    <td class="cell-lg">可售与空闲类</td><td><b>可售</b></td>
+                    <td class="cell-lg">库存统计与选房</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="hint" style="padding:9px 12px">
+              <i class="fa-solid fa-circle-info"></i>
+              阈值作为<b>可配置参数</b>存放，<b>支持市县分级配置并保留版本与生效日期</b>；
+              取值区间与档内权重待业务核定（12.6 第 2 条，开发启动前）。
+            </p>
+          </div>
+        </div>
+
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-book"></i> 11.3 指标库 / 参数库
+            <span class="sub">状态项须登记的 14 项属性，全部必填</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>属性</th><th>说明</th><th>必填</th></tr></thead>
+                <tbody id="attrBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-rotate-left"></i> 11.6 申诉与更正
+            <span class="sub">R-K14 ~ R-K18</span></div>
+          <div class="sp-b">
+            <div class="sp-check">
+              <div class="ck wait"><i class="fa-solid fa-pen"></i><div class="cb">
+                <div class="ct">更正入口在配置台账，由配置提交岗发起更正批次</div>
+                <div class="cd">责任板块可<b>通过一致性核查清单反馈异议</b>。</div></div>
+                <div class="co"><span class="link" onclick="SP.tab('check')">看核查清单</span></div></div>
+              <div class="ck pass"><i class="fa-solid fa-circle-check"></i><div class="cb">
+                <div class="ct">更正成立</div>
+                <div class="cd">按新批次<b>重算派生配置</b>，并向状态服务与<b>全部展示消费方推送变更完成回流</b>。</div></div></div>
+              <div class="ck block"><i class="fa-solid fa-xmark"></i><div class="cb">
+                <div class="ct">更正不成立</div>
+                <div class="cd"><b>须书面说明理由并留痕，原生效版本保持不变</b>。</div></div></div>
+              <div class="ck wait"><i class="fa-solid fa-list-check"></i><div class="cb">
+                <div class="ct">修复条件三项须同时满足</div>
+                <div class="cd"><b>登记审定文件齐全、试算通过、分岗复核通过</b>。</div></div></div>
+              <div class="ck wait"><i class="fa-solid fa-shield-halved"></i><div class="cb">
+                <div class="ct">全过程留痕</div>
+                <div class="cd">申诉、更正、回滚<b>统一写入平台安全审计</b>，本子系统不另建审计。</div></div>
+                <div class="co"><span class="link" onclick="location.href='wspt-12.html?tab=gm'">看审计</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 结果台账与冻结 ===================== -->
+    <div class="tab-panel" data-panel="ledger">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div><b>纳入冻结清单的配置版本一律不得发布</b>；<b>解冻后须重新走提交与审核流程，
+            不得由冻结状态直接置为已发布</b>。
+            <b>R-A2</b>：已发布配置<b>不得物理删除</b>，停用与回滚须留痕并保留历史版本可回溯。</div>
+        </div>
+        <div class="sp-tw">
+          <table class="data-table">
+            <thead><tr><th>名单</th><th>候选生成规则（系统自动）</th><th>认定与发布</th><th>退出方式</th><th class="num">当前数量</th></tr></thead>
+            <tbody id="ledgerBody"></tbody>
+          </table>
+        </div>
+
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-snowflake"></i> 冻结配置清单
+            <span class="sub">禁止发布 · 冲突消除后须重新提交审核</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>版本号</th><th>配置对象</th><th>冻结原因</th><th>冻结时间</th><th>操作</th></tr></thead>
+                <tbody>
+                  <tr class="row-bad">
+                    <td><code>SC-CFG-0042-20260910</code></td><td class="cell-lg">展示场景配置 · SC-03 一房一价与房源展示</td>
+                    <td class="cell-lg"><b>对外场景含未公开状态项</b>：所选状态项中「资金监管中」未标注对外公开</td>
+                    <td>2026-08-30 16:22</td>
+                    <td><span class="link" onclick="SP.tab('scene')">去修正</span></td></tr>
+                  <tr class="row-bad">
+                    <td><code>PRIO-CFG-0018-20260905</code></td><td class="cell-lg">派生优先级与互斥配置 · 全量</td>
+                    <td class="cell-lg"><b>试算失败</b>：限制类档位上限 89 与交易过程类下限 40 之间存在 3 个状态项档位重叠，派生结果不唯一</td>
+                    <td>2026-08-29 11:04</td>
+                    <td><span class="link" onclick="SP.tab('prio')">去修正</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="btn-row" style="padding:9px 12px">
+              <button class="btn btn-sm" onclick="SP.denied('冻结状态不得直接置为已发布。请先消除冲突，解冻后重新走提交与审核流程')"><i class="fa-solid fa-upload"></i> 尝试直接发布</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 一致性核查 ===================== -->
+    <div class="tab-panel" data-panel="check">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>四项<b>每日</b>对账，差异按下表处置。
+            <b>R-B5</b>：状态项与业务单据须可对账，<b>状态显示成立而查无对应单据的纳入一致性核查清单</b>。
+            <b>R-B4</b>：状态项配置变更<b>不得回改历史状态流水与已固化的统计快照</b>。</div>
+        </div>
+        <div class="sp-tw">
+          <table class="data-table">
+            <thead><tr><th>核查项</th><th>频率</th><th>差异处置</th><th>最近核查</th><th class="num">差异数</th><th>操作</th></tr></thead>
+            <tbody id="checkBody"></tbody>
+          </table>
+        </div>
+        <p class="hint">
+          <i class="fa-solid fa-triangle-exclamation" style="color:var(--lv-orange)"></i>
+          <b>8.3⑦ 异常处理</b>：请求写入<b>未登记状态项时拒绝并告警</b>；状态并发冲突时<b>处理首条、第二条转人工判定清单</b>；
+          展示端请求<b>未公开状态项时过滤并记日志</b>；<b>配置试算失败时该版本转入冻结清单禁止发布</b>。
+        </p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ========== 抽屉 · 状态项 ========== -->
+<div class="drawer-mask"></div>
+<div class="drawer" id="itemDrawer">
+  <div class="drawer-head"><h3>状态项配置</h3><span class="badge red">须先登记审定</span>
+    <div class="close" data-close-drawer><i class="fa-solid fa-xmark"></i></div></div>
+  <div class="drawer-body">
+    <div class="alert alert-danger">
+      <i class="fa-solid fa-circle-exclamation"></i>
+      <div><b>未经登记审定的状态项不予配置</b>（R-B1）。请先填写<b>状态项登记表编号与审定文号</b>，
+        校验不通过<b>无法提交</b>。</div>
+    </div>
+    <div class="form-grid form-align">
+      <div class="form-item"><label>状态类别 <span class="req">*</span></label>
+        <select id="dCat" onchange="genCode()">
+          <option value="ZD">阻断</option><option value="XS">销售</option><option value="QY">签约</option>
+          <option value="HY">核验与备案</option><option value="ZL">租赁</option><option value="ZJ">资金监管</option>
+          <option value="JF">交付</option><option value="WB">外部登记</option>
+        </select></div>
+      <div class="form-item"><label>状态项编码 <span class="req">*</span></label><input type="text" id="dCode" value="ZD-01-03" readonly>
+        <div class="hint">按 <b>D-1</b> 自动生成：类别前缀 + 类别序号 + 项序号。</div></div>
+      <div class="form-item"><label>状态项名称 <span class="req">*</span></label><input type="text" placeholder="业务含义明确，全平台不重复"></div>
+      <div class="form-item"><label>责任板块 <span class="req">*</span></label>
+        <select><option>PC-07 统一签约平台</option><option>PC-08 商品房交易管理</option><option>PC-09 存量房交易管理</option>
+          <option>PC-10 房屋租赁管理</option><option>PC-11 房屋抵押与交易限制管理</option><option>PC-15 商品房预售资金监管</option>
+          <option>PC-20 房地产项目库与全生命周期管理</option><option>不动产登记（外部）</option><option>法院（外部）</option></select>
+        <div class="hint"><b>唯一维护方</b>，不得由两个板块共同维护（R-B2）。</div></div>
+      <div class="form-item"><label>类型 <span class="req">*</span></label>
+        <select><option>阻断型</option><option>限制型</option><option>过程型</option><option>可售型</option></select></div>
+      <div class="form-item"><label>是否一票否决 <span class="req">*</span></label>
+        <select><option>是（阻断类）</option><option>否</option></select></div>
+      <div class="form-item"><label>登记表编号 <span class="req">*</span></label><input type="text" id="dReg" placeholder="状态项登记表编号"></div>
+      <div class="form-item"><label>审定文号 <span class="req">*</span></label><input type="text" id="dDoc" placeholder="审定文号"></div>
+      <div class="form-item"><label>置位触发动作 <span class="req">*</span></label><input type="text" placeholder="由责任板块的哪个动作置位"></div>
+      <div class="form-item"><label>清除触发动作 <span class="req">*</span></label><input type="text" placeholder="由责任板块的哪个动作清除"></div>
+      <div class="form-item"><label>生效日期 <span class="req">*</span></label><input type="date" value="2026-09-15">
+        <div class="hint"><b>R-K5</b>：自生效日期<b>零时</b>起生效，未到期不得被取用。</div></div>
+      <div class="form-item"><label>对外公开</label>
+        <select><option>不公开</option><option>对外公开</option></select>
+        <div class="hint">仅对外公开项可进入 SC-03 等对外场景（R-D3）。</div></div>
+      <div class="form-item col-full"><label>状态项登记表 <span class="req">*</span></label><input type="text" data-upload="1">
+        <div class="hint">条件性必收：状态项清单<b>新增或变更时必收</b>（13.8）。</div></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close-drawer>取消</button>
+    <button class="btn btn-primary" onclick="submitItem()"><i class="fa-solid fa-check"></i> 保存为草稿</button>
+  </div>
+</div>
+
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/spec.js"></script>
+<script>
+/* 状态项：编码、名称、责任板块、类别、类型、已审定、对外公开、版本状态 */
+var ITEMS = [
+  ['ZD-01-01', '查封', 'PC-11 房屋抵押与交易限制管理', '阻断', '阻断型', 1, 1, '已发布'],
+  ['ZD-01-02', '异议', 'PC-11 房屋抵押与交易限制管理', '阻断', '阻断型', 1, 1, '已发布'],
+  ['ZD-02-01', '协助执行', '法院（外部）', '阻断', '阻断型', 1, 0, '已发布'],
+  ['ZD-02-02', '待业务确认（协助执行类扩展项）', '法院（外部）', '阻断', '阻断型', 0, 0, '未审定'],
+  ['XS-01-01', '限售', 'PC-08 商品房交易管理', '销售', '限制型', 1, 1, '已发布'],
+  ['XS-01-02', '暂停销售', 'PC-08 商品房交易管理', '销售', '限制型', 1, 1, '已发布'],
+  ['XS-02-01', '可售', 'PC-08 商品房交易管理', '销售', '可售型', 1, 1, '已发布'],
+  ['XS-02-02', '已认购', 'PC-08 商品房交易管理', '销售', '过程型', 1, 1, '已发布'],
+  ['XS-02-03', '交易挂牌', 'PC-08 商品房交易管理', '销售', '过程型', 1, 1, '已发布'],
+  ['QY-01-01', '已签约', 'PC-07 统一签约平台', '签约', '过程型', 1, 1, '已发布'],
+  ['QY-01-02', '签约中', 'PC-07 统一签约平台', '签约', '过程型', 1, 0, '已发布'],
+  ['HY-01-01', '已备案', 'PC-09 存量房交易管理', '核验与备案', '过程型', 1, 1, '已发布'],
+  ['HY-01-02', '已核验', 'PC-09 存量房交易管理', '核验与备案', '过程型', 1, 1, '已发布'],
+  ['ZL-01-01', '已租赁备案', 'PC-10 房屋租赁管理', '租赁', '过程型', 1, 0, '已发布'],
+  ['ZJ-01-01', '资金监管中', 'PC-15 商品房预售资金监管', '资金监管', '过程型', 1, 0, '已发布'],
+  ['ZJ-01-02', '待业务确认（资金监管类扩展项）', 'PC-15 商品房预售资金监管', '资金监管', '过程型', 0, 0, '未审定'],
+  ['JF-01-01', '已交付', 'PC-20 房地产项目库与全生命周期管理', '交付', '过程型', 1, 1, '已发布'],
+  ['WB-01-01', '所有权', '不动产登记（外部）', '外部登记', '过程型', 1, 1, '已发布'],
+  ['WB-01-02', '待业务确认（外部登记类扩展项）', '不动产登记（外部）', '外部登记', '过程型', 0, 0, '未审定']
+];
+
+/* 8.3 责任板块占位登记表 */
+var REGS = [
+  ['PC-07 统一签约平台', '签约类', '待业务确认', '待业务确认', '建议交易过程类档', 0],
+  ['PC-08 商品房交易管理', '销售类', '待业务确认', '待业务确认', '建议交易过程类档', 0],
+  ['PC-09 存量房交易管理', '核验与备案类', '待业务确认', '待业务确认', '建议交易过程类档', 0],
+  ['PC-10 房屋租赁管理', '租赁类', '待业务确认', '待业务确认', '建议交易过程类档', 0],
+  ['PC-11 房屋抵押与交易限制管理', '阻断类', '待业务确认', '待业务确认', '<b>建议阻断类最高档</b>', 0],
+  ['PC-11 房屋抵押与交易限制管理', '限制类', '待业务确认', '待业务确认', '建议限制类档', 0],
+  ['PC-15 商品房预售资金监管', '资金监管类', '待业务确认', '待业务确认', '建议交易过程类档', 0],
+  ['PC-20 房地产项目库与全生命周期管理', '交付类', '待业务确认', '待业务确认', '建议交易过程类档', 0],
+  ['不动产登记（外部）', '外部登记类', '待业务确认', '待业务确认', '待定', 0],
+  ['法院（外部）', '协助执行类', '待业务确认', '待业务确认', '<b>建议阻断类最高档</b>', 0]
+];
+
+var LANES = [
+  ['block', '阻断类', '待定 · 建议 90 ~ 100', '查封、异议及协助执行类', '不可交易',
+   '命中即<b>阻断全部交易类业务</b>；本档全部状态项<b>一票否决</b>。档位配置须保证本档高于其他类别（R-C2）。'],
+  ['limit', '限制类', '待定 · 建议 70 ~ 89', '限售、暂停销售类', '限制交易',
+   '阻断挂牌与网签并<b>提示可交易时间</b>。限售年限由 <b>PC-32 一城一策</b>配置，本子系统不配置（R-C7）。'],
+  ['proc', '交易过程类', '待定 · 建议 40 ~ 69', '签约、备案、核验、租赁、资金监管、交付类', '过程状态',
+   '销控看板与办理进度展示。<b>同档并列时按档内权重取高者</b>（R-K4）。'],
+  ['sale', '可售类', '待定 · 建议 0 ~ 39', '可售与空闲类', '可售',
+   '库存统计与选房。可售库存、去化率、已售未交付的口径<b>唯一登记于指标口径表，各板块不得自行定义</b>（R-C6）。']
+];
+
+var PRIOS = [
+  ['ZD-01-01 查封', '阻断类', '待定', '—', '全部交易类状态项', 1],
+  ['ZD-01-02 异议', '阻断类', '待定', '—', '全部交易类状态项', 1],
+  ['ZD-02-01 协助执行', '阻断类', '待定', '—', '全部交易类状态项', 1],
+  ['XS-01-01 限售', '限制类', '待定', '—', 'XS-02-03 交易挂牌', 0],
+  ['XS-01-02 暂停销售', '限制类', '待定', '—', 'XS-02-02 已认购、QY-01-01 已签约', 0],
+  ['QY-01-01 已签约', '交易过程类', '待定', 'XS-02-02 已认购', 'XS-02-01 可售', 0],
+  ['QY-01-02 签约中', '交易过程类', '待定', 'XS-02-02 已认购', 'XS-02-01 可售', 0],
+  ['HY-01-01 已备案', '交易过程类', '待定', 'QY-01-01 已签约', '—', 0],
+  ['HY-01-02 已核验', '交易过程类', '待定', '—', '—', 0],
+  ['ZJ-01-01 资金监管中', '交易过程类', '待定', 'QY-01-01 已签约', '—', 0],
+  ['JF-01-01 已交付', '交易过程类', '待定', 'HY-01-01 已备案', '—', 0],
+  ['XS-02-01 可售', '可售类', '待定', '—', 'XS-02-02 已认购、QY-01-01 已签约', 0]
+];
+
+var COLORS = [
+  ['ZD-01-01 查封', '#c0392b', '查封', '法院查封，全部交易业务阻断', 1],
+  ['ZD-01-02 异议', '#d35400', '异议', '登记异议，交易业务阻断', 1],
+  ['ZD-02-01 协助执行', '#8e44ad', '协助执行', '法院协助执行事项，交易业务阻断', 0],
+  ['XS-01-01 限售', '#e67e22', '限售', '限售期内不得挂牌与网签', 1],
+  ['XS-01-02 暂停销售', '#f39c12', '暂停销售', '项目暂停销售', 1],
+  ['XS-02-01 可售', '#27ae60', '可售', '房源可售可选', 1],
+  ['XS-02-02 已认购', '#2980b9', '已认购', '购房人已认购未签约', 1],
+  ['XS-02-03 交易挂牌', '#16a085', '交易挂牌', '房源已挂牌交易', 1],
+  ['QY-01-01 已签约', '#2656bb', '已签约', '合同已签订', 1],
+  ['QY-01-02 签约中', '#5b8def', '签约中', '签约流程进行中', 0],
+  ['HY-01-01 已备案', '#1f6f8b', '已备案', '合同已备案', 1],
+  ['HY-01-02 已核验', '#0e7c86', '已核验', '存量房源已核验', 1],
+  ['ZL-01-01 已租赁备案', '#7f8c8d', '已租赁备案', '租赁合同已备案', 0],
+  ['ZJ-01-01 资金监管中', '#9b59b6', '资金监管中', '购房款纳入监管账户', 0],
+  ['JF-01-01 已交付', '#34495e', '已交付', '房屋已交付业主', 1],
+  ['WB-01-01 所有权', '#2c3e50', '所有权', '已办理不动产登记', 1]
+];
+
+var SCENES = [
+  ['SC-01', '销控看板', 'PC-08 商品房交易管理', '全部已发布状态项',
+   '房号、综合状态、当前在办收件编号', '内部销控着色', '内部明文', 0],
+  ['SC-02', '选房', 'PC-08 商品房交易管理', '可售类与阻断限制类',
+   '房号、可售标志、预测建筑面积', '内部选房着色', '内部明文', 0],
+  ['SC-03', '一房一价与房源展示', 'PT-02 房源超市', '<b>仅已标注对外公开的状态项</b>',
+   '房号（<b>按配置截断</b>）、销售状态、一房一价、价格口径标注', '对外公示着色', '<b>公示字段</b>', 1],
+  ['SC-04', '驾驶舱与一张图', 'PC-24 综合驾驶舱与房产一张图', '已发布且用于监测的状态项',
+   '区划、项目、楼栋、综合状态汇总数', '监测着色', '内部明文', 0]
+];
+
+var K16 = [
+  ['R-K1', '全平台只有一套楼盘表状态模型，状态项清单、派生优先级与互斥、着色与图例、展示场景配置只在本子系统计算与维护，其他板块只展示', '本页全部页签'],
+  ['R-K2', '综合状态派生只在楼盘表状态服务按本子系统已发布配置执行，PC-08、PC-24、PT-02 与移动端不得自行计算综合状态', '派生优先级与互斥 · 派生推演'],
+  ['R-K3', '档位划分固定为阻断类、限制类、交易过程类、可售类四档，档间高低固定，档内顺序按配置权重', '11.2 档位与映射'],
+  ['R-K4', '计算方式固定为：取该房屋全部成立状态项中优先级最高者作为综合状态，同档并列时按档内权重取高者', '派生推演 · 例 3'],
+  ['R-K5', '配置结果自填写的生效日期零时起生效，未到生效日期的版本不得被取用；同一配置对象同一时刻仅一个现行生效版本', '状态项抽屉 · 生效日期'],
+  ['R-K6', '每次配置变化必须可追溯，含版本号、变更人、审核人、变更时间、生效日期与试算影响清单', '配置版本与审核台账']
+];
+
+var ATTRS = [
+  ['状态项编码', '按 D-1 前缀加类别序号加项序号'],
+  ['状态项名称', '业务含义明确，<b>全平台不重复</b>'],
+  ['责任板块', '本状态项的<b>唯一维护方</b>板块编码'],
+  ['状态类别', '阻断、限制、签约、销售、核验与备案、租赁、资金监管、交付、外部登记'],
+  ['类型', '阻断型、限制型、过程型、可售型'],
+  ['计算方式', '置位与清除由责任板块触发，<b>综合状态由状态服务按优先级派生</b>'],
+  ['单次取值', '同一房屋同一状态项同一时刻<b>仅一个现行值</b>'],
+  ['上下限', '优先级数值区间，取值见 11.2'],
+  ['权重', '同档内排序权重'],
+  ['影响有效期', '生效日期与失效日期'],
+  ['依据来源', '<b>状态项登记表编号与审定文号</b>'],
+  ['是否一票否决', '阻断类为是，其余为否'],
+  ['修复条件', '清除触发动作或配置回滚条件'],
+  ['展示场景', '四个场景编码的子集'],
+  ['对外公开与着色', '是否对外公开、颜色代码、图例文字']
+];
+
+var LEDGERS = [
+  ['已发布状态项台账', '状态为已发布的状态项配置全集', '配置审核发布岗发布后自动入账', '停用后移入停用台账，<b>不物理删除</b>', 32],
+  ['已发布派生规则台账', '状态为已发布的优先级与互斥配置', '同上', '回滚或新版本取代，<b>旧版留痕</b>', 12],
+  ['已发布着色与场景台账', '状态为已发布的着色、图例与四场景配置', '同上', '回滚或新版本取代，旧版留痕', 20],
+  ['冻结配置清单', '试算失败、一致性核查发现冲突或<b>对外场景含未公开项</b>的版本', '<b>系统自动入清单，禁止发布</b>', '冲突消除后解冻，<b>须重新提交审核</b>', 2]
+];
+
+var CHECKS = [
+  ['已配置状态项清单与状态服务实际受理的状态项对账', '每日', '差异入人工核查清单，<b>未登记项禁止写入</b>', '2026-08-31 02:00', 0],
+  ['已发布派生优先级与状态服务实际派生结果对账', '每日', '<b>不一致即锁定该状态项配置并告警</b>', '2026-08-31 02:00', 0],
+  ['已发布着色与图例配置与 PC-08、PC-24、PT-02 实际渲染结果对账', '每日', '生成差异清单<b>按板块分派整改</b>', '2026-08-31 02:00', 3],
+  ['对外场景展示配置与状态项对外公开标志对账', '每日', '<b>对外场景含未公开项的自动过滤并告警</b>', '2026-08-31 02:00', 1]
+];
+
+function fillSelect(id, list) {
+  var el = document.getElementById(id);
+  list.forEach(function (v) { el.insertAdjacentHTML('beforeend', '<option>' + v + '</option>'); });
+}
+
+function renderItem() {
+  var b = document.getElementById('fBoard').value;
+  var c = document.getElementById('fCat').value;
+  var r = document.getElementById('fReg').value;
+  var k = (document.getElementById('fKw').value || '').trim();
+  var rows = ITEMS.filter(function (x) {
+    if (b && x[2] !== b) return false;
+    if (c && x[3] !== c) return false;
+    if (r !== '' && String(x[5]) !== r) return false;
+    if (k && x[0].indexOf(k) < 0 && x[1].indexOf(k) < 0) return false;
+    return true;
+  });
+  document.getElementById('iCnt').innerHTML = '共 <b>' + rows.length + '</b> 项';
+  document.getElementById('itemBody').innerHTML = rows.map(function (x) {
+    var ok = x[5] === 1;
+    return '<tr' + (ok ? '' : ' class="row-bad"') + '>'
+      + '<td><code>' + x[0] + '</code></td><td class="cell-lg">' + x[1] + '</td>'
+      + '<td class="cell-lg">' + x[2] + '</td><td>' + x[3] + '</td><td>' + x[4] + '</td>'
+      + '<td>' + (ok ? '<span class="badge green">已审定</span>' : '<span class="badge red">未审定</span>') + '</td>'
+      + '<td>' + (x[6] ? '<span class="badge cyan">对外公开</span>' : '<span class="muted">不公开</span>') + '</td>'
+      + '<td>' + (ok ? '<span class="sp-st done">已发布</span>' : '<span class="sp-st init">未审定</span>') + '</td>'
+      + '<td>' + (ok
+          ? '<span class="link" onclick="SP.tab(\'prio\')">派生规则</span><span class="link" onclick="SP.tab(\'color\')">着色</span>'
+          : '<span class="link is-off" onclick="SP.denied(\'未经登记审定的状态项不予配置（R-B1）。请先补齐状态项登记表与审定文号\')">配置</span>') + '</td></tr>';
+  }).join('') || '<tr><td colspan="9" class="muted" style="text-align:center;padding:24px">没有符合条件的状态项</td></tr>';
+}
+
+function renderReg() {
+  document.getElementById('regBody').innerHTML = REGS.map(function (r) {
+    return '<tr class="row-warn"><td class="cell-lg">' + r[0] + '</td><td>' + r[1] + '</td>'
+      + '<td><span class="muted">' + r[2] + '</span></td><td><span class="muted">' + r[3] + '</span></td>'
+      + '<td class="cell-lg">' + r[4] + '</td>'
+      + '<td><span class="badge orange">待登记审定</span></td></tr>';
+  }).join('');
+}
+
+function renderLane() {
+  document.getElementById('laneBox').innerHTML = LANES.map(function (l) {
+    return '<div class="lane ' + l[0] + '"><div class="lh"><span class="lt">' + l[1] + '</span>'
+      + '<span class="badge gray">' + l[3] + '</span><span class="lr">' + l[2] + '</span></div>'
+      + '<div class="lb">对外表述：<b>' + l[4] + '</b><br>' + l[5] + '</div></div>';
+  }).join('');
+}
+
+function renderPrio() {
+  document.getElementById('prioBody').innerHTML = PRIOS.map(function (p) {
+    var lv = { '阻断类': 'row-bad', '限制类': 'row-warn' }[p[1]] || '';
+    return '<tr' + (lv ? ' class="' + lv + '"' : '') + '>'
+      + '<td class="cell-lg">' + p[0] + '</td><td>' + p[1] + '</td>'
+      + '<td class="num"><span class="badge orange">' + p[2] + '</span></td>'
+      + '<td class="cell-lg">' + p[3] + '</td><td class="cell-lg">' + p[4] + '</td>'
+      + '<td>' + (p[5] ? '<span class="badge red">是</span>' : '<span class="badge gray">否</span>') + '</td>'
+      + '<td><span class="link" onclick="SP.todo(\'档位取值区间与档内权重待业务核定（12.6 第 2 条，开发启动前）。核定前按 11.2 建议区间实现，阈值作为可配置参数存放并支持市县分级\')">编辑</span></td></tr>';
+  }).join('');
+}
+
+function renderColor() {
+  var area = document.getElementById('cArea').value;
+  var pub = document.getElementById('cPub').value;
+  var rows = COLORS.filter(function (c) { return !pub || c[4]; });
+  var city = area.indexOf('市本级') === 0;
+  document.getElementById('cCnt').innerHTML = '共 <b>' + rows.length + '</b> 项'
+    + (city ? '' : ' · <b>继承市本级</b>');
+  document.getElementById('colorBody').innerHTML = rows.map(function (c) {
+    return '<tr' + (city ? '' : ' class="row-off"') + '>'
+      + '<td class="cell-lg">' + c[0] + '</td>'
+      + '<td><span class="sw"><i style="background:' + c[1] + '"></i></span></td>'
+      + '<td><code>' + c[1] + '</code></td><td>' + c[2] + '</td>'
+      + '<td class="cell-lg">' + c[3] + '</td>'
+      + '<td>' + (c[4] ? '<span class="badge cyan">对外公开</span>' : '<span class="muted">不公开</span>') + '</td>'
+      + '<td>' + (city ? '市本级' : area + ' <span class="muted">（继承）</span>') + '</td>'
+      + '<td>' + (city
+          ? '<span class="link" onclick="SP.todo(\'颜色代码与图例文字标准待业务确认（12.6 第 3 条，随开发同步）。发布后 PC-08、PC-24、PT-02 与移动端不得自行改写（R-D5）\')">编辑</span>'
+          : '<span class="link is-off" onclick="SP.denied(\'县区可配置的具体项范围待业务确认。确认前县区仅可查看市本级已发布配置，不得发布本级差异值（R-J5）\')">编辑</span>') + '</td></tr>';
+  }).join('');
+}
+
+function renderScene() {
+  document.getElementById('scnBox').innerHTML = SCENES.map(function (s) {
+    return '<div class="s' + (s[7] ? ' out' : '') + '">'
+      + '<div class="sh"><span class="sn">' + s[1] + '</span><span class="sc">' + s[0] + '</span>'
+      + (s[7] ? '<span class="badge orange" style="margin-left:auto">对外场景</span>' : '<span class="badge gray" style="margin-left:auto">内部场景</span>')
+      + '</div><div class="sb"><b>消费板块</b> ' + s[2] + '<br><b>状态项范围</b> ' + s[3] + '<br><b>脱敏</b> ' + s[6] + '</div></div>';
+  }).join('');
+
+  document.getElementById('scnBody').innerHTML = SCENES.map(function (s) {
+    return '<tr' + (s[7] ? ' class="row-warn"' : '') + '>'
+      + '<td><code>' + s[0] + '</code> ' + s[1] + '</td><td class="cell-lg">' + s[2] + '</td>'
+      + '<td class="cell-lg">' + s[3] + '</td><td class="cell-lg">' + s[4] + '</td>'
+      + '<td>' + s[5] + '</td><td>' + s[6] + '</td></tr>';
+  }).join('');
+}
+
+function renderModel() {
+  document.getElementById('k16Body').innerHTML = K16.map(function (k) {
+    return '<tr><td><code>' + k[0] + '</code></td><td class="cell-lg">' + k[1] + '</td><td class="cell-lg">' + k[2] + '</td></tr>';
+  }).join('');
+  document.getElementById('attrBody').innerHTML = ATTRS.map(function (a) {
+    return '<tr><td>' + a[0] + '</td><td class="cell-lg">' + a[1] + '</td>'
+      + '<td><span class="badge red">是</span></td></tr>';
+  }).join('');
+}
+
+function renderLedger() {
+  document.getElementById('ledgerBody').innerHTML = LEDGERS.map(function (l, i) {
+    return '<tr' + (i === 3 ? ' class="row-bad"' : '') + '>'
+      + '<td class="cell-lg"><b>' + l[0] + '</b></td><td class="cell-lg">' + l[1] + '</td>'
+      + '<td class="cell-lg">' + l[2] + '</td><td class="cell-lg">' + l[3] + '</td>'
+      + '<td class="num">' + l[4] + '</td></tr>';
+  }).join('');
+}
+
+function renderCheck() {
+  document.getElementById('checkBody').innerHTML = CHECKS.map(function (c) {
+    return '<tr' + (c[4] ? ' class="row-bad"' : '') + '>'
+      + '<td class="cell-lg">' + c[0] + '</td><td>' + c[1] + '</td>'
+      + '<td class="cell-lg">' + c[2] + '</td><td>' + c[3] + '</td>'
+      + '<td class="num">' + (c[4] ? '<span class="text-danger">' + c[4] + '</span>' : '0') + '</td>'
+      + '<td>' + (c[4]
+          ? '<span class="link" onclick="SP.todo(\'差异清单已按板块分派整改：PC-08 销控看板 2 项颜色与已发布配置不一致、PT-02 房源页 1 项图例文字不一致。R-D5 要求展示端不得自行改写\')">看差异</span>'
+          : '<span class="muted">无差异</span>') + '</td></tr>';
+  }).join('');
+}
+
+function genCode() {
+  var p = document.getElementById('dCat').value;
+  var n = { ZD: '01-03', XS: '03-01', QY: '02-01', HY: '02-01', ZL: '02-01', ZJ: '02-01', JF: '02-01', WB: '02-01' }[p];
+  document.getElementById('dCode').value = p + '-' + n;
+}
+
+function submitItem() {
+  var r = document.getElementById('dReg'), d = document.getElementById('dDoc');
+  if (!(r.value || '').trim() || !(d.value || '').trim()) {
+    SP.denied('未经登记审定的状态项不予配置（R-B1）。登记表编号与审定文号均为必填，校验不通过无法提交');
+    (r.value ? d : r).focus();
+    return;
+  }
+  PMS.closeDrawer();
+  PMS.toast('已保存为草稿并生成配置版本号。提交前须完成试算，且提交与审核须分岗（R-A3、R-H1）', 'success');
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  fillSelect('fBoard', ITEMS.map(function (i) { return i[2]; }).filter(function (v, i, a) { return a.indexOf(v) === i; }));
+  fillSelect('fCat', ITEMS.map(function (i) { return i[3]; }).filter(function (v, i, a) { return a.indexOf(v) === i; }));
+  renderItem(); renderReg(); renderLane(); renderPrio(); renderColor(); renderScene();
+  renderModel(); renderLedger(); renderCheck();
+  var t = SP.param('tab'); if (t) SP.tab(t);
+});
+</script>
+</body>
+</html>

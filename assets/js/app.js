@@ -816,6 +816,21 @@
                 { key: "wspt-06", label: "工作日历", href: "../modules/wspt/wspt-06.html" }
               ]
             },
+            /* 业务配置管理：《业务配置管理系统业务需求说明 v1.0》5 个模块 27 个功能点。
+               门户与消息两个模块的配置界面复用门户运营后台与统一消息服务既有页面，
+               本组只保留唯一口径、校验点与落点索引，避免出现第二套配置台账（R-M1、R-M11）。 */
+            {
+              label: "业务配置管理",
+              icon: "fa-swatchbook",
+              children: [
+                { key: "wspt-18", label: "楼盘表状态配置", href: "../modules/wspt/wspt-18.html" },
+                { key: "wspt-19", label: "微信小程序配置", href: "../modules/wspt/wspt-19.html" },
+                { key: "wspt-20", label: "微信公众号配置", href: "../modules/wspt/wspt-20.html" },
+                { key: "wspt-21", label: "门户网站配置", href: "../modules/wspt/wspt-21.html" },
+                { key: "wspt-22", label: "消息模板与提醒规则", href: "../modules/wspt/wspt-22.html" },
+                { key: "wspt-23", label: "配置版本与审核台账", href: "../modules/wspt/wspt-23.html" }
+              ]
+            },
             {
               label: "表单与流程",
               icon: "fa-diagram-project",
@@ -848,7 +863,8 @@
               children: [
                 { key: "wspt-14", label: "统一权限与流程引擎模型", href: "../modules/wspt/wspt-14.html" },
                 { key: "wspt-15", label: "角色权限与业务闭环", href: "../modules/wspt/wspt-15.html" },
-                { key: "wspt-16", label: "配置事项与数据规范", href: "../modules/wspt/wspt-16.html" }
+                { key: "wspt-16", label: "配置事项与数据规范", href: "../modules/wspt/wspt-16.html" },
+                { key: "wspt-24", label: "业务配置角色权限与验收", href: "../modules/wspt/wspt-24.html" }
               ]
             },
             {
@@ -1108,7 +1124,8 @@
           "wswxzj-08", "wswxzj-09", "wswxzj-11", "wswxzj-12", "wswxzj-13", "wswxzj-14", "wswxzj-21",
           "wswxzj-22", "wswxzj-31", "wswxzj-32", "wswxzj-33", "wszjjg-02", "wszjjg-03", "wszjjg-04",
           "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14", "wszjjg-15", "wszjjg-31", "wszjjg-32"
-        , "wschcg-24", "wschcg-25", "wschcg-26", "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-27", "wsszjjg-29", "wschcg-28", "wsszjjg-30", "wsszjjg-35"],
+        , "wschcg-24", "wschcg-25", "wschcg-26", "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-27", "wsszjjg-29", "wschcg-28", "wsszjjg-30", "wsszjjg-35",
+          "wspt-18", "wspt-19", "wspt-20", "wspt-21", "wspt-22", "wspt-23", "wspt-24"],
         ops: [
           "wsswb-01", "wscwb-01", "wszwb-01", "wsdwb-01", "wschcg-01", "wsdagl-01", "wsdagl-02", "wsztxy-01",
           "wsszjjg-01", "wszjjg-01", "wswxzj-01", "wsjcfx-02", "wsjcfx-03", "wsjcfx-04", "wsjcfx-05",

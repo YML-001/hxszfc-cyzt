@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>配置版本与审核台账 · 应用支撑平台</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="../../assets/css/app.css">
+<link rel="stylesheet" href="../../assets/css/spec.css">
+<style>
+  /* 状态机泳道 */
+  .sm { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+  .sm .s { border: 1px solid var(--border); border-radius: var(--radius); background: #fff; padding: 10px 12px; }
+  .sm .s .n { font-size: 13px; font-weight: 700; color: var(--text-1); margin-bottom: 5px; }
+  .sm .s .d { font-size: 11.5px; color: var(--text-3); line-height: 1.7; }
+  .sm .s.doing { border-left: 3px solid var(--primary); }
+  .sm .s.wait  { border-left: 3px solid var(--lv-orange); }
+  .sm .s.done  { border-left: 3px solid var(--success); }
+  .sm .s.dead  { border-left: 3px solid var(--text-3); background: var(--bg-soft); }
+  /* 分岗演示 */
+  .post { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 900px) { .post { grid-template-columns: 1fr; } }
+  .post .p { border: 1px solid var(--border); border-radius: var(--radius); background: #fff; }
+  .post .p .h { padding: 9px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .post .p .h .n { font-size: 13px; font-weight: 700; color: var(--text-1); }
+  .post .p .b { padding: 10px 12px; }
+  .btn.is-lock { opacity: .45; cursor: not-allowed; }
+</style>
+</head>
+<body data-role="admin" data-active="wspt-23">
+<main class="app-main">
+  <div class="page-head">
+    <div class="ph-l">
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house bc-home"></i> 应用支撑平台
+        <span class="sep">/</span> 业务配置管理
+        <span class="sep">/</span> <span class="cur">配置版本与审核台账</span>
+      </div>
+      <div class="page-title">配置版本与审核台账 <span class="badge blue">五类配置共用的发布骨架</span></div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="SP.todo('已扫描全部在办版本：14 个草稿中 11 个已完成试算并经审核发布岗确认，3 个未试算，发布按钮已置灰（R-A3、R-L5）')"><i class="fa-solid fa-list-check"></i> 核查试算完成度</button>
+      <button class="btn" onclick="SP.exportAsync('配置版本与变更流水')"><i class="fa-solid fa-download"></i> 导出流水</button>
+      <button class="btn btn-primary" onclick="SP.tab('sm')"><i class="fa-solid fa-diagram-project"></i> 看状态机</button>
+    </div>
+  </div>
+
+  <div class="alert alert-danger">
+    <i class="fa-solid fa-circle-exclamation"></i>
+    <div><b>R-H1 / R-L1</b>：<b>配置提交岗与审核发布岗必须分人</b>，同一账号对同一配置版本
+      <b>提交后审核与发布按钮置灰并提示原因</b>。
+      <b>R-A3</b>：配置发布前<b>必须试算列出受影响端、场景与在办业务，未试算不得发布</b>。
+      <b>R-H5</b>：<b>待审核超过配置时限的标记超期并通知审核发布岗，不得自动发布</b>。</div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="s-icon blue"><i class="fa-solid fa-file-pen"></i></div><div>
+      <div class="s-label">草稿</div><div class="s-value">14</div><div class="s-trend text-2">3 个未试算</div></div></div>
+    <div class="stat-card dc-alarm"><div class="s-icon orange"><i class="fa-solid fa-clock"></i></div><div>
+      <div class="s-label">待审核</div><div class="s-value">6</div><div class="s-trend">超期 2 已通知</div></div></div>
+    <div class="stat-card"><div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div><div>
+      <div class="s-label">已发布现行版本</div><div class="s-value">64</div><div class="s-trend text-success">五类配置合计</div></div></div>
+    <div class="stat-card dc-alarm"><div class="s-icon red"><i class="fa-solid fa-snowflake"></i></div><div>
+      <div class="s-label">冻结</div><div class="s-value">2</div><div class="s-trend">禁止发布</div></div></div>
+    <div class="stat-card"><div class="s-icon purple"><i class="fa-solid fa-rotate-left"></i></div><div>
+      <div class="s-label">本年回滚</div><div class="s-value">3</div><div class="s-trend text-2">不可逆 · 留痕</div></div></div>
+  </div>
+
+  <div class="card" data-tabs-scope>
+    <div class="tabs">
+      <div class="tab active" data-tab="led">版本台账</div>
+      <div class="tab" data-tab="sm">配置版本状态机</div>
+      <div class="tab" data-tab="post">分岗与回避 <span class="badge red">R-L</span></div>
+      <div class="tab" data-tab="calc">试算影响面</div>
+      <div class="tab" data-tab="flow">六条业务流程</div>
+      <div class="tab" data-tab="loop">闭环主线</div>
+    </div>
+
+    <!-- ===================== 版本台账 ===================== -->
+    <div class="tab-panel active" data-panel="led">
+      <div class="card-body">
+        <div class="filter-bar">
+          <div class="filter-item"><label>配置主题</label>
+            <select id="fTheme" onchange="renderLed()">
+              <option value="">全部</option><option>楼盘表状态配置</option><option>微信小程序配置</option>
+              <option>微信公众号配置</option><option>门户网站配置</option><option>消息模板与提醒规则</option>
+            </select></div>
+          <div class="filter-item"><label>状态</label>
+            <select id="fSt" onchange="renderLed()">
+              <option value="">全部</option><option>草稿</option><option>待审核</option><option>挂起待审</option>
+              <option>待补正</option><option>已退回</option><option>已发布</option><option>已停用</option>
+              <option>已回滚</option><option>已作废</option>
+            </select></div>
+          <div class="filter-item"><label>适用区划</label>
+            <select id="fArea" onchange="renderLed()"><option value="">全部</option><option>市本级</option><option>柳江区</option><option>鹿寨县</option></select></div>
+          <div class="filter-actions"><span class="muted" id="lCnt" style="align-self:center"></span></div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>版本号</th><th>配置主题</th><th>变更范围</th><th>提交人</th><th>审核人</th>
+              <th>生效日期</th><th>试算</th><th>状态</th><th>操作</th>
+            </tr></thead>
+            <tbody id="ledBody"></tbody>
+          </table>
+        </div>
+        <p class="hint">
+          <i class="fa-solid fa-circle-info"></i>
+          <b>D-3</b>：配置版本号<b>须含配置对象标识、序号与生效日期，全局唯一且不可重用</b>；
+          <b>D-5</b>：市本级与六个县区的差异化配置<b>须在版本号中标注区划编码</b>。
+          <b>R-A5</b>：<b>同一配置对象同一时刻仅允许一个现行生效版本</b>。
+          <b>R-H2</b>：已提交的版本<b>不允许物理删除</b>，只能退回、补正、作废、停用或回滚。
+        </p>
+      </div>
+    </div>
+
+    <!-- ===================== 状态机 ===================== -->
+    <div class="tab-panel" data-panel="sm">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>五类配置<b>共用同一状态机</b>（10.6 与 13.3 同一套，不另立映射表）。
+            <b>下表未列出的流转一律不允许</b>，<b>已提交的记录不允许物理删除</b>。</div>
+        </div>
+        <div class="sm" id="smBox"></div>
+
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-arrow-right-arrow-left"></i> 合法流转
+            <span class="sub">14 条 · 未列出的一律不允许</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>当前状态</th><th>操作角色</th><th>动作</th><th>目标状态</th><th>必须同时发生的事</th></tr></thead>
+                <tbody id="trBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-arrows-turn-to-dots"></i> 细状态与统一七态映射</div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact sp-map">
+                <thead><tr><th>本章细状态</th><th>统一七态</th><th>说明</th></tr></thead>
+                <tbody id="mapBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-shuffle"></i> 10.7 其他核心对象状态流转</div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>对象</th><th>状态取值</th><th>关键流转与触发事件</th></tr></thead>
+                <tbody id="objBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 分岗 ===================== -->
+    <div class="tab-panel" data-panel="post">
+      <div class="card-body">
+        <div class="alert alert-danger">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <div><b>RO-2</b>：配置提交与配置审核发布<b>必须分岗，同一账号不得对同一配置版本既提交又审核</b>，
+            <b>系统须置灰审核按钮并提示原因</b>。
+            <b>R-L2</b>：两个岗位<b>不得授予同一账号，PC-27 授权保存时校验并拒绝，提示双岗冲突</b>。</div>
+        </div>
+
+        <div class="post">
+          <div class="p">
+            <div class="h"><span class="badge blue">配置提交岗</span><span class="n">韦国强</span></div>
+            <div class="b">
+              <div class="sp-kv">
+                <div class="kv"><span class="k">权限动作</span><span class="v">查看、新增、修改、删除、配置</span></div>
+                <div class="kv"><span class="k">可办环节</span><span class="v">维护草稿、试算、提交、补正后重提、作废</span></div>
+                <div class="kv"><span class="k">不可执行</span><span class="v"><b>审核、发布、停用、回滚</b></span></div>
+              </div>
+              <div class="btn-row" style="margin-top:10px">
+                <button class="btn btn-sm btn-primary" onclick="PMS.toast('已提交版本 STAT-CFG-0046-20260915 进入待审核，已推送审核待办','success')"><i class="fa-solid fa-paper-plane"></i> 提交</button>
+                <button class="btn btn-sm is-lock" onclick="SP.denied('同一账号不得提交并审核同一配置版本（RO-2、R-H1、R-L1）。本版本由您提交，审核与发布按钮已置灰')"><i class="fa-solid fa-check"></i> 审核</button>
+                <button class="btn btn-sm is-lock" onclick="SP.denied('同一账号不得提交并审核同一配置版本。发布须由配置审核发布岗执行')"><i class="fa-solid fa-upload"></i> 发布</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="p">
+            <div class="h"><span class="badge green">配置审核发布岗</span><span class="n">蒙丽华</span></div>
+            <div class="b">
+              <div class="sp-kv">
+                <div class="kv"><span class="k">权限动作</span><span class="v">查看、审核、发布、导出、配置</span></div>
+                <div class="kv"><span class="k">可办环节</span><span class="v">审核通过并发布、退回、补正、挂起、恢复、停用、回滚</span></div>
+                <div class="kv"><span class="k">不可执行</span><span class="v"><b>新增与修改草稿</b></span></div>
+              </div>
+              <div class="btn-row" style="margin-top:10px">
+                <button class="btn btn-sm is-lock" onclick="SP.denied('配置审核发布岗不维护草稿。新增与修改由配置提交岗执行（R-L2 双岗不得授予同一账号）')"><i class="fa-solid fa-plus"></i> 新增草稿</button>
+                <button class="btn btn-sm btn-primary" onclick="doAudit()"><i class="fa-solid fa-check"></i> 审核通过并发布</button>
+                <button class="btn btn-sm" onclick="PMS.toast('已退回并记录退回原因，提交岗可修改后重提（保留退回历史）','success')"><i class="fa-solid fa-rotate-left"></i> 退回</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-user-shield"></i> 12.4 分岗与回避规则 R-L1 ~ R-L5</div>
+          <div class="sp-b">
+            <div class="sp-check">
+              <div class="ck block"><i class="fa-solid fa-ban"></i><div class="cb">
+                <div class="ct">R-L1 · 同一账号不得提交并审核同一配置版本</div>
+                <div class="cd">已执行提交的，<b>审核与发布按钮置灰</b>并提示「同一账号不得提交并审核同一配置版本」。</div></div>
+                <div class="co"><button class="btn btn-sm" onclick="SP.denied('同一账号不得提交并审核同一配置版本')">试点</button></div></div>
+              <div class="ck block"><i class="fa-solid fa-user-xmark"></i><div class="cb">
+                <div class="ct">R-L2 · 双岗不得授予同一账号</div>
+                <div class="cd"><b>PC-27 授权保存时校验并拒绝</b>，提示双岗冲突。</div></div>
+                <div class="co"><button class="btn btn-sm" onclick="SP.denied('保存被拒绝：配置提交岗与配置审核发布岗不得授予同一账号（R-L2）。请拆分为两个账号')">试点</button></div></div>
+              <div class="ck block"><i class="fa-solid fa-map-location-dot"></i><div class="cb">
+                <div class="ct">R-L3 · 县区账号跨区划编辑被拦截</div>
+                <div class="cd">打开非本区县配置编辑页时系统拦截，提示数据范围不符，<b>不显示其他区县配置内容</b>。</div></div>
+                <div class="co"><button class="btn btn-sm" onclick="SP.denied('数据范围不符：您的账号锁定柳江区，无法打开鹿寨县的配置编辑页（R-L3、R-J2）。其他区县配置内容不予显示')">试点</button></div></div>
+              <div class="ck block"><i class="fa-solid fa-user-shield"></i><div class="cb">
+                <div class="ct">R-L4 · 高敏操作未完成双人授权</div>
+                <div class="cd"><b>发布按钮置灰并提示尚缺审核人</b>。</div></div>
+                <div class="co"><button class="btn btn-sm" onclick="SP.denied('本操作属高敏操作，须双人授权。当前尚缺审核人确认，发布按钮已置灰（R-L4、12.3）')">试点</button></div></div>
+              <div class="ck block"><i class="fa-solid fa-calculator"></i><div class="cb">
+                <div class="ct">R-L5 · 试算未完成或未经确认</div>
+                <div class="cd"><b>发布按钮置灰并提示须先完成试算确认</b>。</div></div>
+                <div class="co"><button class="btn btn-sm" onclick="SP.denied('本版本尚未完成试算，或试算结果未经审核发布岗确认，发布按钮已置灰（R-A3、R-L5、R-K9）')">试点</button></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 试算 ===================== -->
+    <div class="tab-panel" data-panel="calc">
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div><b>R-A3</b>：配置发布前<b>必须试算列出受影响端、场景与在办业务，未试算不得发布</b>。
+            <b>R-K9</b>：<b>比对结果须经审核发布岗确认，未确认不得发布</b>。
+            <b>试算失败的版本转入冻结清单禁止发布</b>（8.3⑦）。</div>
+        </div>
+        <div class="sp-block">
+          <div class="sp-h"><i class="fa-solid fa-calculator"></i> 试算结果 · STAT-CFG-0046-20260915
+            <span class="sub">楼盘表状态配置 · 新增状态项与调整派生优先级</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>受影响对象</th><th>类型</th><th>影响说明</th><th class="num">数量</th></tr></thead>
+                <tbody id="calcBody"></tbody>
+              </table>
+            </div>
+            <div class="btn-row" style="padding:9px 12px">
+              <button class="btn btn-sm" onclick="SP.exportAsync('试算影响清单')"><i class="fa-solid fa-download"></i> 导出影响清单</button>
+              <button class="btn btn-sm btn-primary" onclick="SP.dual('确认试算结果','蒙丽华',function(){PMS.toast('审核发布岗已确认试算结果，本版本可进入发布环节（R-K9、R-L5）','success')})"><i class="fa-solid fa-check"></i> 审核发布岗确认</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-snowflake"></i> 冻结清单
+            <span class="sub">试算失败或核查冲突 · 禁止发布</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>版本号</th><th>配置主题</th><th>冻结原因</th><th>冻结时间</th><th>操作</th></tr></thead>
+                <tbody>
+                  <tr class="row-bad"><td><code>SC-CFG-0042-20260910</code></td><td>楼盘表状态配置</td>
+                    <td class="cell-lg"><b>对外场景含未公开状态项</b>：SC-03 所选状态项中「资金监管中」未标注对外公开</td>
+                    <td>2026-08-30 16:22</td>
+                    <td><span class="link" onclick="location.href='wspt-18.html?tab=scene'">去修正</span></td></tr>
+                  <tr class="row-bad"><td><code>PRIO-CFG-0018-20260905</code></td><td>楼盘表状态配置</td>
+                    <td class="cell-lg"><b>试算失败</b>：限制类与交易过程类档位存在 3 个状态项重叠，派生结果不唯一</td>
+                    <td>2026-08-29 11:04</td>
+                    <td><span class="link" onclick="location.href='wspt-18.html?tab=prio'">去修正</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="btn-row" style="padding:9px 12px">
+              <button class="btn btn-sm" onclick="SP.denied('冻结状态不得直接置为已发布。解冻后须重新走提交与审核流程（11.5）')"><i class="fa-solid fa-upload"></i> 演示直接发布拦截</button>
+              <button class="btn btn-sm" onclick="SP.todo('冲突已消除，版本已解冻并退回草稿状态。解冻后须重新提交并经分岗审核，不得由冻结直接置为已发布')"><i class="fa-solid fa-fire"></i> 解冻</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 流程 ===================== -->
+    <div class="tab-panel" data-panel="flow">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>四章给出<b>主流程与流程 A / B / C</b>，十三章由<b>流程 D / E / F</b> 补充关键校验点、
+            必须自动完成的动作与断点。六条流程<b>共用同一状态机与同一套分岗规则</b>。</div>
+        </div>
+        <div class="sp-tw">
+          <table class="data-table">
+            <thead><tr>
+              <th>流程</th><th>适用配置</th><th>关键校验点 · 必须自动完成 · 易出现的断点</th>
+            </tr></thead>
+            <tbody id="flowBody"></tbody>
+          </table>
+        </div>
+
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-route"></i> 配置管理全生命周期主流程
+            <span class="sub">四章图 1</span></div>
+          <div class="sp-b">
+            <div class="sp-chain">
+              <div class="cn ok">
+                <div class="ch"><span class="ct">配置需求登记</span><span class="cx">确定配置主题与范围</span></div>
+                <div class="cm"><span><b>不产生对申请人的办件</b>，事项编码与承诺时限由事项配置侧板块维护</span></div></div>
+              <div class="cn ok">
+                <div class="ch"><span class="ct">配置编辑（草稿）</span><span class="cx">配置提交岗</span></div>
+                <div class="cm"><span>生成配置版本号，记录创建人与时间</span></div></div>
+              <div class="cn ok">
+                <div class="ch"><span class="ct">试算影响面</span><span class="cx">列出受影响端与场景</span></div>
+                <div class="cm"><span><b>未试算不得发布</b>（R-A3）；试算失败转入冻结清单</span></div></div>
+              <div class="cn cur">
+                <div class="ch"><span class="ct">提交审核</span><span class="cx">校验分岗与必填</span></div>
+                <div class="cm"><span>审核判定四向：<b>通过 · 不通过 · 挂起 · 不予受理</b>；补正须<b>一次性列出全部缺失项</b>（R-H4）</span></div></div>
+              <div class="cn ok">
+                <div class="ch"><span class="ct">发布生效</span><span class="cx">写入生效日期</span></div>
+                <div class="cm"><span>向消费方推送配置变更；<b>未到生效日期的版本不得被取用</b>（R-A4）</span></div></div>
+              <div class="cn ok">
+                <div class="ch"><span class="ct">运行与消费</span><span class="cx">对端只读取用</span></div>
+                <div class="cm"><span>状态服务、渠道与门户按已发布配置执行</span></div></div>
+              <div class="cn fail">
+                <div class="ch"><span class="ct">变更判定</span><span class="cx">停用 · 回滚 · 新版本</span></div>
+                <div class="cm"><span><b>停用与回滚均不可逆</b>；纠错须新建版本或执行回滚（R-H3）</span></div></div>
+            </div>
+            <p class="hint">
+              <i class="fa-solid fa-triangle-exclamation" style="color:var(--lv-orange)"></i>
+              <b>超期</b>：待审核超过配置时限的，<b>系统标记超期并通知审核发布岗，不自动发布</b>（R-H5）。
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 闭环主线 ===================== -->
+    <div class="tab-panel" data-panel="loop">
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>内部闭环指<b>不依赖尚未建设的其他子系统</b>，仅在本子系统内部办理端与已建成的门户企业端、
+            公示端范围内<b>能完整走完配置编辑、试算、审核、发布与回滚</b>。
+            五章「对其他业务的约束」<b>依赖对端板块，本阶段只以清单形式登记，不纳入闭环验收</b>。</div>
+        </div>
+        <div class="sp-tw">
+          <table class="data-table">
+            <thead><tr>
+              <th>闭环主线</th><th>起点 → 终点</th><th>本阶段是否必须走通</th><th>操作</th>
+            </tr></thead>
+            <tbody id="loopBody"></tbody>
+          </table>
+        </div>
+
+        <div class="sp-block" style="margin-top:12px">
+          <div class="sp-h"><i class="fa-solid fa-link-slash"></i> 对外约束清单
+            <span class="sub">本阶段不纳入闭环验收 · 待对端建成</span></div>
+          <div class="sp-b pad0">
+            <div class="sp-tw">
+              <table class="data-table compact">
+                <thead><tr><th>断点</th><th>依赖板块</th><th>验证状态</th></tr></thead>
+                <tbody id="brkBody"></tbody>
+              </table>
+            </div>
+            <p class="hint" style="padding:9px 12px">
+              <i class="fa-solid fa-circle-info"></i>
+              对端未建成时，闭环<b>以配置台账已发布记录与配置查询接口返回为准</b>；
+              完整的对外约束条款见<span class="link" onclick="location.href='wspt-24.html?tab=ri'">角色权限与验收</span>。
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/spec.js"></script>
+<script>
+var LEDS = [
+  ['STAT-CFG-0046-20260915', '楼盘表状态配置', '新增 2 个状态项并调整派生优先级', '韦国强', '—', '2026-09-15', 1, '待审核', '市本级'],
+  ['SC-CFG-0042-20260910', '楼盘表状态配置', 'SC-03 一房一价展示场景字段调整', '韦国强', '—', '2026-09-10', 0, '草稿', '市本级'],
+  ['PRIO-CFG-0018-20260905', '楼盘表状态配置', '四档优先级区间与档内权重', '韦国强', '—', '2026-09-05', 0, '草稿', '市本级'],
+  ['COLOR-CFG-0031-20260901', '楼盘表状态配置', '16 个状态项着色与图例', '韦国强', '蒙丽华', '2026-09-01', 1, '已发布', '市本级'],
+  ['WX-CFG-0024-20260910', '微信小程序配置', '九宫格入口新增 2 项、下线 2 项', '李慧', '—', '2026-09-10', 1, '待审核', '市本级'],
+  ['WX-VER-0012-20260901', '微信小程序配置', '小程序 v2.5.0 版本发布与灰度', '李慧', '—', '2026-09-01', 1, '挂起待审', '市本级'],
+  ['WX-QR-0018-20260828', '微信小程序配置', '小程序码 2 个失效入口下线', '李慧', '蒙丽华', '2026-08-28', 1, '已发布', '市本级'],
+  ['GZH-KW-0036-20260908', '微信公众号配置', '关键词自动回复新增 4 条', '李慧', '—', '2026-09-08', 1, '待补正', '市本级'],
+  ['GZH-PUSH-0014-20260902', '微信公众号配置', '推送人群与频次上限调整', '李慧', '蒙丽华', '2026-09-02', 1, '已发布', '市本级'],
+  ['PORTAL-COL-0028-20260912', '门户网站配置', '一级栏目名称与顺序调整', '覃永明', '—', '2026-09-12', 1, '待审核', '市本级'],
+  ['PORTAL-GATE-0016-20260906', '门户网站配置', '未登录浏览范围与实名门槛', '覃永明', '—', '2026-09-06', 0, '草稿', '市本级'],
+  ['PORTAL-CH-0009-20260903-450221', '门户网站配置', '柳江区频道栏目差异', '柳江区管理员', '—', '2026-09-03', 1, '已退回', '柳江区'],
+  ['MSG-TPL-0052-20260914', '消息模板与提醒规则', '退件补正三通道模板变量对齐', '韦国强', '—', '2026-09-14', 1, '待审核', '市本级'],
+  ['MSG-REM-0021-20260907', '消息模板与提醒规则', '超期提醒规则 8 条', '韦国强', '蒙丽华', '2026-09-07', 1, '已发布', '市本级'],
+  ['MSG-SMS-0033-20260904-450222', '消息模板与提醒规则', '鹿寨县短信模板本级差异', '鹿寨县管理员', '—', '2026-09-04', 1, '待审核', '鹿寨县'],
+  ['MSG-TPL-0048-20260820', '消息模板与提醒规则', '缴款提醒模板文案（旧版）', '韦国强', '蒙丽华', '2026-08-20', 1, '已停用', '市本级'],
+  ['PORTAL-COL-0024-20260815', '门户网站配置', '一级栏目顺序（旧版）', '覃永明', '蒙丽华', '2026-08-15', 1, '已回滚', '市本级'],
+  ['WX-CFG-0020-20260810', '微信小程序配置', '九宫格入口调整（已放弃）', '李慧', '—', '—', 0, '已作废', '市本级']
+];
+
+var SMS = [
+  ['doing', '草稿', '生成版本号与创建流水；可提交、可作废'],
+  ['doing', '待审核', '已完成试算与分岗校验，审核待办已生成'],
+  ['doing', '挂起待审', '记录挂起原因与预计恢复时间，可恢复至待审核'],
+  ['wait', '待补正', '一次性列出全部补正项，提交补正后回待审核'],
+  ['wait', '已退回', '记录退回原因，可修改后重提或作废'],
+  ['done', '已发布', '写入生效日期并向消费方推送；<b>终态，可停用或回滚</b>'],
+  ['dead', '已停用', '记录停用日期，消费方停止取用，<b>不可逆</b>'],
+  ['dead', '已回滚', '现行指针切回上一生效版本，<b>不可逆</b>'],
+  ['dead', '已作废', '记录作废原因，<b>不可逆</b>']
+];
+
+var TRS = [
+  ['（无）', '配置提交岗', '新增', '草稿', '生成版本号与创建流水'],
+  ['草稿', '配置提交岗', '提交', '待审核', '<b>分岗与必填校验通过，试算完成</b>，生成审核待办'],
+  ['草稿', '配置提交岗', '作废', '已作废', '记录作废原因，<b>不可逆</b>'],
+  ['待审核', '配置审核发布岗', '审核通过并发布', '已发布', '写入生效日期，<b>向消费方推送配置变更</b>'],
+  ['待审核', '配置审核发布岗', '退回', '已退回', '记录退回原因'],
+  ['待审核', '配置审核发布岗', '补正', '待补正', '<b>一次性列出全部补正项</b>'],
+  ['待审核', '配置审核发布岗', '挂起', '挂起待审', '记录挂起原因与预计恢复时间'],
+  ['挂起待审', '配置审核发布岗', '恢复', '待审核', '清除挂起标记并记录恢复时间'],
+  ['待补正', '配置提交岗', '提交补正', '待审核', '清除补正标记，<b>保留补正历史</b>'],
+  ['已退回', '配置提交岗', '修改后提交', '待审核', '<b>保留退回历史</b>'],
+  ['已退回', '配置提交岗', '作废', '已作废', '记录作废原因，不可逆'],
+  ['已发布', '配置审核发布岗', '停用', '已停用', '记录停用日期，<b>消费方停止取用，不可逆</b>'],
+  ['已发布', '配置审核发布岗', '回滚', '已回滚', '<b>现行指针切回上一生效版本，不可逆</b>'],
+  ['已发布', '配置提交岗', '新建下一版本', '草稿', '<b>原已发布版本保持只读</b>']
+];
+
+var MAPS = [
+  ['草稿', '在办', '尚未提交'],
+  ['待审核', '在办', '已提交待审核发布岗处理'],
+  ['挂起待审', '在办', '暂缓审核，可恢复'],
+  ['待补正', '待补正', '已一次性告知全部缺失项'],
+  ['已退回', '已退回', '可修改后重提或作废'],
+  ['已发布', '已办结', '现行生效版本'],
+  ['已停用', '已作废', '不可逆'],
+  ['已回滚', '已作废', '不可逆'],
+  ['已作废', '已作废', '不可逆']
+];
+
+var OBJS = [
+  ['状态项', '未登记、已登记未配置、已配置未发布、已发布、已停用',
+   '登记审定通过 → 已登记未配置；配置保存 → 已配置未发布；发布 → 已发布；<b>停用发布 → 已停用（不可逆）</b>'],
+  ['展示场景配置', '草稿、已发布、已回滚',
+   '发布 → 已发布；<b>回滚 → 已回滚（不可逆）</b>，现行指针切回上一版本'],
+  ['小程序版本', '待提交、审核中、已发布、已回滚',
+   '提交 → 审核中；<b>平台审核通过并发布</b> → 已发布；回滚 → 已回滚（不可逆）'],
+  ['公众号模板消息', '未发布、已发布、已停用',
+   '审核发布 → 已发布；<b>停用 → 已停用（停用后不得推送）</b>'],
+  ['通知与短信模板', '未发布、已发布、已停用',
+   '审核发布 → 已发布；<b>停用 → 已停用（停用后 PC-34 不得按该模板发送）</b>'],
+  ['门户内容', '未发布、已发布、已下架',
+   '审核发布 → 已发布；<b>下架 → 已下架（不可逆，需新版本重发）</b>'],
+  ['关联平台链接', '有效、失效、已下线',
+   '检测失败 → 失效；<b>自动下线 → 已下线</b>；修复并发布 → 有效']
+];
+
+var CALCS = [
+  ['楼盘表状态服务', '消费端', '按新清单受理置位，2 个新增状态项开始受理写入', 2],
+  ['PC-08 商品房交易管理', '展示端', '销控看板与选房场景着色随之变化', 2],
+  ['PC-24 综合驾驶舱与房产一张图', '展示端', '监测场景汇总数口径变化', 1],
+  ['PT-02 房源超市', '展示端', '一房一价与房源展示<b>不受影响</b>（新增项未标对外公开）', 0],
+  ['展示场景配置', '关联配置', 'SC-01 销控看板、SC-02 选房需同步调整可选状态项范围', 2],
+  ['在办交易类业务', '在办业务', '<b>本次调整不改变已成立状态实例</b>，仅影响新置位请求', 486],
+  ['已固化统计快照', '历史数据', '<b>不回改</b>历史状态流水与已固化统计快照（R-B4）', 0]
+];
+
+var FLOWS = [
+  ['流程 A · 楼盘表状态模型配置发布', '状态项清单、派生优先级与互斥、着色与图例、展示场景',
+   '<b>校验登记审定，无审定即拦截</b>；试算受影响板块', '生成版本号、试算影响清单、状态服务与展示接口切换新配置',
+   '各责任板块状态项名称待登记审定后回填'],
+  ['流程 B · 渠道与消息配置发布', '小程序菜单与版本、小程序码、灰度、关键词回复、微网站、推送频次、消息模板与提醒规则',
+   '<b>校验入口挂接的事项是否已发布</b>；模板变量与业务场景是否一致', '生成小程序码与场景值、渠道生效并留痕',
+   '<b>不予受理</b>：入口挂接未发布或已停办事项、模板变量与场景不一致，提交时拦截并保持草稿'],
+  ['流程 C · 门户网站配置与内容发布', '首页栏目与频道、门户分设、角色渲染、一源发布、免登、内容审核、门槛、链接、脱敏口径',
+   '<b>校验脱敏口径与未登录浏览范围</b>；一级栏目不得增删', '多端一源生效、访问门槛与脱敏同步生效',
+   '缺口径或增删栏目<b>拦截并提示，保持草稿</b>'],
+  ['流程 D · 小程序版本发布与入口挂接', '小程序版本、入口与场景值',
+   '挂接事项须已发布未停办；<b>码与路径场景值一一对应</b>；提交审核分岗', '生成小程序码与场景值、登记平台审核与发布结果、灰度范围记录',
+   '事项目录来自 PC-29 未建成时以台账占位；<b>平台侧审核时长不可控，不纳入时限考核</b>'],
+  ['流程 E · 门户内容发布与访问门槛生效', '门户栏目与内容、门槛与脱敏',
+   '<b>口径标注文案与脱敏规则必须齐备</b>；一级栏目不得增删；浏览范围与实名清单<b>成对配置</b>', '门户与移动端同源同步、访问门槛与脱敏同步生效、发布与下架留痕',
+   '未登录浏览范围与实名门槛口径<b>待主管部门审定</b>，审定前按最小可见范围实现'],
+  ['流程 F · 消息模板与提醒规则发布', '通知与短信模板、提醒规则、业务短信场景',
+   '<b>三通道同一业务场景变量必须一致</b>；提醒规则须与流程时限口径同源；县区未配置继承市本级', '模板查询接口切换、向 PC-34 提供已发布模板与提醒规则、送达状态回写后更新到达率',
+   'PC-34 通道能力未建成时<b>只验收模板台账与查询接口</b>，实际发送与回执登记为待验证']
+];
+
+var LOOPS = [
+  ['主线甲 楼盘表状态配置闭环', '提交岗维护状态项清单与派生规则草稿',
+   '状态服务按新配置校验与派生，PC-08 销控看板与 PT-02 房源页显示新着色与图例', 1,
+   '展示端未建成时以<b>配置台账已发布记录与查询接口返回</b>为准', 'wspt-18.html'],
+  ['主线乙 微信小程序配置闭环', '提交岗维护标签栏、九宫格与小程序码草稿',
+   '小程序端显示新菜单与入口，扫码可进入对应页面', 1,
+   '小程序端未上线时以<b>渠道配置台账与配置查询接口返回</b>为准', 'wspt-19.html'],
+  ['主线丙 微信公众号与消息推送配置闭环', '提交岗维护关键词回复、微网站内容、推送频次与消息模板草稿',
+   '公众号回复新内容、微网站栏目更新、消息按已发布模板与频次送达并可查到达率', 1,
+   '公众号未接入或 PC-34 未建成时以<b>渠道配置台账、模板查询接口与推送拦截日志</b>为准', 'wspt-20.html'],
+  ['主线丁 门户网站配置闭环', '提交岗维护栏目、内容、浏览范围与脱敏口径草稿',
+   '门户前台显示新栏目与内容，未登录浏览范围与脱敏口径生效', 1, '—', 'wspt-21.html']
+];
+
+var BRKS = [
+  ['状态置位与派生的实际执行', '楼盘表状态服务'],
+  ['销控看板与选房场景实际渲染', 'PC-08 商品房交易管理'],
+  ['一房一价与房源展示实际渲染', 'PT-02 房源超市'],
+  ['驾驶舱与一张图实际渲染', 'PC-24 综合驾驶舱与房产一张图'],
+  ['入口挂接所需的已发布事项目录', 'PC-29 业务资源与事项配置'],
+  ['短信与模板消息实际发送、回执与到达率', 'PC-34 统一消息服务平台'],
+  ['角色与权限下发', 'PC-27 统一身份认证与权限授权平台'],
+  ['选房占用时长、限售年限、面积差异阈值', 'PC-32 一城一策政策参数配置']
+];
+
+var ST_CLS = {
+  '草稿': 'init', '待审核': 'doing', '挂起待审': 'doing', '待补正': 'doing',
+  '已退回': 'bad', '已发布': 'done', '已停用': 'dead', '已回滚': 'dead', '已作废': 'dead'
+};
+
+function renderLed() {
+  var th = document.getElementById('fTheme').value;
+  var st = document.getElementById('fSt').value;
+  var ar = document.getElementById('fArea').value;
+  var rows = LEDS.filter(function (l) {
+    if (th && l[1] !== th) return false;
+    if (st && l[7] !== st) return false;
+    if (ar && l[8] !== ar) return false;
+    return true;
+  });
+  document.getElementById('lCnt').innerHTML = '共 <b>' + rows.length + '</b> 个版本';
+  document.getElementById('ledBody').innerHTML = rows.map(function (l) {
+    var dead = ['已停用', '已回滚', '已作废'].indexOf(l[7]) >= 0;
+    var warn = ['已退回', '待补正'].indexOf(l[7]) >= 0;
+    return '<tr' + (dead ? ' class="row-off"' : (warn ? ' class="row-warn"' : (l[6] ? '' : ' class="row-bad"'))) + '>'
+      + '<td><code>' + l[0] + '</code></td><td>' + l[1] + '</td>'
+      + '<td class="cell-lg">' + l[2] + '</td><td>' + l[3] + '</td>'
+      + '<td>' + (l[4] === '—' ? '<span class="muted">—</span>' : l[4]) + '</td>'
+      + '<td>' + l[5] + '</td>'
+      + '<td>' + (l[6] ? '<span class="badge green">已试算</span>' : '<span class="badge red">未试算</span>') + '</td>'
+      + '<td><span class="sp-st ' + ST_CLS[l[7]] + '">' + l[7] + '</span></td>'
+      + '<td>' + (l[7] === '待审核'
+          ? '<span class="link" onclick="doAudit()">审核</span>'
+          : (l[7] === '草稿'
+              ? (l[6] ? '<span class="link" onclick="SP.tab(\'calc\')">看试算</span>'
+                      : '<span class="link is-off" onclick="SP.denied(\'本版本尚未试算，发布按钮置灰。配置发布前必须试算列出受影响端、场景与在办业务（R-A3、R-L5）\')">发布</span>')
+              : (l[7] === '已发布'
+                  ? '<span class="link danger" onclick="doRollback(\'' + l[0] + '\')">回滚</span>'
+                  : '<span class="link" onclick="SP.todo(\'已提交的配置版本不允许物理删除，只能退回、补正、作废、停用或回滚（R-H2）。历史版本保留可回溯\')">看流水</span>')))
+      + '</td></tr>';
+  }).join('') || '<tr><td colspan="9" class="muted" style="text-align:center;padding:24px">没有符合条件的版本</td></tr>';
+}
+
+function renderSm() {
+  document.getElementById('smBox').innerHTML = SMS.map(function (s) {
+    return '<div class="s ' + s[0] + '"><div class="n">' + s[1] + '</div><div class="d">' + s[2] + '</div></div>';
+  }).join('');
+  document.getElementById('trBody').innerHTML = TRS.map(function (t) {
+    var dead = ['已停用', '已回滚', '已作废'].indexOf(t[3]) >= 0;
+    return '<tr' + (dead ? ' class="row-off"' : '') + '>'
+      + '<td><span class="sp-st ' + (ST_CLS[t[0]] || 'init') + '">' + t[0] + '</span></td>'
+      + '<td>' + t[1] + '</td><td><b>' + t[2] + '</b></td>'
+      + '<td><span class="sp-st ' + ST_CLS[t[3]] + '">' + t[3] + '</span></td>'
+      + '<td class="cell-lg">' + t[4] + '</td></tr>';
+  }).join('');
+  document.getElementById('mapBody').innerHTML = MAPS.map(function (m) {
+    return '<tr><td><span class="sp-st ' + ST_CLS[m[0]] + '">' + m[0] + '</span></td>'
+      + '<td><b>' + m[1] + '</b></td><td class="cell-lg">' + m[2] + '</td></tr>';
+  }).join('');
+  document.getElementById('objBody').innerHTML = OBJS.map(function (o) {
+    return '<tr><td class="cell-lg"><b>' + o[0] + '</b></td><td class="cell-lg">' + o[1] + '</td>'
+      + '<td class="cell-lg">' + o[2] + '</td></tr>';
+  }).join('');
+}
+
+function renderCalc() {
+  document.getElementById('calcBody').innerHTML = CALCS.map(function (c) {
+    return '<tr' + (c[3] === 0 ? ' class="row-off"' : '') + '>'
+      + '<td class="cell-lg"><b>' + c[0] + '</b></td><td>' + c[1] + '</td>'
+      + '<td class="cell-lg">' + c[2] + '</td>'
+      + '<td class="num">' + (c[3] || '<span class="muted">0</span>') + '</td></tr>';
+  }).join('');
+}
+
+function renderFlow() {
+  document.getElementById('flowBody').innerHTML = FLOWS.map(function (f) {
+    return '<tr><td class="cell-lg"><b>' + f[0] + '</b></td><td class="cell-lg">' + f[1] + '</td>'
+      + '<td class="cell-lg"><div class="sp-kv">'
+      + '<div class="kv"><span class="k">校验点</span><span class="v">' + f[2] + '</span></div>'
+      + '<div class="kv"><span class="k">自动完成</span><span class="v">' + f[3] + '</span></div>'
+      + '<div class="kv"><span class="k">易断点</span><span class="v">' + f[4] + '</span></div>'
+      + '</div></td></tr>';
+  }).join('');
+}
+
+function renderLoop() {
+  document.getElementById('loopBody').innerHTML = LOOPS.map(function (l) {
+    return '<tr><td class="cell-lg"><b>' + l[0] + '</b></td>'
+      + '<td class="cell-lg"><div class="sp-kv">'
+      + '<div class="kv"><span class="k">起点</span><span class="v">' + l[1] + '</span></div>'
+      + '<div class="kv"><span class="k">终点</span><span class="v">' + l[2] + '</span></div></div></td>'
+      + '<td>' + (l[3] ? '<span class="badge green">是</span>' : '<span class="badge gray">否</span>')
+      + (l[4] !== '—' ? '<div class="muted" style="font-size:11.5px;margin-top:3px">' + l[4] + '</div>' : '') + '</td>'
+      + '<td><span class="link" onclick="location.href=\'' + l[5] + '\'">去配置</span></td></tr>';
+  }).join('');
+  document.getElementById('brkBody').innerHTML = BRKS.map(function (b) {
+    return '<tr class="row-warn"><td class="cell-lg">' + b[0] + '</td><td class="cell-lg">' + b[1] + '</td>'
+      + '<td><span class="badge orange">待验证</span></td></tr>';
+  }).join('');
+}
+
+function doAudit() {
+  PMS.confirm({
+    title: '审核通过并发布', message: '确认审核通过并发布本配置版本？',
+    detail: '发布后写入生效日期并向消费方推送配置变更。已发布内容不可修改，纠错须新建版本或执行回滚（R-H3）。未到生效日期的版本不会被取用（R-A4）。',
+    type: 'warning', okText: '审核通过并发布',
+    onOk: function () { PMS.toast('已发布并写入生效日期，配置查询接口已切换；本次操作已写入配置变更流水与平台安全审计', 'success'); }
+  });
+}
+
+function doRollback(v) {
+  SP.dual('配置回滚', '蒙丽华', function () {
+    PMS.toast('已回滚 ' + v + '：现行指针切回上一生效版本，回滚不可逆且历史版本保留可回溯（R-A2、R-H3）', 'success');
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  renderLed(); renderSm(); renderCalc(); renderFlow(); renderLoop();
+  var t = SP.param('tab'); if (t) SP.tab(t);
+});
+</script>
+</body>
+</html>
