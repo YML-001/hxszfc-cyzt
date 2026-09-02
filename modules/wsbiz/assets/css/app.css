@@ -558,22 +558,27 @@ table.data-table {
    最外层（html/body/main）禁止出现滚动条，仅 .table-wrap 可滚
    （由 app.js 给 main 加 .list-layout、给 html/body 加 .list-page）
    ========================================================================== */
-/* 列表页：根节点锁死，杜绝最外层纵向/横向滚动条 */
+/* 列表页：根节点锁死，杜绝最外层纵向/横向滚动条。
+   锁死只针对列表页；工作台、指引、详情等流式页在 iframe 内内容超高时仍需正常滚动，
+   故不能按 body.embedded 一刀切。 */
 html.list-page,
 html.list-page body,
 html:has(.app-main.list-layout),
-html:has(.app-main.list-layout) body,
-html:has(body.embedded),
-body.embedded {
+html:has(.app-main.list-layout) body {
   height: 100%;
   max-height: 100%;
   overflow: hidden !important;
   margin: 0;
 }
+/* 非列表内容页嵌入外壳时：body 承担滚动 */
+body.embedded { margin: 0; }
 .app-main.list-layout {
   display: flex; flex-direction: column;
   box-sizing: border-box;
-  overflow: hidden !important;
+  /* 纵向留兜底滚动：子项能撑满高度时不出现滚动条（真列表页行为不变），
+     子项为流式内容撑不满/超高时由本层滚动，避免内容被裁死 */
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
   /* 覆盖全局 min-height:100vh，避免把外层撑出滚动条 */
   min-height: 0 !important;
   /* 独立打开：按可视视口高度计算（dvh 优先） */
@@ -624,7 +629,8 @@ body.embedded {
 
 /* 任意 list-card：内部纵向分布，仅表格区滚动；分页始终在最底 */
 .card.list-card {
-  display: flex; flex-direction: column; overflow: hidden;
+  display: flex; flex-direction: column;
+  overflow-x: hidden; overflow-y: auto;
 }
 .card.list-card > .filter-bar,
 .card.list-card > .tabs,
@@ -651,10 +657,13 @@ body.embedded {
 
 /* Tab 内嵌列表：面板与 card-body 同样撑满，仅表格滚动 */
 .card.list-card > .tab-panel.active {
-  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+  /* 页签内没有表格滚动区时（如指引、看板类流式内容），由面板自身滚动 */
+  overflow-x: hidden; overflow-y: auto;
 }
 .card.list-card .list-body {
-  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+  overflow-x: hidden; overflow-y: auto;
 }
 .card.list-card .list-body > .filter-bar,
 .card.list-card .list-body > .stat-grid { flex-shrink: 0; }

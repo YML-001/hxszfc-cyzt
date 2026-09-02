@@ -4611,7 +4611,55 @@
       n++;
     });
   }
+  /* 列表页布局把 main 锁成视口高、只让表格区滚动，前提是「整页主体就是这张表」。
+     若页面其实是流式内容（指引、看板等）里顺带放了一张表，锁死会把其余内容裁掉。
+     这里只做结构性判定，不依赖尺寸，避免受首屏字体与异步填充的影响；
+     高度是否够用改由 relaxCrampedList 在布局稳定后复核。 */
+  function shouldUseListLayout(table) {
+    var main = table.closest('main.app-main');
+    if (!main || !table.closest('.card')) return false;
+    /* 页签页：任一页签不含表格滚动区，说明存在流式页签，不整页锁死 */
+    var panels = main.querySelectorAll('.tab-panel');
+    for (var i = 0; i < panels.length; i++) {
+      if (!panels[i].querySelector('.table-wrap > table.data-table')) return false;
+    }
+    return true;
+  }
+
+  /* 切页签、翻页与窗口尺寸变化都会改变表格区高度，故统一走一个防抖的复核入口 */
+  var relaxTimer;
+  function relaxSoon() {
+    clearTimeout(relaxTimer);
+    relaxTimer = setTimeout(relaxCrampedList, 120);
+  }
+
+  /* 布局稳定后复核：表格区实际拿不到可用高度（被上方内容挤没）时撤回列表页布局，
+     让页面回到普通流式滚动；切页签与窗口尺寸变化时会重新判定。 */
+  function relaxCrampedList() {
+    var main = document.querySelector('main.app-main.list-layout');
+    if (!main) return;
+    var cramped = false;
+    /* 只看已渲染的元素：未激活页签内的表格高度为 0，不能当成被挤没 */
+    var shown = function (el) { return el.offsetParent !== null; };
+    main.querySelectorAll('.card.list-card').forEach(function (card) {
+      if (!shown(card)) return;
+      if (card.clientHeight < 120) { cramped = true; return; }
+      card.querySelectorAll('.table-wrap').forEach(function (w) {
+        if (!shown(w)) return;
+        if (w.querySelector('tbody tr') && w.clientHeight < 120) cramped = true;
+      });
+    });
+    if (!cramped) return;
+    main.classList.remove('list-layout');
+    document.documentElement.classList.remove('list-page');
+    document.body.classList.remove('list-page');
+    main.querySelectorAll('.list-card').forEach(function (e) { e.classList.remove('list-card'); });
+    main.querySelectorAll('.list-body').forEach(function (e) { e.classList.remove('list-body'); });
+    main.querySelectorAll('.list-panel').forEach(function (e) { e.classList.remove('list-panel'); });
+  }
+
   function applyListLayout(table) {
+    if (!shouldUseListLayout(table)) return;
     var main = table.closest('main.app-main');
     if (main) {
       main.classList.add('list-layout');
@@ -4621,6 +4669,8 @@
     var card = table.closest('.card'); if (card) card.classList.add('list-card');
     var body = table.closest('.card-body'); if (body) body.classList.add('list-body');
     var panelEl = table.closest('.tab-panel'); if (panelEl) panelEl.classList.add('list-panel');
+    /* 首屏、切页签、翻页与页面自绘都会走到这里，套用后统一复核一次实际高度 */
+    relaxSoon();
   }
   function ensureFoot(table) {
     var wrap = table.parentElement;
@@ -4817,6 +4867,10 @@
     injectLayout();
     initTabs();
     enhanceTables();
+    /* 表格区高度要等字体与异步填充落定才准，故放到布局稳定后复核 */
+    requestAnimationFrame(function () { requestAnimationFrame(relaxSoon); });
+    window.addEventListener('load', relaxSoon);
+    window.addEventListener('resize', relaxSoon);
     populateDicts();
     enhanceUrlUploads(document);
     document.querySelectorAll('.filter-item input[type="month"]').forEach(function (el) {
