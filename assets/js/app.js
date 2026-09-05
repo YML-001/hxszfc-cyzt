@@ -3497,13 +3497,14 @@
   }
 
   /* --- 补丁 I：切换系统弹层。四列卡片网格，卡片宽度按最长子系统名实测，同参考工程 --- */
-  var SYS_GRID_COLS = 4, SYS_GRID_GAP = 14, SYS_CARD_EXTRA = 70, SYS_PANEL_PADDING_X = 64;
+  /* 设计稿 v2：三列、列距 20、卡片 18px 字号；名称最长者决定列宽，右侧留给图标与箭头 */
+  var SYS_GRID_COLS = 3, SYS_GRID_GAP = 20, SYS_CARD_EXTRA = 118, SYS_PANEL_PADDING_X = 60;
 
   function measureSysCardWidth(list) {
     if (!list.length) return 0;
     var ctx = document.createElement('canvas').getContext('2d');
     if (!ctx) return 0;
-    ctx.font = '600 14px "Microsoft YaHei", "PingFang SC", sans-serif';
+    ctx.font = '500 18px "Microsoft YaHei", "PingFang SC", sans-serif';
     var max = 0;
     list.forEach(function (s) { max = Math.max(max, ctx.measureText(s.name).width); });
     return Math.ceil(max) + 8 + SYS_CARD_EXTRA;
@@ -3755,21 +3756,102 @@
   }
 
   function topbarHTML(meta) {
-    /* 补丁 H：品牌区换成上传的市局 logo + 平台名，右接当前子系统胶囊 */
+    /* 设计稿 v2 导航母组件：徽标 + 平台名/端别副标签 + （门户端）胶囊导航 + 当前系统胶囊 + 右侧集群 */
     return '<div class="brand">' +
         '<i class="sidebar-toggle fa-solid fa-bars"></i>' +
-        '<div class="logo"><img src="' + ASSET_BASE + 'img/logo.png" alt="XXXX市住房和城乡建设局"></div>' +
-        '<div class="name">' + SYS_NAME + '</div>' +
-      '</div>' + sysCapsuleHTML() +
+        '<div class="logo"><img src="' + ASSET_BASE + 'img/v2/emblem.png" alt="' + SYS_NAME + '"></div>' +
+        '<div class="name-wrap"><div class="name">' + SYS_NAME + '</div>' +
+          (APP_CONFIG.endName ? '<div class="sub-badge">' + APP_CONFIG.endName + '</div>' : '') +
+        '</div>' +
+      '</div>' + topNavHTML() + sysCapsuleHTML() +
       '<div class="topbar-right">' +
         roleSwitchHTML(CUR_ROLE) +
         '<div class="topbar-icon" title="消息"><i class="fa-solid fa-bell"></i><span class="dot">5</span></div>' +
         '<div class="topbar-icon" title="帮助"><i class="fa-solid fa-circle-question"></i></div>' +
         '<div class="user"><div class="avatar">' + meta.user.charAt(0) + '</div>' +
           '<div class="u-meta"><div class="u-name">' + meta.user + '</div><div class="u-role">' + meta.role + '</div></div>' +
+          '<i class="u-caret fa-solid fa-angle-down"></i>' +
         '</div>' +
         '<a href="' + (APP_CONFIG.portalHref || '../index.html') + '" class="topbar-icon" title="返回门户/退出"><i class="fa-solid fa-right-from-bracket"></i></a>' +
       '</div>';
+  }
+
+  /* 顶栏胶囊导航：由 APP_CONFIG.topNav 驱动（目前只有统一工作门户配置），
+     当前项按 body[data-active] 或当前文件名判定，样式为红色渐变 */
+  function topNavHTML() {
+    var nav = APP_CONFIG.topNav;
+    if (!nav || !nav.length) return '';
+    var file = ((location.pathname.split('/').pop() || '').split('?')[0]) || '';
+    var active = document.body.getAttribute('data-active') || '';
+    return '<nav class="top-nav">' + nav.map(function (n) {
+      var on = (n.keys || []).indexOf(active) >= 0 || (n.href || '').split('/').pop() === file;
+      return '<a class="tn' + (on ? ' active' : '') + '" href="' + n.href + '"><i class="fa-solid ' + n.icon + '"></i><span>' + n.label + '</span></a>';
+    }).join('') + '<a class="tn more" href="javascript:void(0)" title="更多"><i class="fa-solid fa-ellipsis"></i></a></nav>';
+  }
+
+  /* ---------- 页签条：记录本端本系统内最近打开的页面，最多 7 个 ---------- */
+  function tabsKey(mode) { return 'pms.tabs.' + mode + '.' + END + '.' + (CUR_SYS || ''); }
+  function loadTabs(mode) { try { return JSON.parse(sessionStorage.getItem(tabsKey(mode)) || '[]'); } catch (e) { return []; } }
+  function saveTabs(mode, t) { try { sessionStorage.setItem(tabsKey(mode), JSON.stringify(t.slice(-7))); } catch (e) {} }
+  function pushTab(mode, label, href) {
+    if (!label || !href) return loadTabs(mode);
+    var t = loadTabs(mode).filter(function (x) { return x.href !== href; });
+    t.push({ label: label, href: href });
+    saveTabs(mode, t);
+    return t;
+  }
+  function pageTabsHTML(tabs, cur) {
+    return tabs.map(function (t) {
+      return '<div class="pt' + (t.href === cur ? ' active' : '') + '" data-href="' + t.href + '">' +
+        '<span>' + t.label + '</span><i class="x fa-solid fa-xmark" title="关闭"></i></div>';
+    }).join('');
+  }
+  /* mode: 'page' 独立打开的页面 / 'shell' 外壳 iframe。onOpen(href) 负责跳转或换 iframe */
+  function mountPageTabs(mode, label, cur, onOpen) {
+    var bar = document.querySelector('.page-tabs');
+    if (!bar) {
+      bar = document.createElement('nav'); bar.className = 'page-tabs';
+      document.body.insertBefore(bar, document.body.firstChild);
+      bar.addEventListener('click', function (e) {
+        var pt = e.target.closest('.pt'); if (!pt) return;
+        var href = pt.getAttribute('data-href');
+        if (e.target.closest('.x')) {
+          var rest = loadTabs(mode).filter(function (x) { return x.href !== href; });
+          saveTabs(mode, rest);
+          if (pt.classList.contains('active')) {
+            var next = rest[rest.length - 1];
+            if (next) onOpen(next.href); else bar.innerHTML = '';
+          } else pt.remove();
+          return;
+        }
+        if (!pt.classList.contains('active')) onOpen(href);
+      });
+    }
+    bar.innerHTML = pageTabsHTML(pushTab(mode, label, cur), cur);
+    return bar;
+  }
+
+  /* ---------- 版权条 ---------- */
+  function footHTML() {
+    return '<footer class="app-foot">' +
+      '<span class="ft-brand"><img src="' + ASSET_BASE + 'img/v2/emblem.png" alt="">' + SYS_NAME + '</span>' +
+      '<span class="ft-sep"></span><span>技术支持：湖南华信软件股份有限公司</span>' +
+      '<span class="ft-sep"></span><span>Copyright © 2018-2026</span>' +
+    '</footer>';
+  }
+
+  /* ---------- 侧栏底部「收起导航」 ---------- */
+  function mountSideCollapse(sidebar) {
+    var btn = document.createElement('div');
+    btn.className = 'menu-collapse';
+    btn.innerHTML = '<i class="fa-solid fa-angles-left"></i><span>收起导航</span>';
+    sidebar.appendChild(btn);
+    var ex = document.createElement('div');
+    ex.className = 'side-expand'; ex.title = '展开导航';
+    ex.innerHTML = '<i class="fa-solid fa-angles-right"></i>';
+    document.body.appendChild(ex);
+    btn.addEventListener('click', function () { document.body.classList.add('side-collapsed'); });
+    ex.addEventListener('click', function () { document.body.classList.remove('side-collapsed'); });
   }
 
   /* --- 补丁 J：菜单 href 是相对外壳目录（如 government/）写的，业务页面直接打开时
@@ -3900,6 +3982,8 @@
     var file = ((location.pathname.split('/').pop() || '').split('?')[0]) || '';
     var meta = ROLE_META[role];
 
+    var mainEl = document.querySelector('main.app-main');
+    if (mainEl && !document.querySelector('.app-foot')) mainEl.insertAdjacentHTML('afterend', footHTML());
     if (isEmbedded()) {
       body.classList.add('embedded');
     } else {
@@ -3922,6 +4006,11 @@
       fixDepthIn(sidebar);
       fixDepthIn(topbar);
       ensureSingleActive(sidebar, file);
+      mountSideCollapse(sidebar);
+      /* 页签条：标签取当前高亮菜单文字，退回到 <title> 的首段 */
+      var actA = sidebar.querySelector('.menu-sub a.active, .menu-single.active');
+      var tabLabel = actA ? actA.textContent.trim() : (document.title.split(' · ')[0] || '当前页');
+      mountPageTabs('page', tabLabel, location.pathname + location.search, function (href) { location.href = href; });
       /* 补丁 I：独立打开的页面，切换子系统直接跳到该子系统的第一个功能模块 */
       initSysSwitch(topbar, function (code) {
         var m = firstModuleOf(code);
@@ -3973,6 +4062,7 @@
       sidebar.classList.toggle('open');
     });
     initMenuSearch(sidebar);
+    mountSideCollapse(sidebar);
     /* 补丁 I：外壳内切换子系统只换侧栏与右侧内容，不整页刷新 */
     initSysSwitch(topbar, function (code) {
       var m = firstModuleOf(code);
@@ -3994,6 +4084,13 @@
       /* 补丁 I：首页快捷入口会跳到别的业务子系统，侧栏与顶栏胶囊自动跟随 */
       var owner = sysOfKey(key);
       if (owner && owner !== CUR_SYS && sysModulesFor(SYS_INDEX[owner], role).length) applySystem(owner, sidebar);
+      /* 页签条：以 iframe 内页 <title> 首段为标签，点击其他页签只换 iframe */
+      try {
+        var fdoc = frame.contentDocument;
+        var tl = fdoc && fdoc.title ? fdoc.title.split(' · ')[0] : '';
+        var src = frame.getAttribute('src') || '';
+        if (tl && src) mountPageTabs('shell', tl, src, function (href) { loadPage(href); });
+      } catch (e) {}
       if (!key || !highlightMenuByKey(sidebar, key)) {
         if (rel) highlightMenu(sidebar, rel.split('?')[0]);
       }

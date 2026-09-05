@@ -15,6 +15,15 @@
     sysName: '华信数智房产交易一体化平台 · 统一工作门户',
     portalHref: '../../index.html',
     defaultRole: 'biz',
+    /* 顶栏副标签与胶囊导航：按设计稿「导航母组件」，五个入口，当前项红色渐变 */
+    endName: '一网通办 · 统一工作门户',
+    topNav: [
+      { label: '门户',     icon: 'fa-house-flag',        href: 'portal.html',      keys: ['portal'] },
+      { label: '工作台',   icon: 'fa-table-columns',     href: 'task-center.html', keys: ['workbench', 'task-center', 'my-approval', 'my-board'] },
+      { label: '一网通办', icon: 'fa-shield-halved',     href: 'portal-home.html', keys: ['portal-home'] },
+      { label: '业务指引', icon: 'fa-magnifying-glass',  href: 'guide.html',       keys: ['guide', 'news'] },
+      { label: '办件台账', icon: 'fa-book-open',         href: 'case-ledger.html', keys: ['case-ledger'] }
+    ],
 
     /* 角色元信息：本原型把窗口受理、业务审核、科室负责人、事项管理四类岗位
        的功能集中在同一套页面内演示，页面上用 .node-tag 标注职责归属 */
@@ -206,14 +215,19 @@
     return new Array(n + 1).join('../') + '../index.html';
   }
 
+  /* 徽标路径：外壳在 modules/wsbiz/biz/，独立页也在同一层，统一相对 ../../../assets */
+  var EMBLEM = '../../../assets/img/v2/emblem.png';
+
   function topbarHTML(meta) {
+    /* 设计稿 v2 导航母组件：徽标 + 平台名/端别副标签 + 五个胶囊入口 + 「一网通办｜切换系统」胶囊 + 右侧集群 */
     return '<div class="brand">' +
         '<i class="sidebar-toggle fa-solid fa-bars"></i>' +
-        '<div class="logo"><img src="../assets/img/logo.png" alt="XXXX市住房和城乡建设局"></div>' +
-        '<div class="name">' + PLATFORM_NAME + '</div>' +
-      '</div>' +
+        '<div class="logo"><img src="' + EMBLEM + '" alt="' + PLATFORM_NAME + '"></div>' +
+        '<div class="name-wrap"><div class="name">' + PLATFORM_NAME + '</div>' +
+          '<div class="sub-badge">' + (APP_CONFIG.endName || SYS_CUR_NAME) + '</div></div>' +
+      '</div>' + topNavHTML() +
       '<div class="sys-capsule">' +
-        '<div class="sys-cur" title="当前业务子系统"><span>' + (SYS_CUR_NAME || meta && meta.tag || '') + '</span></div>' +
+        '<div class="sys-cur" title="当前端"><span>一网通办</span></div>' +
         '<button type="button" class="sys-switch-btn" aria-label="切换系统" title="切换系统"></button>' +
       '</div>' +
       '<div class="topbar-right">' +
@@ -221,19 +235,140 @@
         '<div class="topbar-icon" title="帮助"><i class="fa-solid fa-circle-question"></i></div>' +
         '<div class="user"><div class="avatar">' + meta.user.charAt(0) + '</div>' +
           '<div class="u-meta"><div class="u-name">' + meta.user + '</div><div class="u-role">' + meta.role + '</div></div>' +
-          '<i class="fa-solid fa-angle-down" style="font-size:12px;opacity:.8"></i></div>' +
+          '<i class="u-caret fa-solid fa-angle-down"></i></div>' +
         '<a href="' + portalHref() + '" class="topbar-icon" title="返回门户/退出"><i class="fa-solid fa-right-from-bracket"></i></a>' +
       '</div>';
+  }
+
+  function topNavHTML() {
+    var nav = APP_CONFIG.topNav || [];
+    var file = ((location.pathname.split('/').pop() || '').split('?')[0]) || '';
+    var active = document.body.getAttribute('data-active') || '';
+    /* 外壳里按 ?page= 判定当前项 */
+    if (document.body.hasAttribute('data-shell')) {
+      try { file = (new URLSearchParams(location.search).get('page') || '').split('?')[0]; } catch (e) {}
+    }
+    return '<nav class="top-nav">' + nav.map(function (n) {
+      var on = (n.keys || []).indexOf(active) >= 0 || n.href === file;
+      return '<a class="tn' + (on ? ' active' : '') + '" href="' + n.href + '" data-page="' + n.href + '">' +
+        '<i class="fa-solid ' + n.icon + '"></i><span>' + n.label + '</span></a>';
+    }).join('') + '<a class="tn more" href="javascript:void(0)" title="更多"><i class="fa-solid fa-ellipsis"></i></a></nav>';
+  }
+  function markTopNav(topbar, file) {
+    var nav = APP_CONFIG.topNav || [];
+    topbar.querySelectorAll('.top-nav .tn[data-page]').forEach(function (a) {
+      var n = nav.filter(function (x) { return x.href === a.getAttribute('data-page'); })[0];
+      var key = (file || '').replace(/\.html$/, '');
+      a.classList.toggle('active', !!n && (n.href === file || (n.keys || []).indexOf(key) >= 0));
+    });
+  }
+
+  /* ---------- 页签条（与主平台 app.js 同一实现） ---------- */
+  function tabsKey(mode) { return 'pms.tabs.' + mode + '.wsbiz'; }
+  function loadTabs(mode) { try { return JSON.parse(sessionStorage.getItem(tabsKey(mode)) || '[]'); } catch (e) { return []; } }
+  function saveTabs(mode, t) { try { sessionStorage.setItem(tabsKey(mode), JSON.stringify(t.slice(-7))); } catch (e) {} }
+  function pushTab(mode, label, href) {
+    if (!label || !href) return loadTabs(mode);
+    var t = loadTabs(mode).filter(function (x) { return x.href !== href; });
+    t.push({ label: label, href: href }); saveTabs(mode, t); return t;
+  }
+  function pageTabsHTML(tabs, cur) {
+    return tabs.map(function (t) {
+      return '<div class="pt' + (t.href === cur ? ' active' : '') + '" data-href="' + t.href + '">' +
+        '<span>' + t.label + '</span><i class="x fa-solid fa-xmark" title="关闭"></i></div>';
+    }).join('');
+  }
+  function mountPageTabs(mode, label, cur, onOpen) {
+    var bar = document.querySelector('.page-tabs');
+    if (!bar) {
+      bar = document.createElement('nav'); bar.className = 'page-tabs';
+      document.body.insertBefore(bar, document.body.firstChild);
+      bar.addEventListener('click', function (e) {
+        var pt = e.target.closest('.pt'); if (!pt) return;
+        var href = pt.getAttribute('data-href');
+        if (e.target.closest('.x')) {
+          var rest = loadTabs(mode).filter(function (x) { return x.href !== href; });
+          saveTabs(mode, rest);
+          if (pt.classList.contains('active')) { var nx = rest[rest.length - 1]; if (nx) onOpen(nx.href); else bar.innerHTML = ''; }
+          else pt.remove();
+          return;
+        }
+        if (!pt.classList.contains('active')) onOpen(href);
+      });
+    }
+    bar.innerHTML = pageTabsHTML(pushTab(mode, label, cur), cur);
+    return bar;
+  }
+
+  /* ---------- 版权条：设计稿门户页脚（徽标 + 技术支持 + 版权） ---------- */
+  function footHTML() {
+    return '<footer class="app-foot">' +
+      '<span class="ft-brand"><img src="' + EMBLEM + '" alt="">' + PLATFORM_NAME + '</span>' +
+      '<span class="ft-sep"></span><span>技术支持：湖南华信软件股份有限公司</span>' +
+      '<span class="ft-sep"></span><span>Copyright © 2018-2026</span></footer>';
+  }
+
+  /* ---------- 侧栏底部「收起导航」 ---------- */
+  function mountSideCollapse(sidebar) {
+    var btn = document.createElement('div');
+    btn.className = 'menu-collapse';
+    btn.innerHTML = '<i class="fa-solid fa-angles-left"></i><span>收起导航</span>';
+    sidebar.appendChild(btn);
+    var ex = document.createElement('div');
+    ex.className = 'side-expand'; ex.title = '展开导航';
+    ex.innerHTML = '<i class="fa-solid fa-angles-right"></i>';
+    document.body.appendChild(ex);
+    btn.addEventListener('click', function () { document.body.classList.add('side-collapsed'); });
+    ex.addEventListener('click', function () { document.body.classList.remove('side-collapsed'); });
+  }
+
+  /* ---------- 切换系统弹层：按设计稿三列卡片，在本端内弹出，选中后跳政务外壳 ---------- */
+  var SWITCH_SYSTEMS = [
+    ['wsbiz', '统一工作门户'], ['wsswb', '新建商品房网签备案管理系统'], ['wscwb', '存量房交易网签备案管理系统'],
+    ['wszwb', '房屋租赁网签备案管理系统'], ['wsdwb', '房屋交易备案管理系统'], ['wschcg', '房屋交易面积信息管理系统'],
+    ['wsdagl', '房屋交易档案管理系统'], ['wsztxy', '从业主体与信用监管系统'], ['wsszjjg', '新建商品房预售资金监管系统'],
+    ['wszjjg', '存量房交易资金监管系统'], ['wswxzj', '住宅专项维修资金管理系统'], ['wsjcfx', '房地产市场监管监测系统'],
+    ['wspt', '应用支撑平台'], ['wssvc', '统一应用服务平台'], ['wsops', '平台运行与运维保障系统']
+  ];
+  function sysPanelHTML() {
+    return '<div class="sys-panel">' +
+      '<div class="sys-panel-head"><div class="sys-panel-title"><h3>切换系统</h3><span class="sys-panel-tag">SWITCH THE SYSTEM</span></div>' +
+      '<button type="button" class="sys-panel-close" aria-label="关闭"><i class="fa-solid fa-xmark"></i></button></div>' +
+      '<div class="sys-panel-body"><div class="sys-grid">' +
+      SWITCH_SYSTEMS.map(function (s) {
+        return '<button type="button" class="sys-card' + (s[0] === 'wsbiz' ? ' current' : '') + '" data-sys="' + s[0] + '" title="' + s[1] + '">' +
+          '<span class="sys-card-row"><span class="sc-name">' + s[1] + '</span><span class="sc-go" aria-hidden="true"></span></span>' +
+          '<span class="sc-jb" aria-hidden="true"></span></button>';
+      }).join('') +
+      '</div></div><div class="sys-panel-foot"></div></div>';
   }
 
   /* 顶栏「切换系统」：本端为独立外壳，跳转到统一业务办理端外壳使用共用的系统切换面板 */
   function initSysSwitch(topbar) {
     var btn = topbar.querySelector('.sys-switch-btn');
     if (!btn) return;
+    var mask = null;
+    function close() { if (mask) mask.classList.remove('open'); btn.classList.remove('open'); }
+    function open() {
+      if (!mask) {
+        mask = document.createElement('div'); mask.className = 'sys-mask';
+        document.body.appendChild(mask);
+        mask.addEventListener('click', function (e) {
+          if (e.target === mask || e.target.closest('.sys-panel-close')) { close(); return; }
+          var card = e.target.closest('.sys-card'); if (!card) return;
+          var code = card.getAttribute('data-sys'); close();
+          if (code === 'wsbiz') return;
+          (window.top || window).location.href = '../../../government/shell.html?sys=' + code;
+        });
+      }
+      mask.innerHTML = sysPanelHTML();
+      mask.classList.add('open'); btn.classList.add('open');
+    }
     btn.addEventListener('click', function (e) {
       e.stopPropagation();
-      (window.top || window).location.href = '../../../government/shell.html';
+      if (mask && mask.classList.contains('open')) close(); else open();
     });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
   }
 
   function sidebarHTML(active, file, role) {
@@ -359,7 +494,13 @@
       initSysSwitch(topbar);
       initMenuSearch(sidebar);
       ensureSingleActive(sidebar, file);
+      mountSideCollapse(sidebar);
+      var actA = sidebar.querySelector('.menu-sub a.active, .menu-single.active');
+      var tabLabel = actA ? actA.textContent.trim() : (document.title.split(' · ')[0] || '当前页');
+      mountPageTabs('page', tabLabel, file, function (href) { location.href = href; });
     }
+    var mainEl = document.querySelector('main.app-main');
+    if (mainEl && !document.querySelector('.app-foot')) mainEl.insertAdjacentHTML('afterend', footHTML());
     renderHome(role, meta);
     applyRolePerms(role);
     mergeActionsIntoFilter();
@@ -404,13 +545,24 @@
     });
     initSysSwitch(topbar);
     initMenuSearch(sidebar);
+    mountSideCollapse(sidebar);
+    /* 顶栏胶囊在外壳内只换 iframe，不整页跳转 */
+    topbar.addEventListener('click', function (e) {
+      var a = e.target.closest('.top-nav .tn[data-page]'); if (!a) return;
+      e.preventDefault();
+      loadPage(a.getAttribute('data-page') + '?role=' + role);
+    });
 
     frame.addEventListener('load', function () {
       var file = '';
       try { file = (frame.contentWindow.location.pathname.split('/').pop() || '').split('?')[0]; } catch (e) {}
       if (file) {
         highlightMenu(sidebar, file);
+        markTopNav(topbar, file);
         try { history.replaceState(null, '', 'shell.html?role=' + role + '&page=' + file); } catch (e) {}
+        var tl = '';
+        try { tl = (frame.contentDocument.title || '').split(' · ')[0]; } catch (e) {}
+        if (tl) mountPageTabs('shell', tl, file, function (href) { loadPage(href + '?role=' + role); });
       }
     });
 
