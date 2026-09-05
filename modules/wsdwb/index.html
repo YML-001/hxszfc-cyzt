@@ -6,423 +6,90 @@
 <title>我的工作台 · 房屋交易备案管理系统</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <link rel="stylesheet" href="../../assets/css/app.css">
+<link rel="stylesheet" href="../../assets/css/wb.css">
 <style>
-  /* 本页特有：首屏红绿灯速查条、待办分组、城区排行行 */
-  .lookup {
-    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 45%, #0891b2 100%);
-    border-radius: var(--radius-lg); padding: 20px 24px; color: #fff; margin-bottom: 12px;
-    box-shadow: 0 6px 20px rgba(29, 78, 216, .22);
-  }
-  .lookup .lk-t { font-size: 17px; font-weight: 700; display: flex; align-items: center; gap: 9px; }
-  .lookup .lk-s { font-size: 13px; opacity: .86; margin-top: 5px; }
-  .lookup .lk-box { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
-  .lookup .lk-box input {
-    flex: 1; min-width: 320px; height: 42px; border: 0; border-radius: var(--radius);
-    padding: 0 16px; font-size: 14.5px; background: rgba(255, 255, 255, .96);
-  }
-  .lookup .lk-box .btn { height: 42px; padding: 0 26px; font-size: 15px; border: 0; }
-  .lookup .lk-recent { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; font-size: 12.5px; }
-  .lookup .lk-recent .rc-label { opacity: .8; }
-  .lookup .lk-recent a {
-    color: #fff; text-decoration: none; background: rgba(255, 255, 255, .16);
-    border-radius: 20px; padding: 3px 12px; display: inline-flex; align-items: center; gap: 6px; transition: .15s;
-  }
-  .lookup .lk-recent a:hover { background: rgba(255, 255, 255, .3); }
-  .lk-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-  .lk-dot.r { background: #f87171; } .lk-dot.o { background: #fbbf24; } .lk-dot.g { background: #4ade80; }
-  /* 6 张指标卡固定 3 列，宽屏 6 列，避免折行残缺 */
-  .stat-grid.g6 { grid-template-columns: repeat(6, 1fr); }
-  @media (max-width: 1400px) { .stat-grid.g6 { grid-template-columns: repeat(3, 1fr); } }
-  @media (max-width: 900px) { .stat-grid.g6 { grid-template-columns: repeat(2, 1fr); } }
-  /* 待办分组 */
-  .td-grp { border-bottom: 1px solid var(--row-line); padding: 10px 0; }
-  .td-grp:last-child { border-bottom: 0; }
-  .td-grp .tg-head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-  .td-grp .tg-head .tg-n { margin-left: auto; color: var(--text-3); font-weight: 400; font-size: 12.5px; }
-  .td-grp .tg-item {
-    display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px;
-    font-size: 13px; color: var(--text-2); text-decoration: none; transition: background .12s;
-  }
-  .td-grp .tg-item:hover { background: var(--primary-light); }
-  .td-grp .tg-item .ti-txt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .td-grp .tg-item .ti-time { font-size: 12px; color: var(--text-3); flex-shrink: 0; }
-  .td-grp .tg-item .ti-time.warn { color: #b45309; font-weight: 600; }
-  .td-grp .tg-item .ti-time.bad { color: var(--danger); font-weight: 600; }
-  .rank-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 13px; }
-  .rank-row .rk-name { width: 62px; flex-shrink: 0; }
-  .rank-row .rk-bar { flex: 1; }
-  .rank-row .rk-bar .progress { display: block; }
-  .rank-row .rk-val { width: 46px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+  /* 本页特有：快速入口第二行只有 2 项，按设计图与第一行同宽左对齐 */
+  #wb-root .q-row .q-item { flex: 0 0 10%; }
 </style>
 </head>
 <body data-role="reviewer" data-active="wsdwb-01">
 <main class="app-main">
-
-  <div class="page-head">
-    <div class="ph-l">
-      <div class="breadcrumb">
-        <i class="fa-solid fa-house bc-home"></i> 房屋交易备案管理系统
-        <span class="sep">/</span> <span class="cur">我的工作台</span>
-      </div>
-      <div class="page-title">我的工作台</div>
-    </div>
-    <div class="page-actions">
-      <select style="width:140px" onchange="PMS.toast('已切换统计口径：' + this.value)">
-        <option>全市</option><option>城中区</option><option>鱼峰区</option>
-        <option>柳南区</option><option>柳北区</option><option>柳江区</option>
-      </select>
-      <button type="button" class="btn" onclick="PMS.toast('《2026 年 7 月抵押与交易限制月报》已生成，正在下载','success')">
-        <i class="fa-solid fa-file-excel"></i> 本月报表
-      </button>
-    </div>
-  </div>
-
-  <div class="lookup">
-    <div class="lk-t"><i class="fa-solid fa-traffic-light"></i> 房屋交易限制速查</div>
-    <div class="lk-s">输入不动产单元号 / 产权证号 / 坐落，一键查询这套房能不能交易。以前要查 8 个系统，现在 1 秒出结论。</div>
-    <div class="lk-box">
-      <input type="text" id="lkInput" placeholder="如 450202001005GB00123F00020017 · 桂(2023)柳州市不动产权第 0086421 号 · 彰泰滨江学府 12-2-1802"
-             onkeydown="if(event.key==='Enter') doLookup()">
-      <button type="button" class="btn btn-primary" onclick="doLookup()"><i class="fa-solid fa-magnifying-glass"></i> 查询限制状态</button>
-    </div>
-    <div class="lk-recent">
-      <span class="rc-label">最近查询</span>
-      <a href="restriction-status.html?code=A"><span class="lk-dot o"></span> 彰泰滨江学府 12-2-1802</a>
-      <a href="restriction-status.html?code=B"><span class="lk-dot r"></span> 万科城 5-2-803</a>
-      <a href="restriction-status.html?code=C"><span class="lk-dot g"></span> 荣和公园大道 3-1-902</a>
-      <a href="restriction-status.html?code=A"><span class="lk-dot o"></span> 荣和公园大道 8-1-1502</a>
-      <a href="restriction-status.html?code=C"><span class="lk-dot g"></span> 保利柳江府 5-2-1201</a>
-    </div>
-  </div>
-
-  <div class="home-hero">
-    <div class="hero-l">
-      <div class="hero-greet">上午好，韦国强</div>
-      <div class="hero-sub">XXXX市房产交易所 · 综合业务岗　|　房屋交易备案管理系统</div>
-      <div class="hero-date"><i class="fa-regular fa-calendar"></i> 2026 年 8 月 1 日 · 星期六</div>
-    </div>
-    <div class="hero-r">
-      <div class="hs"><div class="hs-v">76</div><div class="hs-l">我的待办（件）</div></div>
-      <div class="hs-div"></div>
-      <div class="hs"><div class="hs-v">8,451</div><div class="hs-l">本月限制校验（次）</div></div>
-      <div class="hs-div"></div>
-      <div class="hs"><div class="hs-v">271</div><div class="hs-l">本月拦截（次）</div></div>
-    </div>
-  </div>
-
-  <div class="stat-grid g6">
-    <div class="stat-card" onclick="location.href='mortgage-list.html'" style="cursor:pointer">
-      <div class="s-icon blue"><i class="fa-solid fa-file-contract"></i></div>
-      <div>
-        <div class="s-label">在办抵押备案</div>
-        <div class="s-value">68</div>
-        <div class="s-trend text-success">较昨日 +12</div>
-      </div>
-    </div>
-    <div class="stat-card" onclick="location.href='mortgage-list.html'" style="cursor:pointer">
-      <div class="s-icon cyan"><i class="fa-solid fa-lock"></i></div>
-      <div>
-        <div class="s-label">有效抵押笔数</div>
-        <div class="s-value">12,486</div>
-        <div class="s-trend text-3">涉及房屋 11,203 套</div>
-      </div>
-    </div>
-    <div class="stat-card" onclick="location.href='seal-list.html'" style="cursor:pointer">
-      <div class="s-icon red"><i class="fa-solid fa-gavel"></i></div>
-      <div>
-        <div class="s-label">有效查封套数</div>
-        <div class="s-value">326</div>
-        <div class="s-trend text-danger">其中轮候 47 套</div>
-      </div>
-    </div>
-    <div class="stat-card" onclick="location.href='sale-limit.html'" style="cursor:pointer">
-      <div class="s-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
-      <div>
-        <div class="s-label">限售期内套数</div>
-        <div class="s-value">1,842</div>
-        <div class="s-trend text-3">本月到期解限 96 套</div>
-      </div>
-    </div>
-    <div class="stat-card" onclick="location.href='check-service.html'" style="cursor:pointer">
-      <div class="s-icon purple"><i class="fa-solid fa-shield-halved"></i></div>
-      <div>
-        <div class="s-label">本月限制校验</div>
-        <div class="s-value">8,451</div>
-        <div class="s-trend text-3">日均 273 次</div>
-      </div>
-    </div>
-    <div class="stat-card" onclick="location.href='check-service.html'" style="cursor:pointer">
-      <div class="s-icon green"><i class="fa-solid fa-ban"></i></div>
-      <div>
-        <div class="s-label">校验拦截率</div>
-        <div class="s-value">3.2%</div>
-        <div class="s-trend text-danger">拦截 271 次</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="alert alert-info">
-    <i class="fa-solid fa-shield-halved"></i>
-    <div><b>交易安全底座</b>：商品房网签、存量房网签、租赁备案、抵押备案四类业务在提交前统一调用本系统的限制校验服务，命中限制即拦截并说明原因，响应 ≤ 1 秒。</div>
-  </div>
-
-  <div class="grid-2">
-    <div class="card home-panel">
-      <div class="card-head">
-        <h3>我的待办</h3>
-        <span class="sub">共 76 件 · 临期 20 件 · 超期 3 件</span>
-        <a class="home-more" href="mortgage-list.html">查看全部 <i class="fa-solid fa-angle-right"></i></a>
-      </div>
-      <div class="card-body" style="padding-top:6px">
-        <div class="td-grp">
-          <div class="tg-head"><span class="badge blue">银行待接收联办申请</span><span class="tg-n">9 条</span></div>
-          <a class="tg-item" href="bank-online.html">
-            <span class="ti-txt">LB20260731026 · 建行柳州分行城中支行 · 抵押登记 · 荣和公园大道 8-1-1502</span>
-            <span class="ti-time">今日 09:26</span>
-          </a>
-          <a class="tg-item" href="bank-online.html">
-            <span class="ti-txt">LB20260731024 · 中国银行柳州分行 · 带押过户 · 彰泰滨江学府 12-2-1802</span>
-            <span class="ti-time">今日 08:52</span>
-          </a>
-        </div>
-        <div class="td-grp">
-          <div class="tg-head"><span class="badge cyan">待审抵押备案</span><span class="tg-n">23 条</span></div>
-          <a class="tg-item" href="mortgage-detail.html">
-            <span class="ti-txt">DYBA450200202600186 · 存量房抵押 · 彰泰滨江学府 12-2-1802 · 486,000 元</span>
-            <span class="ti-time">剩 1 天</span>
-          </a>
-          <a class="tg-item" href="mortgage-list.html">
-            <span class="ti-txt">DYBA450200202600184 · 预购商品房抵押 · 华润万象天地 2-1-1802</span>
-            <span class="ti-time">剩 2 天</span>
-          </a>
-        </div>
-        <div class="td-grp">
-          <div class="tg-head"><span class="badge red">待登记查封文书</span><span class="tg-n">3 条</span></div>
-          <a class="tg-item" href="seal-create.html">
-            <span class="ti-txt">柳南法院 (2026)桂0204执1276号 · 万科城 5-2-803 · 被执行人黄**</span>
-            <span class="ti-time bad">今日送达</span>
-          </a>
-          <a class="tg-item" href="seal-create.html">
-            <span class="ti-txt">城中法院 (2026)桂0202执0918号 · 荣和公园大道 12-1-703</span>
-            <span class="ti-time bad">今日送达</span>
-          </a>
-        </div>
-        <div class="td-grp">
-          <div class="tg-head"><span class="badge orange">预告抵押临期转正</span><span class="tg-n">14 条</span></div>
-          <a class="tg-item" href="presale-mortgage.html">
-            <span class="ti-txt">YGDY2026070218 · 荣和公园大道 8-1-1502 · 转正期限 2026-08-12</span>
-            <span class="ti-time warn">剩 12 天</span>
-          </a>
-          <a class="tg-item" href="presale-mortgage.html">
-            <span class="ti-txt">YGDY2026062042 · 华润万象天地 2-1-1802 · 转正期限 2026-08-06</span>
-            <span class="ti-time warn">剩 6 天</span>
-          </a>
-        </div>
-        <div class="td-grp">
-          <div class="tg-head"><span class="badge orange">查封期限届满预警</span><span class="tg-n">6 条</span></div>
-          <a class="tg-item" href="seal-list.html">
-            <span class="ti-txt">CF45020420250088 · 阳光100城市广场 3-1-1602 · 2026-08-20 届满，未续封</span>
-            <span class="ti-time warn">剩 19 天</span>
-          </a>
-        </div>
-        <div class="td-grp">
-          <div class="tg-head"><span class="badge purple">待复核限制校验</span><span class="tg-n">4 条</span></div>
-          <a class="tg-item" href="check-service.html">
-            <span class="ti-txt">JY202607311426003 · 存量房网签 · 命中限售但已提交豁免申请（继承）</span>
-            <span class="ti-time">剩 8 小时</span>
-          </a>
-        </div>
-        <div class="td-grp">
-          <div class="tg-head"><span class="badge green">待出证查档申请</span><span class="tg-n">17 条</span></div>
-          <a class="tg-item" href="archive-apply.html">
-            <span class="ti-txt">CD202607310186 · 家庭住房套数证明 · 申请人陈** · 用途：买房资格</span>
-            <span class="ti-time">即时出证</span>
-          </a>
-          <a class="tg-item" href="archive-list.html">
-            <span class="ti-txt">CD202607310182 · 有无房证明 · 申请人韦** · 用途：落户</span>
-            <span class="ti-time">即时出证</span>
-          </a>
-        </div>
-      </div>
-    </div>
-
-    <div class="card home-panel">
-      <div class="card-head">
-        <h3>限制情形分布</h3>
-        <span class="sub">受限房屋 15,486 套</span>
-      </div>
-      <div class="card-body">
-        <div class="flex items-center gap-16" style="flex-wrap:wrap">
-          <div class="donut" style="background:conic-gradient(#f59e0b 0 62.4%, #2563eb 62.4% 77.2%, #8b5cf6 77.2% 88.4%, #10b981 88.4% 94.5%, #dc2626 94.5% 98.3%, #64748b 98.3% 100%)">
-            <div class="donut-hole">
-              <div class="fw-700" style="font-size:22px">15,486</div>
-              <div class="text-3 text-sm">受限套数</div>
-            </div>
-          </div>
-          <div class="legend" style="flex:1;min-width:200px">
-            <div class="lg-item"><span class="lg-color" style="background:#f59e0b"></span> 抵押 <b style="margin-left:auto">62.4%</b></div>
-            <div class="lg-item"><span class="lg-color" style="background:#2563eb"></span> 已网签未办结 <b style="margin-left:auto">14.8%</b></div>
-            <div class="lg-item"><span class="lg-color" style="background:#8b5cf6"></span> 限售 <b style="margin-left:auto">11.2%</b></div>
-            <div class="lg-item"><span class="lg-color" style="background:#10b981"></span> 租赁备案 <b style="margin-left:auto">6.1%</b></div>
-            <div class="lg-item"><span class="lg-color" style="background:#dc2626"></span> 查封 <b style="margin-left:auto">3.8%</b></div>
-            <div class="lg-item"><span class="lg-color" style="background:#64748b"></span> 异议与其他 <b style="margin-left:auto">1.7%</b></div>
-          </div>
-        </div>
-        <p class="text-3 text-sm mt-16">
-          <i class="fa-solid fa-circle-info"></i>
-          一套房可同时命中多种限制，此处按主导限制情形归类；查封与异议属硬性限制，直接判为不可交易。
-        </p>
-
-        <div class="section-title mt-16" style="margin-top:18px">各城区受限房屋排行</div>
-        <div class="rank-row">
-          <span class="rk-name">城中区</span>
-          <span class="rk-bar"><span class="progress"><span style="width:100%"></span></span></span>
-          <span class="rk-val">486</span>
-        </div>
-        <div class="rank-row">
-          <span class="rk-name">鱼峰区</span>
-          <span class="rk-bar"><span class="progress"><span style="width:85%"></span></span></span>
-          <span class="rk-val">412</span>
-        </div>
-        <div class="rank-row">
-          <span class="rk-name">柳南区</span>
-          <span class="rk-bar"><span class="progress"><span style="width:82%"></span></span></span>
-          <span class="rk-val">398</span>
-        </div>
-        <div class="rank-row">
-          <span class="rk-name">柳北区</span>
-          <span class="rk-bar"><span class="progress"><span style="width:73%"></span></span></span>
-          <span class="rk-val">356</span>
-        </div>
-        <div class="rank-row">
-          <span class="rk-name">柳江区</span>
-          <span class="rk-bar"><span class="progress"><span style="width:39%"></span></span></span>
-          <span class="rk-val">190</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="grid-2">
-    <div class="card">
-      <div class="card-head">
-        <h3>近 6 个月抵押备案量</h3>
-        <span class="sub">单位：笔　8 月为当月进行中</span>
-      </div>
-      <div class="card-body">
-        <div class="bar-chart">
-          <div class="bar-col"><span class="bar-val">892</span><div class="bar" style="height:66%"></div><span class="bar-label">3 月</span></div>
-          <div class="bar-col"><span class="bar-val">1,024</span><div class="bar" style="height:76%"></div><span class="bar-label">4 月</span></div>
-          <div class="bar-col"><span class="bar-val">968</span><div class="bar" style="height:71%"></div><span class="bar-label">5 月</span></div>
-          <div class="bar-col"><span class="bar-val">1,136</span><div class="bar" style="height:84%"></div><span class="bar-label">6 月</span></div>
-          <div class="bar-col"><span class="bar-val">1,208</span><div class="bar" style="height:89%"></div><span class="bar-label">7 月</span></div>
-          <div class="bar-col"><span class="bar-val">386</span><div class="bar" style="height:28%;background:var(--warning)"></div><span class="bar-label">8 月</span></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-head">
-        <h3>本月校验拦截原因</h3>
-        <span class="sub">共拦截 271 次</span>
-      </div>
-      <div class="card-body">
-        <div class="flex items-center gap-16" style="flex-wrap:wrap">
-          <div class="donut" style="background:conic-gradient(#dc2626 0 38.4%, #8b5cf6 38.4% 64.6%, #f59e0b 64.6% 77.1%, #2563eb 77.1% 87.8%, #06b6d4 87.8% 95.2%, #64748b 95.2% 100%)">
-            <div class="donut-hole">
-              <div class="fw-700" style="font-size:22px">3.2%</div>
-              <div class="text-3 text-sm">拦截率</div>
-            </div>
-          </div>
-          <div class="legend" style="flex:1;min-width:200px">
-            <div class="lg-item"><span class="lg-color" style="background:#dc2626"></span> 查封 <b style="margin-left:auto">38.4%</b></div>
-            <div class="lg-item"><span class="lg-color" style="background:#8b5cf6"></span> 限售期内 <b style="margin-left:auto">26.2%</b></div>
-            <div class="lg-item"><span class="lg-color" style="background:#f59e0b"></span> 异议登记 <b style="margin-left:auto">12.5%</b></div>
-            <div class="lg-item"><span class="lg-color" style="background:#2563eb"></span> 限购不通过 <b style="margin-left:auto">10.7%</b></div>
-            <div class="lg-item"><span class="lg-color" style="background:#06b6d4"></span> 已网签未办结 <b style="margin-left:auto">7.4%</b></div>
-            <div class="lg-item"><span class="lg-color" style="background:#64748b"></span> 在建工程抵押 <b style="margin-left:auto">4.8%</b></div>
-          </div>
-        </div>
-        <p class="text-3 text-sm mt-16">
-          <i class="fa-solid fa-circle-info"></i>
-          拦截即刻反馈给发起业务系统并写入校验记录；结论为「需人工复核」的转入待复核队列，放行须填写理由并留痕。
-        </p>
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-head">
-      <h3>快捷入口</h3>
-      <span class="sub">按业务链路顺序排列</span>
-    </div>
-    <div class="card-body">
-      <div class="quick-grid">
-        <a class="quick-item" href="restriction-status.html">
-          <span class="q-ico red"><i class="fa-solid fa-traffic-light"></i></span>
-          <span class="q-label">限制状态总览</span>
-        </a>
-        <a class="quick-item" href="check-service.html">
-          <span class="q-ico purple"><i class="fa-solid fa-shield-halved"></i></span>
-          <span class="q-label">限制校验服务</span>
-        </a>
-        <a class="quick-item" href="mortgage-list.html">
-          <span class="q-ico blue"><i class="fa-solid fa-file-contract"></i></span>
-          <span class="q-label">抵押备案台账</span>
-        </a>
-        <a class="quick-item" href="mortgage-create.html">
-          <span class="q-ico cyan"><i class="fa-solid fa-file-circle-plus"></i></span>
-          <span class="q-label">新增抵押备案</span>
-        </a>
-        <a class="quick-item" href="presale-mortgage.html">
-          <span class="q-ico orange"><i class="fa-solid fa-clock-rotate-left"></i></span>
-          <span class="q-label">预购商品房抵押</span>
-        </a>
-        <a class="quick-item" href="project-mortgage.html">
-          <span class="q-ico blue"><i class="fa-solid fa-helmet-safety"></i></span>
-          <span class="q-label">在建工程抵押</span>
-        </a>
-        <a class="quick-item" href="bank-online.html">
-          <span class="q-ico green"><i class="fa-solid fa-building-columns"></i></span>
-          <span class="q-label">银行线上办理</span>
-        </a>
-        <a class="quick-item" href="seal-create.html">
-          <span class="q-ico red"><i class="fa-solid fa-gavel"></i></span>
-          <span class="q-label">查封登记办理</span>
-        </a>
-        <a class="quick-item" href="seal-list.html">
-          <span class="q-ico orange"><i class="fa-solid fa-lock"></i></span>
-          <span class="q-label">司法查封台账</span>
-        </a>
-        <a class="quick-item" href="sale-limit.html">
-          <span class="q-ico purple"><i class="fa-solid fa-hourglass-half"></i></span>
-          <span class="q-label">限售执行解限</span>
-        </a>
-        <a class="quick-item" href="archive-book.html">
-          <span class="q-ico cyan"><i class="fa-solid fa-book"></i></span>
-          <span class="q-label">房屋交易备案簿</span>
-        </a>
-        <a class="quick-item" href="archive-apply.html">
-          <span class="q-ico green"><i class="fa-solid fa-stamp"></i></span>
-          <span class="q-label">查档受理与出证</span>
-        </a>
-      </div>
-    </div>
-  </div>
-
-  <div class="alert alert-info">
-    <i class="fa-solid fa-circle-info"></i>
-    <div>本工作台按当前登录人所属行政区划过滤统计；市本级可查全市，区县仅查本区县。限制情形分布与拦截原因按自然月滚动计算。</div>
-  </div>
-
+  <div id="wb-root"></div>
 </main>
+
 <script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/wb.js"></script>
 <script>
-function doLookup() {
-  var v = document.getElementById('lkInput').value.trim();
-  if (!v) { PMS.toast('请输入不动产单元号、产权证号或坐落', 'error'); return; }
-  location.href = 'restriction-status.html?code=' + encodeURIComponent(v);
-}
+/* 内容按 Figma「房屋交易备案管理系统」工作台逐项还原 */
+WB.render({ blocks: [
+  { type: 'hero', icon: 'fa-traffic-light', title: '房屋交易限制速查',
+    sub: '输入不动产单元号 / 产权证号 / 坐落，一键查询这套房能不能交易。以前要查 8 个系统，现在 1 秒出结论。',
+    placeholder: '如桂(2023)柳州市不动产权第 0086421号·彰泰滨江学府12-2-1802', btn: '查询',
+    chips: ['彰泰滨江学府12-2-1802', '万科城5-2-803', '荣和公园大道', '保利柳江府 5-2-1201'] },
+
+  { type: 'row', ratio: '1fr 1fr', cols: [
+    { type: 'greet', compact: true, dateInline: true, hello: '上午好', name: '韦国强', org: 'XXXX市房产交易所 · 综合业务岗', sys: '房屋交易备案管理系统',
+      date: '2026 年 7 月 31 日 · 星期五',
+      tiles: [
+        { icon: 'fa-inbox', label: '我的待办(件)', value: 76, href: 'mortgage-list.html' },
+        { icon: 'fa-shield-halved', label: '限制校验(次)/本月', value: '8,451', href: 'check-service.html' },
+        { icon: 'fa-ban', label: '本月拦截(次)', value: 18, href: 'check-service.html' }
+      ] },
+    { type: 'todos', title: '我的待办', summary: '共 76 件 · 临期 20 件 · 超期 3 件', weather: false, more: '查看更多', moreHref: 'mortgage-list.html',
+      items: [
+        { tag: '银行待接收联办申请', c: 'orange', text: 'LB20260731026 ·建行柳州分行城中支行·抵押登记·荣和公园大道8-1-1502', time: '今日 09:00', href: 'bank-online.html' },
+        { tag: '待审抵押备案', c: 'green', text: 'DYBA450200202600186 ·存量房抵押 ·彰泰滨江学府12-2-1802·486,000 元', time: '剩6h', href: 'mortgage-list.html' },
+        { tag: '预告抵押临期转正', c: 'blue', text: 'YGDY2026070218 ·荣和公园大道8-1-1502 ·转正期限 2026-08-12', time: '剩1天', href: 'presale-mortgage.html' },
+        { tag: '待复核限制校验', c: 'cyan', text: 'JY202607311426003 ·存量房网签·命中限售但已提交豁免申请(继承)', time: '剩6h', href: 'check-service.html' }
+      ] }
+  ] },
+
+  { type: 'kpis', cols: 6, items: [
+    { icon: 'fa-file-contract', c: 'blue', label: '在办抵押备案', value: 512, sub: '较昨日+12', trend: 'up', href: 'mortgage-list.html' },
+    { icon: 'fa-lock', c: 'cyan', label: '有效抵押笔数', value: '12,486', sub: '涉及房屋11203套', href: 'mortgage-list.html' },
+    { icon: 'fa-gavel', c: 'red', label: '有效查封套数', value: 326, sub: '其中轮候47套', trend: 'down', href: 'seal-list.html' },
+    { icon: 'fa-hourglass-half', c: 'orange', label: '限售期内套数', value: '1,842', sub: '本月到期解限96套', href: 'sale-limit.html' },
+    { icon: 'fa-shield-halved', c: 'purple', label: '本月限制校验', value: '8,451', sub: '日均273次', href: 'check-service.html' },
+    { icon: 'fa-ban', c: 'red', label: '校验拦截率', value: '3.2%', sub: '拦截271次', trend: 'down', href: 'check-service.html' }
+  ] },
+
+  { type: 'quick', title: '快速入口', sub: '按业务链路顺序排列',
+    rows: [
+      [
+        { label: '限制状态总览', icon: 'fa-traffic-light', href: 'restriction-status.html' },
+        { label: '限制校验服务', icon: 'fa-shield-halved', href: 'check-service.html' },
+        { label: '抵押备案台账', icon: 'fa-file-contract', href: 'mortgage-list.html' },
+        { label: '新增抵押备案', icon: 'fa-file-circle-plus', href: 'mortgage-create.html' },
+        { label: '预购商品房抵押', icon: 'fa-clock-rotate-left', href: 'presale-mortgage.html' },
+        { label: '在建工程抵押', icon: 'fa-helmet-safety', href: 'project-mortgage.html' },
+        { label: '银行线上办理', icon: 'fa-building-columns', href: 'bank-online.html' },
+        { label: '查封登记办理', icon: 'fa-gavel', href: 'seal-create.html' },
+        { label: '司法查封台账', icon: 'fa-lock', href: 'seal-list.html' },
+        { label: '限售执行解限', icon: 'fa-hourglass-half', href: 'sale-limit.html' }
+      ],
+      [
+        { label: '房屋交易备案簿', icon: 'fa-book', href: 'archive-book.html' },
+        { label: '查档受理与出证', icon: 'fa-stamp', href: 'archive-apply.html' }
+      ]
+    ],
+    note: '本工作台按当前登录人所属行政区划过滤统计；市本级可查全市，区县仅查本区县。限制情形分布与拦截原因按自然月滚动计算。' },
+
+  { type: 'row', cols: [
+    { type: 'donut', title: '限制情形分布', meta: '共 512 套', center: '15,486', centerLabel: '受限套数',
+      parts: [['抵押', 399, '#f59e0b'], ['已网签未办结', 76, '#2556ba'], ['限售', 76, '#7c3aed'], ['租赁备案', 76, '#2ea44f'], ['查封', 76, '#df2026'], ['异议与其他', 76, '#0891b2']],
+      note: '一套房可同时命中多种限制，此处按主导限制情形归类；查封与异议属硬性限制，直接判为不可交易。' },
+    { type: 'hbar', title: '各城区受限房屋排行', meta: '数据取自成交台账，写入后固化', moreHref: 'restriction-status.html',
+      data: [['柳南区', 32], ['城中区', 28], ['鱼峰区', 34], ['柳北区', 24], ['柳江区', 34]] }
+  ] },
+
+  { type: 'row', cols: [
+    { type: 'bar', title: '近 6 个月网签备案量', unit: '单位：笔　8 月为当月进行中', moreHref: 'mortgage-list.html',
+      data: [['1月', 986], ['2月', 1042], ['3月', 980], ['4月', 1700], ['5月', 2030], ['6月', 1020]] },
+    { type: 'donut', title: '本月校验拦截原因', meta: '共拦截 271 次', center: '15,486', centerLabel: '受限套数',
+      parts: [['查封', 399, '#df2026'], ['限售期内', 76, '#7c3aed'], ['异议登记', 76, '#f59e0b'], ['限购不通过', 76, '#2556ba'], ['已网签未办结', 76, '#0891b2'], ['在建工程抵押', 76, '#2ea44f']],
+      note: '拦截即刻反馈给发起业务系统并写入校验记录；结论为「需人工复核」的转入待复核队列，放行须填写理由并留痕。' }
+  ] }
+] });
 </script>
 </body>
 </html>

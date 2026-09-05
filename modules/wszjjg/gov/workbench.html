@@ -3,261 +3,182 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>资金监管工作台 · 存量房交易资金监管系统</title>
+<title>我的工作台 · 存量房交易资金监管系统</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <link rel="stylesheet" href="../../../assets/css/app.css">
+<link rel="stylesheet" href="../../../assets/css/wb.css">
 <style>
-  .tbl-static { overflow: auto; }
-  .hero-photo { position: relative; overflow: hidden; background: none; }
-  .hero-photo .hp-bg { position: absolute; inset: 0; background-size: cover; background-position: center 60%; }
-  .hero-photo .hp-bg::after { content: ''; position: absolute; inset: 0; background: linear-gradient(96deg, rgba(20, 50, 116, .94) 0%, rgba(38, 86, 187, .74) 100%); }
-  .hero-photo .hero-l, .hero-photo .hero-r { position: relative; z-index: 1; }
-  /* 生命周期漏斗：在托管各环节的交易笔数 */
-  .funnel { display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap; }
-  .fn { flex: 1; min-width: 130px; border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; background: #fff; }
-  .fn.warn { border-color: #f7c6c6; background: var(--danger-light); }
-  .fn .fn-v { font-size: 22px; font-weight: 700; color: var(--text-1); font-variant-numeric: tabular-nums; }
-  .fn .fn-l { font-size: 12.5px; color: var(--text-3); margin-top: 3px; }
-  .fn .fn-x { font-size: 12px; color: var(--text-2); margin-top: 4px; }
-  .bar-pair { display: flex; align-items: flex-end; justify-content: center; gap: 3px; width: 72%; height: 100%; }
-  .bar-pair .bar { width: 42%; max-width: 18px; }
-  .bar-pair .bar.b2 { background: linear-gradient(180deg, #16a34a 0%, #6ee7b7 100%); }
-  .chart-legend { display: flex; gap: 14px; margin-bottom: 8px; font-size: 12.5px; color: var(--text-2); }
-  .chart-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; }
-  .zj-line { width: 100%; height: 210px; }
-  .zj-line .g line { stroke: var(--border); stroke-width: 1; }
+  /* 托管生命周期分布：6 个环节卡 */
+  .zj-life { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+  .zj-life .lf {
+    position: relative; overflow: hidden; padding: 14px 14px 12px; border-radius: 6px; cursor: pointer;
+    background: linear-gradient(180deg, #eff3ff 0%, #ffffff 100%); border: 1px solid #e3eaf8; transition: transform .15s, box-shadow .15s;
+  }
+  .zj-life .lf:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(38, 86, 187, .14); }
+  .zj-life .lf.warn { background: linear-gradient(180deg, #fdeaea 0%, #ffffff 100%); border-color: #f7c6c6; }
+  .zj-life .lf .v { font-size: 24px; font-weight: 700; color: #1f2a44; line-height: 1.2; font-variant-numeric: tabular-nums; }
+  .zj-life .lf.warn .v { color: #df2026; }
+  .zj-life .lf .l { margin-top: 6px; font-size: 13px; color: #303133; white-space: nowrap; }
+  .zj-life .lf .x { margin-top: 3px; font-size: 12px; color: #909399; white-space: nowrap; }
+  .zj-life .lf.warn .x { color: #df2026; }
+  .zj-life .lf > i { position: absolute; right: 10px; bottom: 6px; font-size: 44px; color: #2556ba; opacity: .08; }
+  .zj-life .lf.warn > i { color: #df2026; opacity: .1; }
+  @media (max-width: 1400px) { .zj-life { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+  /* 环图下方 2×2 指标表 */
+  .zj-kv td.first { width: 22%; background: #eaeffb; color: #2556ba; font-weight: 500; }
+  .zj-kv td { white-space: nowrap; padding: 11px 14px; }
+  .zj-kv tr:hover td { background: inherit; }
+
+  /* 折线图：托管笔数与周期走势 */
+  .zj-line { display: block; width: 100%; height: auto; }
+  .zj-line .grid line { stroke: #edf0f5; stroke-width: 1; }
+  .zj-line .ax { fill: #909399; font-size: 11px; }
   .zj-line .ln { fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-  .zj-line .ln.a { stroke: var(--primary); }
-  .zj-line .ln.b { stroke: #16a34a; }
-  .zj-line .dot { fill: var(--primary); }
-  .zj-line .lbl { fill: var(--text-3); font-size: 11px; }
+  .zj-line .ln.a { stroke: #2556ba; }
+  .zj-line .ln.b { stroke: #12a877; }
+  .zj-line .area { fill: url(#zjArea); }
+  .zj-line .cur { stroke: #909399; stroke-width: 1; stroke-dasharray: 3 3; }
+  .zj-line .tip rect { fill: #fff; stroke: #e3eaf8; filter: drop-shadow(0 4px 10px rgba(0, 21, 41, .12)); }
+  .zj-line .tip text { font-size: 11px; fill: #303133; }
+  .zj-line .tip text.h { fill: #606266; }
+  .zj-line .tip text.n { font-weight: 700; fill: #1f2a44; }
 </style>
 </head>
 <body data-role="reviewer" data-active="wszjjg-01">
-<main class="app-main" data-flow>
-
-  <div class="home-hero hero-photo">
-    <div class="hp-bg" style="background-image:url('https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1600&q=80')"></div>
-    <div class="hero-l">
-      <div class="hero-greet">韦国强，早上好</div>
-      <div class="hero-sub">市房产交易所 · 业务审核员　|　您有 <b>9 笔</b>待办，其中 <b>3 笔</b>已过户超期未解付</div>
-      <div class="hero-date"><i class="fa-regular fa-calendar"></i> 2026 年 8 月 1 日　星期六　·　存量房交易资金监管</div>
-    </div>
-    <div class="hero-r">
-      <div class="hs"><div class="hs-v">486</div><div class="hs-l">在托管交易</div></div>
-      <div class="hs-div"></div>
-      <div class="hs"><div class="hs-v">6.28</div><div class="hs-l">在托金额(亿元)</div></div>
-      <div class="hs-div"></div>
-      <div class="hs"><div class="hs-v">3</div><div class="hs-l">超期未解付</div></div>
-    </div>
-  </div>
-
-  <div class="alert alert-warning">
-    <i class="fa-solid fa-arrows-left-right"></i>
-    <div><b>过户—解付联动是本系统的核心闸口，双向都要盯</b>：
-      <b>未过户不得解付</b>，防止卖方拿了钱不配合过户；
-      <b>已过户须在 3 个工作日内解付</b>，防止买方钱已付、房已过，卖方却迟迟拿不到钱。
-      平台收到不动产登记的过户完成回传后自动触发划付指令，只有带押过户代偿、司法冻结等特殊情形才走人工审批。</div>
-  </div>
-
-  <div class="stat-grid">
-    <div class="stat-card">
-      <div class="s-icon blue"><i class="fa-solid fa-file-signature"></i></div>
-      <div><div class="s-label">在托管交易</div><div class="s-value">486</div><div class="s-trend">本月新增 128 笔</div></div>
-    </div>
-    <div class="stat-card">
-      <div class="s-icon cyan"><i class="fa-solid fa-wallet"></i></div>
-      <div><div class="s-label">在托资金(万元)</div><div class="s-value">62,840</div><div class="s-trend">笔均 129.3 万元</div></div>
-    </div>
-    <div class="stat-card">
-      <div class="s-icon orange"><i class="fa-solid fa-clipboard-check"></i></div>
-      <div><div class="s-label">待我审批</div><div class="s-value">9</div><div class="s-trend text-danger">2 件今日到期</div></div>
-    </div>
-    <div class="stat-card">
-      <div class="s-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
-      <div><div class="s-label">已过户超期未解付</div><div class="s-value">3</div><div class="s-trend text-danger">最长超期 6 天</div></div>
-    </div>
-    <div class="stat-card">
-      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
-      <div><div class="s-label">本月已解付(万元)</div><div class="s-value">18,642</div><div class="s-trend text-success">平均托管 21 天</div></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-head"><h3><i class="fa-solid fa-diagram-project"></i> 托管生命周期分布</h3><span class="sub">486 笔在托交易当前所处环节</span></div>
-    <div class="card-body">
-      <div class="funnel">
-        <div class="fn"><div class="fn-v">42</div><div class="fn-l">已签协议待入账</div><div class="fn-x">等买方打款</div></div>
-        <div class="fn"><div class="fn-v">168</div><div class="fn-l">资金已入账冻结</div><div class="fn-x">等网签备案</div></div>
-        <div class="fn"><div class="fn-v">214</div><div class="fn-l">已网签待过户</div><div class="fn-x">等不动产登记</div></div>
-        <div class="fn warn"><div class="fn-v">31</div><div class="fn-l">已过户待解付</div><div class="fn-x text-danger">其中 3 笔超期</div></div>
-        <div class="fn"><div class="fn-v">24</div><div class="fn-l">交易终止待退款</div><div class="fn-x">等退款审批</div></div>
-        <div class="fn"><div class="fn-v">7</div><div class="fn-l">司法冻结挂起</div><div class="fn-x">等法院文书</div></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="grid-2">
-    <div class="card">
-      <div class="card-head"><h3><i class="fa-solid fa-list-check"></i> 我的待办</h3><span class="sub">按紧急程度排序</span></div>
-      <div class="card-body">
-        <div class="home-todo">
-          <a class="todo-row is-warn" href="node.html">
-            <span class="badge red">超期解付</span>
-            <span class="todo-text">城中·荣和公园里 3-1-502　已过户 6 天未解付，托管 128.00 万元</span>
-            <span class="todo-time is-warn">立即处理</span>
-          </a>
-          <a class="todo-row is-warn" href="node.html">
-            <span class="badge red">超期解付</span>
-            <span class="todo-text">鱼峰·桂中海讯 5-1201　已过户 4 天未解付，托管 96.00 万元</span>
-            <span class="todo-time is-warn">立即处理</span>
-          </a>
-          <a class="todo-row is-warn" href="transfer.html">
-            <span class="badge orange">人工划付</span>
-            <span class="todo-text">柳南·五一佳园 2-803　带押过户代偿，需人工审批划付路径</span>
-            <span class="todo-time is-warn">剩 6h</span>
-          </a>
-          <a class="todo-row" href="refund.html">
-            <span class="badge cyan">退款审批</span>
-            <span class="todo-text">柳北·雅儒新苑 1-1502　合同解除，申请退还买方 86.00 万元</span>
-            <span class="todo-time">剩 1 天</span>
-          </a>
-          <a class="todo-row" href="node.html">
-            <span class="badge orange">到账异常</span>
-            <span class="todo-text">柳江·龙城之星 6-903　约定首付到账日已过 2 天，资金未入账</span>
-            <span class="todo-time">剩 1 天</span>
-          </a>
-          <a class="todo-row" href="escrow.html">
-            <span class="badge blue">协议受理</span>
-            <span class="todo-text">城中·帝景传说 8-2201　经纪机构代办监管协议，待核验网签合同</span>
-            <span class="todo-time">剩 2 天</span>
-          </a>
-          <a class="todo-row" href="settle.html">
-            <span class="badge purple">对账差异</span>
-            <span class="todo-text">柳州银行营业部 7 月 31 日归集账户对账差额 1,200.00 元</span>
-            <span class="todo-time">剩 3 天</span>
-          </a>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-head"><h3><i class="fa-solid fa-chart-pie"></i> 托管资金结构</h3><span class="sub">在托 6.28 亿元构成</span></div>
-      <div class="card-body">
-        <div class="flex items-center gap-16">
-          <div class="donut" style="background:conic-gradient(var(--primary) 0 48%, #22c55e 48% 72%, #f59e0b 72% 88%, #a855f7 88% 100%)">
-            <div class="donut-hole">
-              <div class="fw-700" style="font-size:20px">6.28</div>
-              <div class="text-3 text-sm">亿元</div>
-            </div>
-          </div>
-          <div class="legend" style="flex:1">
-            <div class="lg-item"><span class="lg-color" style="background:var(--primary)"></span> 购房首付款 <b style="margin-left:auto">48%</b></div>
-            <div class="lg-item"><span class="lg-color" style="background:#22c55e"></span> 按揭放款待解付 <b style="margin-left:auto">24%</b></div>
-            <div class="lg-item"><span class="lg-color" style="background:#f59e0b"></span> 尾款与补差 <b style="margin-left:auto">16%</b></div>
-            <div class="lg-item"><span class="lg-color" style="background:#a855f7"></span> 定金与其他 <b style="margin-left:auto">12%</b></div>
-          </div>
-        </div>
-        <dl class="desc-list mt-16">
-          <div class="desc-item"><dt>平均托管周期</dt><dd>21 天（较去年缩短 6 天）</dd></div>
-          <div class="desc-item"><dt>自动划付占比</dt><dd class="text-success">92.4%</dd></div>
-          <div class="desc-item"><dt>资金纠纷投诉</dt><dd>本年 2 起，均已化解</dd></div>
-          <div class="desc-item"><dt>存量房监管覆盖率</dt><dd>86.2%（自愿托管）</dd></div>
-        </dl>
-      </div>
-    </div>
-  </div>
-
-  <div class="grid-2">
-    <div class="card">
-      <div class="card-head">
-        <h3><i class="fa-solid fa-chart-column"></i> 近 6 月入账与解付对比</h3>
-        <span class="sub">单位：亿元 · 双柱对照</span>
-      </div>
-      <div class="card-body">
-        <div class="chart-legend">
-          <span><i style="background:var(--primary)"></i>资金入账</span>
-          <span><i style="background:#16a34a"></i>过户解付</span>
-        </div>
-        <div class="bar-chart">
-          <div class="bar-col"><span class="bar-val">1.8/1.5</span><div class="bar-pair"><div class="bar" style="height:68%"></div><div class="bar b2" style="height:56%"></div></div><span class="bar-label">3月</span></div>
-          <div class="bar-col"><span class="bar-val">2.0/1.7</span><div class="bar-pair"><div class="bar" style="height:74%"></div><div class="bar b2" style="height:62%"></div></div><span class="bar-label">4月</span></div>
-          <div class="bar-col"><span class="bar-val">2.3/1.9</span><div class="bar-pair"><div class="bar" style="height:84%"></div><div class="bar b2" style="height:70%"></div></div><span class="bar-label">5月</span></div>
-          <div class="bar-col"><span class="bar-val">2.5/2.1</span><div class="bar-pair"><div class="bar" style="height:90%"></div><div class="bar b2" style="height:76%"></div></div><span class="bar-label">6月</span></div>
-          <div class="bar-col"><span class="bar-val">2.7/2.3</span><div class="bar-pair"><div class="bar" style="height:96%"></div><div class="bar b2" style="height:82%"></div></div><span class="bar-label">7月</span></div>
-          <div class="bar-col"><span class="bar-val">2.9/1.9</span><div class="bar-pair"><div class="bar" style="height:100%"></div><div class="bar b2" style="height:66%"></div></div><span class="bar-label">8月</span></div>
-        </div>
-        <p class="hint mt-16"><i class="fa-solid fa-circle-info"></i>
-          8 月入账加快、解付略缓，在托规模升至 <b>6.28</b> 亿元；解付滞后主因是过户回传集中在月末。</p>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-head">
-        <h3><i class="fa-solid fa-chart-line"></i> 托管笔数与周期走势</h3>
-        <span class="sub">近 12 个月</span>
-      </div>
-      <div class="card-body">
-        <div class="chart-legend">
-          <span><i style="background:var(--primary)"></i>在托笔数（左）</span>
-          <span><i style="background:#16a34a"></i>平均托管天数（右）</span>
-        </div>
-        <svg class="zj-line" viewBox="0 0 560 210" role="img" aria-label="托管笔数与周期走势">
-          <g class="g">
-            <line x1="40" y1="20" x2="40" y2="170"/><line x1="40" y1="170" x2="540" y2="170"/>
-            <line x1="40" y1="132" x2="540" y2="132"/><line x1="40" y1="95" x2="540" y2="95"/><line x1="40" y1="57" x2="540" y2="57"/>
-          </g>
-          <polyline class="ln a" points="40,140 85,134 130,128 175,118 220,110 265,102 310,92 355,84 400,74 445,64 490,52 535,40"/>
-          <polyline class="ln b" points="40,60 85,68 130,72 175,78 220,86 265,92 310,100 355,108 400,116 445,124 490,132 535,138"/>
-          <circle class="dot" cx="535" cy="40" r="3.5"/>
-          <text class="lbl" x="40" y="188">8月</text>
-          <text class="lbl" x="175" y="188">11月</text>
-          <text class="lbl" x="310" y="188">2月</text>
-          <text class="lbl" x="445" y="188">5月</text>
-          <text class="lbl" x="520" y="188">8月</text>
-          <text class="lbl" x="4" y="44">500笔</text>
-          <text class="lbl" x="4" y="174">200笔</text>
-        </svg>
-        <p class="hint"><i class="fa-solid fa-arrow-trend-down"></i>
-          在托笔数升至 <b>486</b> 笔的同时，平均托管周期由 27 天压至 <b>21</b> 天，过户—解付联动见效。</p>
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-head">
-      <h3><i class="fa-solid fa-map-location-dot"></i> 各城区托管规模与覆盖率</h3>
-      <span class="sub">在托金额（亿元）· 覆盖率见右侧</span>
-    </div>
-    <div class="card-body">
-      <div class="dc-bars wide">
-        <div class="b-item"><span class="b-label">城中区</span><div class="b-track"><div class="b-fill" style="width:95%"></div></div><span class="b-val">1.42 · 92%</span></div>
-        <div class="b-item"><span class="b-label">鱼峰区</span><div class="b-track"><div class="b-fill" style="width:88%"></div></div><span class="b-val">1.28 · 89%</span></div>
-        <div class="b-item"><span class="b-label">柳南区</span><div class="b-track"><div class="b-fill" style="width:82%"></div></div><span class="b-val">1.18 · 87%</span></div>
-        <div class="b-item"><span class="b-label">柳北区</span><div class="b-track"><div class="b-fill" style="width:76%"></div></div><span class="b-val">1.10 · 85%</span></div>
-        <div class="b-item"><span class="b-label">柳江区</span><div class="b-track"><div class="b-fill" style="width:48%"></div></div><span class="b-val">0.72 · 78%</span></div>
-        <div class="b-item"><span class="b-label">其他县区</span><div class="b-track"><div class="b-fill warn" style="width:28%"></div></div><span class="b-val">0.58 · 61%</span></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-head"><h3><i class="fa-solid fa-bolt"></i> 快捷入口</h3><span class="sub">存量房资金监管全流程</span></div>
-    <div class="card-body">
-      <div class="quick-grid">
-        <a class="quick-item" href="escrow.html?role=reviewer"><span class="q-ico blue"><i class="fa-solid fa-file-signature"></i></span><span class="q-label">监管协议台账</span></a>
-        <a class="quick-item" href="node.html?role=reviewer"><span class="q-ico red"><i class="fa-solid fa-arrows-left-right"></i></span><span class="q-label">资金节点监控</span></a>
-        <a class="quick-item" href="transfer.html?role=reviewer"><span class="q-ico green"><i class="fa-solid fa-money-bill-transfer"></i></span><span class="q-label">资金划转退划</span></a>
-        <a class="quick-item" href="refund.html?role=reviewer"><span class="q-ico cyan"><i class="fa-solid fa-rotate-left"></i></span><span class="q-label">退款申请审批</span></a>
-        <a class="quick-item" href="account.html?role=reviewer"><span class="q-ico purple"><i class="fa-solid fa-building-columns"></i></span><span class="q-label">账户与子账号</span></a>
-        <a class="quick-item" href="settle.html?role=reviewer"><span class="q-ico orange"><i class="fa-solid fa-scale-balanced"></i></span><span class="q-label">结算对账记录</span></a>
-        <a class="quick-item" href="template.html?role=manager"><span class="q-ico green"><i class="fa-solid fa-file-lines"></i></span><span class="q-label">协议模板管理</span></a>
-        <a class="quick-item" href="../index.html"><span class="q-ico blue"><i class="fa-solid fa-table-cells-large"></i></span><span class="q-label">模块导航</span></a>
-      </div>
-    </div>
-  </div>
-
-</main>
+<main class="app-main"><div id="wb-root"></div></main>
 <script src="../../../assets/js/app.js"></script>
+<script src="../../../assets/js/wb.js"></script>
+<script>
+/* 内容按 Figma「管理后台-存量房交易资金监管系统」工作台逐项还原 */
+(function () {
+  /* —— 托管资金结构：环图 + 图例（与 wb.js 环图同一套 .wb-donut 样式，百分比照抄设计图）—— */
+  var parts = [
+    ['购房首付款', '2.26', 36, '36%', '#2556ba'],
+    ['按揭放款待解付', '1.05', 16.67, '16.67%', '#12a877'],
+    ['尾款与补差', '0.99', 15.74, '15.74%', '#f59e0b'],
+    ['定金与其他', '1.78', 28.29, '28.29%', '#0891b2']
+  ];
+  var total = parts.reduce(function (a, p) { return a + p[2]; }, 0), r = 46, C = 2 * Math.PI * r, off = 0, segs = '';
+  parts.forEach(function (p) {
+    var len = p[2] / total * C;
+    segs += '<circle r="' + r + '" cx="60" cy="60" fill="none" stroke="' + p[4] + '" stroke-width="16" stroke-dasharray="' + len + ' ' + (C - len) + '" stroke-dashoffset="' + (-off) + '"></circle>';
+    off += len;
+  });
+  var donutHtml =
+    '<div class="wb-donut"><div class="legend">' + parts.map(function (p) {
+      return '<div class="li"><span class="dot" style="background:' + p[4] + '"></span><span>' + p[0] + '：' + p[1] + ' 亿元</span><span class="pct">' + p[3] + '</span></div>';
+    }).join('') + '</div>' +
+    '<div class="ring"><svg viewBox="0 0 120 120"><circle r="46" cx="60" cy="60" fill="none" stroke="#eef1f6" stroke-width="16"></circle>' + segs + '</svg>' +
+    '<div class="c"><b>6.28</b><span>亿元</span></div></div></div>' +
+    '<table class="wb-table zj-kv" style="margin-top:16px"><tbody>' +
+    '<tr><td class="first">平均托管周期</td><td>21 天（较去年缩短 6 天）</td><td class="first">自动划付占比</td><td class="up">92.4%</td></tr>' +
+    '<tr><td class="first">资金纠纷投诉</td><td>本年 2 起，均已化解</td><td class="first">存量房监管覆盖率</td><td>86.2%（自愿托管）</td></tr>' +
+    '</tbody></table>';
+
+  /* —— 各城区托管规模与覆盖率：条形 + 「金额 · 覆盖率」—— */
+  var dist = [['城中区', 1.42, '92%'], ['鱼峰区', 1.28, '89%'], ['柳南区', 1.18, '87%'], ['柳北区', 1.10, '85%'], ['柳江区', 0.72, '78%'], ['其他县区', 0.58, '61%']];
+  var distHtml = '<div class="wb-hbars" style="gap:24px;padding:12px 0 8px">' + dist.map(function (d) {
+    return '<div class="hb"><span class="l">' + d[0] + '</span><div class="track"><span style="width:' + Math.round(d[1] / 1.42 * 100) + '%"></span></div>' +
+      '<span class="v" style="width:88px">' + d[1].toFixed(2) + ' · ' + d[2] + '</span></div>';
+  }).join('') + '</div>';
+
+  /* —— 托管笔数与周期走势：近 12 个月双折线（左轴笔数 / 右轴天数）—— */
+  var xs = [], i; for (i = 0; i < 12; i++) xs.push(44 + i * 536 / 11);
+  var ya = [98, 104, 95, 107, 110, 99, 92, 95, 86, 77, 65, 56];       /* 在托笔数（左） */
+  var yb = [60, 66, 62, 72, 78, 80, 88, 92, 96, 102, 108, 112];       /* 平均托管天数（右） */
+  var pts = function (ys) { return ys.map(function (y, k) { return xs[k].toFixed(1) + ',' + y; }).join(' '); };
+  var gridY = [20, 50, 80, 110, 140, 170], gridV = [250, 200, 150, 100, 50, 0];
+  var xl = [[0, '8月'], [3, '11月'], [6, '2月'], [9, '5月'], [11, '8月']];
+  var lineHtml =
+    '<div class="wb-legend" style="justify-content:flex-start"><span><i style="background:#2556ba"></i>在托笔数（左）</span><span><i style="background:#12a877"></i>平均托管天数（右）</span></div>' +
+    '<svg class="zj-line" viewBox="0 0 600 200" role="img" aria-label="托管笔数与周期走势">' +
+    '<defs><linearGradient id="zjArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2556ba" stop-opacity=".18"/><stop offset="1" stop-color="#2556ba" stop-opacity="0"/></linearGradient></defs>' +
+    '<g class="grid">' + gridY.map(function (y) { return '<line x1="44" y1="' + y + '" x2="580" y2="' + y + '"/>'; }).join('') + '</g>' +
+    gridY.map(function (y, k) { return '<text class="ax" x="36" y="' + (y + 4) + '" text-anchor="end">' + gridV[k] + '</text>'; }).join('') +
+    xl.map(function (x) { return '<text class="ax" x="' + xs[x[0]].toFixed(1) + '" y="188" text-anchor="' + (x[0] === 0 ? 'start' : x[0] === 11 ? 'end' : 'middle') + '">' + x[1] + '</text>'; }).join('') +
+    '<polygon class="area" points="' + xs[0] + ',170 ' + pts(ya) + ' 580,170"/>' +
+    '<polyline class="ln a" points="' + pts(ya) + '"/>' +
+    '<polyline class="ln b" points="' + pts(yb) + '"/>' +
+    '<line class="cur" x1="' + xs[3].toFixed(1) + '" y1="20" x2="' + xs[3].toFixed(1) + '" y2="170"/>' +
+    '<circle cx="' + xs[3].toFixed(1) + '" cy="' + ya[3] + '" r="3.5" fill="#fff" stroke="#2556ba" stroke-width="2"/>' +
+    '<circle cx="' + xs[3].toFixed(1) + '" cy="' + yb[3] + '" r="3.5" fill="#fff" stroke="#12a877" stroke-width="2"/>' +
+    '<g class="tip" transform="translate(' + (xs[3] + 14).toFixed(1) + ',60)"><rect x="0" y="0" width="160" height="64" rx="4"/>' +
+    '<text class="h" x="10" y="17">11月</text>' +
+    '<circle cx="14" cy="34" r="3" fill="#2556ba"/><text x="22" y="38">在托笔数（左）</text><text class="n" x="150" y="38" text-anchor="end">30</text>' +
+    '<circle cx="14" cy="52" r="3" fill="#12a877"/><text x="22" y="56">平均托管天数（右）</text><text class="n" x="150" y="56" text-anchor="end">13</text></g>' +
+    '</svg>';
+
+  /* —— 托管生命周期分布 —— */
+  var life = [
+    ['42', '已签协议待入账', '等买方打款', 'fa-file-signature', 'escrow.html'],
+    ['168', '资金已入账冻结', '等网签备案', 'fa-vault', 'node.html'],
+    ['214', '已网签待过户', '等不动产登记', 'fa-file-contract', 'node.html'],
+    ['31', '已过户待解付', '其中 3 笔超期', 'fa-house-circle-check', 'transfer.html', 'warn'],
+    ['24', '交易终止待退款', '等退款审批', 'fa-rotate-left', 'refund.html'],
+    ['7', '司法冻结挂起', '等法院文书', 'fa-gavel', 'node.html']
+  ];
+  var lifeHtml = '<div class="zj-life">' + life.map(function (s) {
+    return '<div class="lf' + (s[5] ? ' warn' : '') + '" onclick="location.href=\'' + s[4] + '\'"><div class="v">' + s[0] + '</div><div class="l">' + s[1] + '</div><div class="x">' + s[2] + '</div><i class="fa-solid ' + s[3] + '"></i></div>';
+  }).join('') + '</div>';
+
+  WB.render({ blocks: [
+    { type: 'row', cols: [
+      { type: 'greet', compact: true, dateInline: true, hello: '上午好', name: '韦国强',
+        org: '市房产交易所 · 业务审核员', sys: '您有 9 笔待办，其中 3 笔已过户超期未解付',
+        date: '2026 年 8 月 1 日　星期六',
+        tiles: [
+          { icon: 'fa-file-signature', label: '在托管交易', value: 486, href: 'escrow.html' },
+          { icon: 'fa-wallet', label: '在托金额(亿元)', value: '6.28', href: 'node.html' },
+          { icon: 'fa-triangle-exclamation', label: '超期未解付', value: 3, href: 'node.html' }
+        ] },
+      { type: 'todos', title: '我的待办', summary: '按紧急程度排序', weather: false, more: '查看全部', moreHref: 'node.html',
+        items: [
+          { tag: '人工划付', c: 'blue', text: '城中·荣和公园里 3-1-502　已过户 6 天未解付，托管 128.00 万元', time: '剩 6h', href: 'transfer.html' },
+          { tag: '人工划付', c: 'blue', text: '鱼峰·桂中海讯 5-1201　已过户 4 天未解付，托管 96.00 万元', time: '剩 1天', href: 'transfer.html' },
+          { tag: '超期解付', c: 'red', text: '柳州银行营业部 7 月 30 日日终对账存在 2 笔差异待处理', time: '已超期', over: true, href: 'settle.html' },
+          { tag: '退款审批', c: 'purple', text: '柳江·龙城之星 6-903　约定首付到账日已过 2 天，资金未入账', time: '剩 4h', href: 'refund.html' }
+        ] }
+    ] },
+
+    { type: 'note', warn: true, text: '过户—解付联动是本系统的核心闸口，双向都要盯： 未过户不得解付，防止卖方拿了钱不配合过户； 已过户须在 3 个工作日内解付，防止买方钱已付、房已过，卖方却迟迟拿不到钱。 平台收到不动产登记的过户完成回传后自动触发划付指令，只有带押过户代偿、司法冻结等特殊情形才走人工审批。' },
+
+    { type: 'kpis', cols: 5, items: [
+      { icon: 'fa-file-signature', c: 'blue', label: '在托管交易', value: '486,286', sub: '本月新增 128 笔', href: 'escrow.html' },
+      { icon: 'fa-wallet', c: 'cyan', label: '在托资金(万元)', value: '426,835', sub: '笔均 129.3 万元', href: 'node.html' },
+      { icon: 'fa-clipboard-check', c: 'orange', label: '待我审批', value: 9, sub: '2 件今日到期', trend: 'warn', href: 'transfer.html' },
+      { icon: 'fa-triangle-exclamation', c: 'red', label: '已过户超期未解付', value: 3, sub: '最长超期 6 天', trend: 'down', href: 'node.html' },
+      { icon: 'fa-circle-check', c: 'green', label: '本月已解付(万元)', value: 12, sub: '平均托管 3 天', trend: 'up', href: 'transfer.html' }
+    ] },
+
+    { type: 'quick', title: '快速入口', sub: '存量房资金监管全流程', rows: [[
+      { label: '监管协议台账', icon: 'fa-file-signature', href: 'escrow.html' },
+      { label: '资金节点监控', icon: 'fa-arrows-left-right', href: 'node.html' },
+      { label: '资金划转退划', icon: 'fa-money-bill-transfer', href: 'transfer.html' },
+      { label: '退款申请审批', icon: 'fa-rotate-left', href: 'refund.html' },
+      { label: '账户与子账号', icon: 'fa-building-columns', href: 'account.html' },
+      { label: '结算对账记录', icon: 'fa-scale-balanced', href: 'settle.html' },
+      { label: '协议模版管理', icon: 'fa-file-lines', href: 'template.html' },
+      { label: '模块导航', icon: 'fa-table-cells-large', href: '../index.html' }
+    ]] },
+
+    { type: 'card', title: '托管生命周期分布', sub: '486 笔在托交易当前所处环节', html: lifeHtml },
+
+    { type: 'row', cols: [
+      { type: 'bar', title: '近 6 月入账与解付对比', unit: '单位：亿元 · 双柱对照', series: ['资金入账', '过户解付'],
+        data: [['3月', 32, 28], ['4月', 32, 28], ['5月', 32, 28], ['6月', 32, 28], ['7月', 32, 28], ['8月', 32, 28]],
+        note: '8 月入账加快、解付略缓，在托规模升至 6.28 亿元；解付滞后主因是过户回传集中在月末。' },
+      { type: 'card', title: '托管资金结构', meta: '在托 6.28 亿元构成', more: '去处置', moreHref: 'transfer.html', html: donutHtml }
+    ] },
+
+    { type: 'row', cols: [
+      { type: 'card', title: '各城区托管规模与覆盖率', meta: '在托金额（亿元）· 覆盖率见右侧', html: distHtml,
+        note: '市区五区占全市在监资金 95.8%；五县项目体量小但缴存率偏低，已纳入监测督办。' },
+      { type: 'card', title: '托管笔数与周期走势', meta: '近 12 个月', html: lineHtml,
+        note: '在托笔数升至 486 笔的同时，平均托管周期由 27 天压至 21 天，过户—解付联动见效。' }
+    ] }
+  ] });
+})();
+</script>
 </body>
 </html>

@@ -1023,7 +1023,8 @@
           "wszjjg-02", "wszjjg-03", "wszjjg-04", "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14",
           "wszjjg-15", "wszjjg-31", "wszjjg-32"
         , "wschcg-02", "wschcg-06", "wschcg-10", "wschcg-24", "wsszjjg-28", "wschcg-27", "wsszjjg-29", "wschcg-28", "wsszjjg-30", "wsszjjg-35",
-          "wspt-02", "wspt-03", "wspt-09", "wspt-10", "wspt-11"],
+          "wspt-02", "wspt-03", "wspt-09", "wspt-10", "wspt-11",
+          "wsbzf-01", "wsbzf-07", "wsbzf-08", "wsbzf-09"],
         reviewer: [
           "wsbiz-01", "wsbiz-02", "wsbiz-03", "wsbiz-04", "wsbiz-16", "wsbiz-19", "wsbiz-20", "wsswb-01",
           "wsswb-02", "wsswb-03", "wsswb-04", "wsswb-05", "wsswb-06", "wsswb-07", "wsswb-08", "wsswb-09",
@@ -1058,7 +1059,8 @@
           "wswxzj-33", "wszjjg-02", "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14", "wszjjg-15",
           "wszjjg-31", "wszjjg-32"
         , "wschcg-24", "wschcg-25", "wsszjjg-25", "wsszjjg-26", "wsszjjg-28", "wschcg-27", "wsszjjg-29", "wschcg-28", "wsszjjg-30", "wsszjjg-35",
-          "wspt-06", "wspt-07", "wspt-08", "wspt-09", "wspt-10", "wspt-11"],
+          "wspt-06", "wspt-07", "wspt-08", "wspt-09", "wspt-10", "wspt-11",
+          "wsbzf-01", "wsbzf-07", "wsbzf-08", "wsbzf-09", "wsbzf-10", "wsbzf-11", "wsbzf-21", "wsbzf-22", "wsbzf-23"],
         manager: [
           "wsbiz-10", "wsbiz-11", "wsbiz-15", "wsbiz-16", "wsbiz-17", "wsbiz-18", "wsbiz-19", "wsbiz-20",
           "wsswb-01", "wsswb-02", "wsswb-03", "wsswb-04", "wsswb-05", "wsswb-06", "wsswb-09", "wsswb-11",
@@ -1082,7 +1084,8 @@
           "wszjjg-04", "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14", "wszjjg-15", "wszjjg-31",
           "wszjjg-32"
         , "wschcg-24", "wschcg-25", "wschcg-26", "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-05", "wschcg-09", "wschcg-12", "wschcg-17", "wschcg-18", "wschcg-19", "wschcg-20", "wschcg-23", "wschcg-27", "wsszjjg-29", "wschcg-28", "wsszjjg-30", "wsszjjg-35",
-          "wspt-02", "wspt-03", "wspt-04", "wspt-05", "wspt-06", "wspt-07", "wspt-08", "wspt-09", "wspt-10", "wspt-11", "wspt-12", "wspt-14", "wspt-15", "wspt-16"],
+          "wspt-02", "wspt-03", "wspt-04", "wspt-05", "wspt-06", "wspt-07", "wspt-08", "wspt-09", "wspt-10", "wspt-11", "wspt-12", "wspt-14", "wspt-15", "wspt-16",
+          "wsbzf-01", "wsbzf-02", "wsbzf-03", "wsbzf-04", "wsbzf-05", "wsbzf-06", "wsbzf-07", "wsbzf-08", "wsbzf-09", "wsbzf-10", "wsbzf-11", "wsbzf-12", "wsbzf-13", "wsbzf-14", "wsbzf-15", "wsbzf-16", "wsbzf-17", "wsbzf-18", "wsbzf-19", "wsbzf-20", "wsbzf-21", "wsbzf-22", "wsbzf-23", "wsbzf-24", "wsbzf-25", "wsbzf-26", "wsbzf-27", "wsbzf-28", "wsbzf-29", "wsbzf-30", "wsbzf-31"],
         leader: [
           "wsbiz-17", "wsbiz-18", "wsswb-01", "wscwb-01", "wszwb-01", "wsdwb-01", "wschcg-01", "wsdagl-01",
           "wsztxy-01", "wsztxy-15", "wsztxy-17", "wsztxy-27", "wsztxy-20", "wsszjjg-01", "wszjjg-01", "wswxzj-01",
@@ -1100,7 +1103,8 @@
           "wszjjg-04", "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14", "wszjjg-15", "wszjjg-31",
           "wszjjg-32"
         , "wschcg-26", "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-27", "wsszjjg-29", "wschcg-28", "wsszjjg-30", "wsszjjg-35",
-          "wspt-02", "wspt-09", "wspt-10", "wspt-11", "wspt-12"],
+          "wspt-02", "wspt-09", "wspt-10", "wspt-11", "wspt-12",
+          "wsbzf-01", "wsbzf-03", "wsbzf-10", "wsbzf-22", "wsbzf-24", "wsbzf-25", "wsbzf-28", "wsbzf-30", "wsbzf-31"],
         admin: [
           "wsbiz-05", "wsbiz-10", "wsbiz-11", "wsbiz-13", "wsbiz-20", "wsswb-01", "wscwb-01", "wszwb-01",
           "wsdwb-01", "wschcg-01", "wschcg-02", "wschcg-05", "wsdagl-01", "wsztxy-01", "wsztxy-25", "wsztxy-26", "wsztxy-27", "wsztxy-20",
@@ -1125,7 +1129,8 @@
           "wswxzj-22", "wswxzj-31", "wswxzj-32", "wswxzj-33", "wszjjg-02", "wszjjg-03", "wszjjg-04",
           "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14", "wszjjg-15", "wszjjg-31", "wszjjg-32"
         , "wschcg-24", "wschcg-25", "wschcg-26", "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-27", "wsszjjg-29", "wschcg-28", "wsszjjg-30", "wsszjjg-35",
-          "wspt-18", "wspt-19", "wspt-20", "wspt-21", "wspt-22", "wspt-23", "wspt-24"],
+          "wspt-18", "wspt-19", "wspt-20", "wspt-21", "wspt-22", "wspt-23", "wspt-24",
+          "wsbzf-01", "wsbzf-26", "wsbzf-27"],
         ops: [
           "wsswb-01", "wscwb-01", "wszwb-01", "wsdwb-01", "wschcg-01", "wsdagl-01", "wsdagl-02", "wsztxy-01",
           "wsszjjg-01", "wszjjg-01", "wswxzj-01", "wsjcfx-02", "wsjcfx-03", "wsjcfx-04", "wsjcfx-05",
@@ -1142,7 +1147,8 @@
           "wszjjg-02", "wszjjg-03", "wszjjg-04", "wszjjg-11", "wszjjg-12", "wszjjg-13", "wszjjg-14",
           "wszjjg-15", "wszjjg-31", "wszjjg-32"
         , "wsszjjg-25", "wsszjjg-26", "wsszjjg-27", "wsszjjg-28", "wschcg-27", "wsszjjg-29", "wschcg-28", "wsszjjg-30", "wsszjjg-35",
-          "wspt-05", "wspt-12"]
+          "wspt-05", "wspt-12",
+          "wsbzf-01", "wsbzf-26", "wsbzf-27"]
       },
       dict: {
         said: [
