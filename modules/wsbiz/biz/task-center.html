@@ -3,85 +3,63 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>统一待办中心 · 统一工作门户</title>
+<title>我的待办 · 统一工作门户</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <link rel="stylesheet" href="../assets/css/app.css">
-<script>try{if(window.self!==window.top)document.documentElement.classList.add('pt-embed');}catch(e){document.documentElement.classList.add('pt-embed');}</script>
+<style>
+  /* 系统页签：设计稿为 20px 文字一行排开，当前项蓝色加下划线 */
+  .sys-tabs { display: flex; gap: 28px; padding: 6px 4px 0; border-bottom: 1px solid var(--border); overflow-x: auto; white-space: nowrap; }
+  .sys-tabs span { padding: 8px 0 12px; font-size: 16px; color: var(--text-2); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .sys-tabs span.on { color: var(--primary); font-weight: 600; border-bottom-color: var(--primary); }
+  .tc-tools { display: flex; align-items: center; gap: 10px; padding: 14px 0 12px; }
+</style>
 </head>
-<!-- 不写 data-role：避免 app.js 注入模块侧栏，本页为全屏独立门户风格 -->
-<body class="pt-body">
-
-<!-- 顶部导航：与门户首页一致 -->
-<header class="pt-nav">
-  <div class="pt-brand">
-    <div class="logo"><i class="fa-solid fa-city"></i></div>
-    <div class="name">华信房产交易中心<small>一网通办 · 统一工作门户</small></div>
+<body data-role="biz" data-active="task-center">
+<script>
+  /* 侧栏「我的待办 / 紧急待办 / 我的发起 / 我的已办」四项共用本页：按 ?tab= 决定高亮的菜单 key（须在 app.js 之前执行） */
+  (function () {
+    var t = ''; try { t = new URLSearchParams(location.search).get('tab') || ''; } catch (e) {}
+    var key = { urgent: 'task-urgent', start: 'task-start', done: 'task-done' }[t] || 'task-center';
+    var lb = { urgent: '紧急待办', start: '我的发起', done: '我的已办' }[t] || '我的待办';
+    document.body.setAttribute('data-active', key);
+    document.title = lb + ' · 统一工作门户';
+    window.__TC_LABEL = lb;
+  })();
+</script>
+<main class="app-main">
+  <div class="page-head">
+    <div class="breadcrumb"><i class="fa-solid fa-house"></i><a href="workbench.html">待办任务</a><span class="sep">/</span><span id="crumbCur">我的待办</span></div>
+    <script>document.getElementById('crumbCur').textContent = window.__TC_LABEL || '我的待办';</script>
   </div>
-  <nav class="pt-nav-menu">
-    <a class="pt-nav-link active" href="task-center.html?role=biz"><i class="fa-solid fa-gauge-high"></i> 工作台</a>
-    <a class="pt-nav-link" href="portal-home.html?role=biz"><i class="fa-solid fa-globe"></i> 一网通办</a>
-    <a class="pt-nav-link" href="shell.html?role=biz&amp;page=guide.html"><i class="fa-solid fa-book"></i> 业务指引</a>
-    <a class="pt-nav-link" href="shell.html?role=biz&amp;page=case-ledger.html"><i class="fa-solid fa-chart-column"></i> 办件台账</a>
-  </nav>
-  <div class="pt-nav-right">
-    <a class="pt-ico" href="shell.html?role=biz&amp;page=news.html" title="消息"><i class="fa-solid fa-bell"></i><span class="dot" id="navDot" style="display:none">0</span></a>
-    <a class="pt-ico" href="shell.html?role=biz&amp;page=guide.html" title="帮助"><i class="fa-solid fa-circle-question"></i></a>
-    <div class="pt-user">
-      <div class="avatar">韦</div>
-      <div><div class="u-name">韦晓明</div><div class="u-role">综合受理科 · 业务审核员</div></div>
+
+  <div class="card list-card">
+    <!-- 筛选行 -->
+    <div class="filter-bar">
+      <div class="filter-item"><label>关键词</label><input type="text" id="fKw" placeholder="收件编号 / 事项 / 申请人" oninput="repaint()"></div>
+      <div class="filter-item" data-only="todo urgent"><label>任务类型</label><select id="fRwlx" data-dict="rwlx" onchange="repaint()"></select></div>
+      <div class="filter-item"><label>属地</label><select id="fSaid" data-dict="said" onchange="repaint()"></select></div>
+      <button class="btn btn-primary" onclick="repaint()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
+      <button class="btn" onclick="resetFilter()">重置</button>
     </div>
-    <a class="pt-ico" href="../../../index.html" title="返回原型导航 / 退出"><i class="fa-solid fa-right-from-bracket"></i></a>
+
+    <!-- 系统页签 -->
+    <div class="sys-tabs" id="sysTabs"></div>
+
+    <!-- 批量操作 -->
+    <div class="tc-tools" data-only="todo urgent">
+      <button class="btn btn-primary" onclick="openAssign()"><i class="fa-solid fa-user-plus"></i> 指定分派</button>
+      <button class="btn" onclick="openBatch('reject')"><i class="fa-solid fa-rotate-left"></i> 批量退回</button>
+      <button class="btn" onclick="openBatch('pass')"><i class="fa-solid fa-check"></i> 批量通过</button>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="tbTask" data-static>
+        <thead><tr id="tbHead"></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </div>
-</header>
-
-<div class="pt-wrap" style="padding-top:24px">
-
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
-    <div style="font-size:22px;font-weight:800;color:var(--text-1)">统一待办中心</div>
-    <span class="text-3" style="font-size:13px">全平台待办任务跨系统聚合，办理审核相关业务</span>
-  </div>
-
-  <!-- 四个页签 -->
-  <div class="pt-tabs">
-    <div class="pt-tab active" data-tab="todo" onclick="setTab('todo')"><i class="fa-solid fa-clipboard-list"></i> 我的待办 <span class="cnt" id="cTodo">0</span></div>
-    <div class="pt-tab urgent" data-tab="urgent" onclick="setTab('urgent')"><i class="fa-solid fa-bolt"></i> 紧急待办 <span class="cnt" id="cUrgent">0</span></div>
-    <div class="pt-tab" data-tab="start" onclick="setTab('start')"><i class="fa-solid fa-paper-plane"></i> 我的发起 <span class="cnt" id="cStart">0</span></div>
-    <div class="pt-tab" data-tab="done" onclick="setTab('done')"><i class="fa-solid fa-circle-check"></i> 我的已办 <span class="cnt" id="cDone">0</span></div>
-  </div>
-
-  <div class="pt-todo-layout">
-
-    <!-- 左侧：系统 → 业务分类 两级树 -->
-    <aside class="pt-tree">
-      <div class="pt-tree-head"><span class="bar"></span>系统 / 业务分类</div>
-      <div class="pt-tree-body" id="treeBody"></div>
-    </aside>
-
-    <!-- 右侧：列表 -->
-    <main class="pt-todo-main">
-      <div class="pt-panel" data-tabs-scope>
-        <div class="pt-scope-tip" id="scopeTip"><i class="fa-solid fa-filter"></i> <span>当前范围：<b id="scopeName">全部系统</b></span></div>
-        <div class="filter-bar">
-          <div class="filter-item"><label>关键词</label><input type="text" id="fKw" placeholder="收件编号 / 事项 / 申请人" oninput="repaint()"></div>
-          <div class="filter-item" data-only="todo urgent"><label>任务类型</label><select id="fRwlx" data-dict="rwlx" onchange="repaint()"></select></div>
-          <div class="filter-item"><label>属地</label><select id="fSaid" data-dict="said" onchange="repaint()"></select></div>
-          <button class="btn btn-primary" onclick="repaint()"><i class="fa-solid fa-magnifying-glass"></i> 查询</button>
-          <button class="btn" onclick="resetFilter()">重置</button>
-          <span class="spacer" style="flex:1"></span>
-          <button class="btn" data-only="todo urgent" onclick="openBatch('pass')"><i class="fa-solid fa-check"></i> 批量通过</button>
-          <button class="btn" data-only="todo urgent" onclick="openBatch('reject')"><i class="fa-solid fa-rotate-left"></i> 批量退回</button>
-          <button class="btn btn-primary" data-only="todo urgent" onclick="openAssign()"><i class="fa-solid fa-user-plus"></i> 指定分派</button>
-        </div>
-        <div class="table-wrap">
-          <table class="data-table" id="tbTask" data-static>
-            <thead><tr id="tbHead"></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-    </main>
-  </div>
-</div>
+</main>
 
 <!-- 指定分派 -->
 <div class="drawer-mask"></div>
@@ -211,58 +189,29 @@
     });
   }
 
-  /* ---------- 左侧树渲染（数量随页签联动） ---------- */
+  /* ---------- 顶部系统页签（设计稿：全部（N）｜商品房与项目监管系统（n）｜…），数量随页签联动 ---------- */
   function renderTree() {
     var base = rawRows();
     var byCat = {};
     base.forEach(function (r) { var y = ywdlmOf(r); byCat[y] = (byCat[y] || 0) + 1; });
-
-    var html = '<div class="all' + (!selSys && !selCat ? ' active' : '') + '" onclick="pickAll2()">' +
-      '<i class="fa-solid fa-border-all" style="width:18px;text-align:center"></i><span>全部系统</span>' +
-      '<span class="n">' + base.length + '</span></div>';
-
+    var html = '<span class="' + (!selSys ? 'on' : '') + '" onclick="pickSys(\'\')">全部（' + base.length + '）</span>';
     SYS_GROUPS.forEach(function (s) {
-      var total = 0, cats = [];
-      s.cats.forEach(function (code) {
-        var n = byCat[code] || 0;
-        total += n;
-        cats.push({ code: code, n: n });
-      });
-      if (!total) return;   /* 当前页签下该系统无数据则不显示 */
-      var sysOn = selSys === s.key && !selCat;
-      var open = (selSys === s.key) || cats.some(function (c) { return c.code === selCat; });
-      html += '<div class="pt-sys' + (open ? ' open' : '') + '">' +
-        '<div class="pt-sys-head' + (sysOn ? ' active' : '') + '" onclick="pickSys(\'' + s.key + '\')">' +
-          '<span class="s-ico"><i class="fa-solid ' + s.icon + '"></i></span>' +
-          '<span class="s-name">' + s.name + '</span>' +
-          '<span class="n">' + total + '</span>' +
-          '<i class="fa-solid fa-angle-right caret"></i>' +
-        '</div>' +
-        '<div class="pt-sys-subs">' + cats.filter(function (c) { return c.n; }).map(function (c) {
-          var on = selCat === c.code;
-          return '<div class="pt-cat-node' + (on ? ' active' : '') + '" onclick="event.stopPropagation();pickCat(\'' + c.code + '\')">' +
-            '<span>' + FLOW.dict('ywdlm', c.code) + '</span><span class="n">' + c.n + '</span></div>';
-        }).join('') + '</div>' +
-      '</div>';
+      var total = 0;
+      s.cats.forEach(function (code) { total += byCat[code] || 0; });
+      if (!total) return;
+      html += '<span class="' + (selSys === s.key ? 'on' : '') + '" onclick="pickSys(\'' + s.key + '\')">' + s.name + '（' + total + '）</span>';
     });
-    document.getElementById('treeBody').innerHTML = html;
-
-    var nm = '全部系统';
-    if (selCat) nm = FLOW.dict('ywdlm', selCat);
-    else if (selSys) { var s2 = sysByKey(selSys); nm = s2 ? s2.name : '全部系统'; }
-    document.getElementById('scopeName').textContent = nm;
+    document.getElementById('sysTabs').innerHTML = html;
   }
-  window.pickAll2 = function () { selSys = ''; selCat = ''; renderTree(); repaint(); };
-  window.pickSys = function (k) {
-    if (selSys === k && !selCat) { selSys = ''; }   /* 再点收起 */
-    else { selSys = k; selCat = ''; }
-    renderTree(); repaint();
-  };
+  window.pickSys = function (k) { selSys = k; selCat = ''; renderTree(); repaint(); };
   window.pickCat = function (code) { selCat = code; selSys = catToSys(code).key; renderTree(); repaint(); };
 
   /* ---------- 页签切换 ---------- */
   window.setTab = function (t) {
     tab = t;
+    var lb = (TAB_META[t] || TAB_META.todo).label;
+    document.title = lb + ' · 统一工作门户';
+    var crumb = document.getElementById('crumbCur'); if (crumb) crumb.textContent = lb;
     document.querySelectorAll('.pt-tabs .pt-tab').forEach(function (el) {
       el.classList.toggle('active', el.getAttribute('data-tab') === t);
     });
@@ -290,10 +239,8 @@
       var r = FLOW.remain(FLOW.caseOf(t));
       return t.jjcd === '2' || r.level === 'orange' || r.level === 'red';
     }).length;
-    document.getElementById('cTodo').textContent = FLOW.myTasks().length;
-    document.getElementById('cUrgent').textContent = urg;
-    document.getElementById('cStart').textContent = FLOW.myCases().length;
-    document.getElementById('cDone').textContent = FLOW.myDone().length;
+    var set = function (id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+    set('cTodo', FLOW.myTasks().length); set('cUrgent', urg); set('cStart', FLOW.myCases().length); set('cDone', FLOW.myDone().length);
     var dot = document.getElementById('navDot');
     if (dot) { var n = FLOW.stat('unread'); dot.textContent = n; dot.style.display = n ? '' : 'none'; }
   }

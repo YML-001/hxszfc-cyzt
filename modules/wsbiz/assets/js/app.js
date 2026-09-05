@@ -38,8 +38,11 @@
       { key: 'portal-home', label: '一网通办门户', icon: 'fa-globe', href: 'portal-home.html' },
       { key: 'workbench', label: '我的工作台', icon: 'fa-house', href: 'workbench.html' },
       { label: '待办任务', icon: 'fa-clipboard-check', children: [
+        { key: 'task-center', label: '我的待办', href: 'task-center.html' },
+        { key: 'task-urgent', label: '紧急待办', href: 'task-center.html?tab=urgent' },
+        { key: 'task-start', label: '我的发起', href: 'task-center.html?tab=start' },
+        { key: 'task-done', label: '我的已办', href: 'task-center.html?tab=done' },
         { key: 'my-approval', label: '待我审批', href: 'my-approval.html' },
-        { key: 'task-center', label: '待办中心', href: 'task-center.html' },
         { key: 'my-board', label: '办件看板', href: 'my-board.html' }
       ]},
       { label: '收件受理', icon: 'fa-inbox', children: [
@@ -180,9 +183,11 @@
   /* ------- 侧边栏菜单 HTML（按角色过滤、按当前页高亮、链接带 role） ------- */
   function buildMenu(active, file, role) {
     var q = role ? ('?role=' + role) : '';
+    var withQ = function (h) { return q ? h + (h.indexOf('?') >= 0 ? '&' : '?') + 'role=' + role : h; };
     var allow = ROLE_MENU[role];
     var ok = function (key) { return !allow || !key || allow.indexOf(key) >= 0; };
-    var isOn = function (it) { return (it.key && it.key === active) || it.href === file; };
+    /* 同一文件多个入口（如 task-center.html?tab=）：有 key 时只认 key，避免四项同时高亮 */
+    var isOn = function (it) { return it.key ? it.key === active : it.href === file; };
     var html = '';
     MENU.forEach(function (it) {
       if (it.children) {
@@ -193,12 +198,12 @@
         html += '  <div class="menu-link"><i class="m-icon fa-solid ' + it.icon + '"></i><span>' + it.label + '</span><i class="m-arrow fa-solid fa-chevron-right"></i></div>';
         html += '  <div class="menu-sub">';
         kids.forEach(function (c) {
-          html += '<a href="' + c.href + q + '" class="' + (isOn(c) ? 'active' : '') + '">' + c.label + '</a>';
+          html += '<a href="' + withQ(c.href) + '" class="' + (isOn(c) ? 'active' : '') + '">' + c.label + '</a>';
         });
         html += '  </div></div>';
       } else {
         if (!ok(it.key)) return;
-        html += '<a href="' + it.href + q + '" class="menu-single' + (isOn(it) ? ' active' : '') + '"><i class="m-icon fa-solid ' + it.icon + '"></i><span>' + it.label + '</span></a>';
+        html += '<a href="' + withQ(it.href) + '" class="menu-single' + (isOn(it) ? ' active' : '') + '"><i class="m-icon fa-solid ' + it.icon + '"></i><span>' + it.label + '</span></a>';
       }
     });
     return html;
@@ -473,8 +478,16 @@
     var file = ((location.pathname.split('/').pop() || '').split('?')[0]) || '';
     var meta = ROLE_META[role];
 
+    var fullLayout = body.getAttribute('data-layout') === 'full';
+    if (fullLayout) body.classList.add('full-layout');
     if (isEmbedded()) {
       body.classList.add('embedded');
+    } else if (fullLayout) {
+      /* 门户 / 一网通办：全宽页，只有顶栏，不注入侧栏与页签条 */
+      var tb = document.createElement('header');
+      tb.className = 'app-topbar'; tb.innerHTML = topbarHTML(meta);
+      body.insertBefore(tb, body.firstChild);
+      initSysSwitch(tb);
     } else {
       var topbar = document.createElement('header');
       topbar.className = 'app-topbar';
@@ -554,10 +567,13 @@
     });
 
     frame.addEventListener('load', function () {
-      var file = '';
-      try { file = (frame.contentWindow.location.pathname.split('/').pop() || '').split('?')[0]; } catch (e) {}
+      var file = '', ftab = '';
+      try { file = (frame.contentWindow.location.pathname.split('/').pop() || '').split('?')[0]; ftab = tabOf(frame.contentWindow.location.search); } catch (e) {}
+      var full = false;
+      try { full = frame.contentDocument.body.getAttribute('data-layout') === 'full'; } catch (e) {}
+      document.body.classList.toggle('full-layout', full);
       if (file) {
-        highlightMenu(sidebar, file);
+        highlightMenu(sidebar, file, ftab);
         markTopNav(topbar, file);
         try { history.replaceState(null, '', 'shell.html?role=' + role + '&page=' + file); } catch (e) {}
         var tl = '';
@@ -568,7 +584,7 @@
 
     var page = null;
     try { page = new URLSearchParams(location.search).get('page'); } catch (e) {}
-    page = page || 'dashboard.html';
+    page = page || 'portal.html';   /* 设计稿：进入统一工作门户先到「门户」 */
     loadPage(page + (page.indexOf('?') >= 0 ? '&' : '?') + 'role=' + role);
   }
 
@@ -584,17 +600,21 @@
     }
   }
 
-  function highlightMenu(sidebar, file) {
+  function tabOf(href) { var m = /[?&]tab=([^&]+)/.exec(href || ''); return m ? m[1] : ''; }
+  function highlightMenu(sidebar, file, curTab) {
+    curTab = curTab || '';
     sidebar.querySelectorAll('.menu-single.active, .menu-sub a.active').forEach(function (a) { a.classList.remove('active'); });
     sidebar.querySelectorAll('.menu-item.open').forEach(function (g) { g.classList.remove('open'); });
-    sidebar.querySelectorAll('.menu-single').forEach(function (a) {
-      if ((a.getAttribute('href') || '').split('?')[0] === file) a.classList.add('active');
+    var same = Array.prototype.filter.call(sidebar.querySelectorAll('.menu-single, .menu-sub a'), function (a) {
+      return (a.getAttribute('href') || '').split('?')[0] === file;
     });
-    sidebar.querySelectorAll('.menu-sub a').forEach(function (a) {
-      if ((a.getAttribute('href') || '').split('?')[0] === file) {
-        a.classList.add('active');
-        var g = a.closest('.menu-item'); if (g) g.classList.add('open');
-      }
+    /* 同一文件多个入口：优先 tab 参数一致的那个，否则取无 tab 参数的 */
+    var pick = same.filter(function (a) { return tabOf(a.getAttribute('href')) === curTab; });
+    if (!pick.length) pick = same.filter(function (a) { return !tabOf(a.getAttribute('href')); });
+    if (!pick.length) pick = same.slice(0, 1);
+    pick.forEach(function (a) {
+      a.classList.add('active');
+      var g = a.closest('.menu-item'); if (g) g.classList.add('open');
     });
   }
 
