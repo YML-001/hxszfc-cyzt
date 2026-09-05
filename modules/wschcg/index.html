@@ -6,474 +6,76 @@
 <title>我的工作台 · 房屋交易面积信息管理系统</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <link rel="stylesheet" href="../../assets/css/app.css">
-<style>
-  /* 本页特有：面积速查条、待办分组、机构排行、双色柱状图、面积差异速览 */
-  .lookup {
-    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 45%, #0e7490 100%);
-    border-radius: var(--radius-lg); padding: 20px 24px; color: #fff; margin-bottom: 12px;
-    box-shadow: 0 6px 20px rgba(29, 78, 216, .22);
-  }
-  .lookup .lk-t { font-size: 17px; font-weight: 700; display: flex; align-items: center; gap: 9px; }
-  .lookup .lk-s { font-size: 13px; opacity: .86; margin-top: 5px; }
-  .lookup .lk-box { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
-  .lookup .lk-box input {
-    flex: 1; min-width: 320px; height: 42px; border: 0; border-radius: var(--radius);
-    padding: 0 16px; font-size: 14.5px; background: rgba(255, 255, 255, .96);
-  }
-  .lookup .lk-box .btn { height: 42px; padding: 0 26px; font-size: 15px; border: 0; }
-  .lookup .lk-recent { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; font-size: 12.5px; }
-  .lookup .lk-recent .rc-label { opacity: .8; }
-  .lookup .lk-recent a {
-    color: #fff; text-decoration: none; background: rgba(255, 255, 255, .16);
-    border-radius: 20px; padding: 3px 12px; display: inline-flex; align-items: center; gap: 6px; transition: .15s;
-  }
-  .lookup .lk-recent a:hover { background: rgba(255, 255, 255, .3); }
-
-  .stat-grid.g6 { grid-template-columns: repeat(6, 1fr); }
-  @media (max-width: 1400px) { .stat-grid.g6 { grid-template-columns: repeat(3, 1fr); } }
-  @media (max-width: 900px) { .stat-grid.g6 { grid-template-columns: repeat(2, 1fr); } }
-
-  .td-grp { border-bottom: 1px solid var(--row-line); padding: 10px 0; }
-  .td-grp:last-child { border-bottom: 0; }
-  .td-grp .tg-head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-  .td-grp .tg-head .tg-n { margin-left: auto; color: var(--text-3); font-weight: 400; font-size: 12.5px; }
-  .td-grp .tg-item {
-    display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px;
-    font-size: 13px; color: var(--text-2); text-decoration: none; transition: background .12s;
-  }
-  .td-grp .tg-item:hover { background: var(--primary-light); }
-  .td-grp .tg-item .ti-txt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .td-grp .tg-item .ti-time { font-size: 12px; color: var(--text-3); flex-shrink: 0; }
-  .td-grp .tg-item .ti-time.warn { color: #b45309; font-weight: 600; }
-  .td-grp .tg-item .ti-time.bad { color: var(--danger); font-weight: 600; }
-
-  .rank-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 13px; }
-  .rank-row .rk-name { width: 92px; flex-shrink: 0; }
-  .rank-row .rk-bar { flex: 1; }
-  .rank-row .rk-bar .progress { display: block; }
-  .rank-row .rk-val { width: 52px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .rank-row .rk-lv { width: 34px; flex-shrink: 0; text-align: center; }
-
-  /* 双色柱状图：报送量 vs 入库量 */
-  .bc2 { display: flex; align-items: flex-end; gap: 18px; height: 188px; padding: 6px 0 0; }
-  .bc2 .g { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 7px; }
-  .bc2 .pair { display: flex; align-items: flex-end; gap: 5px; height: 100%; width: 100%; justify-content: center; }
-  .bc2 .b { width: 20px; border-radius: 5px 5px 0 0; position: relative; transition: height .4s; }
-  .bc2 .b.s { background: linear-gradient(180deg, #2563eb 0%, #60a5fa 100%); }
-  .bc2 .b.r { background: linear-gradient(180deg, #059669 0%, #34d399 100%); }
-  .bc2 .b.cur { opacity: .62; }
-  .bc2 .b em { position: absolute; top: -17px; left: 50%; transform: translateX(-50%); font-size: 11.5px; font-style: normal; color: var(--text-2); font-weight: 600; }
-  .bc2 .gl { font-size: 12px; color: var(--text-3); }
-  .bc-legend { display: flex; gap: 16px; font-size: 12.5px; color: var(--text-3); }
-  .bc-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 5px; }
-
-  /* 面积差异速览 */
-  .dv-top {
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 11px 14px;
-  }
-  .dv-top .dv-p { font-size: 14px; font-weight: 700; }
-  .dv-top .dv-s { font-size: 12.5px; color: var(--text-3); margin-top: 2px; }
-  .dv-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
-  .dv-cell { border: 1px solid var(--border); border-radius: var(--radius); padding: 9px 11px; }
-  .dv-cell .v { font-size: 19px; font-weight: 700; line-height: 1.25; font-variant-numeric: tabular-nums; }
-  .dv-cell .l { font-size: 12px; color: var(--text-3); margin-top: 2px; }
-  .dv-cell.bad { border-color: #fca5a5; background: #fef2f2; }
-  .dv-cell.bad .v { color: var(--danger); }
-  .dv-dir { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; font-size: 12.5px; }
-  .dv-dir span { border-radius: 20px; padding: 3px 12px; background: var(--bg-2); }
-  .amt { font-variant-numeric: tabular-nums; }
-</style>
+<link rel="stylesheet" href="../../assets/css/wb.css">
 </head>
 <body data-role="reviewer" data-active="wschcg-01">
 <main class="app-main">
-
-  <div class="page-head">
-    <div class="ph-l">
-      <div class="breadcrumb">
-        <i class="fa-solid fa-house bc-home"></i> 房屋交易面积信息管理系统
-        <span class="sep">/</span> <span class="cur">我的工作台</span>
-      </div>
-      <div class="page-title">我的工作台</div>
-    </div>
-    <div class="page-actions">
-      <select style="width:140px" onchange="PMS.toast('已切换统计口径：' + this.value)">
-        <option>全市</option><option>城中区</option><option>鱼峰区</option>
-        <option>柳南区</option><option>柳北区</option><option>柳江区</option>
-      </select>
-      <button type="button" class="btn" onclick="PMS.toast('《2026 年 7 月测绘成果与面积管理月报》已生成，正在下载','success')">
-        <i class="fa-solid fa-file-excel"></i> 本月报表
-      </button>
-    </div>
-  </div>
-
-  <div class="lookup">
-    <div class="lk-t"><i class="fa-solid fa-ruler-combined"></i> 面积成果速查</div>
-    <div class="lk-s">输入不动产单元号 / 房号，直接查这套房当前生效的建筑面积、套内面积、分摊系数是哪一版成果算出来的。面积是计价、计税、发证的唯一依据。</div>
-    <div class="lk-box">
-      <input type="text" id="lkInput" placeholder="如 450204001008GB00312F00010015 · 荣和公园大道二期 8-1-1502"
-             onkeydown="if(event.key==='Enter') doLookup()">
-      <button type="button" class="btn btn-primary" onclick="doLookup()"><i class="fa-solid fa-magnifying-glass"></i> 查询面积成果</button>
-    </div>
-    <div class="lk-recent">
-      <span class="rc-label">最近查询</span>
-      <a href="drawing-viewer.html">荣和公园大道二期 8-1-1502</a>
-      <a href="area-compare.html">荣和公园大道二期 8-2-1806</a>
-      <a href="area-diff.html">荣和公园大道二期 8-3-902</a>
-      <a href="result-detail.html">CG450200202600186 V2.0</a>
-    </div>
-  </div>
-
-  <div class="home-hero">
-    <div class="hero-l">
-      <div class="hero-greet">下午好，韦国强</div>
-      <div class="hero-sub">XXXX市房产交易所 · 综合业务岗　|　房屋交易面积信息管理系统</div>
-      <div class="hero-date"><i class="fa-regular fa-calendar"></i> 2026 年 8 月 1 日 · 星期六</div>
-    </div>
-    <div class="hero-r">
-      <div class="hs"><div class="hs-v">106</div><div class="hs-l">我的待办（件）</div></div>
-      <div class="hs-div"></div>
-      <div class="hs"><div class="hs-v">126</div><div class="hs-l">本月入库（幢）</div></div>
-      <div class="hs-div"></div>
-      <div class="hs"><div class="hs-v">8,462</div><div class="hs-l">本月入库（户）</div></div>
-    </div>
-  </div>
-
-  <div class="stat-grid g6">
-    <div class="stat-card" onclick="location.href='result-list.html'" style="cursor:pointer">
-      <div class="s-icon orange"><i class="fa-solid fa-inbox"></i></div>
-      <div>
-        <div class="s-label">待质检成果</div>
-        <div class="s-value">14 包</div>
-        <div class="s-trend text-3">涉及 42 幢</div>
-      </div>
-    </div>
-    <div class="stat-card" onclick="location.href='result-check.html'" style="cursor:pointer">
-      <div class="s-icon green"><i class="fa-solid fa-circle-check"></i></div>
-      <div>
-        <div class="s-label">质检通过率</div>
-        <div class="s-value">86.4%</div>
-        <div class="s-trend text-success">较上月 +3.2%</div>
-      </div>
-    </div>
-    <div class="stat-card" onclick="location.href='result-load.html'" style="cursor:pointer">
-      <div class="s-icon blue"><i class="fa-solid fa-database"></i></div>
-      <div>
-        <div class="s-label">待入库成果</div>
-        <div class="s-value">8 包</div>
-        <div class="s-trend text-3">其中 2 包待审批</div>
-      </div>
-    </div>
-    <div class="stat-card" onclick="location.href='result-list.html'" style="cursor:pointer">
-      <div class="s-icon cyan"><i class="fa-solid fa-building"></i></div>
-      <div>
-        <div class="s-label">本月入库</div>
-        <div class="s-value">126 幢</div>
-        <div class="s-trend text-3">8,462 户 · 96.8 万 ㎡</div>
-      </div>
-    </div>
-    <div class="stat-card" onclick="location.href='area-compare.html'" style="cursor:pointer">
-      <div class="s-icon red"><i class="fa-solid fa-scale-unbalanced"></i></div>
-      <div>
-        <div class="s-label">待处理面积差异</div>
-        <div class="s-value">186 户</div>
-        <div class="s-trend text-danger">超 3% 阈值 23 户</div>
-      </div>
-    </div>
-    <div class="stat-card" onclick="location.href='area-diff.html'" style="cursor:pointer">
-      <div class="s-icon purple"><i class="fa-solid fa-hand-holding-dollar"></i></div>
-      <div>
-        <div class="s-label">找补待确认</div>
-        <div class="s-value">42 笔</div>
-        <div class="s-trend text-3">涉及金额 128.6 万元</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="alert alert-info">
-    <i class="fa-solid fa-shield-halved"></i>
-    <div><b>面积数据底座与质量闸门</b>：所有房源的建筑面积、套内面积、分摊面积都要先过 <b>12 项自动质检</b> 才能进入楼盘表，才能被网签、计税、登记引用。质检不通过的成果一律不入库，永远污染不了正式数据。</div>
-  </div>
-
-  <div class="grid-2">
-    <div class="card home-panel">
-      <div class="card-head">
-        <h3>我的待办</h3>
-        <span class="sub">共 106 件 · 临期 18 件 · 超期 2 件</span>
-        <a class="home-more" href="result-list.html">查看全部 <i class="fa-solid fa-angle-right"></i></a>
-      </div>
-      <div class="card-body" style="padding-top:6px">
-        <div class="td-grp">
-          <div class="tg-head"><span class="badge orange">待质检成果包</span><span class="tg-n">14 条</span></div>
-          <a class="tg-item" href="result-check.html">
-            <span class="ti-txt">CG450200202600186 · 荣和公园大道二期 8 栋 · 实测成果 V2.0 · XXXX市测绘院</span>
-            <span class="ti-time">昨日报送</span>
-          </a>
-          <a class="tg-item" href="result-check.html">
-            <span class="ti-txt">CG450200202600188 · 彰泰滨江学府 6 栋 · 预测成果 V1.0 · 广西华测</span>
-            <span class="ti-time">今日 08:26</span>
-          </a>
-        </div>
-        <div class="td-grp">
-          <div class="tg-head"><span class="badge red">质检不通过待整改</span><span class="tg-n">6 条</span></div>
-          <a class="tg-item" href="result-check.html">
-            <span class="ti-txt">CG450200202600174 · 彰泰滨江学府 3 栋 · <b>致命：房号重复</b> · 已退回柳州建元</span>
-            <span class="ti-time bad">超期 1 天</span>
-          </a>
-          <a class="tg-item" href="result-check.html">
-            <span class="ti-txt">CG450200202600168 · 万科城 12 栋 · 严重：户面积平衡 3 户不符</span>
-            <span class="ti-time warn">剩 1 天</span>
-          </a>
-        </div>
-        <div class="td-grp">
-          <div class="tg-head"><span class="badge cyan">待复核质检结果</span><span class="tg-n">9 条</span></div>
-          <a class="tg-item" href="result-check.html">
-            <span class="ti-txt">CG450200202600180 · 万科城 5 栋 · 2 项警告待确认（规划许可偏差 +0.72%）</span>
-            <span class="ti-time">剩 2 天</span>
-          </a>
-        </div>
-        <div class="td-grp">
-          <div class="tg-head"><span class="badge blue">待审批入库</span><span class="tg-n">2 条</span></div>
-          <a class="tg-item" href="result-load.html">
-            <span class="ti-txt">RK20260801012 · 荣和公园大道二期 8 栋 · 覆盖更新 96 户 · 涉及已签约 68 户</span>
-            <span class="ti-time warn">剩 6 小时</span>
-          </a>
-        </div>
-        <div class="td-grp">
-          <div class="tg-head"><span class="badge purple">待确认房号匹配差异</span><span class="tg-n">3 条</span></div>
-          <a class="tg-item" href="room-match.html">
-            <span class="ti-txt">荣和公园大道二期 8 栋 · 新增 2 个房号、缺失 1 个（缺失房号已签约）</span>
-            <span class="ti-time warn">阻断入库</span>
-          </a>
-        </div>
-        <div class="td-grp">
-          <div class="tg-head"><span class="badge green">待办理面积核验</span><span class="tg-n">11 条</span></div>
-          <a class="tg-item" href="area-verify.html">
-            <span class="ti-txt">HY20260801008 · 荣和公园大道二期 8 栋 · 竣工实测核验 · 柳州荣和地产</span>
-            <span class="ti-time">剩 3 天</span>
-          </a>
-          <a class="tg-item" href="area-verify.html">
-            <span class="ti-txt">HY20260731026 · 恒大城 5 栋 · 预售面积核验 · 涉及 128 户</span>
-            <span class="ti-time">剩 2 天</span>
-          </a>
-        </div>
-        <div class="td-grp">
-          <div class="tg-head"><span class="badge orange">待处理面积差异</span><span class="tg-n">23 条</span></div>
-          <a class="tg-item" href="area-diff.html">
-            <span class="ti-txt">8-2-1806 · 预测 96.20 → 实测 100.15 ㎡ · 差异 <b>+4.11% 超 3% 阈值</b></span>
-            <span class="ti-time warn">待处理</span>
-          </a>
-          <a class="tg-item" href="area-diff.html?room=8-3-902">
-            <span class="ti-txt">8-3-902 · 预测 142.30 → 实测 135.68 ㎡ · 差异 <b>−4.65%</b> · 购房人要求退房</span>
-            <span class="ti-time bad">争议</span>
-          </a>
-        </div>
-        <div class="td-grp">
-          <div class="tg-head"><span class="badge blue">找补待双方确认</span><span class="tg-n">42 条</span></div>
-          <a class="tg-item" href="area-diff.html">
-            <span class="ti-txt">8-1-1502 · 购房人补款 23,953.31 元 · 待购房人确认</span>
-            <span class="ti-time">剩 4 天</span>
-          </a>
-        </div>
-      </div>
-    </div>
-
-    <div class="card home-panel">
-      <div class="card-head">
-        <h3>成果质量看板</h3>
-        <span class="sub">本月质检 186 包 · 问题 268 项</span>
-        <a class="home-more" href="result-check.html">质检明细 <i class="fa-solid fa-angle-right"></i></a>
-      </div>
-      <div class="card-body">
-        <div class="section-title">质检问题类型分布</div>
-        <div class="flex items-center gap-16" style="flex-wrap:wrap">
-          <div class="donut" style="background:conic-gradient(#dc2626 0 28.6%, #f59e0b 28.6% 48.0%, #8b5cf6 48.0% 63.2%, #2563eb 63.2% 76.0%, #0891b2 76.0% 85.6%, #10b981 85.6% 93.8%, #64748b 93.8% 100%)">
-            <div class="donut-hole">
-              <div class="fw-700" style="font-size:22px">268</div>
-              <div class="text-3 text-sm">问题项</div>
-            </div>
-          </div>
-          <div class="legend" style="flex:1;min-width:210px">
-            <div class="lg-item"><span class="lg-color" style="background:#dc2626"></span> 户面积平衡 <b style="margin-left:auto">28.6%</b></div>
-            <div class="lg-item"><span class="lg-color" style="background:#f59e0b"></span> 分摊系数校验 <b style="margin-left:auto">19.4%</b></div>
-            <div class="lg-item"><span class="lg-color" style="background:#8b5cf6"></span> 层户对应完整性 <b style="margin-left:auto">15.2%</b></div>
-            <div class="lg-item"><span class="lg-color" style="background:#2563eb"></span> 图形文件完整性 <b style="margin-left:auto">12.8%</b></div>
-            <div class="lg-item"><span class="lg-color" style="background:#0891b2"></span> 房号唯一性 <b style="margin-left:auto">9.6%</b></div>
-            <div class="lg-item"><span class="lg-color" style="background:#10b981"></span> 与规划许可一致性 <b style="margin-left:auto">8.2%</b></div>
-            <div class="lg-item"><span class="lg-color" style="background:#64748b"></span> 其他 <b style="margin-left:auto">6.2%</b></div>
-          </div>
-        </div>
-
-        <div class="section-title mt-16" style="margin-top:18px">各测绘机构质检合格率</div>
-        <div class="rank-row">
-          <span class="rk-name">XXXX市测绘院</span>
-          <span class="rk-lv"><span class="badge green">甲级</span></span>
-          <span class="rk-bar"><span class="progress green"><span style="width:96%"></span></span></span>
-          <span class="rk-val">96.2%</span>
-        </div>
-        <div class="rank-row">
-          <span class="rk-name">广西华测</span>
-          <span class="rk-lv"><span class="badge blue">乙级</span></span>
-          <span class="rk-bar"><span class="progress green"><span style="width:92%"></span></span></span>
-          <span class="rk-val">91.8%</span>
-        </div>
-        <div class="rank-row">
-          <span class="rk-name">柳州建元</span>
-          <span class="rk-lv"><span class="badge blue">乙级</span></span>
-          <span class="rk-bar"><span class="progress"><span style="width:88%"></span></span></span>
-          <span class="rk-val">88.4%</span>
-        </div>
-        <div class="rank-row">
-          <span class="rk-name">南宁精测</span>
-          <span class="rk-lv"><span class="badge blue">乙级</span></span>
-          <span class="rk-bar"><span class="progress orange"><span style="width:83%"></span></span></span>
-          <span class="rk-val">82.6%</span>
-        </div>
-        <div class="rank-row">
-          <span class="rk-name">柳州恒信</span>
-          <span class="rk-lv"><span class="badge orange">丙级</span></span>
-          <span class="rk-bar"><span class="progress orange"><span style="width:76%"></span></span></span>
-          <span class="rk-val text-warning">76.3%</span>
-        </div>
-        <p class="text-3 text-sm mt-16">
-          <i class="fa-solid fa-circle-info"></i>
-          质检合格率与平均出成果时长同步回吐至从业主体与信用监管系统（wsztxy），作为测绘机构信用评价依据。
-        </p>
-      </div>
-    </div>
-  </div>
-
-  <div class="grid-2">
-    <div class="card">
-      <div class="card-head">
-        <h3>近 6 月成果报送与入库量</h3>
-        <span class="sub">单位：包　8 月为当月进行中</span>
-        <div class="head-actions">
-          <span class="bc-legend"><span><i style="background:#2563eb"></i>报送量</span><span><i style="background:#059669"></i>入库量</span></span>
-        </div>
-      </div>
-      <div class="card-body">
-        <div class="bc2">
-          <div class="g">
-            <div class="pair">
-              <div class="b s" style="height:62%"><em>32</em></div>
-              <div class="b r" style="height:54%"><em>28</em></div>
-            </div>
-            <span class="gl">3 月</span>
-          </div>
-          <div class="g">
-            <div class="pair">
-              <div class="b s" style="height:79%"><em>41</em></div>
-              <div class="b r" style="height:69%"><em>36</em></div>
-            </div>
-            <span class="gl">4 月</span>
-          </div>
-          <div class="g">
-            <div class="pair">
-              <div class="b s" style="height:73%"><em>38</em></div>
-              <div class="b r" style="height:67%"><em>35</em></div>
-            </div>
-            <span class="gl">5 月</span>
-          </div>
-          <div class="g">
-            <div class="pair">
-              <div class="b s" style="height:88%"><em>46</em></div>
-              <div class="b r" style="height:81%"><em>42</em></div>
-            </div>
-            <span class="gl">6 月</span>
-          </div>
-          <div class="g">
-            <div class="pair">
-              <div class="b s" style="height:100%"><em>52</em></div>
-              <div class="b r" style="height:92%"><em>48</em></div>
-            </div>
-            <span class="gl">7 月</span>
-          </div>
-          <div class="g">
-            <div class="pair">
-              <div class="b s cur" style="height:27%"><em>14</em></div>
-              <div class="b r cur" style="height:15%"><em>8</em></div>
-            </div>
-            <span class="gl">8 月</span>
-          </div>
-        </div>
-        <p class="text-3 text-sm mt-16">
-          <i class="fa-solid fa-circle-info"></i>
-          报送与入库的差额即当期被质检拦截或仍在整改的成果包，7 月报送 52 包、入库 48 包，4 包因严重与致命问题退回重报。
-        </p>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-head">
-        <h3>面积差异速览</h3>
-        <span class="sub">当前在办项目</span>
-        <a class="home-more" href="area-compare.html">查看逐户比对 <i class="fa-solid fa-angle-right"></i></a>
-      </div>
-      <div class="card-body">
-        <div class="dv-top">
-          <div>
-            <div class="dv-p">荣和公园大道二期 8 栋</div>
-            <div class="dv-s">预测 CG450200202500862 V1.0 → 实测 CG450200202600186 V2.0 · 2026-07-22 测绘</div>
-          </div>
-          <span class="badge green">已比对完成</span>
-        </div>
-        <div class="dv-grid">
-          <div class="dv-cell"><div class="v">96</div><div class="l">涉及户数</div></div>
-          <div class="dv-cell"><div class="v">96</div><div class="l">已比对户数</div></div>
-          <div class="dv-cell bad"><div class="v">5</div><div class="l">超 3% 阈值</div></div>
-          <div class="dv-cell"><div class="v amt" style="font-size:16px">186,420.60</div><div class="l">待找补金额（元）</div></div>
-        </div>
-        <div class="dv-dir">
-          <span><b>购房人补款</b> 68 户</span>
-          <span><b>开发企业退款</b> 23 户</span>
-          <span><b>无需结算</b> 5 户</span>
-        </div>
-
-        <div class="section-title mt-16" style="margin-top:16px">总面积对照</div>
-        <table class="data-table compact" data-static>
-          <thead><tr><th>项目</th><th class="text-right">预测（V1.0）</th><th class="text-right">实测（V2.0）</th><th class="text-right">差值</th><th class="text-right">差异比例</th></tr></thead>
-          <tbody>
-            <tr>
-              <td>总建筑面积</td>
-              <td class="text-right amt">28,600.00 <span class="text-3 text-sm">㎡</span></td>
-              <td class="text-right amt">28,842.60 <span class="text-3 text-sm">㎡</span></td>
-              <td class="text-right amt text-warning">+242.60</td>
-              <td class="text-right amt text-warning">+0.85%</td>
-            </tr>
-            <tr>
-              <td>总套内面积</td>
-              <td class="text-right amt">22,243.82 <span class="text-3 text-sm">㎡</span></td>
-              <td class="text-right amt">22,486.42 <span class="text-3 text-sm">㎡</span></td>
-              <td class="text-right amt text-warning">+242.60</td>
-              <td class="text-right amt text-warning">+1.09%</td>
-            </tr>
-            <tr>
-              <td>总分摊面积</td>
-              <td class="text-right amt">6,356.18 <span class="text-3 text-sm">㎡</span></td>
-              <td class="text-right amt">6,356.18 <span class="text-3 text-sm">㎡</span></td>
-              <td class="text-right amt text-3">0.00</td>
-              <td class="text-right amt text-3">0.00%</td>
-            </tr>
-          </tbody>
-        </table>
-        <p class="text-3 text-sm mt-16">
-          <i class="fa-solid fa-circle-info"></i>
-          实测成果入库生效后自动触发全项目逐户比对，不需人工发起；净找补金额 <b class="text-warning">+123,574.40 元</b>（购房人补款合计 − 企业退款合计）。
-        </p>
-      </div>
-    </div>
-  </div>
-
+  <div id="wb-root"></div>
 </main>
+
 <script src="../../assets/js/app.js"></script>
+<script src="../../assets/js/wb.js"></script>
 <script>
-function doLookup() {
-  var v = (document.getElementById('lkInput').value || '').trim();
-  if (!v) { PMS.toast('请输入不动产单元号或房号', 'warning'); return; }
-  PMS.toast('查询成功：建筑面积 120.86 ㎡ / 套内 93.62 ㎡ / 分摊系数 0.2270（依据 CG450200202600186 V2.0）', 'success');
-  setTimeout(function () { location.href = 'result-detail.html'; }, 900);
-}
+/* 内容按 Figma「房屋交易面积信息管理系统」工作台逐项还原 */
+WB.render({ blocks: [
+  { type: 'hero', icon: 'fa-ruler-combined', title: '面积成果速查',
+    sub: '输入不动产单元号 / 房号，直接查这套房当前生效的建筑面积、套内面积、分摊系数是哪一版成果算出来的。面积是计价、计税、发证的唯一依据。',
+    placeholder: '如 450204001008GB00312F00010015 · 荣和公园大道二期 8-1-1502', btn: '查询面积成果',
+    chips: ['彰泰滨江学府 12-2-1802', '万科城 5-2-803', '荣和公园大道', '保利柳江府 5-2-1201'] },
+
+  { type: 'row', ratio: '1fr 1.35fr', cols: [
+    { type: 'greet', compact: true, dateInline: true, name: '韦国强', org: 'XXXX市房产交易所 · 综合业务岗', sys: '房屋交易面积信息管理系统',
+      date: '2026 年 7 月 31 日 · 星期五',
+      tiles: [
+        { icon: 'fa-inbox', label: '我的待办(件)', value: 106, href: 'result-check.html' },
+        { icon: 'fa-building', label: '本月入库(幢)', value: 126, href: 'result-load.html' },
+        { icon: 'fa-house-user', label: '本月入库(户)', value: '8,462', href: 'result-load.html' }
+      ] },
+    { type: 'todos', title: '待办事项', summary: '共 106 件 · 临期 18 件 · 超期 2 件', weather: false, more: '查看全部', moreHref: 'result-check.html',
+      mode: 'cards',
+      tabs: [['全部', 106], ['待质检', 2], ['质检不通过待整改', 2], ['质检通过待入库', 2], ['本月入库生效', 2], ['多版本幢数', 2]],
+      items: [
+        { tag: '待质检成果包', c: 'blue', time: '昨日报送', no: 'CG450200202600186', text: '荣和公园大道二期 8 栋 · 实测成果 V2.0 · XXXX市测绘院', href: 'result-check.html' },
+        { tag: '质检不通过待整改', c: 'red', time: '超期 1 天', over: true, no: 'CG450200202600186', text: '彰泰滨江学府 3 栋 · 致命：房号重复 · 已退回柳州建元', href: 'result-check.html' },
+        { tag: '待复核质检结果', c: 'orange', time: '剩 2 天', no: 'CG450200202600186', text: '万科城 5 栋 · 2 项警告待确认（规划许可偏差 +0.72%）', href: 'result-check.html' }
+      ] }
+  ] },
+
+  { type: 'kpis', cols: 6, items: [
+    { icon: 'fa-box-open', c: 'blue', label: '待质检成果', value: 14, unit: '包', sub: '涉及 42 幢', href: 'result-check.html' },
+    { icon: 'fa-circle-check', c: 'green', label: '质检通过率', value: '86.4%', sub: '较上月 +3.2%', trend: 'up' },
+    { icon: 'fa-database', c: 'purple', label: '待入库成果', value: 8, unit: '包', sub: '其中 2 包待审批', href: 'result-load.html' },
+    { icon: 'fa-building-circle-check', c: 'cyan', label: '本月入库', value: 126, unit: '幢', sub: '8,462 户 · 96.8 万 ㎡' },
+    { icon: 'fa-scale-unbalanced', c: 'orange', label: '待处理面积差异', value: 186, unit: '户', sub: '超 3% 阈值 23 户', trend: 'warn', href: 'area-diff.html' },
+    { icon: 'fa-coins', c: 'red', label: '找补待确认', value: 42, unit: '笔', sub: '涉及金额 128.6 万元', href: 'area-diff.html' }
+  ] },
+
+  { type: 'note', warn: true, text: '面积数据底座与质量闸门：所有房源的建筑面积、套内面积、分摊面积都要先过 12 项自动质检才能进入楼盘表，才能被网签、计税、登记引用。质检不通过的成果一律不入库，永远污染不了正式数据。' },
+
+  { type: 'row', cols: [
+    { type: 'donut', title: '租赁房屋类型构成', meta: '累计有效备案 86,215 套', subTitle: '质检问题类型分布', center: '268', centerLabel: '问题项',
+      parts: [['户面积平衡', 63, '#df2026'], ['与规划许可一致性', 19, '#f59e0b'], ['分摊系数校验', 44, '#2656bb'], ['层户对应完整性', 64, '#67c23a'], ['房号唯一性', 38, '#0891b2'], ['图形文件完整性', 25, '#7c3aed'], ['其他', 15, '#c0c4cc']],
+      side: { title: '各测绘机构质检合格率', suffix: '%', data: [['XXXX市测绘院', 19, '甲级'], ['广西华测', 25, '乙级'], ['柳州建元', 7, '乙级'], ['南宁精测', 97, '乙级'], ['柳州恒信', 31, '丙级']] },
+      note: '质检合格率与平均出成果时长同步回吐至从业主体与信用监管系统（wsztxy），作为测绘机构信用评价依据。' },
+    { type: 'card', title: '面积差异速览', meta: '当前在办项目', more: '查看逐户比对', moreHref: 'area-compare.html',
+      html:
+        '<div class="wb-proj"><div class="p-h"><i class="fa-solid fa-building" style="color:#2556ba"></i><span class="name">荣和公园大道二期 8 栋</span><span class="ok"><i class="fa-solid fa-circle-check"></i> 已比对完成</span></div>' +
+        '<div class="p-meta">预测 CG450200202500862 V1.0 → 实测 CG450200202600186 V2.0 · 2026-07-22 测绘</div>' +
+        '<div class="p-nums"><div><div class="l">涉及户数</div><div class="v">96</div></div><div><div class="l">已比对户数</div><div class="v">96</div></div>' +
+        '<div><div class="l">超 3% 阈值</div><div class="v red">5</div></div><div><div class="l">待找补金额（元）</div><div class="v">186,420.60</div></div></div>' +
+        '<div class="p-foot"><span>购房人补款 <b>68</b> 户</span><span>开发企业退款 <b>23</b> 户</span><span>无需结算 <b>5</b> 户</span></div></div>' +
+        '<div class="wb-sub-t" style="margin-top:16px">总面积对照</div>' +
+        '<table class="wb-table"><thead><tr><th>项目</th><th>预测（V1.0）</th><th>实测（V2.0）</th><th>差值</th><th>差异比例</th></tr></thead><tbody>' +
+        '<tr><td class="first">总建筑面积</td><td>28,600.00 ㎡</td><td>28,842.60 ㎡</td><td class="up">+242.60</td><td class="up">+0.85%</td></tr>' +
+        '<tr><td class="first">总套内面积</td><td>22,244.00 ㎡</td><td>22,486.42 ㎡</td><td class="up">+242.60</td><td class="up">+1.09%</td></tr>' +
+        '<tr><td class="first">总分摊面积</td><td>6,356.18 ㎡</td><td>6,356.18 ㎡</td><td class="muted">0.00</td><td class="muted">0.00%</td></tr></tbody></table>',
+      note: '实测成果入库生效后自动触发全项目逐户比对，不需人工发起；净找补金额 +123,574.40 元（购房人补款合计 − 企业退款合计）。' }
+  ] },
+
+  { type: 'bar', title: '近 6 月成果报送与入库量', unit: '单位：包　8 月为当月进行中', series: ['报送量', '入库量'], moreHref: 'result-import.html',
+    data: [['3月', 32, 28], ['4月', 200, 150], ['5月', 96, 78], ['6月', 150, 128], ['7月', 200, 180], ['8月', 128, 96]],
+    note: '报送与入库的差额即当期被质检拦截或仍在整改的成果包，7 月报送 52 包、入库 48 包，4 包因严重与致命问题退回重报。' }
+] });
 </script>
 </body>
 </html>

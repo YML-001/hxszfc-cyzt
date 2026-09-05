@@ -14,6 +14,7 @@
   var APP_CONFIG = {
     /* 顶栏平台名与其他系统一致（如房地产市场监管监测系统），子系统名放在右侧胶囊 */
     sysName: '华信数智房产交易一体化平台',
+    endName: '数智大脑',
     portalHref: '../../../index.html',
     defaultRole: 'pt',
 
@@ -298,17 +299,66 @@
   function topbarHTML(meta) {
     return '<div class="brand">' +
         '<i class="sidebar-toggle fa-solid fa-bars"></i>' +
-        '<div class="logo"><img src="' + SHARED_ASSET + 'img/logo.png" alt="XXXX市住房和城乡建设局"></div>' +
-        '<div class="name">' + SYS_NAME + '</div>' +
+        '<div class="logo"><img src="' + SHARED_ASSET + 'img/v2/emblem.png" alt="' + SYS_NAME + '"></div>' +
+        '<div class="name-wrap"><div class="name">' + SYS_NAME + '</div>' +
+          (APP_CONFIG.endName ? '<div class="sub-badge">' + APP_CONFIG.endName + '</div>' : '') + '</div>' +
       '</div>' + sysCapsuleHTML() +
       '<div class="topbar-right">' +
         '<div class="topbar-icon" title="消息"><i class="fa-solid fa-bell"></i><span class="dot">5</span></div>' +
         '<div class="topbar-icon" title="帮助"><i class="fa-solid fa-circle-question"></i></div>' +
         '<div class="user"><div class="avatar">' + meta.user.charAt(0) + '</div>' +
           '<div class="u-meta"><div class="u-name">' + meta.user + '</div><div class="u-role">' + meta.role + '</div></div>' +
-          '<i class="fa-solid fa-angle-down" style="font-size:12px;opacity:.8"></i></div>' +
+          '<i class="u-caret fa-solid fa-angle-down"></i></div>' +
         '<a href="' + (APP_CONFIG.portalHref || ROOT_BASE + 'index.html') + '" class="topbar-icon" title="返回门户/退出"><i class="fa-solid fa-right-from-bracket"></i></a>' +
       '</div>';
+  }
+
+  /* ---------- 设计稿 v2：页签条 / 版权条 / 收起导航（与主平台 app.js 同实现） ---------- */
+  function tabsKey(mode) { return 'pms.tabs.' + mode + '.wsai'; }
+  function loadTabs(mode) { try { return JSON.parse(sessionStorage.getItem(tabsKey(mode)) || '[]'); } catch (e) { return []; } }
+  function saveTabs(mode, t) { try { sessionStorage.setItem(tabsKey(mode), JSON.stringify(t.slice(-7))); } catch (e) {} }
+  function pushTab(mode, label, href) {
+    if (!label || !href) return loadTabs(mode);
+    var t = loadTabs(mode).filter(function (x) { return x.href !== href; });
+    t.push({ label: label, href: href }); saveTabs(mode, t); return t;
+  }
+  function pageTabsHTML(tabs, cur) {
+    return tabs.map(function (t) {
+      return '<div class="pt' + (t.href === cur ? ' active' : '') + '" data-href="' + t.href + '"><span>' + t.label + '</span><i class="x fa-solid fa-xmark" title="关闭"></i></div>';
+    }).join('');
+  }
+  function mountPageTabs(mode, label, cur, onOpen) {
+    var bar = document.querySelector('.page-tabs');
+    if (!bar) {
+      bar = document.createElement('nav'); bar.className = 'page-tabs';
+      document.body.insertBefore(bar, document.body.firstChild);
+      bar.addEventListener('click', function (e) {
+        var pt = e.target.closest('.pt'); if (!pt) return;
+        var href = pt.getAttribute('data-href');
+        if (e.target.closest('.x')) {
+          var rest = loadTabs(mode).filter(function (x) { return x.href !== href; });
+          saveTabs(mode, rest);
+          if (pt.classList.contains('active')) { var nx = rest[rest.length - 1]; if (nx) onOpen(nx.href); else bar.innerHTML = ''; }
+          else pt.remove();
+          return;
+        }
+        if (!pt.classList.contains('active')) onOpen(href);
+      });
+    }
+    bar.innerHTML = pageTabsHTML(pushTab(mode, label, cur), cur);
+    return bar;
+  }
+  function footHTML() {
+    return '<footer class="app-foot"><span class="ft-brand"><img src="' + SHARED_ASSET + 'img/v2/emblem.png" alt="">' + SYS_NAME + '</span>' +
+      '<span class="ft-sep"></span><span>技术支持：湖南华信软件股份有限公司</span><span class="ft-sep"></span><span>Copyright © 2018-2026</span></footer>';
+  }
+  function mountSideCollapse(sidebar) {
+    var btn = document.createElement('div'); btn.className = 'menu-collapse';
+    btn.innerHTML = '<i class="fa-solid fa-angles-left"></i><span>收起导航</span>'; sidebar.appendChild(btn);
+    var ex = document.createElement('div'); ex.className = 'side-expand'; ex.title = '展开导航';
+    ex.innerHTML = '<i class="fa-solid fa-angles-right"></i>'; document.body.appendChild(ex);
+    btn.addEventListener('click', function () { document.body.classList.add('side-collapsed'); });
+    ex.addEventListener('click', function () { document.body.classList.remove('side-collapsed'); });
   }
 
   function sidebarHTML(active, file, role) {
@@ -530,7 +580,13 @@
       initSysSwitch(topbar);
       initMenuSearch(sidebar);
       ensureSingleActive(sidebar, file);
+      mountSideCollapse(sidebar);
+      var actA = sidebar.querySelector('.menu-sub a.active, .menu-single.active');
+      var tabLabel = actA ? actA.textContent.trim() : (document.title.split(' · ')[0] || '当前页');
+      mountPageTabs('page', tabLabel, file, function (href) { location.href = href; });
     }
+    var mainEl = document.querySelector('main.app-main');
+    if (mainEl && !document.querySelector('.app-foot')) mainEl.insertAdjacentHTML('afterend', footHTML());
     renderHome(role, meta);
     applyRolePerms(role);
     mergeActionsIntoFilter();
@@ -576,6 +632,7 @@
     });
     initSysSwitch(topbar);
     initMenuSearch(sidebar);
+    mountSideCollapse(sidebar);
     injectAssistant();
 
     frame.addEventListener('load', function () {
@@ -584,6 +641,8 @@
       if (file) {
         highlightMenu(sidebar, file);
         try { history.replaceState(null, '', 'shell.html?role=' + role + '&page=' + file); } catch (e) {}
+        var tl = ''; try { tl = (frame.contentDocument.title || '').split(' · ')[0]; } catch (e) {}
+        if (tl) mountPageTabs('shell', tl, file, function (href) { loadPage(href + '?role=' + role); });
       }
     });
 
